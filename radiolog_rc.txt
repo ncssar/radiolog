@@ -1,0 +1,12 @@
+[RadioLog]
+lastFileName=New Incident_2015_04_27_201522.csv
+font-size=14pt
+x=747
+y=229
+w=1136
+h=790
+clueLog_x=47
+clueLog_y=368
+clueLog_w=1587
+clueLog_h=400
+cleanShutdown=True
