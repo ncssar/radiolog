@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'clueDialog.ui'
 #
-# Created: Fri Apr  3 20:35:06 2015
+# Created: Mon May 11 07:10:23 2015
 #      by: PyQt5 UI code generator 5.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -61,9 +61,17 @@ class Ui_clueDialog(object):
         self.label.setObjectName("label")
         self.instructionsField = QtWidgets.QLineEdit(clueDialog)
         self.instructionsField.setGeometry(QtCore.QRect(160, 290, 551, 40))
+        font = QtGui.QFont()
+        font.setFamily("Segoe UI")
+        font.setPointSize(16)
+        self.instructionsField.setFont(font)
         self.instructionsField.setObjectName("instructionsField")
         self.locationField = QtWidgets.QLineEdit(clueDialog)
         self.locationField.setGeometry(QtCore.QRect(160, 230, 551, 39))
+        font = QtGui.QFont()
+        font.setFamily("Segoe UI")
+        font.setPointSize(16)
+        self.locationField.setFont(font)
         self.locationField.setObjectName("locationField")
         self.label_2 = QtWidgets.QLabel(clueDialog)
         self.label_2.setGeometry(QtCore.QRect(270, 20, 191, 41))

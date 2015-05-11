@@ -149,6 +149,11 @@
 #  2-22-15     TMG       First version installed and working on NCSSAR Computer 2
 #  4-9-15      TMG       Feature-complete release candidate
 #  4-10-15     TMG       enable reading from a second com port (two radios)
+#  4-28-15     TMG       First release; initial commit to git
+#  5-11-15     TMG       fix bug 10: don't clear team timer unless the message
+#                         is 'FROM' with non-blank message text; change more
+#                         app-wide stylesheet font sizes in fontsChanged, and
+#                         change in children to override as needed
 #
 # #############################################################################
 # #############################################################################
@@ -194,18 +199,21 @@ from fdfgen import forge_fdf
 from FingerTabs import *
 
 statusStyleDict={}
-statusStyleDict["At IC"]="font-size:16px;background:#00ff00;border:1px outset black;padding-left:0px;padding-right:0px"
-statusStyleDict["In Transit"]="font-size:16px;background:blue;color:white;border:1px outset black;padding-left:0px;padding-right:0px"
-statusStyleDict["Working"]="font-size:16px;background:none;border:1px outset black;padding-left:0px;padding-right:0px"
+# even though tab labels are created with font-size:20px and the tab sizes and margins are created accordingly,
+#  something after creation time is changing font-sizes to a smaller size.  So, just
+#  hardcode them all here to force 20px always.
+statusStyleDict["At IC"]="font-size:18px;background:#00ff00;border:1px outset black;padding-left:0px;padding-right:0px"
+statusStyleDict["In Transit"]="font-size:18px;background:blue;color:white;border:1px outset black;padding-left:0px;padding-right:0px"
+statusStyleDict["Working"]="font-size:18px;background:none;border:1px outset black;padding-left:0px;padding-right:0px"
 # Waiting for Transport should still flash even if not timed out, but it doesn't
 #  prevent a timeout.  So, for this code, and alternating timer cycles (seconds):
 # cycle 1: style as in the following line
 # cycle 2: if not timed out, style as "" (blank); if timed out, style as timeout as expected
-statusStyleDict["Waiting for Transport"]="font-size:16px;background:blue;color:white;border:1px outset black;padding-left:0px;padding-right:0px"
-statusStyleDict["STANDBY"]="font-size:16px;background:black;color:white;border:1px outset black;padding-left:0px;padding-right:0px"
-statusStyleDict[""]="font-size:16px;background:none;padding-left:1px;padding-right:1px"
-statusStyleDict["TIMED_OUT_ORANGE"]="font-size:16px;background:orange;border:1px outset black;padding-left:0px;padding-right:0px"
-statusStyleDict["TIMED_OUT_RED"]="font-size:16px;background:red;border:1px outset black;padding-left:0px;padding-right:0px"
+statusStyleDict["Waiting for Transport"]="font-size:18px;background:blue;color:white;border:1px outset black;padding-left:0px;padding-right:0px"
+statusStyleDict["STANDBY"]="font-size:18px;background:black;color:white;border:1px outset black;padding-left:0px;padding-right:0px"
+statusStyleDict[""]="font-size:18px;background:none;padding-left:1px;padding-right:1px"
+statusStyleDict["TIMED_OUT_ORANGE"]="font-size:18px;background:orange;border:1px outset black;padding-left:0px;padding-right:0px"
+statusStyleDict["TIMED_OUT_RED"]="font-size:18px;background:red;border:1px outset black;padding-left:0px;padding-right:0px"
 
 timeoutDisplayList=[["10 sec",10]]
 for n in range (1,13):
@@ -359,9 +367,10 @@ def rotateCsvBackups(fileName):
 
 
 class MyWindow(QDialog,Ui_Dialog):
-	def __init__(self, *args):
-		QDialog.__init__(self, *args)
+	def __init__(self,parent):
+		QDialog.__init__(self)
 		self.setWindowFlags(self.windowFlags()|Qt.WindowMinMaxButtonsHint)
+		self.parent=parent
 		self.ui=Ui_Dialog()
 		self.ui.setupUi(self)
 		self.setAttribute(Qt.WA_DeleteOnClose)
@@ -500,16 +509,13 @@ class MyWindow(QDialog,Ui_Dialog):
 			QTabBar::tab:selected {
 				background:white;
 				border-bottom-color:white;
-				font-size:30px;
 			}
 			QTabBar::tab:!selected {
 				margin-top:3px;
-				font-size:20px;
 			}
 			QTabBar::tab:disabled {
 				width:80px;
 				color:black;
-				font-size:20px;
 				font-weight:bold;
 				background:transparent;
 				border:transparent;
@@ -1225,13 +1231,23 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def fontsChanged(self):
 		rprint("1 - begin fontsChanged")
+		# preserve the currently selected tab, since something in this function
+		#  causes the rightmost tab to be selected
+		i=self.ui.tabWidget.currentIndex()
 		self.ui.tableView.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		for n in self.ui.tableViewList[1:]:
 			rprint("n="+str(n))
 			n.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
+		# don't change tab font size unless you find a good way to dynamically
+		# change tab size and margins as well
+##		self.ui.tabWidget.tabBar().setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		rprint("2")
 		self.redrawTables()
+		self.ui.tabWidget.setCurrentIndex(i)
 		rprint("3 - end of fontsChanged")
+		# changin QLabel size application-wide is too impactful; investigate later
+		self.ui.incidentNameLabel.setStyleSheet("font-size:"+str(self.fontSize)+"pt;")
+		self.parent.setStyleSheet("QMessageBox,QPushButton,QMenu { font-size:"+str(self.fontSize)+"pt; }")
 
 	def redrawTables(self):
 		# column sizing rules, in sequence:
@@ -1715,9 +1731,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		sec=values[6] # epoch seconds of dialog open time, for sorting; not displayed
 		extTeamName=getExtTeamName(niceTeamName)
 		self.radioLog.append(values) # leave a blank entry at the end for aesthetics
-		self.newEntryProcessTeam(niceTeamName,status)
+		self.newEntryProcessTeam(niceTeamName,status,values[1],values[3])
 
-	def newEntryProcessTeam(self,niceTeamName,status):
+	def newEntryProcessTeam(self,niceTeamName,status,to_from,msg):
 		extTeamName=getExtTeamName(niceTeamName)
       # skip entries with no team like 'radio log begins', or multiple entries like 'all'
 		if niceTeamName!='' and not niceTeamName.lower()=="all" and not niceTeamName.lower().startswith("all"):
@@ -1728,8 +1744,13 @@ class MyWindow(QDialog,Ui_Dialog):
 			teamStatusDict[extTeamName]=status
 			# credit to Berryblue031 for pointing out this way to style the tab widgets
 			# http://www.qtcentre.org/threads/49025
+			# NOTE the following line causes font-size to go back to system default;
+			#  can't figure out why it doesn't inherit font-size from the existing
+			#  styleSheet; so, each statusStyleDict entry must contain font-size explicitly
 			self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
-			teamTimersDict[extTeamName]=0
+			# only reset the team timer if it is a 'FROM' message with non-blank message text
+			if to_from=="FROM" and msg != "":
+				teamTimersDict[extTeamName]=0
 			if status=="At IC":
 				teamTimersDict[extTeamName]=-1 # no more timeouts will show up
 		if not self.loadFlag:
@@ -1850,8 +1871,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tabWidget.insertTab(i,self.ui.tabList[i],'')
 		noSpaceNiceTeamName=niceTeamName.replace(' ','')
 		label=QLabel(" "+shortNiceTeamName+" ")
-		label.setStyleSheet("font-size:16px;border:1px outset black;qproperty-alignment:AlignCenter")
+		label.setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
 		self.ui.tabWidget.tabBar().setTabButton(i,QTabBar.LeftSide,label)
+		self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
 
 ##		deleteTeamTabAction=QAction("Delete Tab",None)
 ##		deleteTeamTabAction.triggered.connect(self.deletePrint)
@@ -1890,11 +1912,13 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def tabContextMenu(self,pos):
 		menu=QMenu()
+##		menu.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		i=self.ui.tabWidget.tabBar().tabAt(pos)
 		niceTeamName=getNiceTeamName(self.extTeamNameList[i])
 		if i>0:
 			newEntryFromAction=menu.addAction("New Entry FROM "+str(niceTeamName))
 			newEntryToAction=menu.addAction("New Entry TO "+str(niceTeamName))
+			menu.addSeparator()
 			deleteTeamTabAction=menu.addAction("Hide tab for "+str(niceTeamName))
 			action=menu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(pos))
 			if action==newEntryFromAction:
@@ -1958,6 +1982,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_optionsDialog()
 		self.ui.setupUi(self)
+		self.ui.buttonBox.setStyleSheet("font-size:16pt;")
 		self.ui.timeoutField.valueChanged.connect(self.displayTimeout)
 		self.displayTimeout()
 		self.setWindowFlags(Qt.WindowStaysOnTopHint)
@@ -1983,6 +2008,7 @@ class printDialog(QDialog,Ui_printDialog):
 		self.parent=parent
 		self.ui=Ui_printDialog()
 		self.ui.setupUi(self)
+		self.ui.buttonBox.setStyleSheet("font-size:16pt;")
 		self.ui.opPeriodComboBox.addItem("1")
 
 	def showEvent(self,event):
@@ -2095,7 +2121,6 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 			QTabBar::tab:disabled {
 				width:80px;
 				color:black;
-				font-size:16px;
 				font-weight:bold;
 				background:transparent;
 				border:transparent;
@@ -2285,7 +2310,9 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##	def __init__(self,parent,position,sec,formattedLocString='',fleet='',dev='',origLocString='',amendFlag=False,amendRow=None):
 	def __init__(self,parent,sec=0,formattedLocString='',fleet='',dev='',origLocString='',amendFlag=False,amendRow=None):
 		QDialog.__init__(self)
+
 		self.ui=Ui_newEntryWidget()
+
 		self.amendFlag=amendFlag
 		self.amendRow=amendRow
 ##		self.position=position # dialog x,y to show at
@@ -2302,6 +2329,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##		newEntryDialog.newEntryDialogUsedPositionList[self.position]=True
 		newEntryWidget.instances.append(self)
 		self.ui.setupUi(self)
+		self.setStyleSheet("QPushButton { font-size:9pt; }")
+		self.ui.buttonBox.setStyleSheet("font-size:12pt;")
 		self.setAttribute(Qt.WA_DeleteOnClose) # so that closeEvent gets called when closed by GUI
 		self.palette=QPalette()
 		self.setAutoFillBackground(True)
@@ -2484,9 +2513,6 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				super().keyPressEvent(event) # pass the event as normal
 		else:
 			super().keyPressEvent(event) # pass the event as normal
-
-	def flashBackground(self): # to indicate to the user that a different tab has been activated
-		self.setStyleSheet("background-color:blue")
 
 	def openChangeCallsignDialog(self):
 		self.changeCallsignDialog=changeCallsignDialog(self,self.ui.teamField.text(),self.fleet,self.dev)
@@ -2674,6 +2700,8 @@ class clueDialog(QDialog,Ui_clueDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_clueDialog()
 		self.ui.setupUi(self)
+		self.setStyleSheet("QPushButton { font-size:9pt; }")
+		self.ui.buttonBox.setStyleSheet("font-size:12pt;")
 		self.ui.timeField.setText(t)
 		self.ui.dateField.setText(time.strftime("%x"))
 		self.ui.callsignField.setText(callsign)
@@ -2793,6 +2821,7 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_nonRadioClueDialog()
 		self.ui.setupUi(self)
+		self.ui.buttonBox.setStyleSheet("font-size:16pt;")
 		self.ui.timeField.setText(t)
 		self.ui.dateField.setText(time.strftime("%x"))
 		self.ui.clueNumberField.setText(str(newClueNumber))
@@ -3143,7 +3172,7 @@ def main():
 	app = QApplication(sys.argv)
 	eFilter=customEventFilter()
 	app.installEventFilter(eFilter)
-	w = MyWindow()
+	w = MyWindow(app)
 	w.show()
 	sys.exit(app.exec_())
 
