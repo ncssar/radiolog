@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'changeCallsignDialog.ui'
 #
-# Created: Mon Mar 16 21:27:47 2015
+# Created: Thu Aug 20 16:59:03 2015
 #      by: PyQt5 UI code generator 5.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -13,6 +13,9 @@ class Ui_changeCallsignDialog(object):
     def setupUi(self, changeCallsignDialog):
         changeCallsignDialog.setObjectName("changeCallsignDialog")
         changeCallsignDialog.resize(542, 290)
+        font = QtGui.QFont()
+        font.setPointSize(8)
+        changeCallsignDialog.setFont(font)
         self.buttonBox = QtWidgets.QDialogButtonBox(changeCallsignDialog)
         self.buttonBox.setGeometry(QtCore.QRect(300, 220, 211, 61))
         font = QtGui.QFont()

@@ -1,12 +1,12 @@
 [RadioLog]
-lastFileName=New Incident_2015_04_27_201522.csv
-font-size=14pt
-x=747
-y=229
-w=1136
-h=790
-clueLog_x=47
-clueLog_y=368
-clueLog_w=1587
-clueLog_h=400
+lastFileName=Jackass Flat_2016_11_03_082725.csv
+font-size=10pt
+x=0
+y=28
+w=1600
+h=810
+clueLog_x=75
+clueLog_y=75
+clueLog_w=1500
+clueLog_h=756
 cleanShutdown=True

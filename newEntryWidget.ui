@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>886</width>
-    <height>355</height>
+    <width>952</width>
+    <height>481</height>
    </rect>
   </property>
   <property name="contextMenuPolicy">
@@ -22,9 +22,9 @@
   <widget class="QPushButton" name="quickTextButton3">
    <property name="geometry">
     <rect>
-     <x>440</x>
+     <x>630</x>
      <y>210</y>
-     <width>231</width>
+     <width>251</width>
      <height>31</height>
     </rect>
    </property>
@@ -47,9 +47,9 @@
   <widget class="QPushButton" name="quickTextButton6">
    <property name="geometry">
     <rect>
-     <x>210</x>
-     <y>260</y>
-     <width>211</width>
+     <x>360</x>
+     <y>310</y>
+     <width>231</width>
      <height>31</height>
     </rect>
    </property>
@@ -63,10 +63,10 @@
     <enum>Qt::NoFocus</enum>
    </property>
    <property name="text">
-    <string>WELFARE CHECK: OK  [F6]</string>
+    <string>WELFARE CHECK: OK  [F8]</string>
    </property>
    <property name="shortcut">
-    <string>F6</string>
+    <string>F8</string>
    </property>
    <property name="checkable">
     <bool>false</bool>
@@ -78,9 +78,9 @@
   <widget class="Line" name="line_3">
    <property name="geometry">
     <rect>
-     <x>100</x>
-     <y>240</y>
-     <width>681</width>
+     <x>110</x>
+     <y>290</y>
+     <width>731</width>
      <height>20</height>
     </rect>
    </property>
@@ -118,8 +118,8 @@
    </property>
    <property name="geometry">
     <rect>
-     <x>300</x>
-     <y>120</y>
+     <x>330</x>
+     <y>130</y>
      <width>251</width>
      <height>20</height>
     </rect>
@@ -137,29 +137,31 @@
     <set>Qt::AlignCenter</set>
    </property>
   </widget>
-  <widget class="QPushButton" name="quickTextButton8">
+  <widget class="QPushButton" name="quickTextButton9">
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>310</y>
-     <width>171</width>
-     <height>31</height>
+     <y>360</y>
+     <width>291</width>
+     <height>51</height>
     </rect>
    </property>
    <property name="font">
     <font>
      <family>Segoe UI</family>
-     <pointsize>9</pointsize>
+     <pointsize>13</pointsize>
+     <weight>75</weight>
+     <bold>true</bold>
     </font>
    </property>
    <property name="focusPolicy">
     <enum>Qt::NoFocus</enum>
    </property>
    <property name="text">
-    <string>LOCATED A CLUE  [F8]</string>
+    <string>LOCATED A CLUE  [F10]</string>
    </property>
    <property name="shortcut">
-    <string>F8</string>
+    <string>F10</string>
    </property>
   </widget>
   <widget class="QGroupBox" name="statusGroupBox">
@@ -168,7 +170,7 @@
    </property>
    <property name="geometry">
     <rect>
-     <x>560</x>
+     <x>610</x>
      <y>0</y>
      <width>311</width>
      <height>151</height>
@@ -337,8 +339,8 @@
   <widget class="QLabel" name="label_5">
    <property name="geometry">
     <rect>
-     <x>190</x>
-     <y>90</y>
+     <x>220</x>
+     <y>100</y>
      <width>101</width>
      <height>21</height>
     </rect>
@@ -359,8 +361,8 @@
   <widget class="QComboBox" name="to_fromField">
    <property name="geometry">
     <rect>
-     <x>18</x>
-     <y>9</y>
+     <x>50</x>
+     <y>10</y>
      <width>151</width>
      <height>61</height>
     </rect>
@@ -387,9 +389,9 @@
   <widget class="QPushButton" name="quickTextButton2">
    <property name="geometry">
     <rect>
-     <x>210</x>
+     <x>350</x>
      <y>210</y>
-     <width>211</width>
+     <width>251</width>
      <height>31</height>
     </rect>
    </property>
@@ -412,9 +414,9 @@
   <widget class="QPushButton" name="quickTextButton1">
    <property name="geometry">
     <rect>
-     <x>20</x>
+     <x>70</x>
      <y>210</y>
-     <width>171</width>
+     <width>251</width>
      <height>31</height>
     </rect>
    </property>
@@ -445,7 +447,7 @@
     <rect>
      <x>110</x>
      <y>160</y>
-     <width>761</width>
+     <width>821</width>
      <height>41</height>
     </rect>
    </property>
@@ -464,9 +466,9 @@
   <widget class="QPushButton" name="quickTextButton5">
    <property name="geometry">
     <rect>
-     <x>20</x>
-     <y>260</y>
-     <width>171</width>
+     <x>100</x>
+     <y>310</y>
+     <width>201</width>
      <height>31</height>
     </rect>
    </property>
@@ -480,43 +482,45 @@
     <enum>Qt::NoFocus</enum>
    </property>
    <property name="text">
-    <string>RADIO CHECK: OK  [F5]</string>
+    <string>RADIO CHECK: OK  [F7]</string>
    </property>
    <property name="shortcut">
-    <string>F5</string>
+    <string>F7</string>
    </property>
   </widget>
-  <widget class="QPushButton" name="quickTextButton9">
+  <widget class="QPushButton" name="quickTextButton11">
    <property name="geometry">
     <rect>
-     <x>210</x>
-     <y>310</y>
-     <width>211</width>
-     <height>31</height>
+     <x>640</x>
+     <y>360</y>
+     <width>291</width>
+     <height>51</height>
     </rect>
    </property>
    <property name="font">
     <font>
      <family>Segoe UI</family>
-     <pointsize>9</pointsize>
+     <pointsize>12</pointsize>
+     <weight>75</weight>
+     <bold>true</bold>
     </font>
    </property>
    <property name="focusPolicy">
     <enum>Qt::NoFocus</enum>
    </property>
    <property name="text">
-    <string>REQUESTING DEPUTY  [F9]</string>
+    <string>REQUESTING DEPUTY  [F12]</string>
    </property>
    <property name="shortcut">
-    <string>F9</string>
+    <string>F12</string>
    </property>
   </widget>
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>690</x>
-     <y>280</y>
-     <width>181</width>
+     <x>720</x>
+     <y>430</y>
+     <width>201</width>
      <height>41</height>
     </rect>
    </property>
@@ -524,6 +528,8 @@
     <font>
      <family>Segoe UI</family>
      <pointsize>14</pointsize>
+     <weight>50</weight>
+     <bold>false</bold>
     </font>
    </property>
    <property name="orientation">
@@ -536,9 +542,9 @@
   <widget class="QPushButton" name="quickTextButton4">
    <property name="geometry">
     <rect>
-     <x>690</x>
-     <y>210</y>
-     <width>181</width>
+     <x>630</x>
+     <y>260</y>
+     <width>251</width>
      <height>31</height>
     </rect>
    </property>
@@ -552,18 +558,18 @@
     <enum>Qt::NoFocus</enum>
    </property>
    <property name="text">
-    <string>AT IC  [F4]</string>
+    <string>AT IC  [F6]</string>
    </property>
    <property name="shortcut">
-    <string>F4</string>
+    <string>F6</string>
    </property>
   </widget>
   <widget class="Line" name="line_4">
    <property name="geometry">
     <rect>
-     <x>100</x>
-     <y>290</y>
-     <width>461</width>
+     <x>150</x>
+     <y>340</y>
+     <width>651</width>
      <height>20</height>
     </rect>
    </property>
@@ -574,8 +580,8 @@
   <widget class="QLabel" name="label_6">
    <property name="geometry">
     <rect>
-     <x>0</x>
-     <y>90</y>
+     <x>30</x>
+     <y>100</y>
      <width>71</width>
      <height>21</height>
     </rect>
@@ -599,8 +605,8 @@
    </property>
    <property name="geometry">
     <rect>
-     <x>300</x>
-     <y>90</y>
+     <x>330</x>
+     <y>100</y>
      <width>251</width>
      <height>31</height>
     </rect>
@@ -624,8 +630,8 @@
   <widget class="QPushButton" name="quickTextUndoButton">
    <property name="geometry">
     <rect>
-     <x>560</x>
-     <y>310</y>
+     <x>30</x>
+     <y>430</y>
      <width>111</width>
      <height>31</height>
     </rect>
@@ -658,8 +664,8 @@
    </property>
    <property name="geometry">
     <rect>
-     <x>80</x>
-     <y>90</y>
+     <x>110</x>
+     <y>100</y>
      <width>91</width>
      <height>31</height>
     </rect>
@@ -680,7 +686,7 @@
   <widget class="QLineEdit" name="teamField">
    <property name="geometry">
     <rect>
-     <x>180</x>
+     <x>210</x>
      <y>10</y>
      <width>371</width>
      <height>61</height>
@@ -701,9 +707,9 @@
   <widget class="QPushButton" name="quickTextButton7">
    <property name="geometry">
     <rect>
-     <x>440</x>
+     <x>350</x>
      <y>260</y>
-     <width>231</width>
+     <width>251</width>
      <height>31</height>
     </rect>
    </property>
@@ -717,18 +723,18 @@
     <enum>Qt::NoFocus</enum>
    </property>
    <property name="text">
-    <string>REQUESTING TRANSPORT  [F7]</string>
+    <string>REQUESTING TRANSPORT  [F5]</string>
    </property>
    <property name="shortcut">
-    <string>F7</string>
+    <string>F5</string>
    </property>
   </widget>
-  <widget class="QPushButton" name="quickTextButton10">
+  <widget class="QPushButton" name="quickTextButton8">
    <property name="geometry">
     <rect>
-     <x>440</x>
+     <x>650</x>
      <y>310</y>
-     <width>111</width>
+     <width>201</width>
      <height>31</height>
     </rect>
    </property>
@@ -736,16 +742,18 @@
     <font>
      <family>Segoe UI</family>
      <pointsize>9</pointsize>
+     <weight>75</weight>
+     <bold>true</bold>
     </font>
    </property>
    <property name="focusPolicy">
     <enum>Qt::NoFocus</enum>
    </property>
    <property name="text">
-    <string>STANDBY [F10]</string>
+    <string>STANDBY  [F9]</string>
    </property>
    <property name="shortcut">
-    <string>F10</string>
+    <string>F9</string>
    </property>
    <property name="checkable">
     <bool>false</bool>
@@ -754,11 +762,116 @@
     <bool>false</bool>
    </property>
   </widget>
+  <widget class="QLabel" name="label_2">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>220</x>
+     <y>70</y>
+     <width>341</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Segoe UI</family>
+     <pointsize>9</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>Right-click to change and remember callsign</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="quickTextButton10">
+   <property name="geometry">
+    <rect>
+     <x>330</x>
+     <y>360</y>
+     <width>291</width>
+     <height>51</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Segoe UI</family>
+     <pointsize>13</pointsize>
+     <weight>75</weight>
+     <bold>true</bold>
+    </font>
+   </property>
+   <property name="text">
+    <string>SUBJECT LOCATED  [F11]</string>
+   </property>
+   <property name="shortcut">
+    <string>F11</string>
+   </property>
+  </widget>
+  <widget class="Line" name="line_5">
+   <property name="geometry">
+    <rect>
+     <x>90</x>
+     <y>410</y>
+     <width>771</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Horizontal</enum>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="quickTextButton1_2">
+   <property name="geometry">
+    <rect>
+     <x>70</x>
+     <y>260</y>
+     <width>251</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Segoe UI</family>
+     <pointsize>9</pointsize>
+    </font>
+   </property>
+   <property name="focusPolicy">
+    <enum>Qt::NoFocus</enum>
+   </property>
+   <property name="text">
+    <string>ENROUTE TO IC  [F4]</string>
+   </property>
+   <property name="iconSize">
+    <size>
+     <width>32</width>
+     <height>32</height>
+    </size>
+   </property>
+   <property name="shortcut">
+    <string>F1</string>
+   </property>
+  </widget>
+  <widget class="Line" name="line_6">
+   <property name="geometry">
+    <rect>
+     <x>110</x>
+     <y>240</y>
+     <width>731</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Horizontal</enum>
+   </property>
+  </widget>
  </widget>
  <tabstops>
   <tabstop>teamField</tabstop>
   <tabstop>messageField</tabstop>
   <tabstop>to_fromField</tabstop>
+  <tabstop>quickTextButton10</tabstop>
+  <tabstop>standbyField</tabstop>
  </tabstops>
  <resources/>
  <connections>
@@ -769,8 +882,8 @@
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>719</x>
-     <y>299</y>
+     <x>749</x>
+     <y>449</y>
     </hint>
     <hint type="destinationlabel">
      <x>720</x>
@@ -785,8 +898,8 @@
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>832</x>
-     <y>314</y>
+     <x>862</x>
+     <y>464</y>
     </hint>
     <hint type="destinationlabel">
      <x>835</x>
@@ -801,7 +914,7 @@
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>45</x>
+     <x>85</x>
      <y>227</y>
     </hint>
     <hint type="destinationlabel">
@@ -817,7 +930,7 @@
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>221</x>
+     <x>361</x>
      <y>223</y>
     </hint>
     <hint type="destinationlabel">
@@ -833,7 +946,7 @@
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>452</x>
+     <x>642</x>
      <y>225</y>
     </hint>
     <hint type="destinationlabel">
@@ -849,8 +962,8 @@
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>695</x>
-     <y>226</y>
+     <x>635</x>
+     <y>276</y>
     </hint>
     <hint type="destinationlabel">
      <x>682</x>
@@ -865,8 +978,8 @@
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>32</x>
-     <y>274</y>
+     <x>102</x>
+     <y>324</y>
     </hint>
     <hint type="destinationlabel">
      <x>6</x>
@@ -881,8 +994,8 @@
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>237</x>
-     <y>269</y>
+     <x>387</x>
+     <y>319</y>
     </hint>
     <hint type="destinationlabel">
      <x>202</x>
@@ -897,7 +1010,7 @@
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>460</x>
+     <x>530</x>
      <y>271</y>
     </hint>
     <hint type="destinationlabel">
@@ -907,14 +1020,14 @@
    </hints>
   </connection>
   <connection>
-   <sender>quickTextButton9</sender>
+   <sender>quickTextButton11</sender>
    <signal>clicked()</signal>
    <receiver>newEntryWidget</receiver>
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>216</x>
-     <y>331</y>
+     <x>646</x>
+     <y>381</y>
     </hint>
     <hint type="destinationlabel">
      <x>203</x>
@@ -929,8 +1042,8 @@
    <slot>quickTextUndo()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>573</x>
-     <y>332</y>
+     <x>43</x>
+     <y>452</y>
     </hint>
     <hint type="destinationlabel">
      <x>433</x>
@@ -939,14 +1052,14 @@
    </hints>
   </connection>
   <connection>
-   <sender>quickTextButton8</sender>
+   <sender>quickTextButton9</sender>
    <signal>clicked()</signal>
    <receiver>newEntryWidget</receiver>
    <slot>quickTextClueAction()</slot>
    <hints>
     <hint type="sourcelabel">
      <x>34</x>
-     <y>331</y>
+     <y>381</y>
     </hint>
     <hint type="destinationlabel">
      <x>13</x>
@@ -971,18 +1084,50 @@
    </hints>
   </connection>
   <connection>
-   <sender>quickTextButton10</sender>
+   <sender>quickTextButton8</sender>
    <signal>clicked()</signal>
    <receiver>newEntryWidget</receiver>
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>506</x>
+     <x>716</x>
      <y>336</y>
     </hint>
     <hint type="destinationlabel">
      <x>554</x>
      <y>336</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>quickTextButton10</sender>
+   <signal>clicked()</signal>
+   <receiver>newEntryWidget</receiver>
+   <slot>quickTextSubjectLocatedAction()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>398</x>
+     <y>398</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>409</x>
+     <y>397</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>quickTextButton1_2</sender>
+   <signal>clicked()</signal>
+   <receiver>newEntryWidget</receiver>
+   <slot>quickTextAction()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>89</x>
+     <y>265</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>61</x>
+     <y>292</y>
     </hint>
    </hints>
   </connection>
@@ -994,6 +1139,8 @@
   <slot>quickTextUndo()</slot>
   <slot>quickTextClueAction()</slot>
   <slot>openChangeCallsignDialog()</slot>
+  <slot>quickTextSubjectLocatedAction()</slot>
+  <slot>quickTextRequestingDeputyAction()</slot>
  </slots>
  <buttongroups>
   <buttongroup name="statusButtonGroup">

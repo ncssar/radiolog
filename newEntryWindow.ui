@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1081</width>
-    <height>375</height>
+    <width>1162</width>
+    <height>545</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,15 +18,41 @@
     <rect>
      <x>10</x>
      <y>10</y>
-     <width>1061</width>
-     <height>355</height>
+     <width>1147</width>
+     <height>491</height>
     </rect>
    </property>
    <property name="tabBarAutoHide">
     <bool>true</bool>
    </property>
   </widget>
+  <widget class="QCheckBox" name="autoCleanupCheckBox">
+   <property name="geometry">
+    <rect>
+     <x>230</x>
+     <y>510</y>
+     <width>721</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Segoe UI</family>
+     <pointsize>10</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>Auto-cleanup: automatically delete blank entries that are more than 60 seconds old</string>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+  </widget>
  </widget>
+ <tabstops>
+  <tabstop>tabWidget</tabstop>
+  <tabstop>autoCleanupCheckBox</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
  <designerdata>
@@ -50,5 +76,8 @@
   <slot>quickTextAction()</slot>
   <slot>quickTextUndo()</slot>
   <slot>quickTextClueAction()</slot>
+  <slot>autoCleanupToggled()</slot>
+  <slot>cleanupNow()</slot>
+  <slot>autoCleanupStateChanged()</slot>
  </slots>
 </ui>
