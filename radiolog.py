@@ -1,7 +1,29 @@
 ﻿# #############################################################################
 #
-#  Search and Rescue Radio Log Software
-#  Copyright (C) 2015 Tom Grundy
+#  radiolog.py - SAR Radio Log program, based on PyQt 5.4, Python 3.4.2
+#
+#   developed for Nevada County Sheriff's Search and Rescue
+#    Copyright (c) 2015 Tom Grundy
+#
+#  http://ncssarradiologsoftware.sourceforge.net
+#
+#  Contact the author at nccaves@yahoo.com
+#   Attribution, feedback, bug reports and feature requests are appreciated
+#
+#  REVISION HISTORY
+#-----------------------------------------------------------------------------
+#   DATE   |  AUTHOR  |  NOTES
+#-----------------------------------------------------------------------------
+#  2-22-15     TMG       First version installed and working on NCSSAR Computer 2
+#  4-9-15      TMG       Feature-complete release candidate
+#  4-10-15     TMG       enable reading from a second com port (two radios)
+#  4-28-15     TMG       First release; initial commit to git
+#  5-11-15     TMG       fix bug 10: don't clear team timer unless the message
+#                         is 'FROM' with non-blank message text; change more
+#                         app-wide stylesheet font sizes in fontsChanged, and
+#                         change in children to override as needed
+#
+# #############################################################################
 #
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -15,22 +37,6 @@
 #
 #  See included file LICENSE.txt for full license terms, also
 #  available at http://opensource.org/licenses/gpl-3.0.html
-#
-# #############################################################################
-#60
-#  http://ncssarradiologsoftware.sourceforge.net
-#  www.ncssar-nc.org
-#  Contact the author at nccaves@yahoo.com
-#
-# #############################################################################
-#
-# radiolog.py - SAR Radio Log program, based on PyQt 5.4, Python 3.4.2
-#
-#   developed for Nevada County Sheriff's Search and Rescue
-#    (c) 2015 Tom Grundy
-#
-#   Attribution, feedback, bug reports and feature requests are appreciated;
-#    send to nccaves@yahoo.com.
 #
 # ############################################################################
 #
@@ -142,19 +148,6 @@
 #  - delay on entry form close is 'eliminated' / deferred by doing all the
 #     redisplay work in a singleshot after the form is closed
 #
-#  REVISION HISTORY
-#-----------------------------------------------------------------------------
-#   DATE   |  AUTHOR  |  NOTES
-#-----------------------------------------------------------------------------
-#  2-22-15     TMG       First version installed and working on NCSSAR Computer 2
-#  4-9-15      TMG       Feature-complete release candidate
-#  4-10-15     TMG       enable reading from a second com port (two radios)
-#  4-28-15     TMG       First release; initial commit to git
-#  5-11-15     TMG       fix bug 10: don't clear team timer unless the message
-#                         is 'FROM' with non-blank message text; change more
-#                         app-wide stylesheet font sizes in fontsChanged, and
-#                         change in children to override as needed
-#
 # #############################################################################
 # #############################################################################
 
@@ -162,7 +155,6 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-from radiolog_ui import Ui_Dialog
 from help_ui import Ui_Help
 from options_ui import Ui_optionsDialog
 from newEntryWindow_ui import Ui_newEntryWindow
@@ -175,6 +167,7 @@ from opPeriodDialog_ui import Ui_opPeriodDialog
 from printClueLogDialog_ui import Ui_printClueLogDialog
 from nonRadioClueDialog_ui import Ui_nonRadioClueDialog
 from convertDialog_ui import Ui_convertDialog
+from subjectLocatedDialog_ui import Ui_subjectLocatedDialog
 
 import functools
 import sys
@@ -190,6 +183,7 @@ import subprocess
 import win32api
 import win32print
 import shutil
+import math
 from reportlab.lib import colors,utils
 from reportlab.lib.pagesizes import letter,landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
@@ -197,6 +191,23 @@ from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.units import inch
 from fdfgen import forge_fdf
 from FingerTabs import *
+
+# process command-line arguments
+minMode=False
+develMode=False
+if len(sys.argv)>1:
+	for arg in sys.argv[1:]:
+		if arg.lower()=="-devel":
+			develMode=True
+			print("Development mode enabled.")
+		if arg.lower()=="-min":
+			minMode=True
+			print("Minimum display size mode enabled.")
+
+if minMode:
+	from radiolog_min_ui import Ui_Dialog # built to look decent at 800x600
+else:
+   from radiolog_ui import Ui_Dialog # normal version, for higher resolution
 
 statusStyleDict={}
 # even though tab labels are created with font-size:20px and the tab sizes and margins are created accordingly,
@@ -228,6 +239,9 @@ versionDepth=5 # how many backup versions to keep; see rotateBackups
 continueSec=20
 holdSec=10
 
+# log com port messages?
+comLog=False
+
 ##newEntryDialogTimeoutSeconds=600
 # choosing window location for newly opened dialog: just keeping a count of how many
 # dialogs are open does not work, since an open dialog at a given position could
@@ -243,19 +257,23 @@ holdSec=10
 
 lastClueNumber=0
 
-quickTextList=[
-	["DEPARTING IC",Qt.Key_F1],
-	["STARTING ASSIGNMENT",Qt.Key_F2],
-	["COMPLETED ASSIGNMENT",Qt.Key_F3],
-	["ARRIVING AT IC",Qt.Key_F4],
-	"separator",
-	["RADIO CHECK: OK",Qt.Key_F5],
-	["WELFARE CHECK: OK",Qt.Key_F6],
-	["REQUESTING TRANSPORT",Qt.Key_F7],
-	"separator",
-	["LOCATED A CLUE",Qt.Key_F8],
-	"separator",
-	["LOCATED SUBJECT",Qt.Key_F9]]
+##quickTextList=[
+##	["DEPARTING IC",Qt.Key_F1],
+##	["STARTING ASSIGNMENT",Qt.Key_F2],
+##	["COMPLETED ASSIGNMENT",Qt.Key_F3],
+##	["ARRIVING AT IC",Qt.Key_F4],
+##	"separator",
+##	["RADIO CHECK: OK",Qt.Key_F5],
+##	["WELFARE CHECK: OK",Qt.Key_F6],
+##	["REQUESTING TRANSPORT",Qt.Key_F7],
+##	"separator",
+##	["STANDBY",Qt.Key_F8],
+##	"separator",
+##	["LOCATED A CLUE",Qt.Key_F9],
+##	"separator",
+##	["SUBJECT LOCATED",Qt.Key_F10],
+##	"separator",
+##	["REQUESTING DEPUTY",Qt.Key_F11]]
 
 
 def getExtTeamName(teamName):
@@ -393,11 +411,26 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsFileName="radiolog_fleetsync.csv" # this is the default; modified filename is based on csvfilename at modify-time
 ##		self.fsFileName=self.getFileNameBase(self.incidentName)+"_fleetsync.csv"
 
+		self.fsValidFleetList=[100]
+		self.fsFilteredDevList=[]
+		self.getString=""
+
 		self.firstWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents"
 		if self.firstWorkingDir[1]!=":":
 			self.firstWorkingDir=os.getenv('HOMEDRIVE','C:')+self.firstWorkingDir
 		self.secondWorkingDir='Z:' # COMMON drive on the NCSSAR network
 ##		self.secondWorkingDir="C:\\Users\\Tom\\Documents\\sar"
+
+##		# attempt to change to the second working dir and back again, to 'wake up'
+##		#  any mount points, to hopefully avoid problems of second working dir
+##		#  not always being written to, at all, for a given run of this program;
+##		#  os.chdir dies gracefully if the specified dir does not exist
+##		self.cwd=os.getcwd()
+##		rprint("t1")
+##		os.chdir(self.secondWorkingDir)
+##		rprint("t2")
+##		os.chdir(self.cwd)
+##		rprint("t3")
 
 		self.printLogoFileName="radiolog_logo.jpg"
 		self.fillableClueReportPdfFileName="clueReportFillable.pdf"
@@ -421,8 +454,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.printDialog=printDialog(self)
 		self.printClueLogDialog=printClueLogDialog(self)
 
+		self.radioLogNeedsPrint=False # set to True with each new log entry; set to False when printed
+		self.clueLogNeedsPrint=False
+
 		self.optionsDialog=optionsDialog()
 		self.optionsDialog.accepted.connect(self.optionsAccepted)
+
+		self.ui.addNonRadioClueButton.clicked.connect(self.addNonRadioClue)
 
 		self.ui.helpButton.clicked.connect(self.helpWindow.show)
 		self.ui.optionsButton.clicked.connect(self.optionsDialog.show)
@@ -430,12 +468,15 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		self.ui.printButton.clicked.connect(self.testConvertCoords)
 
 		self.sarsoftServerName="ncssar"
+		if develMode:
+			self.sarsoftServerName="localhost" # DEVEL
 
 		self.ui.tabList=["dummy"]
 		self.ui.tabGridLayoutList=["dummy"]
 		self.ui.tableViewList=["dummy"]
 		self.proxyModelList=["dummy"]
 		self.teamNameList=["dummy"]
+		self.allTeamsList=["dummy"] # same as teamNameList but hidden tabs are not deleted from this list
 		self.extTeamNameList=["dummy"]
 		self.fsLookup=[]
 ##		self.newEntryDialogList=[]
@@ -443,7 +484,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fontSize=10
 		self.timeoutRedSec=1800 # 30 minutes
 		self.timeoutOrangeSec=1500 # 25 minutes
-		self.datum="NAD27 CONUS"
+		self.datum="WGS84" # NCSSAR officially changed from NAD27 to WGS84 7-1-15
 		self.coordFormat="UTM"
 		self.x=100
 		self.y=100
@@ -457,6 +498,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.secondComPortFound=False
 		self.comPortScanInProgress=False
 		self.comPortTryList=[]
+		if develMode:
+			self.comPortTryList=[serial.Serial("\\\\.\\CNCB0")] # DEVEL
 		self.fsBuffer=""
 		self.entryHold=False
 		self.currentEntryLastModAge=0
@@ -468,7 +511,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.opPeriodButton.clicked.connect(self.openOpPeriodDialog)
 		self.ui.clueLogButton.clicked.connect(self.clueLogDialog.show) # never actually close this dialog
 
-		self.ui.splitter.setSizes([300,100]) # any remainder is distributed based on this ratio
+		self.ui.splitter.setSizes([250,150]) # any remainder is distributed based on this ratio
 		self.ui.splitter.splitterMoved.connect(self.ui.tableView.scrollToBottom)
 
 		self.tableModel = MyTableModel(self.radioLog, self)
@@ -575,6 +618,21 @@ class MyWindow(QDialog,Ui_Dialog):
 				QMessageBox.Yes|QMessageBox.No,QMessageBox.No)
 			if self.reallyRestore==QMessageBox.Yes:
 				self.restore()
+
+		# make sure x/y/w/h from resource file will fit on the available display
+		d=QApplication.desktop()
+		if (self.x+self.w > d.width()) or (self.y+self.h > d.height()):
+			rprint("\nThe resource file specifies a main window geometry that is\n  bigger than (or not on) the available desktop.\n  Using default sizes for this session.\n\n")
+			self.x=50
+			self.y=50
+			self.w=d.availableGeometry(self).width()-100
+			self.h=d.availableGeometry(self).height()-100
+		if (self.clueLog_x+self.clueLog_w > d.width()) or (self.clueLog_y+self.clueLog_h > d.height()):
+			rprint("\nThe resource file specifies a clue log window geometry that is\n  bigger than (or not on) the available desktop.\n  Using default sizes for this session.\n\n")
+			self.clueLog_x=75
+			self.clueLog_y=75
+			self.clueLog_w=d.availableGeometry(self).width()-100
+			self.clueLog_h=d.availableGeometry(self).height()-100
 		self.setGeometry(int(self.x),int(self.y),int(self.w),int(self.h))
 		self.clueLogDialog.setGeometry(int(self.clueLog_x),int(self.clueLog_y),int(self.clueLog_w),int(self.clueLog_h))
 		self.fontsChanged()
@@ -617,7 +675,8 @@ class MyWindow(QDialog,Ui_Dialog):
 	def fsCheck(self):
 		if not (self.firstComPortFound and self.secondComPortFound): # correct com ports not yet found; scan for waiting fleetsync data
 			if not self.comPortScanInProgress: # but not if this scan is already in progress (taking longer than 1 second)
-				rprint("Two COM ports not yet found.  Scanning...")
+				if comLog:
+					rprint("Two COM ports not yet found.  Scanning...")
 				self.comPortScanInProgress=True
 				# opening a port quickly, checking for waiting input, and closing on each iteration does not work; the
 				#  com port must be open when the input begins, in order to catch it in the inWaiting internal buffer.
@@ -626,7 +685,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				# 2. (only if no valid data was found in step 1) list com ports; open any new finds and close any
 				#     stale ports (i.e. existed in the list in previous iterations but not in the list now)
 				for comPortTry in self.comPortTryList:
-					rprint("  Checking buffer for already-open port "+comPortTry.name)
+					if comLog:
+						rprint("  Checking buffer for already-open port "+comPortTry.name)
 					try:
 						isWaiting=comPortTry.inWaiting()
 					except:
@@ -649,7 +709,8 @@ class MyWindow(QDialog,Ui_Dialog):
 							else:
 								rprint("      but not valid fleetsync data.  Scan continues...")
 						else:
-							rprint("     no data")
+							if comLog:
+								rprint("     no data")
 				for portIterable in serial.tools.list_ports.comports():
 					if portIterable[0] not in [x.name for x in self.comPortTryList]:
 						try:
@@ -675,7 +736,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		origLocString=''
 		formattedLocString=''
 		callsign=''
-		getString=''
+		self.getString=''
 		sec=time.time()
 		# the line delimeters are literal backslash then n, rather than standard \n
 		for line in self.fsBuffer.split('\n'):
@@ -701,7 +762,12 @@ class MyWindow(QDialog,Ui_Dialog):
 					else:
 						# found a good callsign; use the callsign in the GET request
 						devTxt=callsign
-					getString="http://"+self.sarsoftServerName+":8080/rest/location/update/position?lat="+str(lat)+"&lng="+str(lon)+"&id=FLEET:"+fleet+"-"+devTxt
+					self.getString="http://"+self.sarsoftServerName+":8080/rest/location/update/position?lat="+str(lat)+"&lng="+str(lon)+"&id=FLEET:"+fleet+"-"
+					# if callsign = "Radio ..." then leave the getString ending with hyphen for now, as a sign to defer
+					#  sending until accept of change callsign dialog, or closeEvent of newEntryWidget, whichever comes first;
+					#  otherwise, append the callsign now, as a sign to send immediately
+					if not devTxt.startswith("Radio "):
+						self.getString=self.getString+devTxt
 				else:
 					origLocString='NO FIX'
 					formattedLocString='NO FIX'
@@ -719,28 +785,54 @@ class MyWindow(QDialog,Ui_Dialog):
 			if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text()==callsign and widget.lastModAge<continueSec:
 ##				widget.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 				found=True
-				if origLocString!='':  # don't overwrite location if earlier transmission had a good lock
+##				if origLocString!='' and origLocString!='NO FIX':  # don't overwrite location if earlier transmission had a good lock
+				prevLocString=widget.ui.radioLocField.text()
+				# if previous location string was blank, always overwrite;
+				#  if previous location string was not blank, only overwrite if new location is valid
+				if prevLocString=='' or (formattedLocString!='' and formattedLocString!='NO FIX'):
 					widget.ui.radioLocField.setText(formattedLocString)
 					widget.ui.datumFormatLabel.setText("("+self.datum+"  "+self.coordFormat+")")
 					widget.formattedLocString=formattedLocString
 					widget.origLocString=origLocString
-		if not found:
+		# only open a new entry widget if the fleet/dev is not being filtered
+		if not found and not self.fsIsFiltered(fleet,dev):
 			self.openNewEntry(None,callsign,formattedLocString,fleet,dev,origLocString)
+		self.sendPendingGet()
 
+	def sendPendingGet(self,suffix=""):
 		# NOTE that requests.get can cause a blocking delay; so, do it AFTER spawning the newEntryDialog
 		# if sarsoft is not running to handle this get request, Windows will complain with nested exceptions:
 		# ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
 		# During handling of the above exception, another exception occurred:
 		# requests.packages.urllib3.exceptions.ProtocolError: ('Connection aborted.', ConnectionRefusedError(10061, 'No connection could be made because the target machine actively refused it', None, 10061, None))
 		# but we don't care about these; pass them silently
-		if getString!='':
+
+		# also, if it ends in hyphen, defer sending until accept of change callsign dialog, or closeEvent of newEntryDialog
+		#  (see getString construction comments above)
+		if self.getString!='': # to avoid sending a GET string that is nothing but the callsign
+			self.getString=self.getString+suffix
+		if self.getString!='' and not self.getString.endswith("-"):
 			QCoreApplication.processEvents()
 			try:
 				rprint("Sending GET request:")
-				rprint(getString)
-				requests.get(getString)
+				rprint(self.getString)
+				requests.get(self.getString)
 			except:
 				pass
+			self.getString=''
+
+	def fsIsFiltered(self,fleet,dev):
+		rprint("fleet="+fleet+" dev="+dev)
+		# invalid fleets are always filtered, to prevent fleet-glitches (110-xxxx) from opening new entries
+		if int(fleet) not in self.fsValidFleetList:
+			rprint("true1")
+			return True
+		# if the fleet is valid, check for filtered device ID
+		if int(dev) in self.fsFilteredDevList:
+			rprint("true2")
+			return True
+		rprint("false1")
+		return False
 
 	def fsLoadLookup(self,startupFlag=False,fsFileName=None):
 		if not startupFlag and not fsFileName: # don't ask for confirmation on startup or on restore
@@ -808,12 +900,93 @@ class MyWindow(QDialog,Ui_Dialog):
 		coordsTestList=[
 			['3918.9200','N','11955.2100','W'],
 			['3918.9200','N','12055.2100','W'],
-			['3918.9200','N','12155.2100','W']]
+			['3918.9200','N','12155.2100','W'],
+			['3918.9200','N','11959.9900','W'],
+			['3918.9200','N','12000.0000','W'],
+			['3918.9200','N','12000.0100','W'],
+			['3830.0000','N','12130.0000','W'],
+			['3830.0000','N','12115.0000','W'],
+			['3830.0000','N','12100.0000','W'],
+			['3830.0000','N','12045.0000','W'],
+			['3830.0000','N','12030.0000','W'],
+			['3830.0000','N','12015.0000','W'],
+			['3830.0000','N','12000.0000','W'],
+			['3830.0000','N','11945.0000','W'],
+			['3830.0000','N','11930.0000','W'],
+			['3830.0000','N','11915.0000','W'],
+			['3830.0000','N','11900.0000','W'],
+			['3845.0000','N','12130.0000','W'],
+			['3845.0000','N','12115.0000','W'],
+			['3845.0000','N','12100.0000','W'],
+			['3845.0000','N','12045.0000','W'],
+			['3845.0000','N','12030.0000','W'],
+			['3845.0000','N','12015.0000','W'],
+			['3845.0000','N','12000.0000','W'],
+			['3845.0000','N','11945.0000','W'],
+			['3845.0000','N','11930.0000','W'],
+			['3845.0000','N','11915.0000','W'],
+			['3845.0000','N','11900.0000','W'],
+			['3900.0000','N','12130.0000','W'],
+			['3900.0000','N','12115.0000','W'],
+			['3900.0000','N','12100.0000','W'],
+			['3900.0000','N','12045.0000','W'],
+			['3900.0000','N','12030.0000','W'],
+			['3900.0000','N','12015.0000','W'],
+			['3900.0000','N','12000.0000','W'],
+			['3900.0000','N','11945.0000','W'],
+			['3900.0000','N','11930.0000','W'],
+			['3900.0000','N','11915.0000','W'],
+			['3900.0000','N','11900.0000','W'],
+			['3915.0000','N','12130.0000','W'],
+			['3915.0000','N','12115.0000','W'],
+			['3915.0000','N','12100.0000','W'],
+			['3915.0000','N','12045.0000','W'],
+			['3915.0000','N','12030.0000','W'],
+			['3915.0000','N','12015.0000','W'],
+			['3915.0000','N','12000.0000','W'],
+			['3915.0000','N','11945.0000','W'],
+			['3915.0000','N','11930.0000','W'],
+			['3915.0000','N','11915.0000','W'],
+			['3915.0000','N','11900.0000','W'],
+			['3930.0000','N','12130.0000','W'],
+			['3930.0000','N','12115.0000','W'],
+			['3930.0000','N','12100.0000','W'],
+			['3930.0000','N','12045.0000','W'],
+			['3930.0000','N','12030.0000','W'],
+			['3930.0000','N','12015.0000','W'],
+			['3930.0000','N','12000.0000','W'],
+			['3930.0000','N','11945.0000','W'],
+			['3930.0000','N','11930.0000','W'],
+			['3930.0000','N','11915.0000','W'],
+			['3930.0000','N','11900.0000','W'],
+			['3945.0000','N','12130.0000','W'],
+			['3945.0000','N','12115.0000','W'],
+			['3945.0000','N','12100.0000','W'],
+			['3945.0000','N','12045.0000','W'],
+			['3945.0000','N','12030.0000','W'],
+			['3945.0000','N','12015.0000','W'],
+			['3945.0000','N','12000.0000','W'],
+			['3945.0000','N','11945.0000','W'],
+			['3945.0000','N','11930.0000','W'],
+			['3945.0000','N','11915.0000','W'],
+			['3945.0000','N','11900.0000','W'],
+			['4000.0000','N','12130.0000','W'],
+			['4000.0000','N','12115.0000','W'],
+			['4000.0000','N','12100.0000','W'],
+			['4000.0000','N','12045.0000','W'],
+			['4000.0000','N','12030.0000','W'],
+			['4000.0000','N','12015.0000','W'],
+			['4000.0000','N','12000.0000','W'],
+			['4000.0000','N','11945.0000','W'],
+			['4000.0000','N','11930.0000','W'],
+			['4000.0000','N','11915.0000','W'],
+			['4000.0000','N','11900.0000','W']]
+
 		for coords in coordsTestList:
-			rval=self.convertCoords(coords)
+			rval=self.convertCoords(coords,self.datum,self.coordFormat)
 			rprint("testConvertCoords:"+str(coords)+" --> "+rval)
 
-	def convertCoords(self,coords,targetDatum="NAD27 CONUS",targetFormat="UTM"):
+	def convertCoords(self,coords,targetDatum,targetFormat):
 		easting="0000000"
 		northing="0000000"
 		rprint("convertCoords called: targetDatum="+targetDatum+" targetFormat="+targetFormat+" coords="+str(coords))
@@ -834,8 +1007,9 @@ class MyWindow(QDialog,Ui_Dialog):
 				rprint("inverting longitude")
 				lonDeg=-lonDeg # invert if needed
 				lonDd=-lonDd
-			targetUTMZone=int(lonDeg/6)+30 # do the math: -179.99999deg -> -174deg = zone 1; -173.99999deg -> -168deg = zone 2, etc
-			rprint("lonDeg="+str(lonDeg)+" targetUTMZone="+str(targetUTMZone))
+##			targetUTMZone=int(lonDeg/6)+30 # do the math: -179.99999deg -> -174deg = zone 1; -173.99999deg -> -168deg = zone 2, etc
+			targetUTMZone=math.floor((lonDd+180)/6)+1 # from http://stackoverflow.com/questions/9186496, since -120.0000deg should be zone 11, not 10
+			rprint("lonDeg="+str(lonDeg)+" lonDd="+str(lonDd)+" targetUTMZone="+str(targetUTMZone))
 			#cs2cs wants longitude first: -121d1' 39d15' works, but 39d15' -121d1' gives an error
 			latlon_cs2cs="{}d{}' {}d{}'".format(lonDeg,lonMin,latDeg,latMin)
 			rprint("Formatted coordinates:"+latlon_cs2cs)
@@ -997,9 +1171,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		teamFilterList=[""] # by default, print print all entries; if teams=True, add a filter for each team
 		if teams:
 			teamFilterList=[]
-			for team in self.teamNameList:
+			for team in self.allTeamsList:
 				if team!="dummy":
 					teamFilterList.append(team)
+		rprint("teamFilterList="+str(teamFilterList))
 		for team in teamFilterList:
 			radioLogPrint=[]
 			styles = getSampleStyleSheet()
@@ -1039,6 +1214,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.msgBox.setInformativeText("Finalizing and Printing...")
 		QTimer.singleShot(5000,self.msgBox.close)
 		win32api.ShellExecute(0,"print",pdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
+		self.radioLogNeedsPrint=False
 		if os.path.isdir(self.secondWorkingDir):
 			rprint("copying radio log pdf"+msgAdder+" to "+self.secondWorkingDir)
 			shutil.copy(pdfName,self.secondWorkingDir)
@@ -1145,6 +1321,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.msgBox.close()
 			self.msgBox=QMessageBox(QMessageBox.Information,"Printing","No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.",QMessageBox.Ok)
 			QTimer.singleShot(500,self.msgBox.show)
+		self.clueLogNeedsPrint=False
 
 	def printClueReport(self,clueData):
 ##		header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
@@ -1376,9 +1553,6 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.openNewEntry('a')
 			elif key=='s':
 				self.openNewEntry('s')
-			elif key=="z":
-##				print(str(self.convertCoords(["39.3134","N","120.9221","W"],self.datum,self.coordFormat)))
-				self.deleteTeamTab("Team 2")
 			elif key=='=' or key=='+':
 				self.fontSize=self.fontSize+2
 				self.fontsChanged()
@@ -1403,6 +1577,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			event.ignore()
 
 	def closeEvent(self,event):
+		# if radioLogNeedsPrint or clueLogNeedsPrint is True, bring up the print dialog
+		if self.radioLogNeedsPrint or self.clueLogNeedsPrint:
+			rprint("needs print!")
+			self.printDialog.exec()
+		else:
+			rprint("no print needed")
 		# note, this type of messagebox is needed to show above all other dialogs for this application,
 		#  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
 		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
@@ -1412,7 +1592,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			event.ignore()
 			return
 
-		self.save()
+		self.save(finalize=True)
 		self.fsSaveLookup()
 		self.saveRcFile(cleanShutdownFlag=True)
 		writeLogBuffer()
@@ -1472,23 +1652,23 @@ class MyWindow(QDialog,Ui_Dialog):
 			line=inStr.readLine()
 			tokens=line.split("=")
 			if tokens[0]=="x":
-				self.x=tokens[1]
+				self.x=int(tokens[1])
 			elif tokens[0]=="y":
-				self.y=tokens[1]
+				self.y=int(tokens[1])
 			elif tokens[0]=="w":
-				self.w=tokens[1]
+				self.w=int(tokens[1])
 			elif tokens[0]=="h":
-				self.h=tokens[1]
+				self.h=int(tokens[1])
 			elif tokens[0]=="font-size":
 				self.fontSize=int(tokens[1].replace('pt',''))
 			elif tokens[0]=="clueLog_x":
-				self.clueLog_x=tokens[1]
+				self.clueLog_x=int(tokens[1])
 			elif tokens[0]=="clueLog_y":
-				self.clueLog_y=tokens[1]
+				self.clueLog_y=int(tokens[1])
 			elif tokens[0]=="clueLog_w":
-				self.clueLog_w=tokens[1]
+				self.clueLog_w=int(tokens[1])
 			elif tokens[0]=="clueLog_h":
-				self.clueLog_h=tokens[1]
+				self.clueLog_h=int(tokens[1])
 			elif tokens[0]=="lastFileName":
 				self.lastFileName=tokens[1]
 			elif tokens[0]=="cleanShutdown" and tokens[1]=="True":
@@ -1505,7 +1685,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		rcFile.close()
 		return cleanShutdownFlag
 
-	def save(self):
+	def save(self,finalize=False):
 		csvFileNameList=[self.firstWorkingDir+"\\"+self.csvFileName]
 		if os.path.isdir(self.secondWorkingDir):
 			csvFileNameList.append(self.secondWorkingDir+"\\"+self.csvFileName)
@@ -1522,7 +1702,8 @@ class MyWindow(QDialog,Ui_Dialog):
 						# replacing commas is not necessary: csvwriter puts strings in quotes,
 						#  and csvreader knows to not treat commas as delimeters if inside quotes
 						csvWriter.writerow(row)
-				csvWriter.writerow(["## end"])
+				if finalize:
+					csvWriter.writerow(["## end"])
 		# now write the clue log to a separate csv file: same filename appended by '.clueLog'
 		if len(self.clueLog)>0:
 			for fileName in csvFileNameList:
@@ -1535,7 +1716,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					csvWriter.writerow(["## Datum: "+self.datum+"  Coordinate format: "+self.coordFormat])
 					for row in self.clueLog:
 						csvWriter.writerow(row)
-					csvWriter.writerow(["## end"])
+					if finalize:
+						csvWriter.writerow(["## end"])
 
 	def load(self,fileName=None):
 		# loading scheme:
@@ -1661,7 +1843,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.timeoutLabel.setText("TIMEOUT:\n"+timeoutDisplayList[self.optionsDialog.ui.timeoutField.value()][0])
 
 	def openNewEntry(self,key=None,callsign=None,formattedLocString=None,fleet=None,dev=None,origLocString=None,amendFlag=False,amendRow=None):
-		if clueDialog.openClueDialogCount==0:
+		if clueDialog.openDialogCount==0:
 			self.newEntryWindow.setWindowFlags(Qt.WindowTitleHint|Qt.WindowStaysOnTopHint) # enable always on top
 		else:
 			self.newEntryWindow.setWindowFlags(Qt.WindowTitleHint)
@@ -1674,7 +1856,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				# behavior; see http://stackoverflow.com/questions/27856032
 				self.newEntryWidget.ui.teamField.setFocus()
 				self.newEntryWidget.ui.teamField.setText("All Teams ")
-				self.newEntryWidget.ui.teamField.setSelection(9,1)
+				self.newEntryWidget.ui.messageField.setFocus()
+##				self.newEntryWidget.ui.teamField.setSelection(9,1)
 			elif key=='t':
 				self.newEntryWidget.ui.to_fromField.setCurrentIndex(1)
 				# all three of these lines are needed to override the default 'pseudo-selected'
@@ -1704,12 +1887,15 @@ class MyWindow(QDialog,Ui_Dialog):
 			if callsign[0:3]=='KW-':
 				self.newEntryWidget.ui.teamField.setFocus()
 				self.newEntryWidget.ui.teamField.selectAll()
+			if callsign[0:6]=="Radio " or callsign[0:3]=="KW-":
+##				self.newEntryWidget.openChangeCallsignDialog()
+				QTimer.singleShot(500,lambda:self.newEntryWidget.openChangeCallsignDialog())
 			# change this to only take focus if the new tab is active; otherwise, leave the focus alone
 ##			else:
 ##				self.newEntryWidget.ui.messageField.setFocus() # ready to type the message
 
 		if formattedLocString:
-			self.newEntryWidget.ui.radiolocField.setText(formattedLocString)
+			self.newEntryWidget.ui.radioLocField.setText(formattedLocString)
 			self.newEntryWidget.ui.datumFormatLabel.setText("("+self.datum+"  "+self.coordFormat+")")
 		else:
 			self.newEntryWidget.ui.datumFormatLabel.setText("")
@@ -1731,6 +1917,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		sec=values[6] # epoch seconds of dialog open time, for sorting; not displayed
 		extTeamName=getExtTeamName(niceTeamName)
 		self.radioLog.append(values) # leave a blank entry at the end for aesthetics
+##		if not values[3].startswith("RADIO LOG SOFTWARE:"):
+##			self.newEntryProcessTeam(niceTeamName,status,values[1],values[3])
 		self.newEntryProcessTeam(niceTeamName,status,values[1],values[3])
 
 	def newEntryProcessTeam(self,niceTeamName,status,to_from,msg):
@@ -1749,6 +1937,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			#  styleSheet; so, each statusStyleDict entry must contain font-size explicitly
 			self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
 			# only reset the team timer if it is a 'FROM' message with non-blank message text
+			#  (prevent reset on amend, where to_from can be "AMEND" and msg can be anything)
 			if to_from=="FROM" and msg != "":
 				teamTimersDict[extTeamName]=0
 			if status=="At IC":
@@ -1758,6 +1947,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def newEntryPost(self,extTeamName=None):
 ##		rprint("1: called newEntryPost")
+		self.radioLogNeedsPrint=True
 		self.radioLog.sort(key=lambda entry: entry[6]) # sort by epoch seconds - in case dialogs are accepted out of order
 ##		rprint("2") # layoutChanged.emit() is a key source of delay!  about 2 seconds on a 670 row table
 		# putting this line in a singleShot would allow the main table to get updated much
@@ -1856,6 +2046,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.extTeamNameList.sort()
 		i=self.extTeamNameList.index(extTeamName)
 		self.teamNameList.insert(i,niceTeamName)
+		if self.allTeamsList.count(niceTeamName)==0:
+			self.allTeamsList.insert(i,niceTeamName)
+			self.allTeamsList.sort()
 		teamTimersDict[extTeamName]=0
 		teamCreatedTimeDict[extTeamName]=time.time()
 
@@ -1919,6 +2112,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			newEntryFromAction=menu.addAction("New Entry FROM "+str(niceTeamName))
 			newEntryToAction=menu.addAction("New Entry TO "+str(niceTeamName))
 			menu.addSeparator()
+##			relabelTeamTabAction=menu.addAction("Change Label / Assignment for "+str(niceTeamName))
+##			menu.addSeparator()
 			deleteTeamTabAction=menu.addAction("Hide tab for "+str(niceTeamName))
 			action=menu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(pos))
 			if action==newEntryFromAction:
@@ -1928,6 +2123,12 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.newEntryWidget.ui.to_fromField.setCurrentIndex(1)
 			if action==deleteTeamTabAction:
 				self.deleteTeamTab(niceTeamName)
+##			if action==relabelTeamTabAction:
+##				label=QLabel(" abcdefg ")
+##				label.setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
+##				self.ui.tabWidget.tabBar().setTabButton(i,QTabBar.LeftSide,label)
+####				self.ui.tabWidget.tabBar().setTabText(i,"boo")
+##				self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
 
 	def deleteTeamTab(self,teamName):
 		# must also modify related lists to keep everything in sync
@@ -1974,6 +2175,7 @@ class helpWindow(QDialog,Ui_Help):
 		self.ui=Ui_Help()
 		self.ui.setupUi(self)
 		self.setWindowFlags(Qt.WindowStaysOnTopHint)
+		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 ##		self.setAttribute(Qt.WA_DeleteOnClose)
 
 
@@ -1986,6 +2188,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.timeoutField.valueChanged.connect(self.displayTimeout)
 		self.displayTimeout()
 		self.setWindowFlags(Qt.WindowStaysOnTopHint)
+		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 ##		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.ui.datumField.setEnabled(False) # since convert menu is not working yet, TMG 4-8-15
 		self.ui.formatField.setEnabled(False) # since convert menu is not working yet, TMG 4-8-15
@@ -2010,9 +2213,12 @@ class printDialog(QDialog,Ui_printDialog):
 		self.ui.setupUi(self)
 		self.ui.buttonBox.setStyleSheet("font-size:16pt;")
 		self.ui.opPeriodComboBox.addItem("1")
+		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 
 	def showEvent(self,event):
 		rprint("show event called")
+		rprint("teamNameList:"+str(self.parent.teamNameList))
+		rprint("allTeamsList:"+str(self.parent.allTeamsList))
 		if len(self.parent.clueLog)>0:
 			self.ui.clueLogField.setChecked(True)
 			self.ui.clueLogField.setEnabled(True)
@@ -2056,7 +2262,7 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 ##			row=parent.radioLog[amendRow]
 ##			self.sec=row[0]
 ##			self.formattedLocString=row[4]
-		self.setWindowFlags(Qt.FramelessWindowHint)
+		self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint)
 		self.parent=parent
 		self.tabWidth=175
 		self.tabHeight=25
@@ -2074,19 +2280,20 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 ##		self.ui.tabWidget.currentChanged.connect(self.throb)
 ##		self.ui.tabWidget.currentChanged.connect(self.activeTabMessageFieldFocus)
 
-		# 'hold' time: number of seconds that a given tab is 'held' after any mouse or keyboard input;
-		#  if a new entry is spawned inside the 'hold' time then it will appear at the top of the
-		#   stack, but will be flashing red and will not be selected.  The 'hold' means that the most recently
+		# 'hold' time: number of seconds that a given tab is 'held' / keeps focus after any mouse or keyboard
+		#   input; if a new entry is spawned inside the 'hold' time then it will appear at the top of the
+		#   stack, but will not be selected.  The 'hold' means that the most recently
 		#   edited tab will stay selected, to prevent any user input from being interrupted and unexpectedly
 		#   diverted to a different entry in the middle of typing.
+		#
 		#  at the end of the hold time, release the hold: do not automatically change the selected tab, but,
-		#   new entries will automatically be seleted if there is no hold.  If the tab that was previously
-		#   selected has had any modifications from keyboard or mouse, then, it should begin flashing red
-		#   when unselected.
+		#   new entries will automatically be seleted / get focus if there is no hold.
+		#
 		# 'continue' time: when an incoming entry is detected for a given callsign, check to see if there
-		#   is any already open tab for that same callsign.  If there is, and it has been edited within the
-		#   'continue' time, then, do not create a new entry widget or tab, i.e. assume it is part of the
-		#   same continued conversation.  If the continue time has expired, then go ahead and open a new tab.
+		#   is any already open tab for that same callsign.  If there is, and it has been edited or was spawned
+		#   within the 'continue' time, then, do not create a new entry widget or tab, i.e. assume it is part
+		#   of the same continued conversation.  If the continue time has expired, then go ahead and open a new tab.
+
 ##		self.holdSeconds=10
 ##		self.continueSeconds=20
 
@@ -2127,6 +2334,10 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 				padding-bottom:3px;
 			}
 		""")
+
+		self.timer=QTimer(self)
+		self.timer.start(1000)
+		self.timer.timeout.connect(self.autoCleanup)
 
 	# prevent 'esc' from closing the newEntryWindow
 	def keyPressEvent(self,event):
@@ -2265,8 +2476,23 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 			self.setWindowFlags(self.windowFlags() & ~Qt.WindowStaysOnTopHint) # disable always on top
 			self.lower()
 
+##	def autoCleanupStateChanged(self):
+##		if self.ui.autoCleanupCheckBox.isChecked():
+##			self.ui.cleanupNowButton.setEnabled(False)
+##		else:
+##			self.ui.cleanupNowButton.setEnabled(True)
 
-
+	# cleanup rules:
+	# if subject dialog or clue dialog is open, do not increment the tab's idle timer
+	# if there is any text in the tab's message field, or if the cleanup checkbox is False, ignore the idle timer or set it to zero on every timer count (never auto-close the tab)
+	def autoCleanup(self): # this function is called every second by the timer
+		if self.ui.autoCleanupCheckBox.isChecked():
+			for tab in newEntryWidget.instances:
+				rprint("lastModAge:"+str(tab.lastModAge))
+				# note the pause happens in newEntryWidget.updateTimer()
+				if tab.ui.messageField.text()=="" and tab.lastModAge>60:
+					tab.closeEvent(None)
+##			if not tab.clueDialogOpen and not tab.subjectLocatedDialogOpen and tab.ui.messageField.text()=="" and time.time()-tab.sec>60:
 
 
 ##class newEntryWidget(QWidget,Ui_newEntryWidget):
@@ -2329,12 +2555,19 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##		newEntryDialog.newEntryDialogUsedPositionList[self.position]=True
 		newEntryWidget.instances.append(self)
 		self.ui.setupUi(self)
+
+		# blank-out the label under the callsign field if this was a manually / hotkey
+		#  generated newEntryWidget; the label only applies to fleetsync-spawned entries
+		if not fleet:
+			self.ui.label_2.setText("")
+
 		self.setStyleSheet("QPushButton { font-size:9pt; }")
 		self.ui.buttonBox.setStyleSheet("font-size:12pt;")
 		self.setAttribute(Qt.WA_DeleteOnClose) # so that closeEvent gets called when closed by GUI
 		self.palette=QPalette()
 		self.setAutoFillBackground(True)
 		self.clueDialogOpen=False # only allow one clue dialog at a time per newEntryWidget
+		self.subjectLocatedDialogOpen=False
 
 ##		# close and accept the dialog as a new entry if message is no user input for 30 seconds
 
@@ -2375,11 +2608,13 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.parent.newEntryWindow.addTab(time.strftime("%H%M"),self)
 		# do not raise the window if there is an active clue report form
       # or an active changeCallsignDialog
-		rprint("openClueDialogCount="+str(clueDialog.openClueDialogCount))
-		rprint("changeCallsignDialog.isOpen="+str(changeCallsignDialog.isOpen))
+		rprint("clueLog.openDialogCount="+str(clueDialog.openDialogCount))
+		rprint("changeCallsignDialog.openDialogCount="+str(changeCallsignDialog.openDialogCount))
+		rprint("subjectLocatedDialog.openDialogCount="+str(subjectLocatedDialog.openDialogCount))
 		rprint("showing")
 		self.parent.newEntryWindow.show()
-		if clueDialog.openClueDialogCount==0 and changeCallsignDialog.isOpen==False:
+		self.parent.newEntryWindow.setFocus()
+		if clueDialog.openDialogCount==0 and subjectLocatedDialog.openDialogCount==0 and changeCallsignDialog.openDialogCount==0:
 			rprint("raising")
 			self.parent.newEntryWindow.raise_()
 		# the following line is needed to get fix the apparent Qt bug (?) that causes
@@ -2390,7 +2625,6 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.timer=QTimer(self)
 		self.timer.start(1000)
 		self.timer.timeout.connect(self.updateTimer)
-
 
 ##		# unless an entry is currently being edited, activate the newly added tab
 ##		if newEntryWidgetHold:
@@ -2462,7 +2696,9 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			self.setPalette(self.palette)
 
 	def updateTimer(self):
-		self.lastModAge+=1
+		# pause all timers if there are any clue or subject or changeCallsign dialogs open
+		if clueDialog.openDialogCount==0 and subjectLocatedDialog.openDialogCount==0 and changeCallsignDialog.openDialogCount==0:
+			self.lastModAge+=1
 		self.parent.currentEntryLastModAge=self.lastModAge
 ##		if self.lastModAge>holdSec:
 ##			if self.entryHold: # each entry widget has its own lastModAge and its last entryHold
@@ -2500,6 +2736,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			self.newClueDialog=clueDialog(self,self.ui.timeField.text(),self.ui.teamField.text(),self.ui.radioLocField.text(),lastClueNumber+1)
 			self.newClueDialog.show()
 
+	def quickTextSubjectLocatedAction(self):
+		self.subjectLocatedDialog=subjectLocatedDialog(self,self.ui.timeField.text(),self.ui.teamField.text(),self.ui.radioLocField.text())
+		self.subjectLocatedDialog.show()
+
 	# if Enter or Return is pressed while in the teamField, jump to messageField
 	#  as if the user pressed the tab key
 	def keyPressEvent(self,event):
@@ -2515,8 +2755,13 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			super().keyPressEvent(event) # pass the event as normal
 
 	def openChangeCallsignDialog(self):
-		self.changeCallsignDialog=changeCallsignDialog(self,self.ui.teamField.text(),self.fleet,self.dev)
-		self.changeCallsignDialog.show()
+		# problem: changeCallsignDialog does not stay on top of newEntryWindow!
+		# only open the dialog if the newEntryWidget was created from an incoming fleetSync ID
+		#  (it has no meaning for hotkey-opened newEntryWidgets)
+		rprint("FLEET:'"+str(self.fleet)+"'")
+		if self.fleet:
+			self.changeCallsignDialog=changeCallsignDialog(self,self.ui.teamField.text(),self.fleet,self.dev)
+			self.changeCallsignDialog.exec() # required to make it stay on top
 
 	def accept(self):
 		# getValues return value: [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
@@ -2558,7 +2803,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			self.parent.radioLog[self.amendRow][3]=self.ui.messageField.text()+"\n[AMENDED "+time.strftime('%H%M')+"; WAS"+tmpTxt+": '"+lastMsg+"']"+olderMsgs
 			self.parent.radioLog[self.amendRow][5]=status
 
-			self.parent.newEntryProcessTeam(niceTeamName,status)
+			# use to_from value "AMEND" and blank msg text to make sure team timer does not reset
+			self.parent.newEntryProcessTeam(niceTeamName,status,"AMEND","")
 		else:
 			self.parent.newEntry(self.getValues())
 
@@ -2577,7 +2823,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##		self.close()
 
 	def reject(self):
-		really=QMessageBox.warning(self,"Please Confirm","Do you really want to close this radio log entry?  It cannot be recovered.",
+		really=QMessageBox.warning(self,"Please Confirm","Cancel this entry?\nIt cannot be recovered.",
 			QMessageBox.Yes|QMessageBox.No,QMessageBox.No)
 		if really==QMessageBox.Yes:
 			self.closeEvent(None)
@@ -2595,12 +2841,15 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##		self.timer.stop() # otherwise it keeps accepting even after closed!
 
 	def closeEvent(self,event):
-			self.timer.stop()
+		self.timer.stop()
+		# if there is a pending GET request (locator), send it now with the
+		#  specified callsign
+		self.parent.sendPendingGet(self.ui.teamField.text())
 ##		self.parent.newEntryWindow.ui.tabWidget.removeTab(self.parent.newEntryWindow.ui.tabWidget.indexOf(self))
 ##		self.parent.newEntryWindow.removeTab(self.parent.newEntryWindow.ui.tabWidget.indexOf(self))
-			self.parent.newEntryWindow.removeTab(self)
-			newEntryWidget.instances.remove(self)
-			rprint("closed")
+		self.parent.newEntryWindow.removeTab(self)
+		newEntryWidget.instances.remove(self)
+		rprint("closed")
 ##		else:
 ##			event.ignore()
 
@@ -2643,7 +2892,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			newStatus="At IC"
 		elif "requesting transport" in message:
 			newStatus="Waiting for Transport"
-		elif "completed assignment" in message:
+		elif "enroute to ic" in message:
 			newStatus="In Transit"
 		elif "starting assignment" in message:
 			newStatus="Working"
@@ -2652,6 +2901,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		elif "standby" in message:
 			newStatus="STANDBY"
 		elif "hold position" in message:
+			newStatus="STANDBY"
+		elif "requesting deputy" in message:
 			newStatus="STANDBY"
 		else:
 			newStatus=prevStatus
@@ -2681,7 +2932,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		to_from=self.ui.to_fromField.currentText()
 		team=self.ui.teamField.text().strip() # remove leading and trailing spaces
 		message=self.ui.messageField.text()
-#		location=self.ui.radiolocField.text()
+#		location=self.ui.radioLocField.text()
 		status=''
 		if self.ui.statusButtonGroup.checkedButton()!=None:
 			status=self.ui.statusButtonGroup.checkedButton().text()
@@ -2690,7 +2941,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 
 class clueDialog(QDialog,Ui_clueDialog):
 ##	instances=[]
-	openClueDialogCount=0
+	openDialogCount=0
 	indices=[False]*20 # allow up to 20 clue dialogs open at the same time
 	dx=20
 	dy=20
@@ -2710,7 +2961,8 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.clueQuickTextAddedStack=[]
 		self.parent=parent
 ##		self.parent.timer.stop() # do not timeout the new entry dialog if it has a child clueDialog open!
-		self.setWindowFlags(Qt.WindowStaysOnTopHint)
+		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+##		self.setWindowFlags(Qt.FramelessWindowHint)
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.ui.descriptionField.setFocus()
 ##		self.i=0 # dialog box location index; set at runtime, so we know which index to free on close
@@ -2725,7 +2977,12 @@ class clueDialog(QDialog,Ui_clueDialog):
 		global lastClueNumber
 		lastClueNumber=newClueNumber
 		self.parent.clueDialogOpen=True
-		clueDialog.openClueDialogCount+=1
+		clueDialog.openDialogCount+=1
+		self.values=self.parent.getValues()
+		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' button pressed; radio operator is gathering details"
+##		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' button pressed for '"+self.values[2]+"'; radio operator is gathering details"
+##		self.values[2]='' # this message is not actually from a team
+		self.parent.parent.newEntry(self.values)
 
 	def pickXYI(self):
 		for index in range(len(clueDialog.indices)):
@@ -2751,13 +3008,30 @@ class clueDialog(QDialog,Ui_clueDialog):
 	def accept(self):
 ##		self.parent.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 		number=self.ui.clueNumberField.text()
-		description=self.ui.descriptionField.text()
+		description=self.ui.descriptionField.toPlainText()
 		location=self.ui.locationField.text()
 		instructions=self.ui.instructionsField.text()
 		team=self.ui.callsignField.text()
 		clueDate=self.ui.dateField.text()
 		clueTime=self.ui.timeField.text()
 		radioLoc=self.ui.radioLocField.text()
+
+		# validation: description, location, instructions fields must all be non-blank
+		vText=""
+		if description=="":
+			vText+="\n'Description' cannot be blank."
+		if location=="":
+			vText+="\n'Location' cannot be blank."
+		if instructions=="":
+			vText+="\n'Instructions' cannot be blank."
+		rprint("vText:"+vText)
+		if vText!="":
+			self.clueMsgBox=QMessageBox(QMessageBox.Critical,"Error","Please complete the form and try again:\n"+vText,
+				QMessageBox.Ok,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			self.clueMsgBox.show()
+			return
+
+		self.parent.clueLogNeedsPrint=True
 		textToAdd=''
 		existingText=self.parent.ui.messageField.text()
 		if existingText!='':
@@ -2773,7 +3047,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 			self.parent.parent.printClueReport(clueData)
 		rprint("accepted - calling close")
 		self.parent.parent.clueLogDialog.ui.tableView.model().layoutChanged.emit()
-		self.closeEvent(None)
+		self.closeEvent(None,True)
 ##		pixmap=QPixmap(":/radiolog_ui/print_icon.png")
 ##		self.parent.parent.clueLogDialog.ui.tableView.model().setHeaderData(0,Qt.Vertical,pixmap,Qt.DecorationRole)
 ##		self.parent.parent.clueLogDialog.ui.tableView.model().setHeaderData(1,Qt.Vertical,pixmap,Qt.DecorationRole)
@@ -2785,13 +3059,27 @@ class clueDialog(QDialog,Ui_clueDialog):
 ##		self.parent.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 		rprint("rejected - calling close")
 		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().reject()
-		self.closeEvent(None)
+		self.closeEvent(None,False)
+		self.values=self.parent.getValues()
+		self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'LOCATED A CLUE' form"
+		self.parent.parent.newEntry(self.values)
 		super(clueDialog,self).reject()
 
-	def closeEvent(self,event):
+	def closeEvent(self,event,accepted=False):
+		# note, this type of messagebox is needed to show above all other dialogs for this application,
+		#  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
+		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
+		rprint("closeEvent called: accepted="+str(accepted))
+		if not accepted:
+			really=QMessageBox(QMessageBox.Warning,"Please Confirm","Close this Clue Report Form?\nIt cannot be recovered.",
+				QMessageBox.Yes|QMessageBox.Cancel,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			if really.exec()==QMessageBox.Cancel:
+				event.ignore()
+				return
+
 		clueDialog.indices[self.i]=False # free up the dialog box location for the next one
 		self.parent.clueDialogOpen=False
-		clueDialog.openClueDialogCount-=1
+		clueDialog.openDialogCount-=1
 ##		newEntryWidget.instances.remove(self)
 
 	def clueQuickTextAction(self):
@@ -2827,11 +3115,13 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		self.ui.clueNumberField.setText(str(newClueNumber))
 		self.parent=parent
 		self.setWindowFlags(Qt.WindowStaysOnTopHint)
+		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setAttribute(Qt.WA_DeleteOnClose)
 
 	def accept(self):
+		self.parent.clueLogNeedsPrint=True
 		number=self.ui.clueNumberField.text()
-		description=self.ui.descriptionField.text()
+		description=self.ui.descriptionField.toPlainText()
 		location=self.ui.locationField.text()
 		instructions=self.ui.instructionsField.text()
 		team=self.ui.callsignField.text()
@@ -2851,10 +3141,21 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		self.parent.clueLogDialog.ui.tableView.model().layoutChanged.emit()
 		super(nonRadioClueDialog,self).accept()
 
+	def closeEvent(self,event):
+		# note, this type of messagebox is needed to show above all other dialogs for this application,
+		#  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
+		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
+		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Close this Clue Report Form?\nIt cannot be recovered.",
+			QMessageBox.Yes|QMessageBox.Cancel,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		if really.exec()==QMessageBox.Cancel:
+			event.ignore()
+			return
+
 	def reject(self):
 ##		self.parent.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 		rprint("rejected - calling close")
 		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().reject()
+		self.closeEvent(None)
 		super(nonRadioClueDialog,self).reject()
 
 
@@ -2899,12 +3200,91 @@ class clueLogDialog(QDialog,Ui_clueLogDialog):
 				self.parent.printClueReport(clueData)
 
 
+class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
+	openDialogCount=0
+	def __init__(self,parent,t,callsign,radioLoc):
+		QDialog.__init__(self)
+		self.ui=Ui_subjectLocatedDialog()
+		self.ui.setupUi(self)
+		self.ui.timeField.setText(t)
+		self.ui.dateField.setText(time.strftime("%x"))
+		self.ui.callsignField.setText(callsign)
+		self.ui.radioLocField.setText(radioLoc)
+		self.parent=parent
+		self.parent.subjectLocatedDialogOpen=True
+		self.setWindowFlags(Qt.WindowStaysOnTopHint)
+		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		self.setAttribute(Qt.WA_DeleteOnClose)
+		self.ui.locationField.setFocus()
+		self.values=self.parent.getValues()
+		self.values[3]="'RADIO LOG SOFTWARE: SUBJECT LOCATED' button pressed; radio operator is gathering details"
+		self.parent.parent.newEntry(self.values)
+		subjectLocatedDialog.openDialogCount+=1
+
+	def accept(self):
+		location=self.ui.locationField.text()
+		condition=self.ui.conditionField.toPlainText()
+		resources=self.ui.resourcesField.toPlainText()
+		other=self.ui.otherField.toPlainText()
+		team=self.ui.callsignField.text()
+		subjDate=self.ui.dateField.text()
+		subjTime=self.ui.timeField.text()
+		radioLoc=self.ui.radioLocField.text()
+
+		# validation: description, location, instructions fields must all be non-blank
+		vText=""
+		if location=="":
+			vText+="\n'Location' cannot be blank."
+		if condition=="":
+			vText+="\n'Condition' cannot be blank."
+		if resources=="":
+			vText+="\n'Resources Needed' cannot be blank."
+		rprint("vText:"+vText)
+		if vText!="":
+			self.clueMsgBox=QMessageBox(QMessageBox.Critical,"Error","Please complete the form and try again:\n"+vText,
+				QMessageBox.Ok,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			self.clueMsgBox.show()
+			return
+
+		textToAdd=''
+		existingText=self.parent.ui.messageField.text()
+		if existingText!='':
+			textToAdd='; '
+		textToAdd+="SUBJECT LOCATED: LOCATION: "+location+"; CONDITION: "+condition+"; RESOURCES NEEDED: "+resources
+		if other!='':
+			textToAdd+="; "+other
+		self.parent.ui.messageField.setText(existingText+textToAdd)
+		super(subjectLocatedDialog,self).accept()
+
+	def reject(self):
+		rprint("rejected - calling close")
+		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().reject()
+		self.closeEvent(None)
+		self.values=self.parent.getValues()
+		self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'SUBJECT LOCATED' form"
+		self.parent.parent.newEntry(self.values)
+		super(subjectLocatedDialog,self).reject()
+
+	def closeEvent(self,event):
+		# note, this type of messagebox is needed to show above all other dialogs for this application,
+		#  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
+		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
+		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Close this Subject Located form?\nIt cannot be recovered.",
+			QMessageBox.Yes|QMessageBox.Cancel,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		if really.exec()==QMessageBox.Cancel:
+			event.ignore()
+			return
+		self.parent.subjectLocatedDialogOpen=False
+		subjectLocatedDialog.openDialogCount-=1
+
+
 class printClueLogDialog(QDialog,Ui_printClueLogDialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
 		self.ui=Ui_printClueLogDialog()
 		self.ui.setupUi(self)
 		self.parent=parent
+		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 
 	def showEvent(self,event):
 		itemsToAdd=sorted(list(set([str(clue[5]) for clue in self.parent.clueLog if str(clue[5])!=""])))
@@ -2942,6 +3322,7 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 		self.ui.currentOpPeriodField.setText(str(parent.opPeriod))
 		self.ui.newOpPeriodField.setText(str(parent.opPeriod+1))
 		self.setAttribute(Qt.WA_DeleteOnClose)
+		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 
 	def accept(self):
 		if self.ui.printCheckBox.isChecked():
@@ -2964,12 +3345,12 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 
 
 class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
-	isOpen=False
+	openDialogCount=0
 	def __init__(self,parent,callsign,fleet,device):
 		QDialog.__init__(self)
 		self.ui=Ui_changeCallsignDialog()
 		self.ui.setupUi(self)
-		self.setWindowFlags(Qt.WindowStaysOnTopHint)
+		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.parent=parent
 		self.currentCallsign=callsign
@@ -2980,7 +3361,7 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		self.ui.newCallsignField.setFocus()
 		self.ui.newCallsignField.setText("Team  ")
 		self.ui.newCallsignField.setSelection(5,1)
-		changeCallsignDialog.isOpen=True
+		changeCallsignDialog.openDialogCount+=1
 
 	def accept(self):
 		found=False
@@ -2997,51 +3378,53 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		# save the updated table (filename is set at the same times that csvFilename is set)
 		self.parent.parent.fsSaveLookup()
 		# finally, pass the 'accept' signal on up the tree as usual
-		changeCallsignDialog.isOpen=False
+		changeCallsignDialog.openDialogCount-=1
+		self.parent.parent.sendPendingGet(self.ui.newCallsignField.text())
+		self.parent.ui.messageField.setFocus()
 		super(changeCallsignDialog,self).accept()
 
 
-class convertDialog(QDialog,Ui_convertDialog):
-	def __init__(self,parent,rowData,rowHasRadioLoc=False,rowHasMsgCoords=False):
-		QDialog.__init__(self)
-		self.ui=Ui_convertDialog()
-		self.ui.setupUi(self)
-		self.parent=parent
-		self.setWindowFlags(Qt.WindowStaysOnTopHint)
-		self.setAttribute(Qt.WA_DeleteOnClose)
-
-		metrix=QFontMetrics(self.ui.msgField.font())
-		origText=rowData[0]+" "+rowData[1]+" "+rowData[2]+" : "+rowData[3]
-		clippedText=metrix.elidedText(origText,Qt.ElideRight,self.ui.msgField.width())
-		self.ui.msgField.setText(clippedText)
-
-		if not rowHasRadioLoc:
-			self.ui.useRadioLocButton.setEnabled(False)
-			self.ui.useCoordsInMessageButton.setChecked(True)
-		if not rowHasMsgCoords:
-			self.ui.useCoordsInMessageButton.setEnabled(False)
-			self.ui.useRadioLocButton.setChecked(True)
-
-		# initially set the target datum and format to the first choice that is not the same as the current log datum and format
-		datums=[self.ui.datumComboBox.itemText(i) for i in range(self.ui.datumComboBox.count())]
-		formats=[self.ui.formatComboBox.itemText(i) for i in range(self.ui.formatComboBox.count())]
-		self.ui.datumComboBox.setCurrentText([datum for datum in datums if not datum==self.parent.datum][0])
-		self.ui.formatComboBox.setCurrentText([coordFormat for coordFormat in formats if not coordFormat==self.parent.coordFormat][0])
-
-		if self.ui.useRadioLocButton.isChecked():
-			self.ui.origCoordsField.setText(rowData[9])
-		else:
-			self.ui.origCoordsField.setText("")
-		self.ui.origDatumFormatLabel.setText(self.parent.datum+"  "+self.parent.coordFormat)
-
-		self.ui.goButton.clicked.connect(self.go)
-
-##	def getCoordsFromString(self,string):
-##		#1. parse into tokens, splitting on whitespace, comma, semicolon
-##		#2. look for a pair of adjacent tokens that each have numbers in them
-
-	def go(self):
-		rprint("CONVERTING")
+##class convertDialog(QDialog,Ui_convertDialog):
+##	def __init__(self,parent,rowData,rowHasRadioLoc=False,rowHasMsgCoords=False):
+##		QDialog.__init__(self)
+##		self.ui=Ui_convertDialog()
+##		self.ui.setupUi(self)
+##		self.parent=parent
+##		self.setWindowFlags(Qt.WindowStaysOnTopHint)
+##		self.setAttribute(Qt.WA_DeleteOnClose)
+##
+##		metrix=QFontMetrics(self.ui.msgField.font())
+##		origText=rowData[0]+" "+rowData[1]+" "+rowData[2]+" : "+rowData[3]
+##		clippedText=metrix.elidedText(origText,Qt.ElideRight,self.ui.msgField.width())
+##		self.ui.msgField.setText(clippedText)
+##
+##		if not rowHasRadioLoc:
+##			self.ui.useRadioLocButton.setEnabled(False)
+##			self.ui.useCoordsInMessageButton.setChecked(True)
+##		if not rowHasMsgCoords:
+##			self.ui.useCoordsInMessageButton.setEnabled(False)
+##			self.ui.useRadioLocButton.setChecked(True)
+##
+##		# initially set the target datum and format to the first choice that is not the same as the current log datum and format
+##		datums=[self.ui.datumComboBox.itemText(i) for i in range(self.ui.datumComboBox.count())]
+##		formats=[self.ui.formatComboBox.itemText(i) for i in range(self.ui.formatComboBox.count())]
+##		self.ui.datumComboBox.setCurrentText([datum for datum in datums if not datum==self.parent.datum][0])
+##		self.ui.formatComboBox.setCurrentText([coordFormat for coordFormat in formats if not coordFormat==self.parent.coordFormat][0])
+##
+##		if self.ui.useRadioLocButton.isChecked():
+##			self.ui.origCoordsField.setText(rowData[9])
+##		else:
+##			self.ui.origCoordsField.setText("")
+##		self.ui.origDatumFormatLabel.setText(self.parent.datum+"  "+self.parent.coordFormat)
+##
+##		self.ui.goButton.clicked.connect(self.go)
+##
+####	def getCoordsFromString(self,string):
+####		#1. parse into tokens, splitting on whitespace, comma, semicolon
+####		#2. look for a pair of adjacent tokens that each have numbers in them
+##
+##	def go(self):
+##		rprint("CONVERTING")
 
 
 class clueTableModel(QAbstractTableModel):

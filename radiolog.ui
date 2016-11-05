@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>966</width>
-    <height>510</height>
+    <width>1346</width>
+    <height>770</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,7 +19,7 @@
      <item>
       <widget class="QLabel" name="incidentNameLabel">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+        <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -53,6 +53,12 @@
          <bold>true</bold>
         </font>
        </property>
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
+       <property name="toolTip">
+        <string>Change Operational Period</string>
+       </property>
        <property name="text">
         <string>OP 1</string>
        </property>
@@ -77,8 +83,32 @@
        <property name="focusPolicy">
         <enum>Qt::NoFocus</enum>
        </property>
+       <property name="toolTip">
+        <string/>
+       </property>
        <property name="text">
         <string>Add Entry</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="addNonRadioClueButton">
+       <property name="font">
+        <font>
+         <family>Segoe UI</family>
+         <pointsize>14</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
+       <property name="toolTip">
+        <string/>
+       </property>
+       <property name="text">
+        <string>Add Non-Radio Clue</string>
        </property>
       </widget>
      </item>
@@ -95,6 +125,9 @@
        <property name="focusPolicy">
         <enum>Qt::NoFocus</enum>
        </property>
+       <property name="toolTip">
+        <string/>
+       </property>
        <property name="text">
         <string>Clue Log</string>
        </property>
@@ -107,6 +140,9 @@
          <family>Segoe UI</family>
          <pointsize>9</pointsize>
         </font>
+       </property>
+       <property name="toolTip">
+        <string>Flashing red begins after this much time without contact</string>
        </property>
        <property name="text">
         <string>TIMEOUT:
@@ -168,6 +204,9 @@ FORMAT</string>
        <property name="focusPolicy">
         <enum>Qt::NoFocus</enum>
        </property>
+       <property name="toolTip">
+        <string/>
+       </property>
        <property name="text">
         <string/>
        </property>
@@ -196,6 +235,9 @@ FORMAT</string>
        </property>
        <property name="focusPolicy">
         <enum>Qt::NoFocus</enum>
+       </property>
+       <property name="toolTip">
+        <string/>
        </property>
        <property name="icon">
         <iconset resource="radiolog_ui.qrc">
@@ -231,6 +273,9 @@ FORMAT</string>
        </property>
        <property name="focusPolicy">
         <enum>Qt::NoFocus</enum>
+       </property>
+       <property name="toolTip">
+        <string/>
        </property>
        <property name="text">
         <string/>

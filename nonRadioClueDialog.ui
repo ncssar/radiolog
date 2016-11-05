@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>722</width>
-    <height>517</height>
+    <width>721</width>
+    <height>572</height>
    </rect>
   </property>
   <property name="font">
@@ -23,7 +23,7 @@
    <property name="geometry">
     <rect>
      <x>40</x>
-     <y>380</y>
+     <y>450</y>
      <width>141</width>
      <height>51</height>
     </rect>
@@ -47,33 +47,11 @@
     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
    </property>
   </widget>
-  <widget class="QLineEdit" name="descriptionField">
-   <property name="geometry">
-    <rect>
-     <x>160</x>
-     <y>171</y>
-     <width>551</width>
-     <height>39</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <family>Segoe UI</family>
-     <pointsize>16</pointsize>
-    </font>
-   </property>
-   <property name="focusPolicy">
-    <enum>Qt::StrongFocus</enum>
-   </property>
-   <property name="text">
-    <string/>
-   </property>
-  </widget>
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>550</x>
-     <y>460</y>
+     <x>540</x>
+     <y>510</y>
      <width>161</width>
      <height>51</height>
     </rect>
@@ -95,7 +73,7 @@
    <property name="geometry">
     <rect>
      <x>50</x>
-     <y>330</y>
+     <y>400</y>
      <width>131</width>
      <height>51</height>
     </rect>
@@ -133,39 +111,6 @@
    </property>
    <property name="alignment">
     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-   </property>
-  </widget>
-  <widget class="QLineEdit" name="instructionsField">
-   <property name="geometry">
-    <rect>
-     <x>190</x>
-     <y>390</y>
-     <width>471</width>
-     <height>31</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <pointsize>14</pointsize>
-    </font>
-   </property>
-   <property name="text">
-    <string/>
-   </property>
-  </widget>
-  <widget class="QLineEdit" name="locationField">
-   <property name="geometry">
-    <rect>
-     <x>190</x>
-     <y>340</y>
-     <width>471</width>
-     <height>31</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <pointsize>14</pointsize>
-    </font>
    </property>
   </widget>
   <widget class="QLabel" name="label_2">
@@ -400,8 +345,8 @@
   <widget class="QCheckBox" name="clueReportPrintCheckBox">
    <property name="geometry">
     <rect>
-     <x>160</x>
-     <y>470</y>
+     <x>150</x>
+     <y>520</y>
      <width>381</width>
      <height>31</height>
     </rect>
@@ -422,7 +367,7 @@
    <property name="geometry">
     <rect>
      <x>30</x>
-     <y>230</y>
+     <y>300</y>
      <width>661</width>
      <height>91</height>
     </rect>
@@ -434,7 +379,7 @@
    </property>
    <property name="text">
     <string>Typically, 'Location' and 'Instructions' should be left blank.
-All relevant data should be hand-written, either after printing this form,
+All relevant data should be hand-written on this form after printing,
 or on a separate paper or attachment.</string>
    </property>
    <property name="alignment">
@@ -445,7 +390,7 @@ or on a separate paper or attachment.</string>
    <property name="geometry">
     <rect>
      <x>30</x>
-     <y>230</y>
+     <y>300</y>
      <width>661</width>
      <height>201</height>
     </rect>
@@ -453,30 +398,74 @@ or on a separate paper or attachment.</string>
    <property name="title">
     <string/>
    </property>
+   <widget class="QLineEdit" name="instructionsField">
+    <property name="geometry">
+     <rect>
+      <x>160</x>
+      <y>160</y>
+      <width>471</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>14</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="locationField">
+    <property name="geometry">
+     <rect>
+      <x>160</x>
+      <y>110</y>
+      <width>471</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>14</pointsize>
+     </font>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QPlainTextEdit" name="descriptionField">
+   <property name="geometry">
+    <rect>
+     <x>163</x>
+     <y>166</y>
+     <width>531</width>
+     <height>121</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">font: 14pt &quot;Segoe UI&quot;;</string>
+   </property>
   </widget>
   <zorder>groupBox</zorder>
   <zorder>label_4</zorder>
-  <zorder>descriptionField</zorder>
   <zorder>buttonBox</zorder>
   <zorder>label_3</zorder>
   <zorder>label</zorder>
-  <zorder>instructionsField</zorder>
-  <zorder>locationField</zorder>
   <zorder>label_2</zorder>
   <zorder>clueNumberField</zorder>
   <zorder>label_6</zorder>
   <zorder>clueReportPrintCheckBox</zorder>
   <zorder>label_8</zorder>
   <zorder>groupBox_2</zorder>
+  <zorder>descriptionField</zorder>
  </widget>
  <tabstops>
+  <tabstop>clueNumberField</tabstop>
+  <tabstop>dateField</tabstop>
+  <tabstop>timeField</tabstop>
   <tabstop>callsignField</tabstop>
   <tabstop>descriptionField</tabstop>
   <tabstop>locationField</tabstop>
   <tabstop>instructionsField</tabstop>
-  <tabstop>dateField</tabstop>
-  <tabstop>timeField</tabstop>
-  <tabstop>clueNumberField</tabstop>
   <tabstop>clueReportPrintCheckBox</tabstop>
  </tabstops>
  <resources/>

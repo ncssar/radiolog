@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'radiolog.ui'
 #
-# Created: Sat Apr  4 08:56:09 2015
+# Created: Thu Nov  5 20:28:20 2015
 #      by: PyQt5 UI code generator 5.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -12,13 +12,13 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName("Dialog")
-        Dialog.resize(966, 510)
+        Dialog.resize(1346, 770)
         self.gridLayout_2 = QtWidgets.QGridLayout(Dialog)
         self.gridLayout_2.setObjectName("gridLayout_2")
         self.horizontalLayout = QtWidgets.QHBoxLayout()
         self.horizontalLayout.setObjectName("horizontalLayout")
         self.incidentNameLabel = QtWidgets.QLabel(Dialog)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.incidentNameLabel.sizePolicy().hasHeightForWidth())
@@ -39,6 +39,7 @@ class Ui_Dialog(object):
         font.setBold(True)
         font.setWeight(75)
         self.opPeriodButton.setFont(font)
+        self.opPeriodButton.setFocusPolicy(QtCore.Qt.NoFocus)
         self.opPeriodButton.setObjectName("opPeriodButton")
         self.horizontalLayout.addWidget(self.opPeriodButton)
         self.pushButton = QtWidgets.QPushButton(Dialog)
@@ -54,8 +55,20 @@ class Ui_Dialog(object):
         font.setWeight(75)
         self.pushButton.setFont(font)
         self.pushButton.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.pushButton.setToolTip("")
         self.pushButton.setObjectName("pushButton")
         self.horizontalLayout.addWidget(self.pushButton)
+        self.addNonRadioClueButton = QtWidgets.QPushButton(Dialog)
+        font = QtGui.QFont()
+        font.setFamily("Segoe UI")
+        font.setPointSize(14)
+        font.setBold(True)
+        font.setWeight(75)
+        self.addNonRadioClueButton.setFont(font)
+        self.addNonRadioClueButton.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.addNonRadioClueButton.setToolTip("")
+        self.addNonRadioClueButton.setObjectName("addNonRadioClueButton")
+        self.horizontalLayout.addWidget(self.addNonRadioClueButton)
         self.clueLogButton = QtWidgets.QPushButton(Dialog)
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
@@ -64,6 +77,7 @@ class Ui_Dialog(object):
         font.setWeight(75)
         self.clueLogButton.setFont(font)
         self.clueLogButton.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.clueLogButton.setToolTip("")
         self.clueLogButton.setObjectName("clueLogButton")
         self.horizontalLayout.addWidget(self.clueLogButton)
         self.timeoutLabel = QtWidgets.QLabel(Dialog)
@@ -99,6 +113,7 @@ class Ui_Dialog(object):
         self.horizontalLayout.addWidget(self.clock)
         self.helpButton = QtWidgets.QToolButton(Dialog)
         self.helpButton.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.helpButton.setToolTip("")
         self.helpButton.setText("")
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap(":/radiolog_ui/help_icon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
@@ -113,6 +128,7 @@ class Ui_Dialog(object):
         sizePolicy.setHeightForWidth(self.optionsButton.sizePolicy().hasHeightForWidth())
         self.optionsButton.setSizePolicy(sizePolicy)
         self.optionsButton.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.optionsButton.setToolTip("")
         icon1 = QtGui.QIcon()
         icon1.addPixmap(QtGui.QPixmap(":/radiolog_ui/options_icon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.optionsButton.setIcon(icon1)
@@ -128,6 +144,7 @@ class Ui_Dialog(object):
         self.printButton.setMinimumSize(QtCore.QSize(0, 0))
         self.printButton.setCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
         self.printButton.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.printButton.setToolTip("")
         self.printButton.setText("")
         icon2 = QtGui.QIcon()
         icon2.addPixmap(QtGui.QPixmap(":/radiolog_ui/print_icon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
@@ -188,9 +205,12 @@ class Ui_Dialog(object):
         _translate = QtCore.QCoreApplication.translate
         Dialog.setWindowTitle(_translate("Dialog", "Radio Log"))
         self.incidentNameLabel.setText(_translate("Dialog", "New Incident"))
+        self.opPeriodButton.setToolTip(_translate("Dialog", "Change Operational Period"))
         self.opPeriodButton.setText(_translate("Dialog", "OP 1"))
         self.pushButton.setText(_translate("Dialog", "Add Entry"))
+        self.addNonRadioClueButton.setText(_translate("Dialog", "Add Non-Radio Clue"))
         self.clueLogButton.setText(_translate("Dialog", "Clue Log"))
+        self.timeoutLabel.setToolTip(_translate("Dialog", "Flashing red begins after this much time without contact"))
         self.timeoutLabel.setText(_translate("Dialog", "TIMEOUT:\n"
 "10sec"))
         self.datumFormatLabel.setText(_translate("Dialog", "DATUM\n"

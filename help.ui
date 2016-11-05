@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>498</width>
-    <height>587</height>
+    <height>672</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -184,6 +184,11 @@
          <string>New Row</string>
         </property>
        </row>
+       <row>
+        <property name="text">
+         <string>New Row</string>
+        </property>
+       </row>
        <column>
         <property name="text">
          <string>Key</string>
@@ -287,7 +292,7 @@
        </item>
        <item row="3" column="0">
         <property name="text">
-         <string>F1</string>
+         <string>'a'</string>
         </property>
         <property name="font">
          <font>
@@ -309,12 +314,12 @@
        </item>
        <item row="3" column="2">
         <property name="text">
-         <string>Help (this window)</string>
+         <string>New Entry, 'TO' 'All Teams'</string>
         </property>
        </item>
        <item row="4" column="0">
         <property name="text">
-         <string>F2</string>
+         <string>F1</string>
         </property>
         <property name="font">
          <font>
@@ -336,12 +341,12 @@
        </item>
        <item row="4" column="2">
         <property name="text">
-         <string>Options</string>
+         <string>Help (this window)</string>
         </property>
        </item>
        <item row="5" column="0">
         <property name="text">
-         <string>F3</string>
+         <string>F2</string>
         </property>
         <property name="font">
          <font>
@@ -363,12 +368,12 @@
        </item>
        <item row="5" column="2">
         <property name="text">
-         <string>Print</string>
+         <string>Options</string>
         </property>
        </item>
        <item row="6" column="0">
         <property name="text">
-         <string>F4</string>
+         <string>F3</string>
         </property>
         <property name="font">
          <font>
@@ -390,12 +395,12 @@
        </item>
        <item row="6" column="2">
         <property name="text">
-         <string>Load Existing Radio Log</string>
+         <string>Print</string>
         </property>
        </item>
        <item row="7" column="0">
         <property name="text">
-         <string>F5</string>
+         <string>F4</string>
         </property>
         <property name="font">
          <font>
@@ -417,15 +422,12 @@
        </item>
        <item row="7" column="2">
         <property name="text">
-         <string>Reload Fleetsync Table</string>
-        </property>
-        <property name="textAlignment">
-         <set>AlignLeft|AlignVCenter</set>
+         <string>Load Existing Radio Log</string>
         </property>
        </item>
        <item row="8" column="0">
         <property name="text">
-         <string>F6</string>
+         <string>F5</string>
         </property>
         <property name="font">
          <font>
@@ -447,12 +449,15 @@
        </item>
        <item row="8" column="2">
         <property name="text">
-         <string>Restore Last Saved Files</string>
+         <string>Reload Fleetsync Table</string>
+        </property>
+        <property name="textAlignment">
+         <set>AlignLeft|AlignVCenter</set>
         </property>
        </item>
        <item row="9" column="0">
         <property name="text">
-         <string>'+'</string>
+         <string>F6</string>
         </property>
         <property name="font">
          <font>
@@ -474,12 +479,12 @@
        </item>
        <item row="9" column="2">
         <property name="text">
-         <string>Enlarge Font</string>
+         <string>Restore Last Saved Files</string>
         </property>
        </item>
        <item row="10" column="0">
         <property name="text">
-         <string>'-'</string>
+         <string>'+'</string>
         </property>
         <property name="font">
          <font>
@@ -500,6 +505,33 @@
         </property>
        </item>
        <item row="10" column="2">
+        <property name="text">
+         <string>Enlarge Font</string>
+        </property>
+       </item>
+       <item row="11" column="0">
+        <property name="text">
+         <string>'-'</string>
+        </property>
+        <property name="font">
+         <font>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="textAlignment">
+         <set>AlignRight|AlignVCenter</set>
+        </property>
+       </item>
+       <item row="11" column="1">
+        <property name="text">
+         <string>-</string>
+        </property>
+        <property name="textAlignment">
+         <set>AlignHCenter|AlignVCenter|AlignCenter</set>
+        </property>
+       </item>
+       <item row="11" column="2">
         <property name="text">
          <string>Reduce Font</string>
         </property>

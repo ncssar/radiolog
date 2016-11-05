@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="radiolog_ui">
+    <file>empty_filter.png</file>
     <file>help_icon.png</file>
     <file>options_icon.png</file>
     <file>print_icon.png</file>
