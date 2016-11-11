@@ -2,7 +2,9 @@
 
 Nevada County Sheriff's Search and Rescue (ncssar-nc.org) has been using this radio log tool on every callout since early 2015.
 
-This open-source project is mainly intended for use by other Search and Rescue teams.  While it's not currently (Nov 10 2016) in an easily installable state, one of our biggest issues will be to make a clean installer.  Until then, please contact the author if your team is interested in using this software.
+This open-source project is mainly intended for use by other Search and Rescue teams.  While it's not currently (Nov. 10 2016) in an easily installable state, one of our biggest issues will be to make a clean installer.  Until then, please contact the author if your team is interested in using this software.
+
+Also, as of Nov. 10 2016, this repo is very new and issues have not yet been imported from our previous issue-tracking tool.  They will be available in the next week; thanks for your patience!
 
 The general idea:
 
