@@ -26,3 +26,7 @@ Key Features
 - Multi-Operational Period support
 - Printing
 - Automatic file management
+
+Overview slideshow (17 slides describing the features in a bit more detail): [overview PDF](/doc/radiolog_overview.pdf)
+
+Screencasts coming soon!  Please email the author if other documentation would be helpful.
