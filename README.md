@@ -4,6 +4,8 @@ Nevada County Sheriff's Search and Rescue (ncssar-nc.org) has been using this ra
 
 This open-source project is mainly intended for use by other Search and Rescue teams.  While it's not currently (Nov. 10 2016) in an easily installable state, one of our biggest issues will be to make a clean installer.  Until then, please contact the author if your team is interested in using this software.
 
+See the latest installation procedure [here](https://github.com/ncssar/radiolog/wiki/Installation).
+
 As of Nov 19 2016, all issues have been imported to this repo from the previous ticketing system.  If you are planning to contribute, [please take a look at this repo's Wiki](https://github.com/ncssar/radiolog/wiki).
 
 The general idea:
