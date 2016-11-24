@@ -31,4 +31,6 @@ Key Features
 
 Overview slideshow (17 slides describing the features in a bit more detail): [overview PDF](/doc/radiolog_overview.pdf)
 
+FleetSync interface details are spelled out [here](/doc/radiolog_fleetsync_details.pdf).
+
 Screencasts coming soon!  Please email the author if other documentation would be helpful.
