@@ -14,6 +14,13 @@ While this code has been in use for a few years, and was intended to be open sou
 
 4. If you plan to work on an issue, please assign it to yourself, so that others will know not to start work on the same issue from scratch.
 
+Some issue search and sort shortcuts - from any of these, you can further refine your search with the Labels and Milestones pull-down menus:
+- [All open help-wanted issues](https://github.com/ncssar/radiolog/issues?utf8=%E2%9C%93&q=is%3Aissue%20is%3Aopen%20label%3A%22help%20wanted%22) 
+- [All open help-wanted enhancements](https://github.com/ncssar/radiolog/issues?utf8=%E2%9C%93&q=is%3Aissue%20is%3Aopen%20label%3A%22help%20wanted%22%20label%3A%22enhancement%22)
+- [All open help-wanted bugs](https://github.com/ncssar/radiolog/issues?utf8=%E2%9C%93&q=is%3Aissue%20is%3Aopen%20label%3A%22help%20wanted%22%20label%3A%22bug%22)
+- [High-priority open help-wanted enhancements](https://github.com/ncssar/radiolog/issues?utf8=%E2%9C%93&q=is%3Aissue%20is%3Aopen%20label%3A%22help%20wanted%22%20label%3A%22enhancement%22%20label%3A%22Priority%3AHigh%22)
+- [High-priority open help-wanted bugs](https://github.com/ncssar/radiolog/issues?utf8=%E2%9C%93&q=is%3Aissue%20is%3Aopen%20label%3A%22help%20wanted%22%20label%3A%22bug%22%20label%3A%22Priority%3AHigh%22)
+
 Thanks for all your help; happy coding and let me know if you have any questions!
 
 -Tom Grundy
