@@ -22,6 +22,8 @@
 #                         is 'FROM' with non-blank message text; change more
 #                         app-wide stylesheet font sizes in fontsChanged, and
 #                         change in children to override as needed
+#  11-27-16    TMG       fix 307 (help window flashing colors are bouncing); also
+#                         verified no ill effects in team tabs
 #
 # #############################################################################
 #
@@ -220,11 +222,11 @@ statusStyleDict["Working"]="font-size:18px;background:none;border:1px outset bla
 #  prevent a timeout.  So, for this code, and alternating timer cycles (seconds):
 # cycle 1: style as in the following line
 # cycle 2: if not timed out, style as "" (blank); if timed out, style as timeout as expected
-statusStyleDict["Waiting for Transport"]="font-size:18px;background:blue;color:white;border:1px outset black;padding-left:0px;padding-right:0px"
-statusStyleDict["STANDBY"]="font-size:18px;background:black;color:white;border:1px outset black;padding-left:0px;padding-right:0px"
+statusStyleDict["Waiting for Transport"]="font-size:18px;background:blue;color:white;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
+statusStyleDict["STANDBY"]="font-size:18px;background:black;color:white;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
 statusStyleDict[""]="font-size:18px;background:none;padding-left:1px;padding-right:1px"
-statusStyleDict["TIMED_OUT_ORANGE"]="font-size:18px;background:orange;border:1px outset black;padding-left:0px;padding-right:0px"
-statusStyleDict["TIMED_OUT_RED"]="font-size:18px;background:red;border:1px outset black;padding-left:0px;padding-right:0px"
+statusStyleDict["TIMED_OUT_ORANGE"]="font-size:18px;background:orange;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
+statusStyleDict["TIMED_OUT_RED"]="font-size:18px;background:red;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
 
 timeoutDisplayList=[["10 sec",10]]
 for n in range (1,13):
