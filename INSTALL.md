@@ -11,6 +11,7 @@ As of Nov 19, 2016, there is no installation script or program.  Installation ju
  * fdfgen (pip install fdfgen)
  * win32api (pip install pypiwin32)
 3. GISInternals SDK (http://www.gisinternals.com/release.php - pick the latest release for your platform, such as release-1800-x64-gdal-2-1-2-mapserver-7-0-2)
+4. PDFtk Free (https://www.pdflabs.com/tools/pdftk-the-pdf-toolkit/ - download and install the free version; during install, you will be asked if the pdftk directory should be added to your path; make sure you answer 'yes')
 
 After you have all the files from this repo, and all the above prerequisites are in place, you may need to check and/or edit some hardcoded paths in radiolog.py:
 
