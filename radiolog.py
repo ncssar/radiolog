@@ -2352,12 +2352,13 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 		currentIndex=self.ui.tabWidget.currentIndex()
 		rprint("tabCount="+str(tabCount)+" currentIndex="+str(currentIndex))
 		if tabCount>2: # skip all this if 'NEWEST' and 'OLDEST' are the only tabs remaining
-			if throb:
-				self.ui.tabWidget.widget(currentIndex).throb()
+			if (tabCount-currentIndex)>1: # don't try to throb the 'OLDEST' label - it has no throb method
+				if throb:
+					self.ui.tabWidget.widget(currentIndex).throb()
 
 ##	def activeTabMessageFieldFocus(self):
 ##		currentIndex=self.ui.tabWidget.currentIndex()
-			self.ui.tabWidget.widget(currentIndex).ui.messageField.setFocus()
+				self.ui.tabWidget.widget(currentIndex).ui.messageField.setFocus()
 
 ##	def updateTabColors(self):
 
