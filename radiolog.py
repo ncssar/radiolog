@@ -25,6 +25,8 @@
 #  11-27-16    TMG       fix 307 (help window flashing colors are bouncing); also
 #                         verified no ill effects in team tabs
 #  12-1-16     TMG       fix 268 (throb crash on oldest item in non-empty stack)
+#  12-1-16     TMG       add -nosend option to disable sending of GET requests,
+#                         to avoid lag when network is not present
 #
 # #############################################################################
 #
@@ -198,6 +200,7 @@ from FingerTabs import *
 # process command-line arguments
 minMode=False
 develMode=False
+noSend=False
 if len(sys.argv)>1:
 	for arg in sys.argv[1:]:
 		if arg.lower()=="-devel":
@@ -206,6 +209,9 @@ if len(sys.argv)>1:
 		if arg.lower()=="-min":
 			minMode=True
 			print("Minimum display size mode enabled.")
+		if arg.lower()=="-nosend":
+			noSend=True
+			print("Will not send any GET requests for this session.")
 
 if minMode:
 	from radiolog_min_ui import Ui_Dialog # built to look decent at 800x600
@@ -812,17 +818,18 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		# also, if it ends in hyphen, defer sending until accept of change callsign dialog, or closeEvent of newEntryDialog
 		#  (see getString construction comments above)
-		if self.getString!='': # to avoid sending a GET string that is nothing but the callsign
-			self.getString=self.getString+suffix
-		if self.getString!='' and not self.getString.endswith("-"):
-			QCoreApplication.processEvents()
-			try:
-				rprint("Sending GET request:")
-				rprint(self.getString)
-				requests.get(self.getString)
-			except:
-				pass
-			self.getString=''
+		if not noSend:
+			if self.getString!='': # to avoid sending a GET string that is nothing but the callsign
+				self.getString=self.getString+suffix
+			if self.getString!='' and not self.getString.endswith("-"):
+				QCoreApplication.processEvents()
+				try:
+					rprint("Sending GET request:")
+					rprint(self.getString)
+					requests.get(self.getString)
+				except:
+					pass
+				self.getString=''
 
 	def fsIsFiltered(self,fleet,dev):
 		rprint("fleet="+fleet+" dev="+dev)
