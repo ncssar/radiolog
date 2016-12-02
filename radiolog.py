@@ -24,6 +24,7 @@
 #                         change in children to override as needed
 #  11-27-16    TMG       fix 307 (help window flashing colors are bouncing); also
 #                         verified no ill effects in team tabs
+#  12-1-16     TMG       fix 268 (throb crash on oldest item in non-empty stack)
 #
 # #############################################################################
 #
