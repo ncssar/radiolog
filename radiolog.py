@@ -507,8 +507,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.secondComPortFound=False
 		self.comPortScanInProgress=False
 		self.comPortTryList=[]
-		if develMode:
-			self.comPortTryList=[serial.Serial("\\\\.\\CNCB0")] # DEVEL
+##		if develMode:
+##			self.comPortTryList=[serial.Serial("\\\\.\\CNCB0")] # DEVEL
 		self.fsBuffer=""
 		self.entryHold=False
 		self.currentEntryLastModAge=0

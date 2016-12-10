@@ -1,10 +1,10 @@
 [RadioLog]
-lastFileName=Jackass Flat_2016_11_03_082725.csv
-font-size=10pt
+lastFileName=Demo_2016_12_08_200846.csv
+font-size=20pt
 x=0
-y=28
-w=1600
-h=810
+y=38
+w=1920
+h=1001
 clueLog_x=75
 clueLog_y=75
 clueLog_w=1500
