@@ -27,6 +27,8 @@
 #  12-1-16     TMG       fix 268 (throb crash on oldest item in non-empty stack)
 #  12-1-16     TMG       add -nosend option to disable sending of GET requests,
 #                         to avoid lag when network is not present
+#  12-10-16    TMG       fix 267 (filename space handler) - remove spaces from
+#                         incident name for purposes of filenames
 #
 # #############################################################################
 #
@@ -405,6 +407,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.totalEntryCount=0 # rotate backups after every 5 entries; see newEntryWidget.accept
 
 		self.incidentName="New Incident"
+		self.incidentNameNormalized="NewIncident"
 		self.opPeriod=1
 		self.incidentStartDate=time.strftime("%a %b %d, %Y")
 
@@ -415,10 +418,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.clueLog.append(['',self.radioLog[0][3],'',time.strftime("%H%M"),'','','','',''])
 
 		self.lastFileName="" # to force error in restore, in the event the resource file doesn't specify the lastFileName
-		self.csvFileName=getFileNameBase(self.incidentName)+".csv"
-		self.pdfFileName=getFileNameBase(self.incidentName)+".pdf"
+		self.csvFileName=getFileNameBase(self.incidentNameNormalized)+".csv"
+		self.pdfFileName=getFileNameBase(self.incidentNameNormalized)+".pdf"
 		self.fsFileName="radiolog_fleetsync.csv" # this is the default; modified filename is based on csvfilename at modify-time
-##		self.fsFileName=self.getFileNameBase(self.incidentName)+"_fleetsync.csv"
+##		self.fsFileName=self.getFileNameBase(self.incidentNameNormalized)+"_fleetsync.csv"
 
 		self.fsValidFleetList=[100]
 		self.fsFilteredDevList=[]
@@ -1070,7 +1073,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			lonLetter="W"
 		else:
 			lonLetter="E"
-		lonDeg=int(lonDd)
+		lon=int(lonDd)
 		lonMin=float((lonDd-float(lonDeg))*60.0)
 		lonSec=float((lonMin-int(lonMin))*60.0)
 
@@ -1756,6 +1759,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			for row in csvReader:
 				if row[0].startswith("## Incident Name:"):
 					self.incidentName=row[0][17:]
+					self.incidentNameNormalized=self.incidentName.replace(" ","")
 					self.ui.incidentNameLabel.setText(self.incidentName)
 				if not row[0].startswith('#'): # prune comment lines
 					totalEntries=totalEntries+1
@@ -1833,8 +1837,12 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def optionsAccepted(self):
 		self.incidentName=self.optionsDialog.ui.incidentField.text()
-		self.csvFileName=getFileNameBase(self.incidentName)+".csv"
-		self.pdfFileName=getFileNameBase(self.incidentName)+".pdf"
+		# normalize the name for purposes of filenames
+		#  - get rid of all spaces -  no need to be able to reproduce the
+		#    incident name's spaces from the filename
+		self.incidentNameNormalized=self.incidentName.replace(" ","")
+		self.csvFileName=getFileNameBase(self.incidentNameNormalized)+".csv"
+		self.pdfFileName=getFileNameBase(self.incidentNameNormalized)+".pdf"
 		self.fsFileName=self.csvFileName.replace('.csv','_fleetsync.csv')
 
 		self.ui.incidentNameLabel.setText(self.incidentName)
