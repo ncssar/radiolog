@@ -29,7 +29,8 @@
 #                         to avoid lag when network is not present
 #  12-10-16    TMG       fix 267 (filename space handler) - remove spaces from
 #                         incident name for purposes of filenames
-#
+#  12-10-16    TMG       fix 25 (print dialog button wording should change when
+#                         called from main window exit button)
 # #############################################################################
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -545,6 +546,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.columnResizedFlag=False
 		self.ui.tableView.horizontalHeader().sectionResized.connect(self.setColumnResizedFlag)
 
+		self.exitClicked=False
 		# NOTE - the padding numbers for ::tab take a while to figure out in conjunction with
 		#  the stylesheets of the label widgets of each tab in order to change status; don't
 		#  change these numbers unless you want to spend a while on trial and error to get
@@ -1590,6 +1592,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			event.ignore()
 
 	def closeEvent(self,event):
+		self.exitClicked=True
+		
 		# if radioLogNeedsPrint or clueLogNeedsPrint is True, bring up the print dialog
 		if self.radioLogNeedsPrint or self.clueLogNeedsPrint:
 			rprint("needs print!")
@@ -1603,6 +1607,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			QMessageBox.Yes|QMessageBox.Cancel,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 		if really.exec()==QMessageBox.Cancel:
 			event.ignore()
+			self.exitClicked=False
 			return
 
 		self.save(finalize=True)
@@ -2229,7 +2234,8 @@ class printDialog(QDialog,Ui_printDialog):
 		self.parent=parent
 		self.ui=Ui_printDialog()
 		self.ui.setupUi(self)
-		self.ui.buttonBox.setStyleSheet("font-size:16pt;")
+		self.ui.OKButton.setStyleSheet("font-size:14pt;")
+		self.ui.CancelButton.setStyleSheet("font-size:14pt;")
 		self.ui.opPeriodComboBox.addItem("1")
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 
@@ -2237,6 +2243,12 @@ class printDialog(QDialog,Ui_printDialog):
 		rprint("show event called")
 		rprint("teamNameList:"+str(self.parent.teamNameList))
 		rprint("allTeamsList:"+str(self.parent.allTeamsList))
+		if self.parent.exitClicked:
+			self.ui.OKButton.setText("Print")
+			self.ui.CancelButton.setText("Exit without printing")
+		else:
+			self.ui.OKButton.setText("OK")
+			self.ui.CancelButton.setText("Cancel")
 		if len(self.parent.clueLog)>0:
 			self.ui.clueLogField.setChecked(True)
 			self.ui.clueLogField.setEnabled(True)
