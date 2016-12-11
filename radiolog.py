@@ -31,6 +31,7 @@
 #                         incident name for purposes of filenames
 #  12-10-16    TMG       fix 25 (print dialog button wording should change when
 #                         called from main window exit button)
+#  12-10-16    TMG       fix 306 (attached callsigns)
 # #############################################################################
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -2519,7 +2520,7 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 	def autoCleanup(self): # this function is called every second by the timer
 		if self.ui.autoCleanupCheckBox.isChecked():
 			for tab in newEntryWidget.instances:
-				rprint("lastModAge:"+str(tab.lastModAge))
+# 				rprint("lastModAge:"+str(tab.lastModAge))
 				# note the pause happens in newEntryWidget.updateTimer()
 				if tab.ui.messageField.text()=="" and tab.lastModAge>60:
 					tab.closeEvent(None)
@@ -2572,6 +2573,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 
 		self.amendFlag=amendFlag
 		self.amendRow=amendRow
+		self.attachedCallsignList=[]
 ##		self.position=position # dialog x,y to show at
 		self.sec=sec
 		self.formattedLocString=formattedLocString
@@ -2625,7 +2627,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.ui.teamField.textChanged.connect(self.setStatusFromTeam)
 		self.ui.teamField.textChanged.connect(self.updateTabLabel)
 		self.ui.to_fromField.currentIndexChanged.connect(self.updateTabLabel)
-		self.ui.messageField.textChanged.connect(self.setStatusFromMessage)
+		self.ui.messageField.textChanged.connect(self.messageTextChanged)
 		self.ui.statusButtonGroup.buttonClicked.connect(self.setStatusFromButton)
 
 		self.ui.teamField.textChanged.connect(self.resetLastModAge)
@@ -2797,8 +2799,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 	def accept(self):
 		# getValues return value: [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
 		rprint("Accepted")
+		val=self.getValues()
 		if self.amendFlag:
-			val=self.getValues()
 			prevToFrom=self.parent.radioLog[self.amendRow][1]
 			newToFrom=self.ui.to_fromField.currentText()
 			prevTeam=self.parent.radioLog[self.amendRow][2]
@@ -2839,6 +2841,15 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		else:
 			self.parent.newEntry(self.getValues())
 
+		# make entries for attached callsigns
+		# values array format: [time,to_from,team,message,locString,status,sec,fleet,dev]
+		rprint("attached callsigns: "+str(self.attachedCallsignList))
+		for attachedCallsign in self.attachedCallsignList:
+			v=val[:] # v is a fresh, independent copy of val for each iteration
+			v[2]=getNiceTeamName(attachedCallsign)
+			v[3]="[ATTACHED FROM "+self.ui.teamField.text().strip()+"] "+val[3]
+			self.parent.newEntry(v)
+		
 		self.closeEvent(None)
 
 		self.parent.totalEntryCount+=1
@@ -2909,7 +2920,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##			tmpTxt="New Entry"
 ##		self.setWindowTitle("Radio Log - "+tmpTxt+" - "+self.ui.to_fromField.currentText()+" "+self.ui.teamField.text())
 
-	def setStatusFromMessage(self): # gets called after every keystroke or button press, so, should be fast
+	def messageTextChanged(self): # gets called after every keystroke or button press, so, should be fast
 ##		self.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 		message=self.ui.messageField.text().lower()
 		extTeamName=getExtTeamName(self.ui.teamField.text())
@@ -2937,6 +2948,51 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			newStatus="STANDBY"
 		else:
 			newStatus=prevStatus
+		
+		# attached callsigns (issue 306):
+		# this takes place in two phases:
+		# 1. determine the list of attached callsigns during message entry
+		# 2. when the message is submitted, also create identical messages
+		#     for each of the attached callsigns (and make sure their status
+		#     changes to the same as the originating callsign)	
+		# also look for "with" or "w/" and if found, attach this message to the
+		#  callsigns in the following token(s)
+		# example: from transport 1: "enroute to IC with team4 and team5"
+		#  means that this message and status should be copied to teams 4 and 5
+		# if the attachment token is found ("with" or "w/") then treat all
+		#  subsequent words as attached callsigns, with various possible delimiters (space, comma, 'and')
+		#  and also provide for callsign shorthand; handle these cases:
+		# team<number>
+		# team<space><number>
+		# <number>
+		# t<number>
+		# t<space><number>
+		#  note that the cases with spaces require that we get rid of spaces
+		#   before numbers if those spaces are preceded by a letter
+		#  also replace 'team' or 't' with 'Team'
+		self.attachedCallsignList=[]
+		if "with" in message or "w/" in message:
+			tailIndex=message.find("with")+4
+			if tailIndex<5:
+				tailIndex=message.find("w/")+2
+			tail=message[tailIndex:].strip()
+			#massage the tail to get it into a good format here
+			tail=re.sub(r'(\w)\s+(\d+)',r'\1\2',tail) # remove space after letters before numbers
+			tail=re.sub(r't(\d+)',r'team\1',tail) # change t# to team#
+			tail=re.sub(r'([\s,]+)(\d+)',r'\1team\2',tail) # insert 'team' before just-numbers
+			tail=re.sub(r'^(\d+)',r'team\1',tail) # and also at the start of the tail
+			tail=re.sub(r'team',r'Team',tail) # capitalize 'team'
+# 			rprint(" 'with' tail found:"+tail)
+			tailParse=re.split("[, ]+",tail)
+			# rebuild the attachedCallsignList from scratch on every keystroke;
+			#  trying to append to the list is problematic (i.e. when do we append?)
+			for token in tailParse:
+				if token!="and": # all parsed tokens other than "and" are callsigns to be attached
+					# keep the list as a local variable rather than object attribute,
+					#  since we want to rebuild the entire list on every keystroke
+					self.attachedCallsignList.append(token)
+		self.ui.attachedField.setText(" ".join(self.attachedCallsignList))
+			
 		# allow it to be set back to blank; must set exclusive to false and iterate over each button
 		self.ui.statusButtonGroup.setExclusive(False)
 		for button in self.ui.statusButtonGroup.buttons():

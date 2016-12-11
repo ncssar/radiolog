@@ -2,8 +2,7 @@
 
 # Form implementation generated from reading ui file 'newEntryWidget.ui'
 #
-# Created: Mon Oct 26 07:34:04 2015
-#      by: PyQt5 UI code generator 5.4
+# Created by: PyQt5 UI code generator 5.7
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -239,7 +238,7 @@ class Ui_newEntryWidget(object):
         self.radioLocField.setReadOnly(False)
         self.radioLocField.setObjectName("radioLocField")
         self.quickTextUndoButton = QtWidgets.QPushButton(newEntryWidget)
-        self.quickTextUndoButton.setGeometry(QtCore.QRect(30, 430, 111, 31))
+        self.quickTextUndoButton.setGeometry(QtCore.QRect(30, 430, 121, 41))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(9)
@@ -324,6 +323,18 @@ class Ui_newEntryWidget(object):
         self.line_6.setFrameShape(QtWidgets.QFrame.HLine)
         self.line_6.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.line_6.setObjectName("line_6")
+        self.attachedField = QtWidgets.QLineEdit(newEntryWidget)
+        self.attachedField.setEnabled(False)
+        self.attachedField.setGeometry(QtCore.QRect(340, 440, 361, 22))
+        self.attachedField.setObjectName("attachedField")
+        self.label_7 = QtWidgets.QLabel(newEntryWidget)
+        self.label_7.setGeometry(QtCore.QRect(150, 430, 181, 41))
+        font = QtGui.QFont()
+        font.setFamily("Segoe UI")
+        font.setPointSize(10)
+        self.label_7.setFont(font)
+        self.label_7.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.label_7.setObjectName("label_7")
 
         self.retranslateUi(newEntryWidget)
         self.buttonBox.accepted.connect(newEntryWidget.accept)
@@ -388,6 +399,7 @@ class Ui_newEntryWidget(object):
         self.label_2.setText(_translate("newEntryWidget", "Right-click to change and remember callsign"))
         self.quickTextButton10.setText(_translate("newEntryWidget", "SUBJECT LOCATED  [F11]"))
         self.quickTextButton10.setShortcut(_translate("newEntryWidget", "F11"))
-        self.quickTextButton1_2.setText(_translate("newEntryWidget", "ENROUTE TO IC [F4]"))
+        self.quickTextButton1_2.setText(_translate("newEntryWidget", "ENROUTE TO IC  [F4]"))
         self.quickTextButton1_2.setShortcut(_translate("newEntryWidget", "F1"))
+        self.label_7.setText(_translate("newEntryWidget", "Attached callsign(s):"))
 
