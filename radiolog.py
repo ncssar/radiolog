@@ -32,6 +32,7 @@
 #  12-10-16    TMG       fix 25 (print dialog button wording should change when
 #                         called from main window exit button)
 #  12-10-16    TMG       fix 306 (attached callsigns)
+#   1-17-17    TMG       fix 41 (USB hot-plug / hot-unplug)
 # #############################################################################
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -737,10 +738,28 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.comPortScanInProgress=False
 ##		else: # com port already found; read data normally
 		# read data and process buffer even if both com ports aren't yet found, i.e. if only one is found
-		if self.firstComPortFound and self.firstComPort.inWaiting():
-			self.fsBuffer=self.fsBuffer+self.firstComPort.read(self.firstComPort.inWaiting()).decode('utf-8')
-		if self.secondComPortFound and self.secondComPort.inWaiting():
-			self.fsBuffer=self.fsBuffer+self.secondComPort.read(self.secondComPort.inWaiting()).decode('utf-8')
+		
+		# fixed issue 41: handle USB hot-unplug case, in which port scanning resumes;
+		#  note that hot-plug takes 5 seconds or so to be recognized
+		if self.firstComPortFound:
+			waiting=0
+			try:
+				waiting=self.firstComPort.inWaiting()
+			except serial.serialutil.SerialException as err:
+				if str(err)=="call to ClearCommError failed":
+					self.firstComPortFound=False
+			if waiting:
+				self.fsBuffer=self.fsBuffer+self.firstComPort.read(waiting).decode('utf-8')
+		if self.secondComPortFound:
+			waiting=0
+			try:
+				waiting=self.secondComPort.inWaiting()
+			except serial.serialutil.SerialException as err:
+				if str(err)=="call to ClearCommError failed":
+					self.secondComPortFound=False
+			if waiting:
+				self.fsBuffer=self.fsBuffer+self.secondComPort.read(waiting).decode('utf-8')
+	
 		if self.fsBuffer.endswith("\x03"):
 			self.fsParse()
 			self.fsBuffer=""
