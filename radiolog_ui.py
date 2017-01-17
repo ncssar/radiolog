@@ -2,8 +2,7 @@
 
 # Form implementation generated from reading ui file 'radiolog.ui'
 #
-# Created: Thu Nov  5 20:28:20 2015
-#      by: PyQt5 UI code generator 5.4
+# Created by: PyQt5 UI code generator 5.7
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -32,7 +31,47 @@ class Ui_Dialog(object):
         self.incidentNameLabel.setFont(font)
         self.incidentNameLabel.setObjectName("incidentNameLabel")
         self.horizontalLayout.addWidget(self.incidentNameLabel)
+        self.comPortSectionLayout = QtWidgets.QVBoxLayout()
+        self.comPortSectionLayout.setSpacing(2)
+        self.comPortSectionLayout.setObjectName("comPortSectionLayout")
+        self.comPortsLabel = QtWidgets.QLabel(Dialog)
+        font = QtGui.QFont()
+        font.setFamily("Segoe UI")
+        font.setPointSize(8)
+        font.setBold(True)
+        font.setWeight(75)
+        self.comPortsLabel.setFont(font)
+        self.comPortsLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.comPortsLabel.setObjectName("comPortsLabel")
+        self.comPortSectionLayout.addWidget(self.comPortsLabel)
+        self.comPortLightsLayout = QtWidgets.QHBoxLayout()
+        self.comPortLightsLayout.setContentsMargins(-1, 0, -1, -1)
+        self.comPortLightsLayout.setSpacing(7)
+        self.comPortLightsLayout.setObjectName("comPortLightsLayout")
+        self.firstComPortField = QtWidgets.QLineEdit(Dialog)
+        self.firstComPortField.setEnabled(False)
+        self.firstComPortField.setMaximumSize(QtCore.QSize(20, 16777215))
+        font = QtGui.QFont()
+        font.setPointSize(4)
+        self.firstComPortField.setFont(font)
+        self.firstComPortField.setObjectName("firstComPortField")
+        self.comPortLightsLayout.addWidget(self.firstComPortField)
+        self.secondComPortField = QtWidgets.QLineEdit(Dialog)
+        self.secondComPortField.setEnabled(False)
+        self.secondComPortField.setMaximumSize(QtCore.QSize(20, 16777215))
+        font = QtGui.QFont()
+        font.setPointSize(4)
+        self.secondComPortField.setFont(font)
+        self.secondComPortField.setObjectName("secondComPortField")
+        self.comPortLightsLayout.addWidget(self.secondComPortField)
+        self.comPortSectionLayout.addLayout(self.comPortLightsLayout)
+        self.horizontalLayout.addLayout(self.comPortSectionLayout)
         self.opPeriodButton = QtWidgets.QPushButton(Dialog)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.opPeriodButton.sizePolicy().hasHeightForWidth())
+        self.opPeriodButton.setSizePolicy(sizePolicy)
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(14)
@@ -205,6 +244,7 @@ class Ui_Dialog(object):
         _translate = QtCore.QCoreApplication.translate
         Dialog.setWindowTitle(_translate("Dialog", "Radio Log"))
         self.incidentNameLabel.setText(_translate("Dialog", "New Incident"))
+        self.comPortsLabel.setText(_translate("Dialog", "COM"))
         self.opPeriodButton.setToolTip(_translate("Dialog", "Change Operational Period"))
         self.opPeriodButton.setText(_translate("Dialog", "OP 1"))
         self.pushButton.setText(_translate("Dialog", "Add Entry"))

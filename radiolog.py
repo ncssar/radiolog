@@ -509,6 +509,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.clueLog_y=200
 		self.clueLog_w=1000
 		self.clueLog_h=400
+		self.firstComPortAlive=False
+		self.secondComPortAlive=False
 		self.firstComPortFound=False
 		self.secondComPortFound=False
 		self.comPortScanInProgress=False
@@ -735,31 +737,54 @@ class MyWindow(QDialog,Ui_Dialog):
 							pass
 						else:
 							rprint("  Opened newly found port "+portIterable[0])
+							if self.firstComPortAlive:
+								self.secondComPortAlive=True
+							else:
+								self.firstComPortAlive=True
 				self.comPortScanInProgress=False
 ##		else: # com port already found; read data normally
 		# read data and process buffer even if both com ports aren't yet found, i.e. if only one is found
-		
+
+		if self.firstComPortAlive:
+			self.ui.firstComPortField.setStyleSheet("background-color:#00bb00")
+		else:
+			self.ui.firstComPortField.setStyleSheet("background-color:#aaaaaa")
+		if self.secondComPortAlive:
+			self.ui.secondComPortField.setStyleSheet("background-color:#00bb00")
+		else:
+			self.ui.secondComPortField.setStyleSheet("background-color:#aaaaaa")
+			
 		# fixed issue 41: handle USB hot-unplug case, in which port scanning resumes;
 		#  note that hot-plug takes 5 seconds or so to be recognized
 		if self.firstComPortFound:
+# 			self.ui.firstComPortField.setStyleSheet("background-color:#00bb00")
 			waiting=0
 			try:
 				waiting=self.firstComPort.inWaiting()
 			except serial.serialutil.SerialException as err:
 				if str(err)=="call to ClearCommError failed":
+					rprint("first com port unplugged")
 					self.firstComPortFound=False
+					self.firstComPortAlive=False
+					self.ui.firstComPortField.setStyleSheet("background-color:#bb0000")
 			if waiting:
+				self.ui.firstComPortField.setStyleSheet("background-color:#00ff00")
 				self.fsBuffer=self.fsBuffer+self.firstComPort.read(waiting).decode('utf-8')
 		if self.secondComPortFound:
+# 			self.ui.secondComPortField.setStyleSheet("background-color:#00bb00")
 			waiting=0
 			try:
 				waiting=self.secondComPort.inWaiting()
 			except serial.serialutil.SerialException as err:
 				if str(err)=="call to ClearCommError failed":
+					rprint("second com port unplugged")
 					self.secondComPortFound=False
+					self.secondComPortAlive=False
+					self.ui.secondComPortField.setStyleSheet("background-color:#bb0000")
 			if waiting:
+				self.ui.secondComPortField.setStyleSheet("background-color:#00ff00")
 				self.fsBuffer=self.fsBuffer+self.secondComPort.read(waiting).decode('utf-8')
-	
+
 		if self.fsBuffer.endswith("\x03"):
 			self.fsParse()
 			self.fsBuffer=""
