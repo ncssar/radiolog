@@ -3015,10 +3015,11 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		#   before numbers if those spaces are preceded by a letter
 		#  also replace 'team' or 't' with 'Team'
 		self.attachedCallsignList=[]
-		if "with" in message or "w/" in message:
-			tailIndex=message.find("with")+4
+		lowerMessage=message.lower()
+		if "with" in lowerMessage or "w/" in lowerMessage:
+			tailIndex=lowerMessage.find("with")+4
 			if tailIndex<5:
-				tailIndex=message.find("w/")+2
+				tailIndex=lowerMessage.find("w/")+2
 			tail=message[tailIndex:].strip()
 			#massage the tail to get it into a good format here
 			tail=re.sub(r'(\w)\s+(\d+)',r'\1\2',tail) # remove space after letters before numbers
