@@ -2,7 +2,7 @@
 
 As of Nov 19, 2016, there is no installation script or program.  Installation just involves cloning or downloading this repository, but, there is an important list of prerequisites.  You could consider these to be part of the installation procedure:
 
-1. Python 3.4.2 or higher
+1. Python 3.4.2 or higher (32 or 64 bit should be fine since currently this is not compiled)
 2. Python modules
  * PyQt 5.4 or higher (pip install pyqt)
  * reportlab (pip install reportlab)
