@@ -33,6 +33,7 @@
 #                         called from main window exit button)
 #  12-10-16    TMG       fix 306 (attached callsigns)
 #   1-17-17    TMG       fix 41 (USB hot-plug / hot-unplug)
+#   2-26-17    TMG       fix 311 (attached callsign bug)
 # #############################################################################
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -3018,24 +3019,25 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		lowerMessage=message.lower()
 		if "with" in lowerMessage or "w/" in lowerMessage:
 			tailIndex=lowerMessage.find("with")+4
-			if tailIndex<5:
+			if tailIndex<4:
 				tailIndex=lowerMessage.find("w/")+2
-			tail=message[tailIndex:].strip()
-			#massage the tail to get it into a good format here
-			tail=re.sub(r'(\w)\s+(\d+)',r'\1\2',tail) # remove space after letters before numbers
-			tail=re.sub(r't(\d+)',r'team\1',tail) # change t# to team#
-			tail=re.sub(r'([\s,]+)(\d+)',r'\1team\2',tail) # insert 'team' before just-numbers
-			tail=re.sub(r'^(\d+)',r'team\1',tail) # and also at the start of the tail
-			tail=re.sub(r'team',r'Team',tail) # capitalize 'team'
-# 			rprint(" 'with' tail found:"+tail)
-			tailParse=re.split("[, ]+",tail)
-			# rebuild the attachedCallsignList from scratch on every keystroke;
-			#  trying to append to the list is problematic (i.e. when do we append?)
-			for token in tailParse:
-				if token!="and": # all parsed tokens other than "and" are callsigns to be attached
-					# keep the list as a local variable rather than object attribute,
-					#  since we want to rebuild the entire list on every keystroke
-					self.attachedCallsignList.append(token)
+			if tailIndex>1:
+				tail=message[tailIndex:].strip()
+				#massage the tail to get it into a good format here
+				tail=re.sub(r'(\w)\s+(\d+)',r'\1\2',tail) # remove space after letters before numbers
+				tail=re.sub(r't(\d+)',r'team\1',tail) # change t# to team#
+				tail=re.sub(r'([\s,]+)(\d+)',r'\1team\2',tail) # insert 'team' before just-numbers
+				tail=re.sub(r'^(\d+)',r'team\1',tail) # and also at the start of the tail
+				tail=re.sub(r'team',r'Team',tail) # capitalize 'team'
+	# 			rprint(" 'with' tail found:"+tail)
+				tailParse=re.split("[, ]+",tail)
+				# rebuild the attachedCallsignList from scratch on every keystroke;
+				#  trying to append to the list is problematic (i.e. when do we append?)
+				for token in tailParse:
+					if token!="and": # all parsed tokens other than "and" are callsigns to be attached
+						# keep the list as a local variable rather than object attribute,
+						#  since we want to rebuild the entire list on every keystroke
+						self.attachedCallsignList.append(token)
 		self.ui.attachedField.setText(" ".join(self.attachedCallsignList))
 			
 		# allow it to be set back to blank; must set exclusive to false and iterate over each button
