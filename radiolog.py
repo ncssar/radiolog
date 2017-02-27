@@ -35,6 +35,7 @@
 #   1-17-17    TMG       fix 41 (USB hot-plug / hot-unplug)
 #   2-26-17    TMG       fix 311 (attached callsign bug)
 #   2-27-17    TMG       fix 314 (NED focus / two-blinking-cursors)
+#   2-27-17    TMG       fix 315 (ctrl-Z crash on empty list) for NED and for clue report
 # #############################################################################
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -2824,10 +2825,11 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 
 	def quickTextUndo(self):
 		rprint("ctrl+z keyBindings:"+str(QKeySequence("Ctrl+Z")))
-		textToRemove=self.quickTextAddedStack.pop() or ''
-		existingText=self.ui.messageField.text()
-		self.ui.messageField.setText(rreplace(existingText,textToRemove,'',1))
-		self.ui.messageField.setFocus()
+		if len(self.quickTextAddedStack):
+			textToRemove=self.quickTextAddedStack.pop()
+			existingText=self.ui.messageField.text()
+			self.ui.messageField.setText(rreplace(existingText,textToRemove,'',1))
+			self.ui.messageField.setFocus()
 
 	def quickTextClueAction(self): # do not push clues on the quick text stack, to make sure they can't be undone
 		rprint(str(self.clueDialogOpen))
@@ -3253,10 +3255,11 @@ class clueDialog(QDialog,Ui_clueDialog):
 
 	def clueQuickTextUndo(self):
 		rprint("ctrl+z keyBindings:"+str(QKeySequence("Ctrl+Z")))
-		textToRemove=self.clueQuickTextAddedStack.pop()
-		existingText=self.ui.instructionsField.text()
-		self.ui.instructionsField.setText(rreplace(existingText,textToRemove,'',1))
-		self.ui.instructionsField.setFocus()
+		if len(self.clueQuickTextAddedStack):
+			textToRemove=self.clueQuickTextAddedStack.pop()
+			existingText=self.ui.instructionsField.text()
+			self.ui.instructionsField.setText(rreplace(existingText,textToRemove,'',1))
+			self.ui.instructionsField.setFocus()
 
 
 class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
