@@ -34,6 +34,7 @@
 #  12-10-16    TMG       fix 306 (attached callsigns)
 #   1-17-17    TMG       fix 41 (USB hot-plug / hot-unplug)
 #   2-26-17    TMG       fix 311 (attached callsign bug)
+#   2-27-17    TMG       fix 314 (NED focus / two-blinking-cursors)
 # #############################################################################
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -1929,6 +1930,9 @@ class MyWindow(QDialog,Ui_Dialog):
 ##				self.newEntryWidget.ui.teamField.setSelection(9,1)
 			elif key=='t':
 				self.newEntryWidget.ui.to_fromField.setCurrentIndex(1)
+				# need to 'burp' the focus to prevent two blinking cursors
+				#  see http://stackoverflow.com/questions/42475602
+				self.newEntryWidget.ui.messageField.setFocus()
 				# all three of these lines are needed to override the default 'pseudo-selected'
 				# behavior; see http://stackoverflow.com/questions/27856032
 				self.newEntryWidget.ui.teamField.setFocus()
@@ -1936,19 +1940,36 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.newEntryWidget.ui.teamField.setSelection(5,1)
 			elif key=='f' or key=='pop':
 				self.newEntryWidget.ui.to_fromField.setCurrentIndex(0)
+				# need to 'burp' the focus to prevent two blinking cursors
+				#  see http://stackoverflow.com/questions/42475602
+				self.newEntryWidget.ui.messageField.setFocus()
 				self.newEntryWidget.ui.teamField.setFocus()
 				self.newEntryWidget.ui.teamField.setText("Team  ")
 				self.newEntryWidget.ui.teamField.setSelection(5,1)
 			elif key=='s':
 				self.newEntryWidget.ui.to_fromField.setCurrentIndex(0)
+				# need to 'burp' the focus to prevent two blinking cursors
+				#  see http://stackoverflow.com/questions/42475602
+				self.newEntryWidget.ui.messageField.setFocus()
 				self.newEntryWidget.ui.teamField.setFocus()
 				self.newEntryWidget.ui.teamField.setText("SAR  ")
 				self.newEntryWidget.ui.teamField.setSelection(4,1)
+			elif key=='tab':
+				self.newEntryWidget.ui.to_fromField.setCurrentIndex(0)
+				self.newEntryWidget.ui.messageField.setFocus()
 			else:
 				self.newEntryWidget.ui.to_fromField.setCurrentIndex(0)
+				# need to 'burp' the focus to prevent two blinking cursors
+				#  see http://stackoverflow.com/questions/42475602
+				self.newEntryWidget.ui.messageField.setFocus()
 				self.newEntryWidget.ui.teamField.setFocus()
 				self.newEntryWidget.ui.teamField.setText("Team "+key+" ")
 				self.newEntryWidget.ui.teamField.setSelection(6,1)
+		else: # no key pressed; opened from the 'add entry' GUI button
+			# need to 'burp' the focus to prevent two blinking cursors
+			#  see http://stackoverflow.com/questions/42475602
+			self.newEntryWidget.ui.messageField.setFocus()
+			self.newEntryWidget.ui.teamField.setFocus()
 
 		if callsign:
 			extTeamName=getExtTeamName(callsign)
@@ -2186,9 +2207,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			deleteTeamTabAction=menu.addAction("Hide tab for "+str(niceTeamName))
 			action=menu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(pos))
 			if action==newEntryFromAction:
-				self.openNewEntry(None,str(niceTeamName))
+				self.openNewEntry('tab',str(niceTeamName))
 			if action==newEntryToAction:
-				self.openNewEntry(None,str(niceTeamName))
+				self.openNewEntry('tab',str(niceTeamName))
 				self.newEntryWidget.ui.to_fromField.setCurrentIndex(1)
 			if action==deleteTeamTabAction:
 				self.deleteTeamTab(niceTeamName)
