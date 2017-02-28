@@ -40,6 +40,9 @@
 #                         fix 317 (crash on cancel of cancel for clue/subject dialogs);
 #                         this involved changing dialog cancel buttons to just call
 #                         close() instead of reject()
+#   2-28-17    TMG       fix 316,318,320 (add dialog open/cancel radio log entries)
+#                         and extend closeEvent functionality (above) to
+#                         nonRadioClueDialog and changeCallsignDialog
 # #############################################################################
 #
 #  This program is free software: you can redistribute it and/or modify
