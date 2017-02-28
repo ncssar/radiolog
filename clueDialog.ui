@@ -692,7 +692,7 @@
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
    <receiver>clueDialog</receiver>
-   <slot>close()</slot>
+   <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
      <x>710</x>

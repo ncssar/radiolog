@@ -192,7 +192,7 @@ class Ui_subjectLocatedDialog(object):
 
         self.retranslateUi(subjectLocatedDialog)
         self.buttonBox.accepted.connect(subjectLocatedDialog.accept)
-        self.buttonBox.rejected.connect(subjectLocatedDialog.close)
+        self.buttonBox.rejected.connect(subjectLocatedDialog.reject)
         QtCore.QMetaObject.connectSlotsByName(subjectLocatedDialog)
         subjectLocatedDialog.setTabOrder(self.locationField, self.conditionField)
         subjectLocatedDialog.setTabOrder(self.conditionField, self.resourcesField)

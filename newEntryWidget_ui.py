@@ -338,7 +338,7 @@ class Ui_newEntryWidget(object):
 
         self.retranslateUi(newEntryWidget)
         self.buttonBox.accepted.connect(newEntryWidget.accept)
-        self.buttonBox.rejected.connect(newEntryWidget.close)
+        self.buttonBox.rejected.connect(newEntryWidget.reject)
         self.quickTextButton1.clicked.connect(newEntryWidget.quickTextAction)
         self.quickTextButton2.clicked.connect(newEntryWidget.quickTextAction)
         self.quickTextButton3.clicked.connect(newEntryWidget.quickTextAction)

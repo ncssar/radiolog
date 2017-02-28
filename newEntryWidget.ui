@@ -930,7 +930,7 @@
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
    <receiver>newEntryWidget</receiver>
-   <slot>close()</slot>
+   <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
      <x>862</x>

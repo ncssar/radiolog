@@ -240,7 +240,7 @@ class Ui_clueDialog(object):
 
         self.retranslateUi(clueDialog)
         self.buttonBox.accepted.connect(clueDialog.accept)
-        self.buttonBox.rejected.connect(clueDialog.close)
+        self.buttonBox.rejected.connect(clueDialog.reject)
         self.clueQuickTextButton1.clicked.connect(clueDialog.clueQuickTextAction)
         self.clueQuickTextButton2.clicked.connect(clueDialog.clueQuickTextAction)
         self.clueQuickTextButton3.clicked.connect(clueDialog.clueQuickTextAction)
