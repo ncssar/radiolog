@@ -2,8 +2,7 @@
 
 # Form implementation generated from reading ui file 'clueDialog.ui'
 #
-# Created: Sat Aug 22 11:12:37 2015
-#      by: PyQt5 UI code generator 5.4
+# Created by: PyQt5 UI code generator 5.8
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -237,10 +236,30 @@ class Ui_clueDialog(object):
         self.line.setFrameShape(QtWidgets.QFrame.HLine)
         self.line.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.line.setObjectName("line")
+        self.groupBox.raise_()
+        self.label_4.raise_()
+        self.buttonBox.raise_()
+        self.label_3.raise_()
+        self.label.raise_()
+        self.instructionsField.raise_()
+        self.locationField.raise_()
+        self.label_2.raise_()
+        self.clueNumberField.raise_()
+        self.label_6.raise_()
+        self.clueQuickTextButton1.raise_()
+        self.clueQuickTextButton3.raise_()
+        self.clueQuickTextButton4.raise_()
+        self.clueQuickTextButton2.raise_()
+        self.clueQuickTextUndoButton.raise_()
+        self.clueReportPrintCheckBox.raise_()
+        self.clueQuickTextButton5.raise_()
+        self.descriptionField.raise_()
+        self.clueQuickTextButton6.raise_()
+        self.line.raise_()
 
         self.retranslateUi(clueDialog)
         self.buttonBox.accepted.connect(clueDialog.accept)
-        self.buttonBox.rejected.connect(clueDialog.reject)
+        self.buttonBox.rejected.connect(clueDialog.close)
         self.clueQuickTextButton1.clicked.connect(clueDialog.clueQuickTextAction)
         self.clueQuickTextButton2.clicked.connect(clueDialog.clueQuickTextAction)
         self.clueQuickTextButton3.clicked.connect(clueDialog.clueQuickTextAction)

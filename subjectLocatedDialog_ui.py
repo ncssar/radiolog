@@ -2,8 +2,7 @@
 
 # Form implementation generated from reading ui file 'subjectLocatedDialog.ui'
 #
-# Created: Sat Aug 15 22:15:01 2015
-#      by: PyQt5 UI code generator 5.4
+# Created by: PyQt5 UI code generator 5.8
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -189,10 +188,21 @@ class Ui_subjectLocatedDialog(object):
         self.label_6.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
         self.label_6.setWordWrap(True)
         self.label_6.setObjectName("label_6")
+        self.groupBox.raise_()
+        self.label_4.raise_()
+        self.buttonBox.raise_()
+        self.label_3.raise_()
+        self.label.raise_()
+        self.locationField.raise_()
+        self.label_2.raise_()
+        self.conditionField.raise_()
+        self.resourcesField.raise_()
+        self.otherField.raise_()
+        self.label_6.raise_()
 
         self.retranslateUi(subjectLocatedDialog)
         self.buttonBox.accepted.connect(subjectLocatedDialog.accept)
-        self.buttonBox.rejected.connect(subjectLocatedDialog.reject)
+        self.buttonBox.rejected.connect(subjectLocatedDialog.close)
         QtCore.QMetaObject.connectSlotsByName(subjectLocatedDialog)
         subjectLocatedDialog.setTabOrder(self.locationField, self.conditionField)
         subjectLocatedDialog.setTabOrder(self.conditionField, self.resourcesField)

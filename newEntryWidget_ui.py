@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'newEntryWidget.ui'
 #
-# Created by: PyQt5 UI code generator 5.7
+# Created by: PyQt5 UI code generator 5.8
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -338,7 +338,7 @@ class Ui_newEntryWidget(object):
 
         self.retranslateUi(newEntryWidget)
         self.buttonBox.accepted.connect(newEntryWidget.accept)
-        self.buttonBox.rejected.connect(newEntryWidget.reject)
+        self.buttonBox.rejected.connect(newEntryWidget.close)
         self.quickTextButton1.clicked.connect(newEntryWidget.quickTextAction)
         self.quickTextButton2.clicked.connect(newEntryWidget.quickTextAction)
         self.quickTextButton3.clicked.connect(newEntryWidget.quickTextAction)
