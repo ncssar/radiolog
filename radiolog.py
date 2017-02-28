@@ -36,6 +36,10 @@
 #   2-26-17    TMG       fix 311 (attached callsign bug)
 #   2-27-17    TMG       fix 314 (NED focus / two-blinking-cursors)
 #   2-27-17    TMG       fix 315 (ctrl-Z crash on empty list) for NED and for clue report
+#   2-27-17    TMG       fix 312 (prevent orphaned clue/subject dialogs);
+#                         fix 317 (crash on cancel of cancel for clue/subject dialogs);
+#                         this involved changing dialog cancel buttons to just call
+#                         close() instead of reject()
 # #############################################################################
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -2590,7 +2594,7 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 # 				rprint("lastModAge:"+str(tab.lastModAge))
 				# note the pause happens in newEntryWidget.updateTimer()
 				if tab.ui.messageField.text()=="" and tab.lastModAge>60:
-					tab.closeEvent(None)
+					tab.closeEvent(QEvent(QEvent.Close),accepted=False,force=True)
 ##			if not tab.clueDialogOpen and not tab.subjectLocatedDialogOpen and tab.ui.messageField.text()=="" and time.time()-tab.sec>60:
 
 
@@ -2676,6 +2680,9 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		rprint("newEntryWidget created")
 		self.quickTextAddedStack=[]
 
+		self.childDialogs=[] # keep track of exactly which clueDialog or
+		  # subjectLocatedDialogs are 'owned' by this NED, for use in closeEvent
+		  
 ##		self.ui.messageField.setToolTip("<table><tr><td>a<td>b<tr><td>c<td>d</table>")
 		if amendFlag:
 			self.ui.timeField.setText(row[0])
@@ -2865,78 +2872,79 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			self.changeCallsignDialog.exec() # required to make it stay on top
 
 	def accept(self):
-		# getValues return value: [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
-		rprint("Accepted")
-		val=self.getValues()
-		if self.amendFlag:
-			prevToFrom=self.parent.radioLog[self.amendRow][1]
-			newToFrom=self.ui.to_fromField.currentText()
-			prevTeam=self.parent.radioLog[self.amendRow][2]
-			newTeam=self.ui.teamField.text()
-##			if self.parent.radioLog[self.amendRow][1]!=self.ui.to_fromField.currentText() or self.parent.radioLog[self.amendRow][2]!=self.ui.teamField.text():
-			if prevToFrom!=newToFrom or prevTeam!=newTeam:
-				tmpTxt=" "+self.parent.radioLog[self.amendRow][1]+" "+self.parent.radioLog[self.amendRow][2]
-				# if the old team tab is now empty, remove it
-				if prevTeam!=newTeam:
-					prevEntryCount=len([entry for entry in self.parent.radioLog if entry[2]==prevTeam])
-					rprint("number of entries for the previous team:"+str(prevEntryCount))
-					if prevEntryCount==1:
-						prevExtTeamName=getExtTeamName(prevTeam)
-						self.parent.deleteTeamTab(prevExtTeamName)
+		if not self.clueDialogOpen and not self.subjectLocatedDialogOpen:
+			# getValues return value: [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+			rprint("Accepted")
+			val=self.getValues()
+			if self.amendFlag:
+				prevToFrom=self.parent.radioLog[self.amendRow][1]
+				newToFrom=self.ui.to_fromField.currentText()
+				prevTeam=self.parent.radioLog[self.amendRow][2]
+				newTeam=self.ui.teamField.text()
+	##			if self.parent.radioLog[self.amendRow][1]!=self.ui.to_fromField.currentText() or self.parent.radioLog[self.amendRow][2]!=self.ui.teamField.text():
+				if prevToFrom!=newToFrom or prevTeam!=newTeam:
+					tmpTxt=" "+self.parent.radioLog[self.amendRow][1]+" "+self.parent.radioLog[self.amendRow][2]
+					# if the old team tab is now empty, remove it
+					if prevTeam!=newTeam:
+						prevEntryCount=len([entry for entry in self.parent.radioLog if entry[2]==prevTeam])
+						rprint("number of entries for the previous team:"+str(prevEntryCount))
+						if prevEntryCount==1:
+							prevExtTeamName=getExtTeamName(prevTeam)
+							self.parent.deleteTeamTab(prevExtTeamName)
+				else:
+					tmpTxt=""
+				# oldMsg = entire message value before the amendment is accepted; may have previous amendments
+				# lastMsg = only the last message, i.e. oldMsg minus any previous amendments
+				oldMsg=self.parent.radioLog[self.amendRow][3]
+				amendIndex=oldMsg.find('\n[AMENDED')
+				if amendIndex>-1:
+					lastMsg=oldMsg[:amendIndex]
+					olderMsgs=oldMsg[amendIndex:]
+				else:
+					lastMsg=oldMsg
+					olderMsgs=''
+				niceTeamName=val[2]
+				status=val[5]
+	
+				# update radioLog items that may have been amended
+				self.parent.radioLog[self.amendRow][1]=val[1]
+				self.parent.radioLog[self.amendRow][2]=niceTeamName
+				self.parent.radioLog[self.amendRow][3]=self.ui.messageField.text()+"\n[AMENDED "+time.strftime('%H%M')+"; WAS"+tmpTxt+": '"+lastMsg+"']"+olderMsgs
+				self.parent.radioLog[self.amendRow][5]=status
+	
+				# use to_from value "AMEND" and blank msg text to make sure team timer does not reset
+				self.parent.newEntryProcessTeam(niceTeamName,status,"AMEND","")
 			else:
-				tmpTxt=""
-			# oldMsg = entire message value before the amendment is accepted; may have previous amendments
-			# lastMsg = only the last message, i.e. oldMsg minus any previous amendments
-			oldMsg=self.parent.radioLog[self.amendRow][3]
-			amendIndex=oldMsg.find('\n[AMENDED')
-			if amendIndex>-1:
-				lastMsg=oldMsg[:amendIndex]
-				olderMsgs=oldMsg[amendIndex:]
-			else:
-				lastMsg=oldMsg
-				olderMsgs=''
-			niceTeamName=val[2]
-			status=val[5]
-
-			# update radioLog items that may have been amended
-			self.parent.radioLog[self.amendRow][1]=val[1]
-			self.parent.radioLog[self.amendRow][2]=niceTeamName
-			self.parent.radioLog[self.amendRow][3]=self.ui.messageField.text()+"\n[AMENDED "+time.strftime('%H%M')+"; WAS"+tmpTxt+": '"+lastMsg+"']"+olderMsgs
-			self.parent.radioLog[self.amendRow][5]=status
-
-			# use to_from value "AMEND" and blank msg text to make sure team timer does not reset
-			self.parent.newEntryProcessTeam(niceTeamName,status,"AMEND","")
-		else:
-			self.parent.newEntry(self.getValues())
-
-		# make entries for attached callsigns
-		# values array format: [time,to_from,team,message,locString,status,sec,fleet,dev]
-		rprint("attached callsigns: "+str(self.attachedCallsignList))
-		for attachedCallsign in self.attachedCallsignList:
-			v=val[:] # v is a fresh, independent copy of val for each iteration
-			v[2]=getNiceTeamName(attachedCallsign)
-			v[3]="[ATTACHED FROM "+self.ui.teamField.text().strip()+"] "+val[3]
-			self.parent.newEntry(v)
+				self.parent.newEntry(self.getValues())
+	
+			# make entries for attached callsigns
+			# values array format: [time,to_from,team,message,locString,status,sec,fleet,dev]
+			rprint("attached callsigns: "+str(self.attachedCallsignList))
+			for attachedCallsign in self.attachedCallsignList:
+				v=val[:] # v is a fresh, independent copy of val for each iteration
+				v[2]=getNiceTeamName(attachedCallsign)
+				v[3]="[ATTACHED FROM "+self.ui.teamField.text().strip()+"] "+val[3]
+				self.parent.newEntry(v)
+	
+			self.parent.totalEntryCount+=1
+			if self.parent.totalEntryCount%5==0: # rotate backup files after every 5 entries
+				rotateCsvBackups(self.parent.firstWorkingDir+"\\"+self.parent.csvFileName)
+				rotateCsvBackups(self.parent.firstWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"))
+				rotateCsvBackups(self.parent.firstWorkingDir+"\\"+self.parent.fsFileName)
+				rotateCsvBackups(self.parent.secondWorkingDir+"\\"+self.parent.csvFileName)
+				rotateCsvBackups(self.parent.secondWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"))
+				rotateCsvBackups(self.parent.secondWorkingDir+"\\"+self.parent.fsFileName)
+	
+			rprint("Accepted2")
 		
-		self.closeEvent(None)
-
-		self.parent.totalEntryCount+=1
-		if self.parent.totalEntryCount%5==0: # rotate backup files after every 5 entries
-			rotateCsvBackups(self.parent.firstWorkingDir+"\\"+self.parent.csvFileName)
-			rotateCsvBackups(self.parent.firstWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"))
-			rotateCsvBackups(self.parent.firstWorkingDir+"\\"+self.parent.fsFileName)
-			rotateCsvBackups(self.parent.secondWorkingDir+"\\"+self.parent.csvFileName)
-			rotateCsvBackups(self.parent.secondWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"))
-			rotateCsvBackups(self.parent.secondWorkingDir+"\\"+self.parent.fsFileName)
-
-		rprint("Accepted2")
+		self.closeEvent(QEvent(QEvent.Close),True)
 ##		self.close()
 
-	def reject(self):
-		really=QMessageBox.warning(self,"Please Confirm","Cancel this entry?\nIt cannot be recovered.",
-			QMessageBox.Yes|QMessageBox.No,QMessageBox.No)
-		if really==QMessageBox.Yes:
-			self.closeEvent(None)
+# 	def reject(self):
+# 		really=QMessageBox.warning(self,"Please Confirm","Cancel this entry?\nIt cannot be recovered.",
+# 			QMessageBox.Yes|QMessageBox.No,QMessageBox.No)
+# 		if really==QMessageBox.Yes:
+# 			self.closeEvent(None)
 
 ##		self.timer.stop()
 ##
@@ -2950,16 +2958,60 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##		newEntryDialog.instances.remove(self)
 ##		self.timer.stop() # otherwise it keeps accepting even after closed!
 
-	def closeEvent(self,event):
-		self.timer.stop()
-		# if there is a pending GET request (locator), send it now with the
-		#  specified callsign
-		self.parent.sendPendingGet(self.ui.teamField.text())
-##		self.parent.newEntryWindow.ui.tabWidget.removeTab(self.parent.newEntryWindow.ui.tabWidget.indexOf(self))
-##		self.parent.newEntryWindow.removeTab(self.parent.newEntryWindow.ui.tabWidget.indexOf(self))
-		self.parent.newEntryWindow.removeTab(self)
-		newEntryWidget.instances.remove(self)
-		rprint("closed")
+	
+	
+	
+# 	def closeEvent(self,event,accepted=False):
+# 		# note, this type of messagebox is needed to show above all other dialogs for this application,
+# 		#  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
+# 		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
+# 		rprint("closeEvent called: accepted="+str(accepted))
+# 		if not accepted:
+# 			really=QMessageBox(QMessageBox.Warning,"Please Confirm","Close this Clue Report Form?\nIt cannot be recovered.",
+# 				QMessageBox.Yes|QMessageBox.Cancel,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+# 			if really.exec()==QMessageBox.Cancel:
+# 				event.ignore()
+# 				return
+# 
+# 		clueDialog.indices[self.i]=False # free up the dialog box location for the next one
+# 		self.parent.clueDialogOpen=False
+# 		clueDialog.openDialogCount-=1
+# ##		newEntryWidget.instances.remove(self)
+
+
+
+
+
+
+	def closeEvent(self,event,accepted=False,force=False):
+		# if the user hit cancel, make sure the user really wanted to cancel
+		if not accepted and not force:
+			really=QMessageBox.warning(self,"Please Confirm","Cancel this entry?\nIt cannot be recovered.",
+				QMessageBox.Yes|QMessageBox.No,QMessageBox.No)
+			if really==QMessageBox.No:
+				event.ignore()
+				return
+		# whether OK or Cancel, ignore the event if child dialog(s) are open,
+		#  and raise the child window(s)
+		if self.clueDialogOpen or self.subjectLocatedDialogOpen:
+			QMessageBox.warning(self,"Cannot close","A Clue Report or Subject Located form is open that belongs to this entry.  Finish it first.")
+			# the 'child' dialogs are not technically children; use the NED's
+			#  childDialogs attribute instead, which was populated in the __init__
+			#  of each child dialog class
+			for child in self.childDialogs:
+				child.raise_()
+			event.ignore()
+			return
+		else:
+			self.timer.stop()
+			# if there is a pending GET request (locator), send it now with the
+			#  specified callsign
+			self.parent.sendPendingGet(self.ui.teamField.text())
+	##		self.parent.newEntryWindow.ui.tabWidget.removeTab(self.parent.newEntryWindow.ui.tabWidget.indexOf(self))
+	##		self.parent.newEntryWindow.removeTab(self.parent.newEntryWindow.ui.tabWidget.indexOf(self))
+			self.parent.newEntryWindow.removeTab(self)
+			newEntryWidget.instances.remove(self)
+			rprint("closed")
 ##		else:
 ##			event.ignore()
 
@@ -3117,6 +3169,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.ui.clueNumberField.setText(str(newClueNumber))
 		self.clueQuickTextAddedStack=[]
 		self.parent=parent
+		self.parent.childDialogs.append(self)
 ##		self.parent.timer.stop() # do not timeout the new entry dialog if it has a child clueDialog open!
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 ##		self.setWindowFlags(Qt.FramelessWindowHint)
@@ -3204,7 +3257,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 			self.parent.parent.printClueReport(clueData)
 		rprint("accepted - calling close")
 		self.parent.parent.clueLogDialog.ui.tableView.model().layoutChanged.emit()
-		self.closeEvent(None,True)
+		self.closeEvent(QEvent(QEvent.Close),True)
 ##		pixmap=QPixmap(":/radiolog_ui/print_icon.png")
 ##		self.parent.parent.clueLogDialog.ui.tableView.model().setHeaderData(0,Qt.Vertical,pixmap,Qt.DecorationRole)
 ##		self.parent.parent.clueLogDialog.ui.tableView.model().setHeaderData(1,Qt.Vertical,pixmap,Qt.DecorationRole)
@@ -3212,31 +3265,25 @@ class clueDialog(QDialog,Ui_clueDialog):
 ##		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().accept()
 		super(clueDialog,self).accept()
 
-	def reject(self):
-##		self.parent.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
-		rprint("rejected - calling close")
-		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().reject()
-		self.closeEvent(None,False)
-		self.values=self.parent.getValues()
-		self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'LOCATED A CLUE' form"
-		self.parent.parent.newEntry(self.values)
-		super(clueDialog,self).reject()
-
 	def closeEvent(self,event,accepted=False):
 		# note, this type of messagebox is needed to show above all other dialogs for this application,
 		#  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
 		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
-		rprint("closeEvent called: accepted="+str(accepted))
 		if not accepted:
 			really=QMessageBox(QMessageBox.Warning,"Please Confirm","Close this Clue Report Form?\nIt cannot be recovered.",
 				QMessageBox.Yes|QMessageBox.Cancel,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			if really.exec()==QMessageBox.Cancel:
 				event.ignore()
-				return
-
+				return	
+			self.values=self.parent.getValues()
+			self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'LOCATED A CLUE' form"
+			self.parent.parent.newEntry(self.values)
+		
 		clueDialog.indices[self.i]=False # free up the dialog box location for the next one
 		self.parent.clueDialogOpen=False
 		clueDialog.openDialogCount-=1
+		self.parent.childDialogs.remove(self)
+		event.accept()
 ##		newEntryWidget.instances.remove(self)
 
 	def clueQuickTextAction(self):
@@ -3370,12 +3417,13 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		self.ui.radioLocField.setText(radioLoc)
 		self.parent=parent
 		self.parent.subjectLocatedDialogOpen=True
+		self.parent.childDialogs.append(self)
 		self.setWindowFlags(Qt.WindowStaysOnTopHint)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.ui.locationField.setFocus()
 		self.values=self.parent.getValues()
-		self.values[3]="'RADIO LOG SOFTWARE: SUBJECT LOCATED' button pressed; radio operator is gathering details"
+		self.values[3]="RADIO LOG SOFTWARE: 'SUBJECT LOCATED' button pressed; radio operator is gathering details"
 		self.parent.parent.newEntry(self.values)
 		subjectLocatedDialog.openDialogCount+=1
 
@@ -3412,28 +3460,31 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		if other!='':
 			textToAdd+="; "+other
 		self.parent.ui.messageField.setText(existingText+textToAdd)
+		self.closeEvent(QEvent(QEvent.Close),True)
 		super(subjectLocatedDialog,self).accept()
 
-	def reject(self):
-		rprint("rejected - calling close")
-		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().reject()
-		self.closeEvent(None)
-		self.values=self.parent.getValues()
-		self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'SUBJECT LOCATED' form"
-		self.parent.parent.newEntry(self.values)
-		super(subjectLocatedDialog,self).reject()
+# 	def reject(self):
+# 		rprint("rejected - calling close")
+# 		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().reject()
+# 		self.closeEvent(None)
+# 		self.values=self.parent.getValues()
+# 		self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'SUBJECT LOCATED' form"
+# 		self.parent.parent.newEntry(self.values)
+# 		super(subjectLocatedDialog,self).reject()
 
-	def closeEvent(self,event):
+	def closeEvent(self,event,accepted=False):
 		# note, this type of messagebox is needed to show above all other dialogs for this application,
 		#  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
 		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
-		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Close this Subject Located form?\nIt cannot be recovered.",
-			QMessageBox.Yes|QMessageBox.Cancel,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-		if really.exec()==QMessageBox.Cancel:
-			event.ignore()
-			return
+		if not accepted:
+			really=QMessageBox(QMessageBox.Warning,"Please Confirm","Close this Subject Located form?\nIt cannot be recovered.",
+				QMessageBox.Yes|QMessageBox.Cancel,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			if really.exec()==QMessageBox.Cancel:
+				event.ignore()
+				return
 		self.parent.subjectLocatedDialogOpen=False
 		subjectLocatedDialog.openDialogCount-=1
+		self.parent.childDialogs.remove(self)
 
 
 class printClueLogDialog(QDialog,Ui_printClueLogDialog):
