@@ -1988,6 +1988,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			# change this to only take focus if the new tab is active; otherwise, leave the focus alone
 ##			else:
 ##				self.newEntryWidget.ui.messageField.setFocus() # ready to type the message
+			self.newEntryWidget.ui.messageField.setFocus()
 
 		if formattedLocString:
 			self.newEntryWidget.ui.radioLocField.setText(formattedLocString)
@@ -3322,7 +3323,14 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		self.setWindowFlags(Qt.WindowStaysOnTopHint)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setAttribute(Qt.WA_DeleteOnClose)
-
+		# values format for adding a new entry:
+		#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+		self.values=["" for n in range(10)]
+		self.values[0]=t
+		self.values[3]="RADIO LOG SOFTWARE: 'ADD NON-RADIO CLUE' button pressed; radio operator is gathering details"
+		self.values[6]=time.time()
+		self.parent.newEntry(self.values)
+		
 	def accept(self):
 		self.parent.clueLogNeedsPrint=True
 		number=self.ui.clueNumberField.text()
@@ -3339,6 +3347,14 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		# header_labels=['CLUE#','DESCRIPTION','TEAM','TIME','DATE','OP','LOCATION','INSTRUCTIONS','RADIO LOC.']
 		clueData=[number,description,team,clueTime,clueDate,self.parent.opPeriod,location,instructions,radioLoc]
 		self.parent.clueLog.append(clueData)
+		
+		# add a radio log entry too
+		self.values=["" for n in range(10)]
+		self.values[0]=self.ui.timeField.text()
+		self.values[3]="CLUE#"+number+"(NON-RADIO): "+description+"; REPORTED BY: "+team+"; see clue report and clue log for details"
+		self.values[6]=time.time()
+		self.parent.newEntry(self.values)
+		
 		if self.ui.clueReportPrintCheckBox.isChecked():
 			self.parent.printClueReport(clueData)
 		rprint("accepted - calling close")
@@ -3346,22 +3362,27 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		self.parent.clueLogDialog.ui.tableView.model().layoutChanged.emit()
 		super(nonRadioClueDialog,self).accept()
 
-	def closeEvent(self,event):
+	def closeEvent(self,event,accepted=False):
 		# note, this type of messagebox is needed to show above all other dialogs for this application,
 		#  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
 		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
-		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Close this Clue Report Form?\nIt cannot be recovered.",
-			QMessageBox.Yes|QMessageBox.Cancel,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-		if really.exec()==QMessageBox.Cancel:
-			event.ignore()
-			return
-
-	def reject(self):
-##		self.parent.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
-		rprint("rejected - calling close")
-		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().reject()
-		self.closeEvent(None)
-		super(nonRadioClueDialog,self).reject()
+		if not accepted:
+			really=QMessageBox(QMessageBox.Warning,"Please Confirm","Close this Clue Report Form?\nIt cannot be recovered.",
+				QMessageBox.Yes|QMessageBox.Cancel,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			if really.exec()==QMessageBox.Cancel:
+				event.ignore()
+				return
+			self.values=["" for n in range(10)]
+			self.values[0]=self.ui.timeField.text()
+			self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'NON-RADIO CLUE' form"
+			self.values[6]=time.time()
+			self.parent.newEntry(self.values)
+# 	def reject(self):
+# ##		self.parent.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
+# 		rprint("rejected - calling close")
+# 		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().reject()
+# 		self.closeEvent(None)
+# 		super(nonRadioClueDialog,self).reject()
 
 
 class clueLogDialog(QDialog,Ui_clueLogDialog):
@@ -3482,6 +3503,9 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 			if really.exec()==QMessageBox.Cancel:
 				event.ignore()
 				return
+			self.values=self.parent.getValues()
+			self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'SUBJECT LOCATED' form"
+			self.parent.parent.newEntry(self.values)
 		self.parent.subjectLocatedDialogOpen=False
 		subjectLocatedDialog.openDialogCount-=1
 		self.parent.childDialogs.remove(self)

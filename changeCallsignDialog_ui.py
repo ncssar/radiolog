@@ -2,8 +2,7 @@
 
 # Form implementation generated from reading ui file 'changeCallsignDialog.ui'
 #
-# Created: Thu Aug 20 16:59:03 2015
-#      by: PyQt5 UI code generator 5.4
+# Created by: PyQt5 UI code generator 5.8
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -59,7 +58,7 @@ class Ui_changeCallsignDialog(object):
         self.newCallsignField.setFont(font)
         self.newCallsignField.setText("")
         self.newCallsignField.setPlaceholderText("")
-        self.newCallsignField.setClearButtonEnabled(False)
+        self.newCallsignField.setProperty("clearButtonEnabled", False)
         self.newCallsignField.setObjectName("newCallsignField")
         self.label = QtWidgets.QLabel(changeCallsignDialog)
         self.label.setGeometry(QtCore.QRect(220, 60, 55, 21))
@@ -102,7 +101,7 @@ class Ui_changeCallsignDialog(object):
 
         self.retranslateUi(changeCallsignDialog)
         self.buttonBox.accepted.connect(changeCallsignDialog.accept)
-        self.buttonBox.rejected.connect(changeCallsignDialog.reject)
+        self.buttonBox.rejected.connect(changeCallsignDialog.close)
         QtCore.QMetaObject.connectSlotsByName(changeCallsignDialog)
 
     def retranslateUi(self, changeCallsignDialog):

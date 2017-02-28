@@ -2,8 +2,7 @@
 
 # Form implementation generated from reading ui file 'nonRadioClueDialog.ui'
 #
-# Created: Sat Aug  1 20:56:36 2015
-#      by: PyQt5 UI code generator 5.4
+# Created by: PyQt5 UI code generator 5.8
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -92,7 +91,7 @@ class Ui_nonRadioClueDialog(object):
         self.callsignField.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.callsignField.setAutoFillBackground(False)
         self.callsignField.setText("")
-        self.callsignField.setClearButtonEnabled(False)
+        self.callsignField.setProperty("clearButtonEnabled", False)
         self.callsignField.setObjectName("callsignField")
         self.label_5 = QtWidgets.QLabel(self.groupBox)
         self.label_5.setEnabled(True)
@@ -176,10 +175,22 @@ class Ui_nonRadioClueDialog(object):
         self.descriptionField.setGeometry(QtCore.QRect(163, 166, 531, 121))
         self.descriptionField.setStyleSheet("font: 14pt \"Segoe UI\";")
         self.descriptionField.setObjectName("descriptionField")
+        self.groupBox.raise_()
+        self.label_4.raise_()
+        self.buttonBox.raise_()
+        self.label_3.raise_()
+        self.label.raise_()
+        self.label_2.raise_()
+        self.clueNumberField.raise_()
+        self.label_6.raise_()
+        self.clueReportPrintCheckBox.raise_()
+        self.label_8.raise_()
+        self.groupBox_2.raise_()
+        self.descriptionField.raise_()
 
         self.retranslateUi(nonRadioClueDialog)
         self.buttonBox.accepted.connect(nonRadioClueDialog.accept)
-        self.buttonBox.rejected.connect(nonRadioClueDialog.reject)
+        self.buttonBox.rejected.connect(nonRadioClueDialog.close)
         QtCore.QMetaObject.connectSlotsByName(nonRadioClueDialog)
         nonRadioClueDialog.setTabOrder(self.clueNumberField, self.dateField)
         nonRadioClueDialog.setTabOrder(self.dateField, self.timeField)

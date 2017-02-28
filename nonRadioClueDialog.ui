@@ -212,7 +212,7 @@
     <property name="text">
      <string/>
     </property>
-    <property name="clearButtonEnabled">
+    <property name="clearButtonEnabled" stdset="0">
      <bool>false</bool>
     </property>
    </widget>
@@ -490,7 +490,7 @@ or on a separate paper or attachment.</string>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
    <receiver>nonRadioClueDialog</receiver>
-   <slot>reject()</slot>
+   <slot>close()</slot>
    <hints>
     <hint type="sourcelabel">
      <x>710</x>
