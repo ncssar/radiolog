@@ -43,6 +43,7 @@
 #   2-28-17    TMG       fix 316,318,320 (add dialog open/cancel radio log entries)
 #                         and extend closeEvent functionality (above) to
 #                         nonRadioClueDialog and changeCallsignDialog
+#    4-7-17    TMG       stopgap for 310 - disable attached callsign handling for now
 # #############################################################################
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -3094,31 +3095,36 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		#  note that the cases with spaces require that we get rid of spaces
 		#   before numbers if those spaces are preceded by a letter
 		#  also replace 'team' or 't' with 'Team'
-		self.attachedCallsignList=[]
-		lowerMessage=message.lower()
-		if "with" in lowerMessage or "w/" in lowerMessage:
-			tailIndex=lowerMessage.find("with")+4
-			if tailIndex<4:
-				tailIndex=lowerMessage.find("w/")+2
-			if tailIndex>1:
-				tail=message[tailIndex:].strip()
-				#massage the tail to get it into a good format here
-				tail=re.sub(r'(\w)\s+(\d+)',r'\1\2',tail) # remove space after letters before numbers
-				tail=re.sub(r't(\d+)',r'team\1',tail) # change t# to team#
-				tail=re.sub(r'([\s,]+)(\d+)',r'\1team\2',tail) # insert 'team' before just-numbers
-				tail=re.sub(r'^(\d+)',r'team\1',tail) # and also at the start of the tail
-				tail=re.sub(r'team',r'Team',tail) # capitalize 'team'
-	# 			rprint(" 'with' tail found:"+tail)
-				tailParse=re.split("[, ]+",tail)
-				# rebuild the attachedCallsignList from scratch on every keystroke;
-				#  trying to append to the list is problematic (i.e. when do we append?)
-				for token in tailParse:
-					if token!="and": # all parsed tokens other than "and" are callsigns to be attached
-						# keep the list as a local variable rather than object attribute,
-						#  since we want to rebuild the entire list on every keystroke
-						self.attachedCallsignList.append(token)
-		self.ui.attachedField.setText(" ".join(self.attachedCallsignList))
-			
+	
+		self.attachedCallsignList=[]	
+	# the following lines are commented out TMG 4-7-17 to prevent crashes when
+	# amending attached-team messages; see issue#310; hopefully a better solution
+	# can be found in the future
+	
+# 		lowerMessage=message.lower()
+# 		if "with" in lowerMessage or "w/" in lowerMessage:
+# 			tailIndex=lowerMessage.find("with")+4
+# 			if tailIndex<4:
+# 				tailIndex=lowerMessage.find("w/")+2
+# 			if tailIndex>1:
+# 				tail=message[tailIndex:].strip()
+# 				#massage the tail to get it into a good format here
+# 				tail=re.sub(r'(\w)\s+(\d+)',r'\1\2',tail) # remove space after letters before numbers
+# 				tail=re.sub(r't(\d+)',r'team\1',tail) # change t# to team#
+# 				tail=re.sub(r'([\s,]+)(\d+)',r'\1team\2',tail) # insert 'team' before just-numbers
+# 				tail=re.sub(r'^(\d+)',r'team\1',tail) # and also at the start of the tail
+# 				tail=re.sub(r'team',r'Team',tail) # capitalize 'team'
+# 	# 			rprint(" 'with' tail found:"+tail)
+# 				tailParse=re.split("[, ]+",tail)
+# 				# rebuild the attachedCallsignList from scratch on every keystroke;
+# 				#  trying to append to the list is problematic (i.e. when do we append?)
+# 				for token in tailParse:
+# 					if token!="and": # all parsed tokens other than "and" are callsigns to be attached
+# 						# keep the list as a local variable rather than object attribute,
+# 						#  since we want to rebuild the entire list on every keystroke
+# 						self.attachedCallsignList.append(token)
+# 		self.ui.attachedField.setText(" ".join(self.attachedCallsignList))
+# 			
 		# allow it to be set back to blank; must set exclusive to false and iterate over each button
 		self.ui.statusButtonGroup.setExclusive(False)
 		for button in self.ui.statusButtonGroup.buttons():
