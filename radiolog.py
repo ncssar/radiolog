@@ -44,6 +44,10 @@
 #                         and extend closeEvent functionality (above) to
 #                         nonRadioClueDialog and changeCallsignDialog
 #    4-7-17    TMG       stopgap for 310 - disable attached callsign handling for now
+#   4-11-17    TMG       fix 322 (restore crashes - file not found) - give a message
+#                         and return gracefully if the file specified in the rc file
+#                         does not exist, and, take steps to make sure the correct
+#                         filename is saved to the rc file at the correct times
 # #############################################################################
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -432,8 +436,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.clueLog.append(['',self.radioLog[0][3],'',time.strftime("%H%M"),'','','','',''])
 
 		self.lastFileName="" # to force error in restore, in the event the resource file doesn't specify the lastFileName
-		self.csvFileName=getFileNameBase(self.incidentNameNormalized)+".csv"
-		self.pdfFileName=getFileNameBase(self.incidentNameNormalized)+".pdf"
+# 		self.csvFileName=getFileNameBase(self.incidentNameNormalized)+".csv"
+# 		self.pdfFileName=getFileNameBase(self.incidentNameNormalized)+".pdf"
+		self.updateFileNames()
+		self.lastSavedFileName="NONE"
 		self.fsFileName="radiolog_fleetsync.csv" # this is the default; modified filename is based on csvfilename at modify-time
 ##		self.fsFileName=self.getFileNameBase(self.incidentNameNormalized)+"_fleetsync.csv"
 
@@ -1693,10 +1699,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		out << "[RadioLog]\n"
 		# do not save timeout,datum,coord format in the resource file - keep them at the hardcoded defaults
 		# future improvement: read defaults from radiolog_defaults.txt (necessary for different teams)
+		# issue 322: use self.lastSavedFileName instead of self.csvFileName to
+		#  make sure the initial rc file doesn't point to a file that does not yet exist
 #		out << "timeout-seconds=" << self.timeoutRedSec << "\n"
 #		out << "datum=" << self.datum << "\n"
 #		out << "coordinate-format=" << self.coordFormat << "\n"
-		out << "lastFileName=" << self.csvFileName << "\n"
+		out << "lastFileName=" << self.lastSavedFileName << "\n"
 		out << "font-size=" << self.fontSize << "pt\n"
 		out << "x=" << x << "\n"
 		out << "y=" << y << "\n"
@@ -1722,6 +1730,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			rcFile.close()
 			return
 		cleanShutdownFlag=False
+		self.lastFileName="NONE"
 		while not inStr.atEnd():
 			line=inStr.readLine()
 			tokens=line.split("=")
@@ -1778,6 +1787,9 @@ class MyWindow(QDialog,Ui_Dialog):
 						csvWriter.writerow(row)
 				if finalize:
 					csvWriter.writerow(["## end"])
+				if self.lastSavedFileName!=self.csvFileName: # this is the first save since startup, since restore, or since incident name change
+					self.lastSavedFileName=self.csvFileName
+					self.saveRcFile()
 		# now write the clue log to a separate csv file: same filename appended by '.clueLog'
 		if len(self.clueLog)>0:
 			for fileName in csvFileNameList:
@@ -1895,9 +1907,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.opPeriodButton.setText("OP "+str(self.opPeriod))
 		self.teamTimer.start(1000) #resume
 		self.loadFlag=False
+		self.lastSavedFileName="NONE"
+		self.saveRcFile()
 
-	def optionsAccepted(self):
-		self.incidentName=self.optionsDialog.ui.incidentField.text()
+	def updateFileNames(self):
+		# update the filenames based on current incident name and current date/time
 		# normalize the name for purposes of filenames
 		#  - get rid of all spaces -  no need to be able to reproduce the
 		#    incident name's spaces from the filename
@@ -1906,6 +1920,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.pdfFileName=getFileNameBase(self.incidentNameNormalized)+".pdf"
 		self.fsFileName=self.csvFileName.replace('.csv','_fleetsync.csv')
 
+	def optionsAccepted(self):
+		self.incidentName=self.optionsDialog.ui.incidentField.text()
+		self.updateFileNames()
+		# don't change the rc file at this point - wait until a log entry is actually saved
 		self.ui.incidentNameLabel.setText(self.incidentName)
 		self.datum=self.optionsDialog.ui.datumField.currentText()
 		self.coordFormat=self.optionsDialog.ui.formatField.currentText()
@@ -2259,11 +2277,16 @@ class MyWindow(QDialog,Ui_Dialog):
 	def restore(self):
 		# use this function to reload the last saved files, based on lastFileName entry from resource file
 		#  but, keep the new session's save filenames going forward
-		if self.lastFileName=="":
+		if self.lastFileName=="NONE":
 			QMessageBox(QMessageBox.Critical,"Cannot Restore","Last saved filenames were not saved in the resource file.  Cannot automatically restore last saved files.  You will need to load the files directly [F4].",QMessageBox.Ok).exec()
 			return
-		self.load(self.firstWorkingDir+"\\"+self.lastFileName) # loads the radio log and the clue log
+		fileToLoad=self.firstWorkingDir+"\\"+self.lastFileName
+		if not os.path.isfile(fileToLoad): # prevent error if dialog is canceled
+			QMessageBox(QMessageBox.Critical,"Cannot Restore","The file "+fileToLoad+" (specified in the resource file) does not exist.  You will need to load the files directly [F4].",QMessageBox.Ok).exec()
+			return
+		self.load(fileToLoad) # loads the radio log and the clue log
 		self.fsLoadLookup(fsFileName=self.firstWorkingDir+"\\"+self.lastFileName.replace(".csv","_fleetsync.csv"))
+		self.updateFileNames()
 		self.fsSaveLookup()
 		self.save()
 		self.saveRcFile()
