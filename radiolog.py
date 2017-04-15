@@ -48,6 +48,8 @@
 #                         and return gracefully if the file specified in the rc file
 #                         does not exist, and, take steps to make sure the correct
 #                         filename is saved to the rc file at the correct times
+#   4-15-17    TMG       fix 323 (load dialog should only show non-fleetsync and
+#                         non-clueLog .csv files)
 # #############################################################################
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -1811,9 +1813,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		# maybe provide some way to force overwrite later, but, for now that can be done just by exiting and restarting
 		self.loadFlag=True
 		if not fileName:
-			fileName=QFileDialog.getOpenFileName(caption="Load Existing Radio Log",filter="RadioLog CSV files (*.csv)")[0]
-			if not os.path.isfile(fileName): # prevent error if dialog is canceled
+			fileDialog=QFileDialog()
+			fileDialog.setOption(QFileDialog.DontUseNativeDialog)
+			fileDialog.setProxyModel(CSVFileSortFilterProxyModel(self))
+			fileDialog.setNameFilter("CSV Radio Log Data Files (*.csv)")
+			fileDialog.setDirectory(self.firstWorkingDir)
+			if fileDialog.exec_():
+				fileName=fileDialog.selectedFiles()[0]
+			else: # user pressed cancel on the file browser dialog
 				return
+# 			print("fileName="+fileName)
+# 			if not os.path.isfile(fileName): # prevent error if dialog is canceled
+# 				return
 		if "_clueLog" in fileName or "_fleetsync" in fileName:
 			QMessageBox(QMessageBox.Critical,"Invalid File Selected","Do not load a Clue Log or FleetSync file directly.  Load the parent radiolog.csv file directly, and the Clue Log and FleetSync files will automatically be loaded with it.",QMessageBox.Ok).exec()
 			return
@@ -3807,6 +3818,37 @@ class CustomSortFilterProxyModel(QSortFilterProxyModel):
 		return(val==target or addAllFlag)
 
 
+# code for CSVFileSortFilterProxyModel partially taken from
+#  https://github.com/ZhuangLab/storm-control/blob/master/steve/qtRegexFileDialog.py
+class CSVFileSortFilterProxyModel(QSortFilterProxyModel):
+	def __init__(self,parent=None):
+# 		print("initializing CSVFileSortFilterProxyModel")
+		super(CSVFileSortFilterProxyModel,self).__init__(parent)
+
+	# filterAcceptsRow - return True if row should be included in the model, False otherwise
+	#
+	# do not list files named *_fleetsync.csv or *_clueLog.csv
+	#  do a case-insensitive comparison just in case
+	def filterAcceptsRow(self,source_row,source_parent):
+# 		print("CSV filterAcceptsRow called")
+		source_model=self.sourceModel()
+		index0=source_model.index(source_row,0,source_parent)
+		# Always show directories
+		if source_model.isDir(index0):
+			return True
+		# filter files
+		filename=source_model.fileName(index0).lower()
+# 		filename=self.sourceModel().index(row,0,parent).data().lower()
+# 		print("testing lowercased filename:"+filename)
+		# never show non- .csv files
+		if filename.count(".csv")<1:
+			return False
+		if filename.count("_fleetsync.csv")+filename.count("_cluelog.csv")==0:
+			return True
+		else:
+			return False
+		
+ 
 class customEventFilter(QObject):
 	def eventFilter(self,receiver,event):
 		if(event.type()==QEvent.ShortcutOverride and
