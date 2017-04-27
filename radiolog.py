@@ -50,6 +50,8 @@
 #                         filename is saved to the rc file at the correct times
 #   4-15-17    TMG       fix 323 (load dialog should only show non-fleetsync and
 #                         non-clueLog .csv files)
+#   4-26-17    TMG       fix 326 (zero-left-padded tabs when callsigns are digits-only)
+#
 # #############################################################################
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -2910,6 +2912,11 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			self.changeCallsignDialog=changeCallsignDialog(self,self.ui.teamField.text(),self.fleet,self.dev)
 			self.changeCallsignDialog.exec() # required to make it stay on top
 
+	def callsignLostFocus(self):
+		# if the callsign is only numbers, prepend 'Team ' to avoid the zero-left-padding problem
+		if self.ui.teamField.text().isdigit():
+			self.ui.teamField.setText("Team "+self.ui.teamField.text())
+			
 	def accept(self):
 		if not self.clueDialogOpen and not self.subjectLocatedDialogOpen:
 			# getValues return value: [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
