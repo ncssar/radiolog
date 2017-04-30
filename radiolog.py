@@ -51,6 +51,7 @@
 #   4-15-17    TMG       fix 323 (load dialog should only show non-fleetsync and
 #                         non-clueLog .csv files)
 #   4-26-17    TMG       fix 326 (zero-left-padded tabs when callsigns are digits-only)
+#   4-29-17    TMG       fix 34 (fleetsync mute)
 #
 # #############################################################################
 #
@@ -449,6 +450,8 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		self.fsValidFleetList=[100]
 		self.fsFilteredDevList=[]
+		self.fsMuted=False
+		self.fsMutedBlink=False
 		self.getString=""
 
 		self.firstWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents"
@@ -693,6 +696,30 @@ class MyWindow(QDialog,Ui_Dialog):
 			for n in self.ui.tableViewList[1:]:
 				n.resizeRowsToContents()
 
+	def fsMuteBlink(self,state):
+		if state=="on":
+			self.ui.incidentNameLabel.setText("FleetSync is Muted (F7=unmute)")
+			self.ui.incidentNameLabel.setStyleSheet("background-color:#ff5050;color:white")
+		else:
+			self.ui.incidentNameLabel.setText(self.incidentName)
+			self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black")
+			
+	def fsMuteToggle(self):
+		self.fsMuted=not self.fsMuted
+		# blinking is handled in fsCheck which is called once a second anyway;
+		# make sure to set display back to normal if mute was just turned off
+		#  since we don't know the previous blink state
+		if self.fsMuted:
+			self.ui.comPortLayoutWidget.hide()
+			self.ui.incidentNameLabel.setMinimumSize(QSize(354, 0))
+			self.fsMuteBlink("on") # blink on immediately so user sees immediate response
+		else:
+			self.ui.comPortLayoutWidget.show()
+			self.ui.incidentNameLabel.setMinimumSize(QSize(300, 0))
+			self.fsMuteBlink("off")
+			self.ui.incidentNameLabel.setText(self.incidentName)
+			self.ui.incidentNameLabel.setStyleSheet("background-color:none")
+	
 	# FleetSync - check for pending data
 	# - check for pending data at regular interval (from timer)
 	#     (it's important to check for ID-only lines, since handhelds with no
@@ -806,6 +833,19 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.ui.secondComPortField.setStyleSheet("background-color:#00ff00")
 				self.fsBuffer=self.fsBuffer+self.secondComPort.read(waiting).decode('utf-8')
 
+		# don't process fsMuted before this point: we need to read the com ports
+		#  even if they are muted, so that the com port buffers don't fill up
+		#  while muted, which would result in buffer overrun or just all the
+		#  queued up fs traffic being processed when fs is unmuted
+		if self.fsMuted:
+			self.fsBuffer="" # make sure the buffer is clear, i.e. any incoming
+			 # fs traffic while muted should be read but disregarded
+			self.fsMutedBlink=not self.fsMutedBlink
+			if self.fsMutedBlink:
+				self.fsMuteBlink("on")
+			else:
+				self.fsMuteBlink("off")
+		
 		if self.fsBuffer.endswith("\x03"):
 			self.fsParse()
 			self.fsBuffer=""
@@ -1651,6 +1691,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				if QMessageBox.question(self,"Please Confirm","Restore the last saved files (Radio Log, Clue Log, and FleetSync table)?",
 						QMessageBox.Yes|QMessageBox.Cancel,QMessageBox.Cancel)==QMessageBox.Yes:
 					self.restore()
+			elif event.key()==Qt.Key_F7:
+				self.fsMuteToggle()
 			elif event.key()==Qt.Key_Space or event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
 				self.openNewEntry('pop')
 			event.accept()

@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>498</width>
-    <height>672</height>
+    <height>685</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -52,7 +52,7 @@
         <bool>true</bool>
        </property>
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -77,9 +77,6 @@
        </property>
        <property name="verticalScrollBarPolicy">
         <enum>Qt::ScrollBarAsNeeded</enum>
-       </property>
-       <property name="sizeAdjustPolicy">
-        <enum>QAbstractScrollArea::AdjustToContents</enum>
        </property>
        <property name="autoScroll">
         <bool>true</bool>
@@ -449,7 +446,7 @@
        </item>
        <item row="8" column="2">
         <property name="text">
-         <string>Reload Fleetsync Table</string>
+         <string>Reload FleetSync Table</string>
         </property>
         <property name="textAlignment">
          <set>AlignLeft|AlignVCenter</set>
@@ -484,7 +481,7 @@
        </item>
        <item row="10" column="0">
         <property name="text">
-         <string>'+'</string>
+         <string>F7</string>
         </property>
         <property name="font">
          <font>
@@ -506,12 +503,12 @@
        </item>
        <item row="10" column="2">
         <property name="text">
-         <string>Enlarge Font</string>
+         <string>FleetSync Mute</string>
         </property>
        </item>
        <item row="11" column="0">
         <property name="text">
-         <string>'-'</string>
+         <string>+ / -</string>
         </property>
         <property name="font">
          <font>
@@ -533,7 +530,7 @@
        </item>
        <item row="11" column="2">
         <property name="text">
-         <string>Reduce Font</string>
+         <string>Enlarge / Reduce Font</string>
         </property>
        </item>
       </widget>

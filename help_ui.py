@@ -2,8 +2,7 @@
 
 # Form implementation generated from reading ui file 'help.ui'
 #
-# Created: Fri Aug 21 07:31:35 2015
-#      by: PyQt5 UI code generator 5.4
+# Created by: PyQt5 UI code generator 5.7
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -13,7 +12,7 @@ class Ui_Help(object):
     def setupUi(self, Help):
         Help.setObjectName("Help")
         Help.setEnabled(True)
-        Help.resize(498, 672)
+        Help.resize(498, 685)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -36,7 +35,7 @@ class Ui_Help(object):
         self.gridLayout.addWidget(self.label_7, 0, 0, 1, 1)
         self.hotkeysTableWidget = QtWidgets.QTableWidget(Help)
         self.hotkeysTableWidget.setEnabled(True)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.hotkeysTableWidget.sizePolicy().hasHeightForWidth())
@@ -47,7 +46,6 @@ class Ui_Help(object):
         self.hotkeysTableWidget.setLineWidth(1)
         self.hotkeysTableWidget.setMidLineWidth(0)
         self.hotkeysTableWidget.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self.hotkeysTableWidget.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContents)
         self.hotkeysTableWidget.setAutoScroll(True)
         self.hotkeysTableWidget.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self.hotkeysTableWidget.setTabKeyNavigation(False)
@@ -428,7 +426,7 @@ class Ui_Help(object):
         item = self.hotkeysTableWidget.item(8, 1)
         item.setText(_translate("Help", "-"))
         item = self.hotkeysTableWidget.item(8, 2)
-        item.setText(_translate("Help", "Reload Fleetsync Table"))
+        item.setText(_translate("Help", "Reload FleetSync Table"))
         item = self.hotkeysTableWidget.item(9, 0)
         item.setText(_translate("Help", "F6"))
         item = self.hotkeysTableWidget.item(9, 1)
@@ -436,17 +434,17 @@ class Ui_Help(object):
         item = self.hotkeysTableWidget.item(9, 2)
         item.setText(_translate("Help", "Restore Last Saved Files"))
         item = self.hotkeysTableWidget.item(10, 0)
-        item.setText(_translate("Help", "\'+\'"))
+        item.setText(_translate("Help", "F7"))
         item = self.hotkeysTableWidget.item(10, 1)
         item.setText(_translate("Help", "-"))
         item = self.hotkeysTableWidget.item(10, 2)
-        item.setText(_translate("Help", "Enlarge Font"))
+        item.setText(_translate("Help", "FleetSync Mute"))
         item = self.hotkeysTableWidget.item(11, 0)
-        item.setText(_translate("Help", "\'-\'"))
+        item.setText(_translate("Help", "+ / -"))
         item = self.hotkeysTableWidget.item(11, 1)
         item.setText(_translate("Help", "-"))
         item = self.hotkeysTableWidget.item(11, 2)
-        item.setText(_translate("Help", "Reduce Font"))
+        item.setText(_translate("Help", "Enlarge / Reduce Font"))
         self.hotkeysTableWidget.setSortingEnabled(__sortingEnabled)
         self.label.setText(_translate("Help", "Color Codes"))
         self.label_11.setText(_translate("Help", "Timed Out (no recent contact)"))
