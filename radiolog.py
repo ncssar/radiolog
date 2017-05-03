@@ -52,6 +52,7 @@
 #                         non-clueLog .csv files)
 #   4-26-17    TMG       fix 326 (zero-left-padded tabs when callsigns are digits-only)
 #   4-29-17    TMG       fix 34 (fleetsync mute)
+#   5-2-17     TMG       fix 325 (cancel-confirm bypass if message is blank)
 #
 # #############################################################################
 #
@@ -3073,7 +3074,12 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 
 	def closeEvent(self,event,accepted=False,force=False):
 		# if the user hit cancel, make sure the user really wanted to cancel
-		if not accepted and not force:
+		# fix #325: repeated cancel-confirm cycles are annoying; bypass the
+		#  confirmation if the message is blank; note that any GPS data gets sent
+		#  as soon as the dialog is opened (or as soon as the change callsign dialog
+		#  is accepted), so, bypassing the confirmation in this manner will
+		#  still preserve and process any incoming GPS coordinates
+		if not accepted and not force and self.ui.messageField.text()!="":
 			really=QMessageBox.warning(self,"Please Confirm","Cancel this entry?\nIt cannot be recovered.",
 				QMessageBox.Yes|QMessageBox.No,QMessageBox.No)
 			if really==QMessageBox.No:
