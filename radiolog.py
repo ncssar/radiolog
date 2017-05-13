@@ -61,6 +61,9 @@
 #                          a strong parent-child dialog relationship can be established
 #                          (see http://stackoverflow.com/questions/43956587)
 #   5-13-17    TMG       fix #333 (crash on throb after widget has been closed)
+#   5-13-17    TMG       further fix on #333: don't try to stop the timer if it
+#                          does not exist, i.e. if not currently mid-throb; caused
+#                          similar crash to #333 during auto-cleanup of delayed stack
 #
 # #############################################################################
 #
@@ -2909,7 +2912,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			self.throbTimer.setSingleShot(True)
 			self.throbTimer.start(15)
 		else:
-			rprint("throb complete")
+# 			rprint("throb complete")
+			self.throbTimer=None
 			self.palette.setColor(QPalette.Background,QColor(255,255,255))
 			self.setPalette(self.palette)
 
@@ -3126,7 +3130,9 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		else:
 			self.timer.stop()
 			# fix #333: stop mid-throb to avert runtime error
-			self.throbTimer.stop()
+			#  but only if the throbTimer was actually started
+			if self.throbTimer:
+				self.throbTimer.stop()
 			# if there is a pending GET request (locator), send it now with the
 			#  specified callsign
 			self.parent.sendPendingGet(self.ui.teamField.text())
