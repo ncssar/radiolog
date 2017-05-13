@@ -6,3 +6,8 @@ radiolog_rc.txt
 radiolog_rc.txt
 radiolog_rc.txt
 radiolog_rc.txt
+*.cprof
+radiolog.log_childSubjLocCrash
+*.log_crash1
+radiolog_rc.txt
+*.log
