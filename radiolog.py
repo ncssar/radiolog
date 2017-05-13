@@ -53,6 +53,13 @@
 #   4-26-17    TMG       fix 326 (zero-left-padded tabs when callsigns are digits-only)
 #   4-29-17    TMG       fix 34 (fleetsync mute)
 #   5-2-17     TMG       fix 325 (cancel-confirm bypass if message is blank)
+#   5-13-17    TMG       fix 338 (esc key in clue/subject dialogs closes w/out confirm):
+#                          add keyPressEvents to ignore the esc key; note that the
+#                          Qt docs say that .reject() is called by the esc key but
+#                          that has other repercussions in this case; also serves
+#                          as interim fix for #337 (crash due to the above) until
+#                          a strong parent-child dialog relationship can be established
+#                          (see http://stackoverflow.com/questions/43956587)
 #
 # #############################################################################
 #
@@ -2120,31 +2127,34 @@ class MyWindow(QDialog,Ui_Dialog):
 			QTimer.singleShot(100,lambda:self.newEntryPost(extTeamName))
 
 	def newEntryPost(self,extTeamName=None):
-##		rprint("1: called newEntryPost")
+		rprint("1: called newEntryPost")
 		self.radioLogNeedsPrint=True
 		self.radioLog.sort(key=lambda entry: entry[6]) # sort by epoch seconds - in case dialogs are accepted out of order
-##		rprint("2") # layoutChanged.emit() is a key source of delay!  about 2 seconds on a 670 row table
+		rprint("2") # layoutChanged.emit() is a key source of delay!  about 2 seconds on a 670 row table
 		# putting this line in a singleShot would allow the main table to get updated much
 		#  more quickly, but, the team table would not be updated until later and the new entry
 		#  row height would be incorrect due to the data not being available for resizeRowsToContents
 		# could maybe address part of that by setting verticalHeader.setDefaultSectionSize at font change time?
 		self.ui.tableView.model().layoutChanged.emit() # note this must happen AFTER the sort!
-##		rprint("3")
+		rprint("3")
 		# resize the bottom-most rows (up to 10 of them):
 		#  this makes lag time independent of total row count for large tables,
 		#  and reduces overall lag about 30% vs resizeRowsToContents (about 3 sec vs 4.5 sec for a 1300-row table)
 		for n in range(len(self.radioLog)-10,len(self.radioLog)):
 			if n>=0:
 				self.ui.tableView.resizeRowToContents(n+1)
-##		rprint("4")
+		rprint("4")
 		self.ui.tableView.scrollToBottom()
-##		rprint("5")
+		rprint("5")
 		for i in [2,4]: # hardcode results in significant speedup
 			self.ui.tableView.resizeColumnToContents(i)
+		rprint("5.1")
 		for n in self.ui.tableViewList[1:]:
 			for i in [2,4]: # hardcode results in significant speedup
 				n.resizeColumnToContents(i)
+		rprint("5.2")
 		if extTeamName:
+			rprint("5.2.1")
 			if extTeamName=="ALL TEAMS":
 				for i in range(1,len(self.extTeamNameList)):
 					self.ui.tabWidget.setCurrentIndex(i)
@@ -2154,20 +2164,26 @@ class MyWindow(QDialog,Ui_Dialog):
 							self.ui.tableViewList[i].resizeRowToContents(n+1)
 					self.ui.tableViewList[i].scrollToBottom()
 			elif extTeamName!="z_00000":
+				rprint("5.2.1.2")
 				if extTeamName in self.extTeamNameList:
+					rprint("5.2.1.2.1")
 					i=self.extTeamNameList.index(extTeamName)
+					rprint("  a: i="+str(i))
 					self.ui.tabWidget.setCurrentIndex(i)
+					rprint("  b")
 					self.ui.tableViewList[i].resizeRowsToContents()
+					rprint("  c")
 					for n in range(len(self.radioLog)-10,len(self.radioLog)):
 						if n>=0:
 							self.ui.tableViewList[i].resizeRowToContents(n+1)
+					rprint("  d")
 					self.ui.tableViewList[i].scrollToBottom()
-
-##		rprint("6")
+					rprint("  e")
+		rprint("6")
 		self.save()
 ##		self.redrawTables()
 ##		QCoreApplication.processEvents()
-##		rprint("7: finished newEntryPost")
+		rprint("7: finished newEntryPost")
 
 	def tableContextMenu(self,pos):
 		row=self.ui.tableView.rowAt(pos.y())
@@ -3312,7 +3328,9 @@ class clueDialog(QDialog,Ui_clueDialog):
 			else:
 				super().keyPressEvent(event) # pass the event as normal
 		else:
-			super().keyPressEvent(event) # pass the event as normal
+			# fix issue #338: prevent 'esc' from closing the newEntryWindow
+			if event.key()!=Qt.Key_Escape:
+				super().keyPressEvent(event) # pass the event as normal
 
 	def accept(self):
 ##		self.parent.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
@@ -3608,6 +3626,10 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		subjectLocatedDialog.openDialogCount-=1
 		self.parent.childDialogs.remove(self)
 
+	# fix issue #338: prevent 'esc' from closing the newEntryWindow
+	def keyPressEvent(self,event):
+		if event.key()!=Qt.Key_Escape:
+			super().keyPressEvent(event) # pass the event as normal
 
 class printClueLogDialog(QDialog,Ui_printClueLogDialog):
 	def __init__(self,parent):
