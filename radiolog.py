@@ -60,6 +60,7 @@
 #                          as interim fix for #337 (crash due to the above) until
 #                          a strong parent-child dialog relationship can be established
 #                          (see http://stackoverflow.com/questions/43956587)
+#   5-13-17    TMG       fix #333 (crash on throb after widget has been closed)
 #
 # #############################################################################
 #
@@ -2742,6 +2743,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 
 		self.ui=Ui_newEntryWidget()
 
+		self.throbTimer=None
 		self.amendFlag=amendFlag
 		self.amendRow=amendRow
 		self.attachedCallsignList=[]
@@ -2894,11 +2896,20 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 
 	def throb(self,n=0):
 		# this function calls itself recursivly 25 times to throb the background blue->white
+# 		rprint("throb:n="+str(n))
 		self.palette.setColor(QPalette.Background,QColor(n*10,n*10,255))
 		self.setPalette(self.palette)
 		if n<25:
-			QTimer.singleShot(15,lambda:self.throb(n+1))
+			#fix #333: make throbTimer a normal timer and then call throbTimer.setSingleShot,
+			# so we can just stop it using .stop() when the widget is closed
+			# to avert 'wrapped C/C++ object .. has been deleted'
+# 			self.throbTimer=QTimer.singleShot(15,lambda:self.throb(n+1))
+			self.throbTimer=QTimer()
+			self.throbTimer.timeout.connect(lambda:self.throb(n+1))
+			self.throbTimer.setSingleShot(True)
+			self.throbTimer.start(15)
 		else:
+			rprint("throb complete")
 			self.palette.setColor(QPalette.Background,QColor(255,255,255))
 			self.setPalette(self.palette)
 
@@ -3114,6 +3125,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			return
 		else:
 			self.timer.stop()
+			# fix #333: stop mid-throb to avert runtime error
+			self.throbTimer.stop()
 			# if there is a pending GET request (locator), send it now with the
 			#  specified callsign
 			self.parent.sendPendingGet(self.ui.teamField.text())
