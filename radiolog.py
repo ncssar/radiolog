@@ -64,6 +64,8 @@
 #   5-13-17    TMG       further fix on #333: don't try to stop the timer if it
 #                          does not exist, i.e. if not currently mid-throb; caused
 #                          similar crash to #333 during auto-cleanup of delayed stack
+#   5-19-17    TMG       move loadFlag settings closer to core load functionality
+#                          to at least partially address #340
 #
 # #############################################################################
 #
@@ -1867,7 +1869,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		# loading scheme:
 		# always merge instead of overwrite; always use the loaded Begins line since it will be earlier by definition
 		# maybe provide some way to force overwrite later, but, for now that can be done just by exiting and restarting
-		self.loadFlag=True
 		if not fileName:
 			fileDialog=QFileDialog()
 			fileDialog.setOption(QFileDialog.DontUseNativeDialog)
@@ -1924,10 +1925,15 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		# now add entries, sort, and prune any Begins lines after the first line
 		# edit: don't prune Begins lines - those are needed to indicate start of operational periods
+		# move loadFlag True then False closer in to the newEntry commands, to
+		#  minimize opportunity for failed entries due to self.loadFlag being
+		#  left at True, probably due to early return above (see #340)
+		self.loadFlag=True
 		for row in loadedRadioLog:
 			self.newEntry(row)
 			i=i+1
 			progressBox.setValue(i)
+		self.loadFlag=False
 		self.radioLog.sort(key=lambda entry: entry[6]) # sort by epoch seconds
 ##		self.radioLog[1:]=[x for x in self.radioLog[1:] if not x[3].startswith('Radio Log Begins:')]
 
@@ -1973,7 +1979,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		progressBox.close()
 		self.ui.opPeriodButton.setText("OP "+str(self.opPeriod))
 		self.teamTimer.start(1000) #resume
-		self.loadFlag=False
 		self.lastSavedFileName="NONE"
 		self.saveRcFile()
 
@@ -3883,8 +3888,6 @@ class MyTableModel(QAbstractTableModel):
 		else:
 			return rval
 
-	def dataChangedAll(self):
-		self.dataChanged.emit(self.createIndex(0,0),self.createIndex(self.rowCount(self)-1,self.columnCount(self)-1))
 
 
 class CustomSortFilterProxyModel(QSortFilterProxyModel):
