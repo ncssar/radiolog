@@ -2105,8 +2105,36 @@ class MyWindow(QDialog,Ui_Dialog):
 		if values[4]==None:
 			values[4]=''
 		sec=values[6] # epoch seconds of dialog open time, for sorting; not displayed
-		extTeamName=getExtTeamName(niceTeamName)
-		self.radioLog.append(values) # leave a blank entry at the end for aesthetics
+		# sorting is bad because layoutChanged should be emitted which is slow;
+		#  since the only reason we really need to sort is to make sure that
+		#  entries are saved and displayed in the order they began (not necessarily
+		#  the same as the order they were accepted if multiple items are
+		#  on the stack), just do that by hand here when determining where to insert
+		#  the accepted entry into the radioLog list:
+		# if new sec is greater than the sec of the last radioLog item, then append.
+		# otherwise, decrement the index where the new row should be inserted,
+		#  and try the test again until new sec is greater than the sec of the
+		#  entry 'above'.
+		# proper use of beginInsertRows and endInsertRows here makes sure the view(s)
+		#  refresh automatically, allowing newEntryPost to be simplified,
+		#  reducing lag by 90+%
+		i=len(self.radioLog)-1 # i = zero-based list index of the last element
+		while i>-1 and sec<self.radioLog[i][6]:
+			i=i-1
+# 			rprint("new entry sec="+str(sec)+"; prev entry sec="+str(self.radioLog[i+1][6])+"; decrementing: i="+str(i))
+		# at this point, i is the index of the item AFTER which the new entry should be inserted,
+		#  so, use i+1 for the actual insertion
+		i=i+1
+		if not self.loadFlag:
+			model=self.ui.tableView.model()
+			model.beginInsertRows(QModelIndex(),i,i) # this is one-based
+# 		self.radioLog.append(values) # leave a blank entry at the end for aesthetics
+		# myList.insert(i,val) means val will become myList[i] using a zero-based index
+		#  i.e. val will be the (i+1)th element in the list 
+		self.radioLog.insert(i,values)
+# 		rprint("inserting entry at index "+str(i))
+		if not self.loadFlag:
+			model.endInsertRows()
 ##		if not values[3].startswith("RADIO LOG SOFTWARE:"):
 ##			self.newEntryProcessTeam(niceTeamName,status,values[1],values[3])
 		self.newEntryProcessTeam(niceTeamName,status,values[1],values[3])
@@ -2142,9 +2170,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint("2") # layoutChanged.emit() is a key source of delay!  about 2 seconds on a 670 row table
 		# putting this line in a singleShot would allow the main table to get updated much
 		#  more quickly, but, the team table would not be updated until later and the new entry
-		#  row height would be incorrect due to the data not being available for resizeRowsToContents
-		# could maybe address part of that by setting verticalHeader.setDefaultSectionSize at font change time?
-		self.ui.tableView.model().layoutChanged.emit() # note this must happen AFTER the sort!
+		# don't do any sorting at all since layoutChanged during/after sort is
+		#  a huge cause of lag; see notes in newEntry function
 		rprint("3")
 		# resize the bottom-most rows (up to 10 of them):
 		#  this makes lag time independent of total row count for large tables,
