@@ -66,6 +66,10 @@
 #                          similar crash to #333 during auto-cleanup of delayed stack
 #   5-19-17    TMG       move loadFlag settings closer to core load functionality
 #                          to at least partially address #340
+#   5-21-17    TMG       fix #257, fix #260: 90+% lag reduction: do not do any sorting;
+#                         instead, calculate the correct index to insert a new row
+#                         during newEntry, and use beginInsertRows and endInsertRows
+#                         instead of layoutChanged; see notes in newEntry function
 #
 # #############################################################################
 #
@@ -2101,6 +2105,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint("newEntry called with these values:")
 		rprint(values)
 		niceTeamName=values[2]
+		extTeamName=getExtTeamName(niceTeamName)
 		status=values[5]
 		if values[4]==None:
 			values[4]=''
@@ -2166,10 +2171,6 @@ class MyWindow(QDialog,Ui_Dialog):
 	def newEntryPost(self,extTeamName=None):
 		rprint("1: called newEntryPost")
 		self.radioLogNeedsPrint=True
-		self.radioLog.sort(key=lambda entry: entry[6]) # sort by epoch seconds - in case dialogs are accepted out of order
-		rprint("2") # layoutChanged.emit() is a key source of delay!  about 2 seconds on a 670 row table
-		# putting this line in a singleShot would allow the main table to get updated much
-		#  more quickly, but, the team table would not be updated until later and the new entry
 		# don't do any sorting at all since layoutChanged during/after sort is
 		#  a huge cause of lag; see notes in newEntry function
 		rprint("3")
@@ -2185,6 +2186,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		for i in [2,4]: # hardcode results in significant speedup
 			self.ui.tableView.resizeColumnToContents(i)
 		rprint("5.1")
+		# note, the following clause results in a small lag for very large team count
+		#  and large radioLog (about 0.1sec on TomZen for 180kB log file); probably
+		#  not worth trying to optimize
 		for n in self.ui.tableViewList[1:]:
 			for i in [2,4]: # hardcode results in significant speedup
 				n.resizeColumnToContents(i)
@@ -3914,7 +3918,6 @@ class MyTableModel(QAbstractTableModel):
 			rprint(self.arraydata)
 		else:
 			return rval
-
 
 
 class CustomSortFilterProxyModel(QSortFilterProxyModel):
