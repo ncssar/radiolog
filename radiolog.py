@@ -70,6 +70,11 @@
 #                         instead, calculate the correct index to insert a new row
 #                         during newEntry, and use beginInsertRows and endInsertRows
 #                         instead of layoutChanged; see notes in newEntry function
+#   6-15-17    TMG       fix #336 by simply ignoring keyPressEvents that happen
+#                         before newEntryWidget is responsive, and get fielded by
+#                         MyWindows instead; would be nice to find a better long-term
+#                         solution; see https://stackoverflow.com/questions/44148992
+#                         and see notes inline below
 #
 # #############################################################################
 #
@@ -1681,39 +1686,52 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def keyPressEvent(self,event):
 		if type(event)==QKeyEvent:
-			key=event.text().lower() # hotkeys are case insensitive
-			if re.match("\d",key):
-				self.openNewEntry(key)
-			elif key=='t' or event.key()==Qt.Key_Right:
-				self.openNewEntry('t')
-			elif key=='f' or event.key()==Qt.Key_Left:
-				self.openNewEntry('f')
-			elif key=='a':
-				self.openNewEntry('a')
-			elif key=='s':
-				self.openNewEntry('s')
-			elif key=='=' or key=='+':
-				self.fontSize=self.fontSize+2
-				self.fontsChanged()
-			elif key=='-' or key=='_':
-				if self.fontSize>4:
-					self.fontSize=self.fontSize-2
+		# fix #336 (freeze / loss of focus when MyWindow grabs the keyPressEvent
+		#  that was intended for newEntryWidget but happened before newEntryWidget
+		#  was able to respond to it)
+		# use the following fix for now: if the newEntryWindow is visible,
+		#  ignore the envent completely; it would be nice to queue it until the
+		#  newEntryWidget can respond to it; but, what should the receiver of the
+		#  queued event be, and, how should the timing of the queued event interact
+		#  with other events and processes?
+		#  See https://stackoverflow.com/questions/44148992; need to develop a full
+		#  test case to proceed with that question
+			if self.newEntryWindow.isVisible():
+				rprint("** keyPressEvent ambiguous timing; key press ignored: key="+str(hex(event.key())))
+			else:
+				key=event.text().lower() # hotkeys are case insensitive
+				if re.match("\d",key):
+					self.openNewEntry(key)
+				elif key=='t' or event.key()==Qt.Key_Right:
+					self.openNewEntry('t')
+				elif key=='f' or event.key()==Qt.Key_Left:
+					self.openNewEntry('f')
+				elif key=='a':
+					self.openNewEntry('a')
+				elif key=='s':
+					self.openNewEntry('s')
+				elif key=='=' or key=='+':
+					self.fontSize=self.fontSize+2
 					self.fontsChanged()
-			elif event.key()==Qt.Key_F3:
-				self.printDialog.show()
-			elif event.key()==Qt.Key_F4:
-				self.load()
-			elif event.key()==Qt.Key_F5:
-				self.fsLoadLookup()
-			elif event.key()==Qt.Key_F6:
-				if QMessageBox.question(self,"Please Confirm","Restore the last saved files (Radio Log, Clue Log, and FleetSync table)?",
-						QMessageBox.Yes|QMessageBox.Cancel,QMessageBox.Cancel)==QMessageBox.Yes:
-					self.restore()
-			elif event.key()==Qt.Key_F7:
-				self.fsMuteToggle()
-			elif event.key()==Qt.Key_Space or event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
-				self.openNewEntry('pop')
-			event.accept()
+				elif key=='-' or key=='_':
+					if self.fontSize>4:
+						self.fontSize=self.fontSize-2
+						self.fontsChanged()
+				elif event.key()==Qt.Key_F3:
+					self.printDialog.show()
+				elif event.key()==Qt.Key_F4:
+					self.load()
+				elif event.key()==Qt.Key_F5:
+					self.fsLoadLookup()
+				elif event.key()==Qt.Key_F6:
+					if QMessageBox.question(self,"Please Confirm","Restore the last saved files (Radio Log, Clue Log, and FleetSync table)?",
+							QMessageBox.Yes|QMessageBox.Cancel,QMessageBox.Cancel)==QMessageBox.Yes:
+						self.restore()
+				elif event.key()==Qt.Key_F7:
+					self.fsMuteToggle()
+				elif event.key()==Qt.Key_Space or event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
+					self.openNewEntry('pop')
+				event.accept()
 		else:
 			event.ignore()
 
