@@ -75,6 +75,9 @@
 #                         MyWindows instead; would be nice to find a better long-term
 #                         solution; see https://stackoverflow.com/questions/44148992
 #                         and see notes inline below
+#   7-1-17     TMG       fix #342 (focus-follows-mouse freeze); 'fix' #332 (freeze
+#                         due to modal dialogs displayed underneath other windows)
+#                         by doing full audit and recode and test of all QMessageBox calls
 #
 # #############################################################################
 #
@@ -234,7 +237,9 @@ import requests
 import random
 import subprocess
 import win32api
+import win32gui
 import win32print
+import win32con
 import shutil
 import math
 from reportlab.lib import colors,utils
@@ -452,6 +457,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.loadFlag=False # set this to true during load, to prevent save on each newEntry
 		self.totalEntryCount=0 # rotate backups after every 5 entries; see newEntryWidget.accept
 
+		# fix #342 (focus-follows-mouse causes freezes) - disable FFM here;
+		#  restore to initial setting on shutdown (note this would leave it
+		#  disabled after unclean shutdown)
+		self.initialWindowTracking=False
+		try:
+			self.initialWindowTracking=win32gui.SystemParametersInfo(win32con.SPI_GETACTIVEWINDOWTRACKING)
+		except:
+			pass
+		if self.initialWindowTracking:
+			rprint("Window Tracking was initially enabled.  Disabling it for radiolog; will re-enable on exit.")
+			win32gui.SystemParametersInfo(win32con.SPI_SETACTIVEWINDOWTRACKING,False)
+		
 		self.incidentName="New Incident"
 		self.incidentNameNormalized="NewIncident"
 		self.opPeriod=1
@@ -679,11 +696,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.rcFileName="radiolog_rc.txt"
 		self.previousCleanShutdown=self.loadRcFile()
 		if not self.previousCleanShutdown:
-			self.reallyRestore=QMessageBox.critical(self,"Restore last saved files?","The previous Radio Log session may have shut down incorrectly.  Do you want to restore the last saved files (Radio Log, Clue Log, and FleetSync table)?",
-				QMessageBox.Yes|QMessageBox.No,QMessageBox.No)
-			if self.reallyRestore==QMessageBox.Yes:
+			self.reallyRestore=QMessageBox(QMessageBox.Critical,"Restore last saved files?","The previous Radio Log session may have shut down incorrectly.  Do you want to restore the last saved files (Radio Log, Clue Log, and FleetSync table)?",
+										QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			self.reallyRestore.show()
+			self.reallyRestore.raise_()
+			if self.reallyRestore.exec_()==QMessageBox.Yes:
 				self.restore()
-
+			
 		# make sure x/y/w/h from resource file will fit on the available display
 		d=QApplication.desktop()
 		if (self.x+self.w > d.width()) or (self.y+self.h > d.height()):
@@ -980,9 +999,12 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def fsLoadLookup(self,startupFlag=False,fsFileName=None):
 		if not startupFlag and not fsFileName: # don't ask for confirmation on startup or on restore
-			really=QMessageBox.warning(self,'Please Confirm','Are you sure you want to reload the default FleetSync lookup table?  This will overwrite any callsign changes you have made.',
-				QMessageBox.Yes|QMessageBox.No,QMessageBox.No)
-			if really==QMessageBox.No:
+			really=QMessageBox(QMessageBox.Warning,'Please Confirm','Are you sure you want to reload the default FleetSync lookup table?  This will overwrite any callsign changes you have made.',
+				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			really.setDefaultButton(QMessageBox.No)
+			really.show()
+			really.raise_()
+			if really.exec_()==QMessageBox.No:
 				return
 		fsEmptyFlag=False
 		if len(self.fsLookup)==0:
@@ -990,23 +1012,30 @@ class MyWindow(QDialog,Ui_Dialog):
 		if not fsFileName:
 			fsFileName=self.fsFileName
 		try:
-			rprint("Loading FleetSync Lookup Table from file "+fsFileName)
 			with open(fsFileName,'r') as fsFile:
+				rprint("Loading FleetSync Lookup Table from file "+fsFileName)
 				self.fsLookup=[]
 				csvReader=csv.reader(fsFile)
 				for row in csvReader:
 					if not row[0].startswith("#"):
 						self.fsLookup.append(row)
 				if not startupFlag: # suppress message box on startup
-					self.fsMsgBox=QMessageBox(QMessageBox.Information,"Information","FleetSync ID table has been re-loaded from file "+self.fsFileName+".")
+					self.fsMsgBox=QMessageBox(QMessageBox.Information,"Information","FleetSync ID table has been re-loaded from file "+fsFileName+".",
+											QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 					self.fsMsgBox.show()
 					QCoreApplication.processEvents()
 					QTimer.singleShot(2000,self.fsMsgBox.close)
 		except:
 			if fsEmptyFlag:
-				QMessageBox.warning(self,"Warning","Cannot read FleetSync ID table file "+fsFileName+" and no FleetSync ID table has yet been loaded.  Callsigns for incoming FleetSync calls will be of the format 'KW-<fleet>-<device>'.")
+				warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot read FleetSync ID table file '"+fsFileName+"' and no FleetSync ID table has yet been loaded.  Callsigns for incoming FleetSync calls will be of the format 'KW-<fleet>-<device>'.\n\nThis warning will automatically close in a few seconds.",
+								QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			else:
-				QMessageBox.warning(self,"Warning","Cannot read FleetSync ID table file "+fsFileName+"!  Using existing settings.")
+				warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot read FleetSync ID table file '"+fsFileName+"'!  Using existing settings.\n\nThis warning will automatically close in a few seconds.",
+								QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			warn.show()
+			warn.raise_()
+			QTimer.singleShot(8000,warn.close)
+			warn.exec_()
 
 	# save to fsFileName in the working dir each time, but on startup, load from the default dir;
 	#  would only need to load from the working dir if restoring
@@ -1024,7 +1053,11 @@ class MyWindow(QDialog,Ui_Dialog):
 					csvWriter.writerow(row)
 				csvWriter.writerow(["## end"])
 		except:
-			QMessageBox.warning(self,"Warning","Cannot write FleetSync ID table file "+fsName+"!  Any modified FleetSync Callsign associations will be lost.")
+			warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot write FleetSync ID table file "+fsName+"!  Any modified FleetSync Callsign associations will be lost.",
+							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			warn.show()
+			warn.raise_()
+			warn.exec_()
 
 	def getCallsign(self,fleet,dev):
 		entry=[element for element in self.fsLookup if (element[0]==fleet and element[1]==dev)]
@@ -1274,14 +1307,16 @@ class MyWindow(QDialog,Ui_Dialog):
 										  ('BOX',(2,0),(-1,-1),2,colors.black),
 										  ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
 		w,h=t.wrapOn(canvas,doc.width,doc.height)
-		self.msgBox.setInformativeText("Generating page "+str(canvas.getPageNumber()))
+		self.logMsgBox.setInformativeText("Generating page "+str(canvas.getPageNumber()))
 		QCoreApplication.processEvents()
 		rprint("Page number:"+str(canvas.getPageNumber()))
 		rprint("Height:"+str(h))
 		rprint("Pagesize:"+str(doc.pagesize))
 		t.drawOn(canvas,doc.leftMargin,doc.pagesize[1]-h-0.5*inch) # enforce a 0.5 inch top margin regardless of paper size
 ##		canvas.grid([x*inch for x in [0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10,10.5,11]],[y*inch for y in [0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5]])
+		rprint("done drawing printLogHeaderFooter canvas")
 		canvas.restoreState()
+		rprint("end of printLogHeaderFooter")
 
 	# optonal argument 'teams': if True, generate one pdf of all individual team logs;
 	#  so, this function should be called once to generate the overall log pdf, and
@@ -1296,7 +1331,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		try:
 			f=open(pdfName,"wb")
 		except:
-			QMessageBox.critical(self,"Error","PDF could not be generated.  Maybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.")
+			self.printLogErrMsgBox=QMessageBox(QMessageBox.Critical,"Error","PDF could not be generated:\n\n"+pdfName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.",
+				QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			self.printLogErrMsgBox.show()
+			self.printLogErrMsgBox.raise_()
+			self.printLogErrMsgBox.exec_()
 			return
 		else:
 			f.close()
@@ -1304,12 +1343,14 @@ class MyWindow(QDialog,Ui_Dialog):
 			msgAdder=" for individual teams"
 		else:
 			msgAdder=""
-		self.msgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF"+msgAdder+"; will send to default printer automatically; please wait...",QMessageBox.Abort)
-		self.msgBox.setInformativeText("Initializing...")
+		self.logMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF"+msgAdder+"; will send to default printer automatically; please wait...",
+							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		self.logMsgBox.setInformativeText("Initializing...")
 		# note the topMargin is based on what looks good; you would think that a 0.6 table plus a 0.5 hard
 		# margin (see t.drawOn above) would require a 1.1 margin here, but, not so.
 		doc = SimpleDocTemplate(pdfName, pagesize=landscape(letter),leftMargin=0.5*inch,rightMargin=0.5*inch,topMargin=1.03*inch,bottomMargin=0.5*inch) # or pagesize=letter
-		self.msgBox.show()
+		self.logMsgBox.show()
+		QTimer.singleShot(5000,self.logMsgBox.close)
 		QCoreApplication.processEvents()
 		elements=[]
 		teamFilterList=[""] # by default, print print all entries; if teams=True, add a filter for each team
@@ -1355,8 +1396,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				if teams and team!=teamFilterList[-1]: # don't add a spacer after the last team - it could cause another page!
 					elements.append(Spacer(0,0.25*inch))
 		doc.build(elements,onFirstPage=functools.partial(self.printLogHeaderFooter,opPeriod=opPeriod,teams=teams),onLaterPages=functools.partial(self.printLogHeaderFooter,opPeriod=opPeriod,teams=teams))
-		self.msgBox.setInformativeText("Finalizing and Printing...")
-		QTimer.singleShot(5000,self.msgBox.close)
+		self.logMsgBox.setInformativeText("Finalizing and Printing...")
 		win32api.ShellExecute(0,"print",pdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
 		self.radioLogNeedsPrint=False
 		if os.path.isdir(self.secondWorkingDir):
@@ -1408,14 +1448,16 @@ class MyWindow(QDialog,Ui_Dialog):
 										  ('BOX',(2,0),(-1,-1),2,colors.black),
 										  ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
 		w,h=t.wrapOn(canvas,doc.width,doc.height)
-		self.msgBox.setInformativeText("Generating page "+str(canvas.getPageNumber()))
+		self.clueLogMsgBox.setInformativeText("Generating page "+str(canvas.getPageNumber()))
 		QCoreApplication.processEvents()
 		rprint("Page number:"+str(canvas.getPageNumber()))
 		rprint("Height:"+str(h))
 		rprint("Pagesize:"+str(doc.pagesize))
 		t.drawOn(canvas,doc.leftMargin,doc.pagesize[1]-h-0.5*inch) # enforce a 0.5 inch top margin regardless of paper size
+		rprint("done drawing printClueLogHeaderFooter canvas")
 ##		canvas.grid([x*inch for x in [0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10,10.5,11]],[y*inch for y in [0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5]])
 		canvas.restoreState()
+		rprint("end of printClueLogHeaderFooter")
 
 	def printClueLog(self,opPeriod):
 ##      header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
@@ -1425,16 +1467,23 @@ class MyWindow(QDialog,Ui_Dialog):
 		try:
 			f=open(clueLogPdfFileName,"wb")
 		except:
-			QMessageBox.critical(self,"Error","PDF could not be generated.  Maybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.")
+			self.printClueLogErrMsgBox=QMessageBox(QMessageBox.Critical,"Error","PDF could not be generated:\n\n"+clueLogPdfFileName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.",
+				QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			self.printClueLogErrMsgBox.show()
+			self.printClueLogErrMsgBox.raise_()
+			QTimer.singleShot(10000,self.printClueLogErrMsgBox.close)
+			self.printClueLogErrMsgBox.exec_()
 			return
 		else:
 			f.close()
-		self.msgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF; will send to default printer automatically; please wait...",QMessageBox.Abort)
-		self.msgBox.setInformativeText("Initializing...")
+		self.clueLogMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF; will send to default printer automatically; please wait...",
+							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		self.clueLogMsgBox.setInformativeText("Initializing...")
 		# note the topMargin is based on what looks good; you would think that a 0.6 table plus a 0.5 hard
 		# margin (see t.drawOn above) would require a 1.1 margin here, but, not so.
 		doc = SimpleDocTemplate(clueLogPdfFileName, pagesize=landscape(letter),leftMargin=0.5*inch,rightMargin=0.5*inch,topMargin=1.03*inch,bottomMargin=0.5*inch) # or pagesize=letter
-		self.msgBox.show()
+		self.clueLogMsgBox.show()
+		QTimer.singleShot(5000,self.clueLogMsgBox.close)
 		QCoreApplication.processEvents()
 		elements=[]
 		styles = getSampleStyleSheet()
@@ -1448,23 +1497,25 @@ class MyWindow(QDialog,Ui_Dialog):
 		if len(clueLogPrint)>2:
 ##			t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.6,3.75,.9,0.5,1.25,3]])
 			t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.5]])
-			t.setStyle(TableStyle([('FONT',(0,0),(-1,-1),'Helvetica'),
+			t.setStyle(TableStyle([('F/generating clue llONT',(0,0),(-1,-1),'Helvetica'),
 				                    ('FONT',(0,0),(-1,1),'Helvetica-Bold'),
 				                    ('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
 			                       ('BOX', (0,0), (-1,-1), 2, colors.black),
 			                       ('BOX', (0,0), (6,0), 2, colors.black)]))
 			elements.append(t)
 			doc.build(elements,onFirstPage=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod),onLaterPages=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod))
-			self.msgBox.setInformativeText("Finalizing and Printing...")
-			QTimer.singleShot(5000,self.msgBox.close)
+			self.clueLogMsgBox.setInformativeText("Finalizing and Printing...")
 			win32api.ShellExecute(0,"print",clueLogPdfFileName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
 			if os.path.isdir(self.secondWorkingDir):
 				rprint("copying clue log pdf to "+self.secondWorkingDir)
 				shutil.copy(clueLogPdfFileName,self.secondWorkingDir)
 		else:
-			self.msgBox.close()
-			self.msgBox=QMessageBox(QMessageBox.Information,"Printing","No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.",QMessageBox.Ok)
-			QTimer.singleShot(500,self.msgBox.show)
+			self.clueLogMsgBox.setText("No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.")
+			self.clueLogMsgBox.setInformativeText("")
+			self.clueLogMsgBox.setStandardButtons(QMessageBox.Ok)
+# 			self.msgBox.close()
+# 			self.msgBox=QMessageBox(QMessageBox.Information,"Printing","No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.",QMessageBox.Ok)
+# 			QTimer.singleShot(500,self.msgBox.show)
 		self.clueLogNeedsPrint=False
 
 	def printClueReport(self,clueData):
@@ -1474,11 +1525,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint("generating clue report pdf: "+cluePdfName)
 		clueFdfName=cluePdfName.replace(".pdf",".fdf")
 
-		self.msgBox=QMessageBox(QMessageBox.Information,"Printing Clue #"+clueData[0],"Generating PDF; will send to default printer automatically; please wait...",QMessageBox.Abort)
-		self.msgBox.setWindowFlags(Qt.WindowStaysOnTopHint)
-		self.msgBox.show()
-		self.msgBox.raise_()
-		QTimer.singleShot(5000,self.msgBox.close)
+		self.clueReportMsgBox=QMessageBox(QMessageBox.Information,"Printing Clue #"+clueData[0],"Generating PDF; will send to default printer automatically; please wait...",
+										QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		self.clueReportMsgBox.show()
+		self.clueReportMsgBox.raise_()
+		QTimer.singleShot(5000,self.clueReportMsgBox.close)
 
 		instructions=clueData[7].lower()
 		# initialize all checkboxes to OFF
@@ -1724,8 +1775,12 @@ class MyWindow(QDialog,Ui_Dialog):
 				elif event.key()==Qt.Key_F5:
 					self.fsLoadLookup()
 				elif event.key()==Qt.Key_F6:
-					if QMessageBox.question(self,"Please Confirm","Restore the last saved files (Radio Log, Clue Log, and FleetSync table)?",
-							QMessageBox.Yes|QMessageBox.Cancel,QMessageBox.Cancel)==QMessageBox.Yes:
+					q=QMessageBox(QMessageBox.Question,"Please Confirm","Restore the last saved files (Radio Log, Clue Log, and FleetSync table)?",
+							QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					q.setDefaultButton(QMessageBox.No)
+					q.show()
+					q.raise_()
+					if q.exec_()==QMessageBox.Yes:
 						self.restore()
 				elif event.key()==Qt.Key_F7:
 					self.fsMuteToggle()
@@ -1748,8 +1803,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
 		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
 		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Exit the Radio Log program?",
-			QMessageBox.Yes|QMessageBox.Cancel,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-		if really.exec()==QMessageBox.Cancel:
+			QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		really.setDefaultButton(QMessageBox.No)
+		really.show()
+		really.raise_()
+		if really.exec_()==QMessageBox.No:
 			event.ignore()
 			self.exitClicked=False
 			return
@@ -1768,6 +1826,11 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		self.helpWindow.close()
 ##		self.newEntryWindow.close()
 		event.accept()
+		
+		if self.initialWindowTracking:
+			rprint("restoring initial window tracking behavior ("+str(self.initialWindowTracking)+")")
+			win32gui.SystemParametersInfo(win32con.SPI_SETACTIVEWINDOWTRACKING,self.initialWindowTracking)
+
 		qApp.quit() # needed to make sure all windows area closed
 
 	def saveRcFile(self,cleanShutdownFlag=False):
@@ -1775,7 +1838,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		(cx,cy,cw,ch)=self.clueLogDialog.geometry().getRect()
 		rcFile=QFile(self.rcFileName)
 		if not rcFile.open(QFile.WriteOnly|QFile.Text):
-			QMessageBox.warning(self,"Error","Cannot write resource file! "+rcFile.errorString())
+			warn=QMessageBox(QMessageBox.Warning,"Error","Cannot write resource file " + self.rcFileName + "; proceeding, but, current settings will be lost. "+rcFile.errorString(),
+							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			warn.show()
+			warn.raise_()
+			warn.exec_()
 			return
 		out=QTextStream(rcFile)
 		out << "[RadioLog]\n"
@@ -1803,12 +1870,20 @@ class MyWindow(QDialog,Ui_Dialog):
 	def loadRcFile(self):
 		rcFile=QFile(self.rcFileName)
 		if not rcFile.open(QFile.ReadOnly|QFile.Text):
-			QMessageBox.warning(self,"Error","Cannot read resource file!  Using default settings. "+rcFile.errorString())
+			warn=QMessageBox(QMessageBox.Warning,"Error","Cannot read resource file " + self.rcFileName + "; using default settings. "+rcFile.errorString(),
+							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			warn.show()
+			warn.raise_()
+			warn.exec_()
 			return
 		inStr=QTextStream(rcFile)
 		line=inStr.readLine()
 		if line!="[RadioLog]":
-			QMessageBox.warning(self,"Error","Not a valid resource file!  Using default settings.")
+			warn=QMessageBox(QMessageBox.Warning,"Error","Specified resource file " + self.rcFileName + " is not a valid resource file; using default settings.",
+							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			warn.show()
+			warn.raise_()
+			warn.exec_()
 			rcFile.close()
 			return
 		cleanShutdownFlag=False
@@ -1905,7 +1980,11 @@ class MyWindow(QDialog,Ui_Dialog):
 # 			if not os.path.isfile(fileName): # prevent error if dialog is canceled
 # 				return
 		if "_clueLog" in fileName or "_fleetsync" in fileName:
-			QMessageBox(QMessageBox.Critical,"Invalid File Selected","Do not load a Clue Log or FleetSync file directly.  Load the parent radiolog.csv file directly, and the Clue Log and FleetSync files will automatically be loaded with it.",QMessageBox.Ok).exec()
+			crit=QMessageBox(QMessageBox.Critical,"Invalid File Selected","Do not load a Clue Log or FleetSync file directly.  Load the parent radiolog.csv file directly, and the Clue Log and FleetSync files will automatically be loaded with it.",
+							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			crit.show()
+			crit.raise_()
+			crit.exec_() # make sure it's modal
 			return
 		progressBox=QProgressDialog("Loading, please wait...","Abort",0,100)
 		progressBox.setWindowModality(Qt.WindowModal)
@@ -1960,7 +2039,6 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		self.radioLog[1:]=[x for x in self.radioLog[1:] if not x[3].startswith('Radio Log Begins:')]
 
 		# take care of the newEntry cleanup functions that have been put off due to loadFlag
-		rprint("trace1")
 
 # apparently, we need to emit layoutChanged and then scrollToBottom, before resizeColumnToContents,
 #  to make sure column width resizes to fit >all< contents (i.e 'Team 5678'). ??
@@ -2408,11 +2486,19 @@ class MyWindow(QDialog,Ui_Dialog):
 		# use this function to reload the last saved files, based on lastFileName entry from resource file
 		#  but, keep the new session's save filenames going forward
 		if self.lastFileName=="NONE":
-			QMessageBox(QMessageBox.Critical,"Cannot Restore","Last saved filenames were not saved in the resource file.  Cannot automatically restore last saved files.  You will need to load the files directly [F4].",QMessageBox.Ok).exec()
+			self.crit1=QMessageBox(QMessageBox.Critical,"Cannot Restore","Last saved filenames were not saved in the resource file.  Cannot automatically restore last saved files.  You will need to load the files directly [F4].",
+							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			self.crit1.show()
+			self.crit1.raise_()
+			self.crit1.exec_()
 			return
 		fileToLoad=self.firstWorkingDir+"\\"+self.lastFileName
 		if not os.path.isfile(fileToLoad): # prevent error if dialog is canceled
-			QMessageBox(QMessageBox.Critical,"Cannot Restore","The file "+fileToLoad+" (specified in the resource file) does not exist.  You will need to load the files directly [F4].",QMessageBox.Ok).exec()
+			self.crit2=QMessageBox(QMessageBox.Critical,"Cannot Restore","The file "+fileToLoad+" (specified in the resource file) does not exist.  You will need to load the files directly [F4].",
+							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			self.crit2.show()
+			self.crit2.raise_()
+			self.crit2.exec_()
 			return
 		self.load(fileToLoad) # loads the radio log and the clue log
 		self.fsLoadLookup(fsFileName=self.firstWorkingDir+"\\"+self.lastFileName.replace(".csv","_fleetsync.csv"))
@@ -2497,9 +2583,12 @@ class printDialog(QDialog,Ui_printDialog):
 			self.parent.printTeamLogs(opPeriod)
 		if self.ui.clueLogField.isChecked():
 			rprint("PRINT clue log")
+			rprint("  printDialog.accept.clueLog.trace1")
 			self.parent.printClueLog(opPeriod)
+			rprint("  printDialog.accept.clueLog.trace2")
+		rprint("  printDialog.accept.end.trace1")
 		super(printDialog,self).accept()
-
+		rprint("  printDialog.accept.end.trace2")
 
 # newEntryWindow is the window that has a QTabWidget;
 #  each tab's widget (except the first and last which are just labels) is a newEntryWidget
@@ -3164,21 +3253,38 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		#  as soon as the dialog is opened (or as soon as the change callsign dialog
 		#  is accepted), so, bypassing the confirmation in this manner will
 		#  still preserve and process any incoming GPS coordinates
+		rprint("closeEvent trace1")
 		if not accepted and not force and self.ui.messageField.text()!="":
-			really=QMessageBox.warning(self,"Please Confirm","Cancel this entry?\nIt cannot be recovered.",
-				QMessageBox.Yes|QMessageBox.No,QMessageBox.No)
-			if really==QMessageBox.No:
+			rprint("closeEvent trace2")
+			self.really1=QMessageBox(QMessageBox.Warning,"Please Confirm","Cancel this entry?\nIt cannot be recovered.",
+				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			rprint("closeEvent trace3")
+			self.really1.setDefaultButton(QMessageBox.No)
+			rprint("closeEvent trace4")
+			self.really1.show()
+			rprint("closeEvent trace5")
+			self.really1.raise_()
+			rprint("closeEvent trace6")
+			if self.really1.exec_()==QMessageBox.No:
+				rprint("closeEvent trace7")
 				event.ignore()
+				rprint("closeEvent trace8")
 				return
+				rprint("closeEvent trace9")
+			rprint("closeEvent trace10")
 		# whether OK or Cancel, ignore the event if child dialog(s) are open,
 		#  and raise the child window(s)
 		if self.clueDialogOpen or self.subjectLocatedDialogOpen:
-			QMessageBox.warning(self,"Cannot close","A Clue Report or Subject Located form is open that belongs to this entry.  Finish it first.")
+			warn=QMessageBox(QMessageBox.Warning,"Cannot close","A Clue Report or Subject Located form is open that belongs to this entry.  Finish it first.",
+							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			# the 'child' dialogs are not technically children; use the NED's
 			#  childDialogs attribute instead, which was populated in the __init__
 			#  of each child dialog class
 			for child in self.childDialogs:
 				child.raise_()
+			warn.show()
+			warn.raise_()
+			warn.exec_() # make sure it's modal
 			event.ignore()
 			return
 		else:
@@ -3427,8 +3533,10 @@ class clueDialog(QDialog,Ui_clueDialog):
 		rprint("vText:"+vText)
 		if vText!="":
 			self.clueMsgBox=QMessageBox(QMessageBox.Critical,"Error","Please complete the form and try again:\n"+vText,
-				QMessageBox.Ok,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			self.clueMsgBox.show()
+			self.clueMsgBox.raise_()
+			self.clueMsgBox.exec_()
 			return
 
 		self.parent.clueLogNeedsPrint=True
@@ -3461,8 +3569,8 @@ class clueDialog(QDialog,Ui_clueDialog):
 		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
 		if not accepted:
 			really=QMessageBox(QMessageBox.Warning,"Please Confirm","Close this Clue Report Form?\nIt cannot be recovered.",
-				QMessageBox.Yes|QMessageBox.Cancel,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			if really.exec()==QMessageBox.Cancel:
+				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			if really.exec_()==QMessageBox.No:
 				event.ignore()
 				return	
 			self.values=self.parent.getValues()
@@ -3557,8 +3665,9 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
 		if not accepted:
 			really=QMessageBox(QMessageBox.Warning,"Please Confirm","Close this Clue Report Form?\nIt cannot be recovered.",
-				QMessageBox.Yes|QMessageBox.Cancel,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			if really.exec()==QMessageBox.Cancel:
+				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			really.setDefaultButton(QMessageBox.No)
+			if really.exec_()==QMessageBox.No:
 				event.ignore()
 				return
 			self.values=["" for n in range(10)]
@@ -3611,7 +3720,11 @@ class clueLogDialog(QDialog,Ui_clueLogDialog):
 		clueData=self.parent.clueLog[section]
 		clueNum=clueData[0]
 		if clueNum!="": # pass through if clicking a non-clue row
-			if QMessageBox.question(self,"Confirm - Print Clue Report","Print Clue Report for Clue #"+str(clueNum)+"?",QMessageBox.Yes|QMessageBox.Cancel)==QMessageBox.Yes:
+			q=QMessageBox(QMessageBox.Question,"Confirm - Print Clue Report","Print Clue Report for Clue #"+str(clueNum)+"?",
+						QMessageBox.Yes|QMessageBox.Cancel,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			q.show()
+			q.raise_()
+			if q.exec_()==QMessageBox.Yes:
 				self.parent.printClueReport(clueData)
 
 
@@ -3657,9 +3770,11 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 			vText+="\n'Resources Needed' cannot be blank."
 		rprint("vText:"+vText)
 		if vText!="":
-			self.clueMsgBox=QMessageBox(QMessageBox.Critical,"Error","Please complete the form and try again:\n"+vText,
-				QMessageBox.Ok,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			self.clueMsgBox.show()
+			self.subjectMsgBox=QMessageBox(QMessageBox.Critical,"Error","Please complete the form and try again:\n"+vText,
+				QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			self.subjectMsgBox.show()
+			self.subjectMsgBox.raise_()
+			self.subjectMsgBox.exec_()
 			return
 
 		textToAdd=''
@@ -3688,8 +3803,8 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
 		if not accepted:
 			really=QMessageBox(QMessageBox.Warning,"Please Confirm","Close this Subject Located form?\nIt cannot be recovered.",
-				QMessageBox.Yes|QMessageBox.Cancel,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			if really.exec()==QMessageBox.Cancel:
+				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			if really.exec_()==QMessageBox.No:
 				event.ignore()
 				return
 			self.values=self.parent.getValues()
@@ -3719,8 +3834,11 @@ class printClueLogDialog(QDialog,Ui_printClueLogDialog):
 
 	def accept(self):
 		opPeriod=self.ui.opPeriodComboBox.currentText()
+		rprint("  printClueLogDialog.accept.trace1")
 		self.parent.printClueLog(opPeriod)
+		rprint("  printClueLogDialog.accept.trace2")
 		super(printClueLogDialog,self).accept()
+		rprint("  printClueLogDialog.accept.trace3")
 
 # actions to be performed when changing the operational period:
 # - bring up print dialog for current OP if checked (and wait until it is closed)
