@@ -78,6 +78,11 @@
 #   7-1-17     TMG       fix #342 (focus-follows-mouse freeze); 'fix' #332 (freeze
 #                         due to modal dialogs displayed underneath other windows)
 #                         by doing full audit and recode and test of all QMessageBox calls
+#   7-1-17     TMG       fix #343 (crash on print clue log when there are no clues):
+#                         show an error message when the print button is clicked if
+#                         there are no operational periods that have clues, and only
+#                         populate the print clue log operational period cyclic field
+#                         with op periods that do have clues
 #
 # #############################################################################
 #
@@ -3703,7 +3708,7 @@ class clueLogDialog(QDialog,Ui_clueLogDialog):
 
 		self.ui.tableView.verticalHeader().sectionClicked.connect(self.headerClicked)
 		self.ui.addNonRadioClueButton.clicked.connect(self.parent.addNonRadioClue)
-		self.ui.printButton.clicked.connect(self.parent.printClueLogDialog.show)
+		self.ui.printButton.clicked.connect(self.printClueLogCB)
 
 		self.ui.tableView.setSelectionMode(QAbstractItemView.NoSelection)
 		self.ui.tableView.setFocusPolicy(Qt.NoFocus)
@@ -3726,6 +3731,16 @@ class clueLogDialog(QDialog,Ui_clueLogDialog):
 			q.raise_()
 			if q.exec_()==QMessageBox.Yes:
 				self.parent.printClueReport(clueData)
+				
+	def printClueLogCB(self):
+		self.parent.opsWithClues=sorted(list(set([str(clue[5]) for clue in self.parent.clueLog if str(clue[5])!=""])))
+		if len(self.parent.opsWithClues)==0:
+			crit=QMessageBox(QMessageBox.Critical,"No Clues to Print","There are no clues to print.",QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			crit.show()
+			crit.raise_()
+			crit.exec_()
+		else:
+			self.parent.printClueLogDialog.show()
 
 
 class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
@@ -3828,17 +3843,26 @@ class printClueLogDialog(QDialog,Ui_printClueLogDialog):
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 
 	def showEvent(self,event):
-		itemsToAdd=sorted(list(set([str(clue[5]) for clue in self.parent.clueLog if str(clue[5])!=""])))
+		itemsToAdd=self.parent.opsWithClues
+		if len(itemsToAdd)==0:
+			itemsToAdd=['--']
 		self.ui.opPeriodComboBox.clear()
 		self.ui.opPeriodComboBox.addItems(itemsToAdd)
 
 	def accept(self):
 		opPeriod=self.ui.opPeriodComboBox.currentText()
 		rprint("  printClueLogDialog.accept.trace1")
-		self.parent.printClueLog(opPeriod)
-		rprint("  printClueLogDialog.accept.trace2")
-		super(printClueLogDialog,self).accept()
-		rprint("  printClueLogDialog.accept.trace3")
+		if opPeriod=='--':
+			crit=QMessageBox(QMessageBox.Critical,"No Clues to Print","There are no clues to print.",QMessageBox.Ok,self.parent,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			crit.show()
+			crit.raise_()
+			crit.exec_()
+			self.reject()
+		else:
+			self.parent.printClueLog(opPeriod)
+			rprint("  printClueLogDialog.accept.trace2")
+			super(printClueLogDialog,self).accept()
+			rprint("  printClueLogDialog.accept.trace3")
 
 # actions to be performed when changing the operational period:
 # - bring up print dialog for current OP if checked (and wait until it is closed)
