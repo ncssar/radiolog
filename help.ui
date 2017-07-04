@@ -503,7 +503,7 @@
        </item>
        <item row="10" column="2">
         <property name="text">
-         <string>FleetSync Mute</string>
+         <string>FleetSync Mute Toggle</string>
         </property>
        </item>
        <item row="11" column="0">

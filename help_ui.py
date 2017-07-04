@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'help.ui'
 #
-# Created by: PyQt5 UI code generator 5.7
+# Created by: PyQt5 UI code generator 5.8.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -438,7 +438,7 @@ class Ui_Help(object):
         item = self.hotkeysTableWidget.item(10, 1)
         item.setText(_translate("Help", "-"))
         item = self.hotkeysTableWidget.item(10, 2)
-        item.setText(_translate("Help", "FleetSync Mute"))
+        item.setText(_translate("Help", "FleetSync Mute Toggle"))
         item = self.hotkeysTableWidget.item(11, 0)
         item.setText(_translate("Help", "+ / -"))
         item = self.hotkeysTableWidget.item(11, 1)

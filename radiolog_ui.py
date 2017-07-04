@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'radiolog.ui'
 #
-# Created by: PyQt5 UI code generator 5.7
+# Created by: PyQt5 UI code generator 5.8.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -11,7 +11,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName("Dialog")
-        Dialog.resize(1380, 770)
+        Dialog.resize(1400, 770)
         self.gridLayout_2 = QtWidgets.QGridLayout(Dialog)
         self.gridLayout_2.setObjectName("gridLayout_2")
         self.horizontalLayout = QtWidgets.QHBoxLayout()
@@ -32,6 +32,7 @@ class Ui_Dialog(object):
         self.incidentNameLabel.setObjectName("incidentNameLabel")
         self.horizontalLayout.addWidget(self.incidentNameLabel)
         self.comPortLayoutWidget = QtWidgets.QWidget(Dialog)
+        self.comPortLayoutWidget.setEnabled(True)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -39,26 +40,33 @@ class Ui_Dialog(object):
         self.comPortLayoutWidget.setSizePolicy(sizePolicy)
         self.comPortLayoutWidget.setObjectName("comPortLayoutWidget")
         self.comPortSectionLayout = QtWidgets.QVBoxLayout(self.comPortLayoutWidget)
-        self.comPortSectionLayout.setContentsMargins(0, 0, 0, 0)
+        self.comPortSectionLayout.setContentsMargins(0, 2, 0, 4)
         self.comPortSectionLayout.setSpacing(2)
         self.comPortSectionLayout.setObjectName("comPortSectionLayout")
-        self.comPortsLabel = QtWidgets.QLabel(self.comPortLayoutWidget)
+        self.fsEnableLayout = QtWidgets.QHBoxLayout()
+        self.fsEnableLayout.setObjectName("fsEnableLayout")
+        self.fsCheckBox = QtWidgets.QCheckBox(self.comPortLayoutWidget)
+        self.fsCheckBox.setMaximumSize(QtCore.QSize(16777215, 24))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
-        font.setPointSize(8)
+        font.setPointSize(12)
         font.setBold(True)
         font.setWeight(75)
-        self.comPortsLabel.setFont(font)
-        self.comPortsLabel.setAlignment(QtCore.Qt.AlignCenter)
-        self.comPortsLabel.setObjectName("comPortsLabel")
-        self.comPortSectionLayout.addWidget(self.comPortsLabel)
+        self.fsCheckBox.setFont(font)
+        self.fsCheckBox.setLayoutDirection(QtCore.Qt.RightToLeft)
+        self.fsCheckBox.setStyleSheet("border:3px inset lightgray")
+        self.fsCheckBox.setIconSize(QtCore.QSize(20, 20))
+        self.fsCheckBox.setChecked(True)
+        self.fsCheckBox.setObjectName("fsCheckBox")
+        self.fsEnableLayout.addWidget(self.fsCheckBox)
+        self.comPortSectionLayout.addLayout(self.fsEnableLayout)
         self.comPortLightsLayout = QtWidgets.QHBoxLayout()
         self.comPortLightsLayout.setContentsMargins(-1, 0, -1, -1)
         self.comPortLightsLayout.setSpacing(7)
         self.comPortLightsLayout.setObjectName("comPortLightsLayout")
         self.firstComPortField = QtWidgets.QLineEdit(self.comPortLayoutWidget)
         self.firstComPortField.setEnabled(False)
-        self.firstComPortField.setMaximumSize(QtCore.QSize(20, 16777215))
+        self.firstComPortField.setMaximumSize(QtCore.QSize(20, 16))
         font = QtGui.QFont()
         font.setPointSize(4)
         self.firstComPortField.setFont(font)
@@ -66,7 +74,7 @@ class Ui_Dialog(object):
         self.comPortLightsLayout.addWidget(self.firstComPortField)
         self.secondComPortField = QtWidgets.QLineEdit(self.comPortLayoutWidget)
         self.secondComPortField.setEnabled(False)
-        self.secondComPortField.setMaximumSize(QtCore.QSize(20, 16777215))
+        self.secondComPortField.setMaximumSize(QtCore.QSize(20, 16))
         font = QtGui.QFont()
         font.setPointSize(4)
         self.secondComPortField.setFont(font)
@@ -244,6 +252,7 @@ class Ui_Dialog(object):
 
         self.retranslateUi(Dialog)
         self.tabWidget.setCurrentIndex(-1)
+        self.fsCheckBox.toggled['bool'].connect(Dialog.fsCheckBoxCB)
         QtCore.QMetaObject.connectSlotsByName(Dialog)
         Dialog.setTabOrder(self.pushButton, self.tabWidget)
         Dialog.setTabOrder(self.tabWidget, self.tableView)
@@ -252,7 +261,7 @@ class Ui_Dialog(object):
         _translate = QtCore.QCoreApplication.translate
         Dialog.setWindowTitle(_translate("Dialog", "Radio Log"))
         self.incidentNameLabel.setText(_translate("Dialog", "New Incident"))
-        self.comPortsLabel.setText(_translate("Dialog", "COM"))
+        self.fsCheckBox.setText(_translate("Dialog", "FS"))
         self.opPeriodButton.setToolTip(_translate("Dialog", "Change Operational Period"))
         self.opPeriodButton.setText(_translate("Dialog", "OP 1"))
         self.pushButton.setText(_translate("Dialog", "Add Entry"))

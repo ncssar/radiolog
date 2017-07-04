@@ -83,6 +83,7 @@
 #                         there are no operational periods that have clues, and only
 #                         populate the print clue log operational period cyclic field
 #                         with op periods that do have clues
+#   7-3-17     TMG       fix #341 (add checkbox for fleetsync mute)
 #
 # #############################################################################
 #
@@ -745,24 +746,24 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def fsMuteBlink(self,state):
 		if state=="on":
-			self.ui.incidentNameLabel.setText("FleetSync is Muted (F7=unmute)")
+			self.ui.incidentNameLabel.setText("FleetSync is Muted")
 			self.ui.incidentNameLabel.setStyleSheet("background-color:#ff5050;color:white")
+			self.ui.fsCheckBox.setStyleSheet("border:3px outset red")
 		else:
 			self.ui.incidentNameLabel.setText(self.incidentName)
 			self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black")
-			
-	def fsMuteToggle(self):
-		self.fsMuted=not self.fsMuted
+			self.ui.fsCheckBox.setStyleSheet("border:3px inset lightgray")
+
+	def fsCheckBoxCB(self):
+		self.fsMuted=not self.ui.fsCheckBox.isChecked()
 		# blinking is handled in fsCheck which is called once a second anyway;
 		# make sure to set display back to normal if mute was just turned off
 		#  since we don't know the previous blink state
 		if self.fsMuted:
-			self.ui.comPortLayoutWidget.hide()
-			self.ui.incidentNameLabel.setMinimumSize(QSize(354, 0))
+			rprint("FleetSync is now muted")
 			self.fsMuteBlink("on") # blink on immediately so user sees immediate response
 		else:
-			self.ui.comPortLayoutWidget.show()
-			self.ui.incidentNameLabel.setMinimumSize(QSize(300, 0))
+			rprint("Fleetsync is now unmuted")
 			self.fsMuteBlink("off")
 			self.ui.incidentNameLabel.setText(self.incidentName)
 			self.ui.incidentNameLabel.setStyleSheet("background-color:none")
@@ -1788,7 +1789,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					if q.exec_()==QMessageBox.Yes:
 						self.restore()
 				elif event.key()==Qt.Key_F7:
-					self.fsMuteToggle()
+					self.ui.fsCheckBox.toggle()
 				elif event.key()==Qt.Key_Space or event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
 					self.openNewEntry('pop')
 				event.accept()
