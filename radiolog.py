@@ -84,6 +84,7 @@
 #                         populate the print clue log operational period cyclic field
 #                         with op periods that do have clues
 #   7-3-17     TMG       fix #341 (add checkbox for fleetsync mute)
+#   9-24-17    TMG       fix #346 (slash in incident name kills everything)
 #
 # #############################################################################
 #
@@ -450,7 +451,9 @@ def rotateCsvBackups(fileName):
 			if os.path.isfile(src):
 				os.rename(src,dst)
 	shutil.copy(fileName,fileName.replace(".csv","_bak1.csv"))
-
+	
+def normName(name):
+	return re.sub("[^A-Za-z0-9_]+","_",name)
 
 class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
@@ -476,7 +479,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			win32gui.SystemParametersInfo(win32con.SPI_SETACTIVEWINDOWTRACKING,False)
 		
 		self.incidentName="New Incident"
-		self.incidentNameNormalized="NewIncident"
+		self.incidentNameNormalized=normName(self.incidentName)
 		self.opPeriod=1
 		self.incidentStartDate=time.strftime("%a %b %d, %Y")
 
@@ -2006,8 +2009,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			totalEntries=0
 			for row in csvReader:
 				if row[0].startswith("## Incident Name:"):
-					self.incidentName=row[0][17:]
-					self.incidentNameNormalized=self.incidentName.replace(" ","")
+					self.incidentName=row[0][18:]
+					self.optionsDialog.ui.incidentField.setText(self.incidentName)
+					rprint("loaded incident name: '"+self.incidentName+"'")
+					self.incidentNameNormalized=normName(self.incidentName)
+					rprint("normalized loaded incident name: '"+self.incidentNameNormalized+"'")
 					self.ui.incidentNameLabel.setText(self.incidentName)
 				if not row[0].startswith('#'): # prune comment lines
 					totalEntries=totalEntries+1
@@ -2086,6 +2092,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.opPeriodButton.setText("OP "+str(self.opPeriod))
 		self.teamTimer.start(1000) #resume
 		self.lastSavedFileName="NONE"
+		self.updateFileNames() # note, no file will be saved until the next entry is made
 		self.saveRcFile()
 
 	def updateFileNames(self):
@@ -2093,7 +2100,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# normalize the name for purposes of filenames
 		#  - get rid of all spaces -  no need to be able to reproduce the
 		#    incident name's spaces from the filename
-		self.incidentNameNormalized=self.incidentName.replace(" ","")
+		self.incidentNameNormalized=normName(self.incidentName)
 		self.csvFileName=getFileNameBase(self.incidentNameNormalized)+".csv"
 		self.pdfFileName=getFileNameBase(self.incidentNameNormalized)+".pdf"
 		self.fsFileName=self.csvFileName.replace('.csv','_fleetsync.csv')
