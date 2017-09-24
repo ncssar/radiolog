@@ -84,7 +84,12 @@
 #                         populate the print clue log operational period cyclic field
 #                         with op periods that do have clues
 #   7-3-17     TMG       fix #341 (add checkbox for fleetsync mute)
-#   9-24-17    TMG       fix #346 (slash in incident name kills everything)
+#   9-24-17    TMG       fix #346 (slash in incident name kills everything) using
+#                         normName function; get rid of leading space in loaded
+#                         incident name due to incorrect index (17 instead of 18);
+#                         fix #349 (save filename not updated after load)
+#   9-24-17    TMG       fix #350 (do not try to read fleetsync file on restore) by
+#                         adding hideWarnings argument to fsLoadLookup
 #
 # #############################################################################
 #
@@ -1006,7 +1011,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint("false1")
 		return False
 
-	def fsLoadLookup(self,startupFlag=False,fsFileName=None):
+	def fsLoadLookup(self,startupFlag=False,fsFileName=None,hideWarnings=False):
 		if not startupFlag and not fsFileName: # don't ask for confirmation on startup or on restore
 			really=QMessageBox(QMessageBox.Warning,'Please Confirm','Are you sure you want to reload the default FleetSync lookup table?  This will overwrite any callsign changes you have made.',
 				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
@@ -1035,16 +1040,17 @@ class MyWindow(QDialog,Ui_Dialog):
 					QCoreApplication.processEvents()
 					QTimer.singleShot(2000,self.fsMsgBox.close)
 		except:
-			if fsEmptyFlag:
-				warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot read FleetSync ID table file '"+fsFileName+"' and no FleetSync ID table has yet been loaded.  Callsigns for incoming FleetSync calls will be of the format 'KW-<fleet>-<device>'.\n\nThis warning will automatically close in a few seconds.",
-								QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			else:
-				warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot read FleetSync ID table file '"+fsFileName+"'!  Using existing settings.\n\nThis warning will automatically close in a few seconds.",
-								QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			warn.show()
-			warn.raise_()
-			QTimer.singleShot(8000,warn.close)
-			warn.exec_()
+			if not hideWarnings:
+				if fsEmptyFlag:
+					warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot read FleetSync ID table file '"+fsFileName+"' and no FleetSync ID table has yet been loaded.  Callsigns for incoming FleetSync calls will be of the format 'KW-<fleet>-<device>'.\n\nThis warning will automatically close in a few seconds.",
+									QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				else:
+					warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot read FleetSync ID table file '"+fsFileName+"'!  Using existing settings.\n\nThis warning will automatically close in a few seconds.",
+									QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				warn.show()
+				warn.raise_()
+				QTimer.singleShot(8000,warn.close)
+				warn.exec_()
 
 	# save to fsFileName in the working dir each time, but on startup, load from the default dir;
 	#  would only need to load from the working dir if restoring
@@ -2514,7 +2520,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.crit2.exec_()
 			return
 		self.load(fileToLoad) # loads the radio log and the clue log
-		self.fsLoadLookup(fsFileName=self.firstWorkingDir+"\\"+self.lastFileName.replace(".csv","_fleetsync.csv"))
+		# hide warnings about missing fleetsync file, since it does not get saved until clean shutdown time
+		self.fsLoadLookup(fsFileName=self.firstWorkingDir+"\\"+self.lastFileName.replace(".csv","_fleetsync.csv"),hideWarnings=True)
 		self.updateFileNames()
 		self.fsSaveLookup()
 		self.save()
