@@ -90,6 +90,11 @@
 #                         fix #349 (save filename not updated after load)
 #   9-24-17    TMG       fix #350 (do not try to read fleetsync file on restore) by
 #                         adding hideWarnings argument to fsLoadLookup
+#   9-24-17    TMG       fix #345 (get rid of 'printing' message dialog) by commenting
+#                         out all print dialog lines which also fixes # 33 and #263;
+#                         time will tell if this is sufficient, or if we need to
+#                         bring back some less-invasive and less-confusing notification,
+#                         like a line in the main dialog or such
 #
 # #############################################################################
 #
@@ -1322,7 +1327,7 @@ class MyWindow(QDialog,Ui_Dialog):
 										  ('BOX',(2,0),(-1,-1),2,colors.black),
 										  ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
 		w,h=t.wrapOn(canvas,doc.width,doc.height)
-		self.logMsgBox.setInformativeText("Generating page "+str(canvas.getPageNumber()))
+# 		self.logMsgBox.setInformativeText("Generating page "+str(canvas.getPageNumber()))
 		QCoreApplication.processEvents()
 		rprint("Page number:"+str(canvas.getPageNumber()))
 		rprint("Height:"+str(h))
@@ -1354,18 +1359,18 @@ class MyWindow(QDialog,Ui_Dialog):
 			return
 		else:
 			f.close()
-		if teams:
-			msgAdder=" for individual teams"
-		else:
-			msgAdder=""
-		self.logMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF"+msgAdder+"; will send to default printer automatically; please wait...",
-							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-		self.logMsgBox.setInformativeText("Initializing...")
+# 		if teams:
+# 			msgAdder=" for individual teams"
+# 		else:
+# 			msgAdder=""
+# 		self.logMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF"+msgAdder+"; will send to default printer automatically; please wait...",
+# 							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+# 		self.logMsgBox.setInformativeText("Initializing...")
 		# note the topMargin is based on what looks good; you would think that a 0.6 table plus a 0.5 hard
 		# margin (see t.drawOn above) would require a 1.1 margin here, but, not so.
 		doc = SimpleDocTemplate(pdfName, pagesize=landscape(letter),leftMargin=0.5*inch,rightMargin=0.5*inch,topMargin=1.03*inch,bottomMargin=0.5*inch) # or pagesize=letter
-		self.logMsgBox.show()
-		QTimer.singleShot(5000,self.logMsgBox.close)
+# 		self.logMsgBox.show()
+# 		QTimer.singleShot(5000,self.logMsgBox.close)
 		QCoreApplication.processEvents()
 		elements=[]
 		teamFilterList=[""] # by default, print print all entries; if teams=True, add a filter for each team
@@ -1411,7 +1416,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				if teams and team!=teamFilterList[-1]: # don't add a spacer after the last team - it could cause another page!
 					elements.append(Spacer(0,0.25*inch))
 		doc.build(elements,onFirstPage=functools.partial(self.printLogHeaderFooter,opPeriod=opPeriod,teams=teams),onLaterPages=functools.partial(self.printLogHeaderFooter,opPeriod=opPeriod,teams=teams))
-		self.logMsgBox.setInformativeText("Finalizing and Printing...")
+# 		self.logMsgBox.setInformativeText("Finalizing and Printing...")
 		win32api.ShellExecute(0,"print",pdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
 		self.radioLogNeedsPrint=False
 		if os.path.isdir(self.secondWorkingDir):
@@ -1463,7 +1468,7 @@ class MyWindow(QDialog,Ui_Dialog):
 										  ('BOX',(2,0),(-1,-1),2,colors.black),
 										  ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
 		w,h=t.wrapOn(canvas,doc.width,doc.height)
-		self.clueLogMsgBox.setInformativeText("Generating page "+str(canvas.getPageNumber()))
+# 		self.clueLogMsgBox.setInformativeText("Generating page "+str(canvas.getPageNumber()))
 		QCoreApplication.processEvents()
 		rprint("Page number:"+str(canvas.getPageNumber()))
 		rprint("Height:"+str(h))
@@ -1491,14 +1496,14 @@ class MyWindow(QDialog,Ui_Dialog):
 			return
 		else:
 			f.close()
-		self.clueLogMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF; will send to default printer automatically; please wait...",
-							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-		self.clueLogMsgBox.setInformativeText("Initializing...")
+# 		self.clueLogMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF; will send to default printer automatically; please wait...",
+# 							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+# 		self.clueLogMsgBox.setInformativeText("Initializing...")
 		# note the topMargin is based on what looks good; you would think that a 0.6 table plus a 0.5 hard
 		# margin (see t.drawOn above) would require a 1.1 margin here, but, not so.
 		doc = SimpleDocTemplate(clueLogPdfFileName, pagesize=landscape(letter),leftMargin=0.5*inch,rightMargin=0.5*inch,topMargin=1.03*inch,bottomMargin=0.5*inch) # or pagesize=letter
-		self.clueLogMsgBox.show()
-		QTimer.singleShot(5000,self.clueLogMsgBox.close)
+# 		self.clueLogMsgBox.show()
+# 		QTimer.singleShot(5000,self.clueLogMsgBox.close)
 		QCoreApplication.processEvents()
 		elements=[]
 		styles = getSampleStyleSheet()
@@ -1519,15 +1524,15 @@ class MyWindow(QDialog,Ui_Dialog):
 			                       ('BOX', (0,0), (6,0), 2, colors.black)]))
 			elements.append(t)
 			doc.build(elements,onFirstPage=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod),onLaterPages=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod))
-			self.clueLogMsgBox.setInformativeText("Finalizing and Printing...")
+# 			self.clueLogMsgBox.setInformativeText("Finalizing and Printing...")
 			win32api.ShellExecute(0,"print",clueLogPdfFileName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
 			if os.path.isdir(self.secondWorkingDir):
 				rprint("copying clue log pdf to "+self.secondWorkingDir)
 				shutil.copy(clueLogPdfFileName,self.secondWorkingDir)
-		else:
-			self.clueLogMsgBox.setText("No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.")
-			self.clueLogMsgBox.setInformativeText("")
-			self.clueLogMsgBox.setStandardButtons(QMessageBox.Ok)
+# 		else:
+# 			self.clueLogMsgBox.setText("No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.")
+# 			self.clueLogMsgBox.setInformativeText("")
+# 			self.clueLogMsgBox.setStandardButtons(QMessageBox.Ok)
 # 			self.msgBox.close()
 # 			self.msgBox=QMessageBox(QMessageBox.Information,"Printing","No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.",QMessageBox.Ok)
 # 			QTimer.singleShot(500,self.msgBox.show)
@@ -1540,11 +1545,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint("generating clue report pdf: "+cluePdfName)
 		clueFdfName=cluePdfName.replace(".pdf",".fdf")
 
-		self.clueReportMsgBox=QMessageBox(QMessageBox.Information,"Printing Clue #"+clueData[0],"Generating PDF; will send to default printer automatically; please wait...",
-										QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-		self.clueReportMsgBox.show()
-		self.clueReportMsgBox.raise_()
-		QTimer.singleShot(5000,self.clueReportMsgBox.close)
+# 		self.clueReportMsgBox=QMessageBox(QMessageBox.Information,"Printing Clue #"+clueData[0],"Generating PDF; will send to default printer automatically; please wait...",
+# 										QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+# 		self.clueReportMsgBox.show()
+# 		self.clueReportMsgBox.raise_()
+# 		QTimer.singleShot(5000,self.clueReportMsgBox.close)
 
 		instructions=clueData[7].lower()
 		# initialize all checkboxes to OFF
