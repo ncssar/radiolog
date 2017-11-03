@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'changeCallsignDialog.ui'
 #
-# Created by: PyQt5 UI code generator 5.8
+# Created by: PyQt5 UI code generator 5.8.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -16,7 +16,7 @@ class Ui_changeCallsignDialog(object):
         font.setPointSize(8)
         changeCallsignDialog.setFont(font)
         self.buttonBox = QtWidgets.QDialogButtonBox(changeCallsignDialog)
-        self.buttonBox.setGeometry(QtCore.QRect(300, 220, 211, 61))
+        self.buttonBox.setGeometry(QtCore.QRect(248, 225, 211, 51))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(16)
@@ -98,6 +98,14 @@ class Ui_changeCallsignDialog(object):
         self.label_5.setFont(font)
         self.label_5.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
         self.label_5.setObjectName("label_5")
+        self.fsFilterButton = QtWidgets.QToolButton(changeCallsignDialog)
+        self.fsFilterButton.setGeometry(QtCore.QRect(476, 227, 47, 46))
+        self.fsFilterButton.setText("...")
+        icon = QtGui.QIcon()
+        icon.addPixmap(QtGui.QPixmap(":/radiolog_ui/empty_filter.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.fsFilterButton.setIcon(icon)
+        self.fsFilterButton.setIconSize(QtCore.QSize(40, 40))
+        self.fsFilterButton.setObjectName("fsFilterButton")
 
         self.retranslateUi(changeCallsignDialog)
         self.buttonBox.accepted.connect(changeCallsignDialog.accept)
@@ -113,3 +121,4 @@ class Ui_changeCallsignDialog(object):
         self.label_4.setText(_translate("changeCallsignDialog", "New Callsign"))
         self.label_5.setText(_translate("changeCallsignDialog", "FleetSync ID"))
 
+import radiolog_ui_rc

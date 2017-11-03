@@ -236,6 +236,7 @@ from clueDialog_ui import Ui_clueDialog
 from clueLogDialog_ui import Ui_clueLogDialog
 from printDialog_ui import Ui_printDialog
 from changeCallsignDialog_ui import Ui_changeCallsignDialog
+from fsFilterDialog_ui import Ui_fsFilterDialog
 from opPeriodDialog_ui import Ui_opPeriodDialog
 from printClueLogDialog_ui import Ui_printClueLogDialog
 from nonRadioClueDialog_ui import Ui_nonRadioClueDialog
@@ -475,7 +476,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.loadFlag=False # set this to true during load, to prevent save on each newEntry
 		self.totalEntryCount=0 # rotate backups after every 5 entries; see newEntryWidget.accept
-
+		
 		# fix #342 (focus-follows-mouse causes freezes) - disable FFM here;
 		#  restore to initial setting on shutdown (note this would leave it
 		#  disabled after unclean shutdown)
@@ -508,9 +509,11 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		self.fsFileName=self.getFileNameBase(self.incidentNameNormalized)+"_fleetsync.csv"
 
 		self.fsValidFleetList=[100]
-		self.fsFilteredDevList=[]
+		self.fsLog=[]
+# 		self.fsLog.append(['','','','',''])
 		self.fsMuted=False
 		self.fsMutedBlink=False
+		self.fsFilterBlinkState=False
 		self.getString=""
 
 		self.firstWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents"
@@ -558,10 +561,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.optionsDialog=optionsDialog()
 		self.optionsDialog.accepted.connect(self.optionsAccepted)
 
+		self.fsFilterDialog=fsFilterDialog(self)
+		self.fsBuildTooltip()
+		
 		self.ui.addNonRadioClueButton.clicked.connect(self.addNonRadioClue)
 
 		self.ui.helpButton.clicked.connect(self.helpWindow.show)
 		self.ui.optionsButton.clicked.connect(self.optionsDialog.show)
+		self.ui.fsFilterButton.clicked.connect(self.fsFilterDialog.show)
 		self.ui.printButton.clicked.connect(self.printDialog.show)
 ##		self.ui.printButton.clicked.connect(self.testConvertCoords)
 
@@ -577,6 +584,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.allTeamsList=["dummy"] # same as teamNameList but hidden tabs are not deleted from this list
 		self.extTeamNameList=["dummy"]
 		self.fsLookup=[]
+		
 ##		self.newEntryDialogList=[]
 		self.blinkToggle=0
 		self.fontSize=10
@@ -766,7 +774,38 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.ui.incidentNameLabel.setText(self.incidentName)
 			self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black")
 			self.ui.fsCheckBox.setStyleSheet("border:3px inset lightgray")
-
+	
+	def fsFilterBlink(self,state):
+		if state=="on":
+			self.ui.fsFilterButton.setStyleSheet("QToolButton { background-color:#ff5050;border:2px outset lightgray; }")
+		else:
+			self.ui.fsFilterButton.setStyleSheet("QToolButton { }")
+			
+	def fsFilterAdd(self,fleet,dev):
+		rprint("adding filter for "+str(fleet)+" "+str(dev))
+		for row in self.fsLog:
+			rprint("row:"+str(row))
+			if row[0]==fleet and row[1]==dev:
+				rprint("found")
+				row[3]=True
+				self.fsBuildTooltip()
+				self.fsFilterDialog.ui.tableView.model().layoutChanged.emit()
+				return
+	
+	def fsAnythingFiltered(self):
+		for row in self.fsLog:
+			if row[3]==True:
+				return True
+		return False
+	
+	def fsFilteredCallDisplay(self,state="off",fleet=0,dev=0,callsign=''):
+		if state=="on":
+			self.ui.incidentNameLabel.setText("Incoming FS call filtered/ignored:\n"+str(fleet)+"-"+str(dev)+"   '"+callsign+"'")
+			self.ui.incidentNameLabel.setStyleSheet("background-color:#ff5050;color:white;font-size:"+str(self.fontSize*5/8)+"pt")
+		else:
+			self.ui.incidentNameLabel.setText(self.incidentName)
+			self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black;font-size:"+str(self.fontSize)+"pt")
+				
 	def fsCheckBoxCB(self):
 		self.fsMuted=not self.ui.fsCheckBox.isChecked()
 		# blinking is handled in fsCheck which is called once a second anyway;
@@ -906,6 +945,15 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.fsMuteBlink("on")
 			else:
 				self.fsMuteBlink("off")
+				
+		if self.fsAnythingFiltered():
+			self.fsFilterBlinkState=not self.fsFilterBlinkState
+			if self.fsFilterBlinkState:
+				self.fsFilterBlink("on")
+			else:
+				self.fsFilterBlink("off")
+		else:
+			self.fsFilterBlink("off")
 		
 		if self.fsBuffer.endswith("\x03"):
 			self.fsParse()
@@ -975,9 +1023,14 @@ class MyWindow(QDialog,Ui_Dialog):
 					widget.ui.datumFormatLabel.setText("("+self.datum+"  "+self.coordFormat+")")
 					widget.formattedLocString=formattedLocString
 					widget.origLocString=origLocString
+		self.fsLogUpdate(int(fleet),int(dev))
 		# only open a new entry widget if the fleet/dev is not being filtered
-		if not found and not self.fsIsFiltered(fleet,dev):
-			self.openNewEntry(None,callsign,formattedLocString,fleet,dev,origLocString)
+		if not found:
+			if self.fsIsFiltered(int(fleet),int(dev)):
+				self.fsFilteredCallDisplay("on",fleet,dev,callsign)
+				QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
+			else:
+				self.openNewEntry(None,callsign,formattedLocString,fleet,dev,origLocString)
 		self.sendPendingGet()
 
 	def sendPendingGet(self,suffix=""):
@@ -1002,18 +1055,54 @@ class MyWindow(QDialog,Ui_Dialog):
 				except:
 					pass
 				self.getString=''
+				
+	# for fsLog, a dictionary would probably be easier, but we have to use an array
+	#  since we will be displaying in a QTableView
+	# if callsign is specified, update the callsign but not the time;
+	#  if callsign is not specified, udpate the time but not the callsign;
+	#  if the entry does not yet exist, add it
+	def fsLogUpdate(self,fleet,dev,callsign=False):
+		# row structure: [fleet,dev,callsign,filtered,last_received]
+		print("fsLogUpdate called")
+		found=False
+		t=time.strftime("%H:%M:%S")
+		for row in self.fsLog:
+			if row[0]==fleet and row[1]==dev:
+				found=True
+				if callsign:
+					row[2]=callsign
+				else:
+					row[4]=t
+		if not found:
+			# always update callsign - it may have changed since creation
+			self.fsLog.append([fleet,dev,self.getCallsign(fleet,dev),False,t])
+		print(self.fsLog)
+# 		if self.fsFilterDialog.ui.tableView:
+		self.fsFilterDialog.ui.tableView.model().layoutChanged.emit()
+	
+	def fsBuildTooltip(self):
+		filteredHtml=""
+		for row in self.fsLog:
+			if row[3]==True:
+				filteredHtml+="<tr><td>"+str(row[0])+"</td><td>"+str(row[1])+"</td><td>"+row[2]+"</td></tr>"
+		if filteredHtml != "":
+			tt="Filtered devices:<br>(left-click to edit)<table border='1'><tr><td>Fleet</td><td>ID</td><td>Callsign</td></tr>"+filteredHtml+"</table>"
+		else:
+			tt="No devices are currently being filtered.<br>(left-click to edit)"
+		self.ui.fsFilterButton.setToolTip(tt)
 
 	def fsIsFiltered(self,fleet,dev):
-		rprint("fleet="+fleet+" dev="+dev)
+		rprint("checking fsFilter: fleet="+str(fleet)+" dev="+str(dev))
 		# invalid fleets are always filtered, to prevent fleet-glitches (110-xxxx) from opening new entries
 		if int(fleet) not in self.fsValidFleetList:
 			rprint("true1")
 			return True
 		# if the fleet is valid, check for filtered device ID
-		if int(dev) in self.fsFilteredDevList:
-			rprint("true2")
-			return True
-		rprint("false1")
+		for row in self.fsLog:
+			if row[0]==fleet and row[1]==dev and row[3]==True:
+				rprint("  device is fitlered; returning True")
+				return True
+		rprint("not filtered; returning False")
 		return False
 
 	def fsLoadLookup(self,startupFlag=False,fsFileName=None,hideWarnings=False):
@@ -1640,6 +1729,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# changin QLabel size application-wide is too impactful; investigate later
 		self.ui.incidentNameLabel.setStyleSheet("font-size:"+str(self.fontSize)+"pt;")
 		self.parent.setStyleSheet("QMessageBox,QPushButton,QMenu { font-size:"+str(self.fontSize)+"pt; }")
+		self.parent.setStyleSheet("QToolTip { font-size:"+str(self.fontSize*2/3)+"pt; color:#222; }")
 
 	def redrawTables(self):
 		# column sizing rules, in sequence:
@@ -2464,6 +2554,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			menu.addSeparator()
 ##			relabelTeamTabAction=menu.addAction("Change Label / Assignment for "+str(niceTeamName))
 ##			menu.addSeparator()
+			toggleFSMuteTabAction=menu.addAction("Mute FleetSync calls from "+str(niceTeamName))
+			menu.addSeparator()
 			deleteTeamTabAction=menu.addAction("Hide tab for "+str(niceTeamName))
 			action=menu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(pos))
 			if action==newEntryFromAction:
@@ -3931,7 +4023,46 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 		self.parent.printDialog.ui.opPeriodComboBox.addItem(self.ui.newOpPeriodField.text())
 		super(opPeriodDialog,self).accept()
 
-
+# fleetsync filtering scheme:
+# - maintain a table of all known (received) fleetsync device IDs.  This table is empty at startup.
+#   columns: fleet, id, callsign, last time, filtered
+#      callsign may be blank
+#      filtered is true/false
+# - for each incoming FS transmission, add/update the entry for that device, regardless of whether it is filtered.
+# - allow the filtered value to be changed from various places
+#   - fitler dialog - allow click in table cell to toggle
+#   - team tab right-click menu - should this affect all callsigns belonging to that team?
+#   - change callsign dialog - show filtered status and allow click to toggle
+# - show filtered status in various places
+#   - team tab - one symbology for all devices filtered, another for some devices filtered
+#   - main UI filter button - flash a color if anything is filtered (or if FS is muted??)
+#   - table cell in filter dialog - maybe show rows in groups - filtered first?  or sort by filtered?
+ 
+class fsFilterDialog(QDialog,Ui_fsFilterDialog):
+	openDialogCount=0
+	def __init__(self,parent):
+		QDialog.__init__(self)
+		self.ui=Ui_fsFilterDialog()
+		self.ui.setupUi(self)
+		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		self.parent=parent
+		self.tableModel = fsTableModel(parent.fsLog, self)
+		self.ui.tableView.setModel(self.tableModel)
+		self.ui.tableView.setSelectionMode(QAbstractItemView.NoSelection)
+		self.ui.tableView.clicked.connect(self.tableClicked)
+		fsFilterDialog.openDialogCount+=1
+		
+	def tableClicked(self,index):
+		if index.column()==3:
+			self.parent.fsLog[index.row()][index.column()] = not self.parent.fsLog[index.row()][index.column()]
+			self.ui.tableView.model().layoutChanged.emit()
+			self.parent.fsBuildTooltip()
+			
+	def closeEvent(self,event):
+		rprint("closing fsFilterDialog")
+		fsFilterDialog.openDialogCount-=1
+				
+		
 class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 	openDialogCount=0
 	def __init__(self,parent,callsign,fleet,device):
@@ -3942,6 +4073,8 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.parent=parent
 		self.currentCallsign=callsign
+		self.fleet=int(fleet)
+		self.device=int(device)
 
 		self.ui.fleetField.setText(fleet)
 		self.ui.deviceField.setText(device)
@@ -3949,25 +4082,40 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		self.ui.newCallsignField.setFocus()
 		self.ui.newCallsignField.setText("Team  ")
 		self.ui.newCallsignField.setSelection(5,1)
+		self.ui.fsFilterButton.clicked.connect(self.fsFilterConfirm)
 		changeCallsignDialog.openDialogCount+=1
 
+	def fsFilterConfirm(self):
+		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Filter (ignore) future incoming messages\nfrom this FleetSync device?",
+			QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		if really.exec_()==QMessageBox.No:
+			event.ignore()
+			return
+		self.parent.parent.fsFilterAdd(self.fleet,self.device)
+		self.close()
+		
 	def accept(self):
 		found=False
+		fleet=self.ui.fleetField.text()
+		dev=self.ui.deviceField.text()
+		newCallsign=self.ui.newCallsignField.text()
 		# change existing device entry if found, otherwise add a new entry
 		for n in range(len(self.parent.parent.fsLookup)):
 			entry=self.parent.parent.fsLookup[n]
-			if entry[0]==self.ui.fleetField.text() and entry[1]==self.ui.deviceField.text():
+			if entry[0]==fleet and entry[1]==dev:
 				found=True
-				self.parent.parent.fsLookup[n][2]=self.ui.newCallsignField.text()
+				self.parent.parent.fsLookup[n][2]=newCallsign
 		if not found:
-			self.parent.parent.fsLookup.append([self.ui.fleetField.text(),self.ui.deviceField.text(),self.ui.newCallsignField.text()])
+			self.parent.parent.fsLookup.append([fleet,dev,newCallsign])
 		# set the current radio log entry teamField also
-		self.parent.ui.teamField.setText(self.ui.newCallsignField.text())
+		self.parent.ui.teamField.setText(newCallsign)
 		# save the updated table (filename is set at the same times that csvFilename is set)
 		self.parent.parent.fsSaveLookup()
+		# change the callsign in fsLog
+		self.parent.parent.fsLogUpdate(int(fleet),int(dev),newCallsign)
 		# finally, pass the 'accept' signal on up the tree as usual
 		changeCallsignDialog.openDialogCount-=1
-		self.parent.parent.sendPendingGet(self.ui.newCallsignField.text())
+		self.parent.parent.sendPendingGet(newCallsign)
 		self.parent.ui.messageField.setFocus()
 		super(changeCallsignDialog,self).accept()
 
@@ -4099,6 +4247,41 @@ class MyTableModel(QAbstractTableModel):
 		else:
 			return rval
 
+
+class fsTableModel(QAbstractTableModel):
+	header_labels=['Fleet','ID','Callsign','Filtered','Last Received']
+	def __init__(self, datain, parent=None, *args):
+		QAbstractTableModel.__init__(self, parent, *args)
+		self.arraydata=datain
+
+	def headerData(self,section,orientation,role=Qt.DisplayRole):
+#		print("headerData:",section,",",orientation,",",role)
+		if role==Qt.DisplayRole and orientation==Qt.Horizontal:
+			return self.header_labels[section]
+		return QAbstractTableModel.headerData(self,section,orientation,role)
+
+	def rowCount(self, parent):
+		return len(self.arraydata)
+
+	def columnCount(self, parent):
+		return len(self.header_labels)
+
+	def data(self, index, role):
+		if not index.isValid():
+			return QVariant()
+		elif role != Qt.DisplayRole:
+			return QVariant()
+		try:
+			rval=QVariant(self.arraydata[index.row()][index.column()])
+		except:
+			row=index.row()
+			col=index.column()
+			rprint("Row="+str(row)+" Col="+str(col))
+			rprint("arraydata:")
+			rprint(self.arraydata)
+		else:
+			return rval
+		
 
 class CustomSortFilterProxyModel(QSortFilterProxyModel):
 	def __init__(self,parent=None):

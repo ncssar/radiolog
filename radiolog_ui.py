@@ -11,7 +11,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName("Dialog")
-        Dialog.resize(1400, 770)
+        Dialog.resize(1449, 770)
         self.gridLayout_2 = QtWidgets.QGridLayout(Dialog)
         self.gridLayout_2.setObjectName("gridLayout_2")
         self.horizontalLayout = QtWidgets.QHBoxLayout()
@@ -190,6 +190,13 @@ class Ui_Dialog(object):
         self.optionsButton.setIconSize(QtCore.QSize(30, 30))
         self.optionsButton.setObjectName("optionsButton")
         self.horizontalLayout.addWidget(self.optionsButton)
+        self.fsFilterButton = QtWidgets.QToolButton(Dialog)
+        icon2 = QtGui.QIcon()
+        icon2.addPixmap(QtGui.QPixmap(":/radiolog_ui/empty_filter.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.fsFilterButton.setIcon(icon2)
+        self.fsFilterButton.setIconSize(QtCore.QSize(30, 30))
+        self.fsFilterButton.setObjectName("fsFilterButton")
+        self.horizontalLayout.addWidget(self.fsFilterButton)
         self.printButton = QtWidgets.QToolButton(Dialog)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -201,9 +208,9 @@ class Ui_Dialog(object):
         self.printButton.setFocusPolicy(QtCore.Qt.NoFocus)
         self.printButton.setToolTip("")
         self.printButton.setText("")
-        icon2 = QtGui.QIcon()
-        icon2.addPixmap(QtGui.QPixmap(":/radiolog_ui/print_icon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.printButton.setIcon(icon2)
+        icon3 = QtGui.QIcon()
+        icon3.addPixmap(QtGui.QPixmap(":/radiolog_ui/print_icon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.printButton.setIcon(icon3)
         self.printButton.setIconSize(QtCore.QSize(30, 30))
         self.printButton.setObjectName("printButton")
         self.horizontalLayout.addWidget(self.printButton)
@@ -274,5 +281,6 @@ class Ui_Dialog(object):
 "FORMAT"))
         self.helpButton.setShortcut(_translate("Dialog", "F1"))
         self.optionsButton.setShortcut(_translate("Dialog", "F2"))
+        self.fsFilterButton.setText(_translate("Dialog", "..."))
 
 import radiolog_ui_rc
