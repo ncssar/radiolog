@@ -311,6 +311,7 @@ for n in range (1,13):
 	timeoutDisplayList.append([str(n*10)+" min",n*600])
 
 teamStatusDict={}
+teamFSFilterDict={}
 teamTimersDict={}
 teamCreatedTimeDict={}
 
@@ -798,6 +799,24 @@ class MyWindow(QDialog,Ui_Dialog):
 				return True
 		return False
 	
+	def fsGetTeamFilterStatus(self,extTeamName):
+		# 0 - no devices belonging to this callsign are filtered
+		# 1 - some but not all devices belonging to this callsign are filtered
+		# 2 - all devices belonging to this callsign are filtered
+		total=0
+		filtered=0
+		for row in self.fsLog:
+			if getExtTeamName(row[2])==extTeamName:
+				total+=1
+				if row[3]==True:
+					filtered+=1
+		if filtered==0:
+			return 0
+		if filtered<total:
+			return 1
+		if filtered==total:
+			return 2
+				
 	def fsFilteredCallDisplay(self,state="off",fleet=0,dev=0,callsign=''):
 		if state=="on":
 			self.ui.incidentNameLabel.setText("Incoming FS call filtered/ignored:\n"+str(fleet)+"-"+str(dev)+"   '"+callsign+"'")
@@ -1063,7 +1082,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	#  if the entry does not yet exist, add it
 	def fsLogUpdate(self,fleet,dev,callsign=False):
 		# row structure: [fleet,dev,callsign,filtered,last_received]
-		print("fsLogUpdate called")
+		print("fsLogUpdate called: fleet="+str(fleet)+" dev="+str(dev)+" callsign="+(callsign or "<None>"))
 		found=False
 		t=time.strftime("%H:%M:%S")
 		for row in self.fsLog:
@@ -1076,10 +1095,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		if not found:
 			# always update callsign - it may have changed since creation
 			self.fsLog.append([fleet,dev,self.getCallsign(fleet,dev),False,t])
-		print(self.fsLog)
+# 		print(self.fsLog)
 # 		if self.fsFilterDialog.ui.tableView:
 		self.fsFilterDialog.ui.tableView.model().layoutChanged.emit()
-	
+		self.fsBuildTeamFilterDict()
+		
+	def fsBuildTeamFilterDict(self):
+		for extTeamName in teamFSFilterDict:
+			teamFSFilterDict[extTeamName]=self.fsGetTeamFilterStatus(extTeamName)
+					
 	def fsBuildTooltip(self):
 		filteredHtml=""
 		for row in self.fsLog:
@@ -1818,7 +1842,9 @@ class MyWindow(QDialog,Ui_Dialog):
 					hold=True
 			i=self.extTeamNameList.index(extTeamName)
 			status=teamStatusDict[extTeamName]
+			fsFilter=teamFSFilterDict[extTeamName]
 ##			rprint("blinking "+extTeamName+": status="+status)
+			rprint("fsFilter "+extTeamName+": "+str(fsFilter))
 			secondsSinceContact=teamTimersDict[extTeamName]
 			if status=="Waiting for Transport" or status=="STANDBY" or (secondsSinceContact>=self.timeoutOrangeSec):
 				if self.blinkToggle==0:
@@ -1840,7 +1866,23 @@ class MyWindow(QDialog,Ui_Dialog):
 			else:
 				# not Waiting for transport, and not in orange/red time zone: draw the normal style
 				self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
-
+				
+			# always check for fleetsync filtering, independent from team status
+			if self.blinkToggle==0:
+				if fsFilter>0:
+					f=self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).font()
+					f.setStrikeOut(True)
+					self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setFont(f)
+			if self.blinkToggle==1:
+				if fsFilter<2: # strikeout all the time if all devices for this callsign are filtered
+					f=self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).font()
+					f.setStrikeOut(False)
+					self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setFont(f)
+				else:
+					f=self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).font()
+					f.setStrikeOut(True)
+					self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setFont(f)
+					
 			# once they have timed out, keep incrementing; but if the timer is '-1', they will never timeout
 			if secondsSinceContact>-1:
 				teamTimersDict[extTeamName]=secondsSinceContact+1
@@ -2363,6 +2405,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.newTeam(niceTeamName)
 			i=self.extTeamNameList.index(extTeamName)
 			teamStatusDict[extTeamName]=status
+			if not extTeamName in teamFSFilterDict:
+				teamFSFilterDict[extTeamName]=0
 			# credit to Berryblue031 for pointing out this way to style the tab widgets
 			# http://www.qtcentre.org/threads/49025
 			# NOTE the following line causes font-size to go back to system default;
@@ -4056,6 +4100,7 @@ class fsFilterDialog(QDialog,Ui_fsFilterDialog):
 		if index.column()==3:
 			self.parent.fsLog[index.row()][index.column()] = not self.parent.fsLog[index.row()][index.column()]
 			self.ui.tableView.model().layoutChanged.emit()
+			self.parent.fsBuildTeamFilterDict()
 			self.parent.fsBuildTooltip()
 			
 	def closeEvent(self,event):
