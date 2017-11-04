@@ -782,13 +782,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			self.ui.fsFilterButton.setStyleSheet("QToolButton { }")
 			
-	def fsFilterAdd(self,fleet,dev):
-		rprint("adding filter for "+str(fleet)+" "+str(dev))
+	def fsFilterEdit(self,fleet,dev,state=True):
+# 		rprint("editing filter for "+str(fleet)+" "+str(dev))
 		for row in self.fsLog:
-			rprint("row:"+str(row))
+# 			rprint("row:"+str(row))
 			if row[0]==fleet and row[1]==dev:
-				rprint("found")
-				row[3]=True
+# 				rprint("found")
+				row[3]=state
 				self.fsBuildTooltip()
 				self.fsFilterDialog.ui.tableView.model().layoutChanged.emit()
 				return
@@ -816,10 +816,18 @@ class MyWindow(QDialog,Ui_Dialog):
 			return 1
 		if filtered==total:
 			return 2
-				
+	
+	def fsGetTeamDevices(self,extTeamName):
+		# return a list of two-element lists [fleet,dev]
+		rval=[]
+		for row in self.fsLog:
+			if getExtTeamName(row[2])==extTeamName:
+				rval.append([row[0],row[1]])
+		return rval
+		
 	def fsFilteredCallDisplay(self,state="off",fleet=0,dev=0,callsign=''):
 		if state=="on":
-			self.ui.incidentNameLabel.setText("Incoming FS call filtered/ignored:\n"+str(fleet)+"-"+str(dev)+"   '"+callsign+"'")
+			self.ui.incidentNameLabel.setText("Incoming FS call filtered/ignored:\n"+callsign+"   ("+str(fleet)+":"+str(dev)+")")
 			self.ui.incidentNameLabel.setStyleSheet("background-color:#ff5050;color:white;font-size:"+str(self.fontSize*5/8)+"pt")
 		else:
 			self.ui.incidentNameLabel.setText(self.incidentName)
@@ -1082,7 +1090,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	#  if the entry does not yet exist, add it
 	def fsLogUpdate(self,fleet,dev,callsign=False):
 		# row structure: [fleet,dev,callsign,filtered,last_received]
-		print("fsLogUpdate called: fleet="+str(fleet)+" dev="+str(dev)+" callsign="+(callsign or "<None>"))
+# 		rprint("fsLogUpdate called: fleet="+str(fleet)+" dev="+str(dev)+" callsign="+(callsign or "<None>"))
 		found=False
 		t=time.strftime("%H:%M:%S")
 		for row in self.fsLog:
@@ -1095,7 +1103,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		if not found:
 			# always update callsign - it may have changed since creation
 			self.fsLog.append([fleet,dev,self.getCallsign(fleet,dev),False,t])
-# 		print(self.fsLog)
+# 		rprint(self.fsLog)
 # 		if self.fsFilterDialog.ui.tableView:
 		self.fsFilterDialog.ui.tableView.model().layoutChanged.emit()
 		self.fsBuildTeamFilterDict()
@@ -1108,25 +1116,25 @@ class MyWindow(QDialog,Ui_Dialog):
 		filteredHtml=""
 		for row in self.fsLog:
 			if row[3]==True:
-				filteredHtml+="<tr><td>"+str(row[0])+"</td><td>"+str(row[1])+"</td><td>"+row[2]+"</td></tr>"
+				filteredHtml+="<tr><td>"+row[2]+"</td><td>"+str(row[0])+"</td><td>"+str(row[1])+"</td></tr>"
 		if filteredHtml != "":
-			tt="Filtered devices:<br>(left-click to edit)<table border='1'><tr><td>Fleet</td><td>ID</td><td>Callsign</td></tr>"+filteredHtml+"</table>"
+			tt="Filtered devices:<br>(left-click to edit)<table border='1' cellpadding='3'><tr><td>Callsign</td><td>Fleet</td><td>ID</td></tr>"+filteredHtml+"</table>"
 		else:
 			tt="No devices are currently being filtered.<br>(left-click to edit)"
 		self.ui.fsFilterButton.setToolTip(tt)
 
 	def fsIsFiltered(self,fleet,dev):
-		rprint("checking fsFilter: fleet="+str(fleet)+" dev="+str(dev))
+# 		rprint("checking fsFilter: fleet="+str(fleet)+" dev="+str(dev))
 		# invalid fleets are always filtered, to prevent fleet-glitches (110-xxxx) from opening new entries
 		if int(fleet) not in self.fsValidFleetList:
-			rprint("true1")
+# 			rprint("true1")
 			return True
 		# if the fleet is valid, check for filtered device ID
 		for row in self.fsLog:
 			if row[0]==fleet and row[1]==dev and row[3]==True:
-				rprint("  device is fitlered; returning True")
+# 				rprint("  device is fitlered; returning True")
 				return True
-		rprint("not filtered; returning False")
+# 		rprint("not filtered; returning False")
 		return False
 
 	def fsLoadLookup(self,startupFlag=False,fsFileName=None,hideWarnings=False):
@@ -1844,7 +1852,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			status=teamStatusDict[extTeamName]
 			fsFilter=teamFSFilterDict[extTeamName]
 ##			rprint("blinking "+extTeamName+": status="+status)
-			rprint("fsFilter "+extTeamName+": "+str(fsFilter))
+# 			rprint("fsFilter "+extTeamName+": "+str(fsFilter))
 			secondsSinceContact=teamTimersDict[extTeamName]
 			if status=="Waiting for Transport" or status=="STANDBY" or (secondsSinceContact>=self.timeoutOrangeSec):
 				if self.blinkToggle==0:
@@ -2591,15 +2599,40 @@ class MyWindow(QDialog,Ui_Dialog):
 		menu=QMenu()
 ##		menu.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		i=self.ui.tabWidget.tabBar().tabAt(pos)
-		niceTeamName=getNiceTeamName(self.extTeamNameList[i])
+		extTeamName=self.extTeamNameList[i]
+		niceTeamName=getNiceTeamName(extTeamName)
 		if i>0:
 			newEntryFromAction=menu.addAction("New Entry FROM "+str(niceTeamName))
 			newEntryToAction=menu.addAction("New Entry TO "+str(niceTeamName))
 			menu.addSeparator()
 ##			relabelTeamTabAction=menu.addAction("Change Label / Assignment for "+str(niceTeamName))
 ##			menu.addSeparator()
-			toggleFSMuteTabAction=menu.addAction("Mute FleetSync calls from "+str(niceTeamName))
-			menu.addSeparator()
+
+		# add fleetsync submenu if there are any fleetsync devices for this callsign
+			devices=self.fsGetTeamDevices(extTeamName)
+			fsToggleAllAction=False # initialize, so the action checker does not die
+			if len(devices)>0:
+				fsMenu=menu.addMenu("FleetSync...")
+				menu.addSeparator()
+				if len(devices)>1:
+					if teamFSFilterDict[extTeamName]==2:
+						fsToggleAllAction=fsMenu.addAction("Unfilter all "+niceTeamName+" devices")
+					else:
+						fsToggleAllAction=fsMenu.addAction("Filter all "+niceTeamName+" devices")
+					fsMenu.addSeparator()
+					for device in devices:
+						key=str(device[0])+":"+str(device[1])
+						if self.fsIsFiltered(device[0],device[1]):
+							fsMenu.addAction("Unfilter calls from "+key).setData([device[0],device[1],False])
+						else:
+							fsMenu.addAction("Filter calls from "+key).setData([device[0],device[1],True])
+				else:
+					key=str(devices[0][0])+":"+str(devices[0][1])
+					if teamFSFilterDict[extTeamName]==2:
+						fsToggleAllAction=fsMenu.addAction("Unfilter calls from "+niceTeamName+" ("+key+")")
+					else:
+						fsToggleAllAction=fsMenu.addAction("Filter calls from "+niceTeamName+" ("+key+")")
+			
 			deleteTeamTabAction=menu.addAction("Hide tab for "+str(niceTeamName))
 			action=menu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(pos))
 			if action==newEntryFromAction:
@@ -2609,6 +2642,17 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.newEntryWidget.ui.to_fromField.setCurrentIndex(1)
 			if action==deleteTeamTabAction:
 				self.deleteTeamTab(niceTeamName)
+			if action and action.data(): # only the single-device toggle actions will have data
+# 				rprint("fsToggleOneAction called; data="+str(action.data()))
+				d=action.data()
+				self.fsFilterEdit(d[0],d[1],d[2])
+				self.fsBuildTeamFilterDict()	
+			if action==fsToggleAllAction:
+				newState=teamFSFilterDict[extTeamName]!=2 # if 2, unfilter all; else, filter all
+				for device in self.fsGetTeamDevices(extTeamName):
+					self.fsFilterEdit(device[0],device[1],newState)
+				self.fsBuildTeamFilterDict()
+
 ##			if action==relabelTeamTabAction:
 ##				label=QLabel(" abcdefg ")
 ##				label.setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
