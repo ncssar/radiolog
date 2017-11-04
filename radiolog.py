@@ -4175,13 +4175,16 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		changeCallsignDialog.openDialogCount+=1
 
 	def fsFilterConfirm(self):
-		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Filter (ignore) future incoming messages\nfrom this FleetSync device?",
+		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Filter (ignore) future incoming messages\n  from this FleetSync device?",
 			QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 		if really.exec_()==QMessageBox.No:
 			event.ignore()
 			return
-		self.parent.parent.fsFilterAdd(self.fleet,self.device)
+		self.parent.parent.fsFilterEdit(self.fleet,self.device,True)
 		self.close()
+		# also close the related new entry dialog if its message field is blank, in the same manner as autoCleanup
+		if self.parent.ui.messageField.text()=="":
+			self.parent.closeEvent(QEvent(QEvent.Close),accepted=False,force=True)
 		
 	def accept(self):
 		found=False
