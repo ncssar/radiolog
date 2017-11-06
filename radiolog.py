@@ -95,6 +95,8 @@
 #                         time will tell if this is sufficient, or if we need to
 #                         bring back some less-invasive and less-confusing notification,
 #                         like a line in the main dialog or such
+#   11-5-17    TMG       fix #32 (add fleetsync device filtering) - affects several
+#                         parts of the code and several files
 #
 # #############################################################################
 #
@@ -538,6 +540,16 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fillableClueReportPdfFileName="clueReportFillable.pdf"
 		self.GISInternalsSDKRoot="C:\\GISInternals" # avoid spaces in the path - demons be here
 
+		self.helpFont1=QFont()
+		self.helpFont1.setFamily("Segoe UI")
+		self.helpFont1.setPointSize(9)
+		self.helpFont1.setStrikeOut(False)
+
+		self.helpFont2=QFont()
+		self.helpFont2.setFamily("Segoe UI")
+		self.helpFont2.setPointSize(9)
+		self.helpFont2.setStrikeOut(True)
+
 		self.helpWindow=helpWindow()
 		self.helpWindow.ui.hotkeysTableWidget.setColumnWidth(1,10)
 		self.helpWindow.ui.hotkeysTableWidget.setColumnWidth(0,145)
@@ -553,6 +565,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.helpWindow.ui.colorLabel5.setStyleSheet(statusStyleDict["TIMED_OUT_ORANGE"])
 		self.helpWindow.ui.colorLabel6.setStyleSheet(statusStyleDict["TIMED_OUT_RED"])
 
+		self.helpWindow.ui.fsSomeFilteredLabel.setFont(self.helpFont1)
+		self.helpWindow.ui.fsAllFilteredLabel.setFont(self.helpFont2)		
+		self.helpWindow.ui.fsSomeFilteredLabel.setStyleSheet(statusStyleDict["Working"])
+		self.helpWindow.ui.fsAllFilteredLabel.setStyleSheet(statusStyleDict["Working"])
+
 		self.printDialog=printDialog(self)
 		self.printClueLogDialog=printClueLogDialog(self)
 
@@ -563,6 +580,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.optionsDialog.accepted.connect(self.optionsAccepted)
 
 		self.fsFilterDialog=fsFilterDialog(self)
+		self.fsFilterDialog.ui.tableView.setColumnWidth(0,50)
+		self.fsFilterDialog.ui.tableView.setColumnWidth(1,75)
 		self.fsBuildTooltip()
 		
 		self.ui.addNonRadioClueButton.clicked.connect(self.addNonRadioClue)
@@ -1092,7 +1111,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# row structure: [fleet,dev,callsign,filtered,last_received]
 # 		rprint("fsLogUpdate called: fleet="+str(fleet)+" dev="+str(dev)+" callsign="+(callsign or "<None>"))
 		found=False
-		t=time.strftime("%H:%M:%S")
+		t=time.strftime("%a %H:%M:%S")
 		for row in self.fsLog:
 			if row[0]==fleet and row[1]==dev:
 				found=True
@@ -1833,6 +1852,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.helpWindow.ui.colorLabel5.setStyleSheet(statusStyleDict["TIMED_OUT_ORANGE"])
 			self.helpWindow.ui.colorLabel6.setStyleSheet(statusStyleDict["TIMED_OUT_RED"])
 			self.helpWindow.ui.colorLabel7.setStyleSheet(statusStyleDict[""])
+			self.helpWindow.ui.fsSomeFilteredLabel.setFont(self.helpFont2)
 		else:
 			self.blinkToggle=0
 			# now make sure the help window color code bars blink too
@@ -1840,6 +1860,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.helpWindow.ui.colorLabel5.setStyleSheet(statusStyleDict[""])
 			self.helpWindow.ui.colorLabel6.setStyleSheet(statusStyleDict[""])
 			self.helpWindow.ui.colorLabel7.setStyleSheet(statusStyleDict["STANDBY"])
+			self.helpWindow.ui.fsSomeFilteredLabel.setFont(self.helpFont1)
 
 		for extTeamName in teamTimersDict:
 			# if there is a newEntryWidget currently open for this team, don't blink,
@@ -1944,6 +1965,8 @@ class MyWindow(QDialog,Ui_Dialog):
 						self.restore()
 				elif event.key()==Qt.Key_F7:
 					self.ui.fsCheckBox.toggle()
+				elif event.key()==Qt.Key_F8:
+					self.fsFilterDialog.show()
 				elif event.key()==Qt.Key_Space or event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
 					self.openNewEntry('pop')
 				event.accept()
@@ -2720,8 +2743,8 @@ class helpWindow(QDialog,Ui_Help):
 		self.ui.setupUi(self)
 		self.setWindowFlags(Qt.WindowStaysOnTopHint)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
-##		self.setAttribute(Qt.WA_DeleteOnClose)
-
+		self.setFixedSize(self.size())
+		
 
 class optionsDialog(QDialog,Ui_optionsDialog):
 	def __init__(self, *args):
@@ -2736,6 +2759,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 ##		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.ui.datumField.setEnabled(False) # since convert menu is not working yet, TMG 4-8-15
 		self.ui.formatField.setEnabled(False) # since convert menu is not working yet, TMG 4-8-15
+		self.setFixedSize(self.size())
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
@@ -2759,6 +2783,7 @@ class printDialog(QDialog,Ui_printDialog):
 		self.ui.CancelButton.setStyleSheet("font-size:14pt;")
 		self.ui.opPeriodComboBox.addItem("1")
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		self.setFixedSize(self.size())
 
 	def showEvent(self,event):
 		rprint("show event called")
@@ -3692,6 +3717,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 ##		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' button pressed for '"+self.values[2]+"'; radio operator is gathering details"
 ##		self.values[2]='' # this message is not actually from a team
 		self.parent.parent.newEntry(self.values)
+		self.setFixedSize(self.size())
 
 	def pickXYI(self):
 		for index in range(len(clueDialog.indices)):
@@ -3832,6 +3858,7 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		self.values[3]="RADIO LOG SOFTWARE: 'ADD NON-RADIO CLUE' button pressed; radio operator is gathering details"
 		self.values[6]=time.time()
 		self.parent.newEntry(self.values)
+		self.setFixedSize(self.size())
 		
 	def accept(self):
 		self.parent.clueLogNeedsPrint=True
@@ -3964,6 +3991,7 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		self.values[3]="RADIO LOG SOFTWARE: 'SUBJECT LOCATED' button pressed; radio operator is gathering details"
 		self.parent.parent.newEntry(self.values)
 		subjectLocatedDialog.openDialogCount+=1
+		self.setFixedSize(self.size())
 
 	def accept(self):
 		location=self.ui.locationField.text()
@@ -4091,6 +4119,7 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 		self.ui.newOpPeriodField.setText(str(parent.opPeriod+1))
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		self.setFixedSize(self.size())
 
 	def accept(self):
 		if self.ui.printCheckBox.isChecked():
@@ -4127,7 +4156,6 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 #   - table cell in filter dialog - maybe show rows in groups - filtered first?  or sort by filtered?
  
 class fsFilterDialog(QDialog,Ui_fsFilterDialog):
-	openDialogCount=0
 	def __init__(self,parent):
 		QDialog.__init__(self)
 		self.ui=Ui_fsFilterDialog()
@@ -4138,7 +4166,8 @@ class fsFilterDialog(QDialog,Ui_fsFilterDialog):
 		self.ui.tableView.setModel(self.tableModel)
 		self.ui.tableView.setSelectionMode(QAbstractItemView.NoSelection)
 		self.ui.tableView.clicked.connect(self.tableClicked)
-		fsFilterDialog.openDialogCount+=1
+		self.ui.tableView.horizontalHeader().setSectionResizeMode(2,QHeaderView.Stretch)
+		self.setFixedSize(self.size())
 		
 	def tableClicked(self,index):
 		if index.column()==3:
@@ -4149,7 +4178,6 @@ class fsFilterDialog(QDialog,Ui_fsFilterDialog):
 			
 	def closeEvent(self,event):
 		rprint("closing fsFilterDialog")
-		fsFilterDialog.openDialogCount-=1
 				
 		
 class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
@@ -4173,6 +4201,7 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		self.ui.newCallsignField.setSelection(5,1)
 		self.ui.fsFilterButton.clicked.connect(self.fsFilterConfirm)
 		changeCallsignDialog.openDialogCount+=1
+		self.setFixedSize(self.size())
 
 	def fsFilterConfirm(self):
 		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Filter (ignore) future incoming messages\n  from this FleetSync device?",
@@ -4341,11 +4370,13 @@ class MyTableModel(QAbstractTableModel):
 
 
 class fsTableModel(QAbstractTableModel):
-	header_labels=['Fleet','ID','Callsign','Filtered','Last Received']
+	header_labels=['Fleet','Device','Callsign','Filtered?','Last Received']
 	def __init__(self, datain, parent=None, *args):
 		QAbstractTableModel.__init__(self, parent, *args)
 		self.arraydata=datain
-
+		self.filteredIcon=QIcon(QPixmap(":/radiolog_ui/fs_redcircleslash.png"))
+		self.unfilteredIcon=QIcon(QPixmap(":/radiolog_ui/fs_greencheckbox.png"))
+		
 	def headerData(self,section,orientation,role=Qt.DisplayRole):
 #		print("headerData:",section,",",orientation,",",role)
 		if role==Qt.DisplayRole and orientation==Qt.Horizontal:
@@ -4358,9 +4389,19 @@ class fsTableModel(QAbstractTableModel):
 	def columnCount(self, parent):
 		return len(self.header_labels)
 
+	# NOTE that it is generally not wise to tweak the display from within the model;
+	#  a delegate is the propoer place for that; however, since this model
+	#  only has one display, we can modify it here using the DisplayRole which
+	#  will not modify the behavior of functions that query the fsLog directly.
 	def data(self, index, role):
 		if not index.isValid():
 			return QVariant()
+		elif role == Qt.DecorationRole and index.column()==3:
+			if self.arraydata[index.row()][index.column()]==True:
+# 			return QColor(128,128,255)
+				return self.filteredIcon
+			else:
+				return self.unfilteredIcon
 		elif role != Qt.DisplayRole:
 			return QVariant()
 		try:
@@ -4372,6 +4413,11 @@ class fsTableModel(QAbstractTableModel):
 			rprint("arraydata:")
 			rprint(self.arraydata)
 		else:
+			if index.column()==3:
+				if rval==True:
+					rval="Filtered"
+				if rval==False:
+					rval="Unfiltered"
 			return rval
 		
 
