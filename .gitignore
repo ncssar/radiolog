@@ -16,3 +16,6 @@ radiolog_rc.txt
 radiolog_rc.txt
 .pydevproject
 *.project
+.settings/org.eclipse.core.resources.prefs
+radiolog_rc.txt
+radiolog_fleetsync.csv

@@ -82,6 +82,9 @@
               <bold>true</bold>
              </font>
             </property>
+            <property name="focusPolicy">
+             <enum>Qt::NoFocus</enum>
+            </property>
             <property name="layoutDirection">
              <enum>Qt::RightToLeft</enum>
             </property>
@@ -372,6 +375,9 @@ FORMAT</string>
      </item>
      <item>
       <widget class="QToolButton" name="fsFilterButton">
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
        <property name="text">
         <string>...</string>
        </property>

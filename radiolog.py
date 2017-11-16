@@ -97,6 +97,10 @@
 #                         like a line in the main dialog or such
 #   11-5-17    TMG       fix #32 (add fleetsync device filtering) - affects several
 #                         parts of the code and several files
+#   11-15-17   TMG       fix #354 (stolen focus / hold time failure); fix #355 (space bar error);
+#                         add focus rules and timeline documentation; change hold time
+#                         to 20 sec (based on observations during class); set focus
+#                         to the active stack item's message field on changeCallsignDialog close
 #
 # #############################################################################
 #
@@ -320,7 +324,7 @@ teamCreatedTimeDict={}
 versionDepth=5 # how many backup versions to keep; see rotateBackups
 
 continueSec=20
-holdSec=10
+holdSec=20
 
 # log com port messages?
 comLog=False
@@ -1076,7 +1080,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.fsFilteredCallDisplay("on",fleet,dev,callsign)
 				QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 			else:
-				self.openNewEntry(None,callsign,formattedLocString,fleet,dev,origLocString)
+				self.openNewEntry('fs',callsign,formattedLocString,fleet,dev,origLocString)
 		self.sendPendingGet()
 
 	def sendPendingGet(self,suffix=""):
@@ -2305,15 +2309,41 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.newEntryWindow.setWindowFlags(Qt.WindowTitleHint)
 		sec=time.time() # epoch seconds, for sorting purposes; not displayed
 		self.newEntryWidget=newEntryWidget(self,sec,formattedLocString,fleet,dev,origLocString,amendFlag,amendRow)
+		# focus rules and timeline:
+		#  openNewEntry
+		#    |-> newEntryWidget.__init__
+		#    |     |-> addTab
+		#    |           |-> focus to new messageField if existing holdSec has elapsed
+		#    |-> process 'key' to further change focus as needed
+		
+		# note, this timeline points out that changing focus in the 'key' handler
+		#  to a widget of the newEntryWidget only makes sense if addTab determined
+		#  that the newEntryWidget should be the active stack item; otherwise we would
+		#  just be setting focus to a field in one of the inactive/hidden stack items.
+		#  This was the cause of bug #354.
+
+		# - if spawned by fleetsync: let addTab determine focus
+		# - if spawned from the keyboard: we can assume the newEntryWidget will
+		#    be the active stack item, since you can't use the keyboard in the main
+		#    GUI if there is an existing message in the stack, so, it's safe
+		#    to set focus to a widget of the newEntryWidget here
+		# - if spawned from a mouse click (Add Entry button, or team tab context menu)
+		#    then the new entry should become the active entry ('cutting in line'),
+		#    so it is also safe to set focus to a widget of the newEntryWidget here
+		#     (future improvement: remember which stack item was active before this
+		#      'cutting in line', and go back to it after the new entry is closed,
+		#       if it still exists / has not been auto-cleaned)
+		
 		if key:
-			if key=='a':
+			if key=='fs': # spawned by fleetsync: let addTab determine focus
+				pass
+			elif key=='a':
 				self.newEntryWidget.ui.to_fromField.setCurrentIndex(1)
 				# all three of these lines are needed to override the default 'pseudo-selected'
 				# behavior; see http://stackoverflow.com/questions/27856032
 				self.newEntryWidget.ui.teamField.setFocus()
 				self.newEntryWidget.ui.teamField.setText("All Teams ")
 				self.newEntryWidget.ui.messageField.setFocus()
-##				self.newEntryWidget.ui.teamField.setSelection(9,1)
 			elif key=='t':
 				self.newEntryWidget.ui.to_fromField.setCurrentIndex(1)
 				# need to 'burp' the focus to prevent two blinking cursors
@@ -2340,10 +2370,11 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.newEntryWidget.ui.teamField.setFocus()
 				self.newEntryWidget.ui.teamField.setText("SAR  ")
 				self.newEntryWidget.ui.teamField.setSelection(4,1)
-			elif key=='tab':
+			elif key=='tab': # team tab context menu - activate right away
+				self.newEntryWindow.ui.tabWidget.setCurrentIndex(1)
 				self.newEntryWidget.ui.to_fromField.setCurrentIndex(0)
 				self.newEntryWidget.ui.messageField.setFocus()
-			else:
+			else: # some other keyboard key - assume it's the start of the team name
 				self.newEntryWidget.ui.to_fromField.setCurrentIndex(0)
 				# need to 'burp' the focus to prevent two blinking cursors
 				#  see http://stackoverflow.com/questions/42475602
@@ -2351,9 +2382,10 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.newEntryWidget.ui.teamField.setFocus()
 				self.newEntryWidget.ui.teamField.setText("Team "+key+" ")
 				self.newEntryWidget.ui.teamField.setSelection(6,1)
-		else: # no key pressed; opened from the 'add entry' GUI button
+		else: # no key pressed; opened from the 'add entry' GUI button; activate right away
 			# need to 'burp' the focus to prevent two blinking cursors
 			#  see http://stackoverflow.com/questions/42475602
+			self.newEntryWindow.ui.tabWidget.setCurrentIndex(1)
 			self.newEntryWidget.ui.messageField.setFocus()
 			self.newEntryWidget.ui.teamField.setFocus()
 
@@ -2364,12 +2396,10 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.newEntryWidget.ui.teamField.setFocus()
 				self.newEntryWidget.ui.teamField.selectAll()
 			if callsign[0:6]=="Radio " or callsign[0:3]=="KW-":
-##				self.newEntryWidget.openChangeCallsignDialog()
 				QTimer.singleShot(500,lambda:self.newEntryWidget.openChangeCallsignDialog())
-			# change this to only take focus if the new tab is active; otherwise, leave the focus alone
-##			else:
-##				self.newEntryWidget.ui.messageField.setFocus() # ready to type the message
-			self.newEntryWidget.ui.messageField.setFocus()
+				# note that changeCallsignDialog.accept is responsible for
+				#  setting focus back to the messageField of the active message
+				#  (not always the same as the new message)
 
 		if formattedLocString:
 			self.newEntryWidget.ui.radioLocField.setText(formattedLocString)
@@ -3197,8 +3227,9 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		rprint("changeCallsignDialog.openDialogCount="+str(changeCallsignDialog.openDialogCount))
 		rprint("subjectLocatedDialog.openDialogCount="+str(subjectLocatedDialog.openDialogCount))
 		rprint("showing")
-		self.parent.newEntryWindow.show()
-		self.parent.newEntryWindow.setFocus()
+		if not self.parent.newEntryWindow.isVisible():
+			self.parent.newEntryWindow.show()
+# 		self.parent.newEntryWindow.setFocus()
 		if clueDialog.openDialogCount==0 and subjectLocatedDialog.openDialogCount==0 and changeCallsignDialog.openDialogCount==0:
 			rprint("raising")
 			self.parent.newEntryWindow.raise_()
@@ -4237,7 +4268,9 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		# finally, pass the 'accept' signal on up the tree as usual
 		changeCallsignDialog.openDialogCount-=1
 		self.parent.parent.sendPendingGet(newCallsign)
-		self.parent.ui.messageField.setFocus()
+		# set the focus to the messageField of the active stack item - not always
+		#  the same as the new entry, as determined by addTab
+		self.parent.parent.newEntryWindow.ui.tabWidget.currentWidget().ui.messageField.setFocus()
 		super(changeCallsignDialog,self).accept()
 
 
