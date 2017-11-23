@@ -103,6 +103,8 @@
 #                         to the active stack item's message field on changeCallsignDialog close
 #   11-23-17   TMG       address #31 (css / font size issues) - not yet checked against
 #                         dispatch computer - only tested on home computer
+#   11-23-17   TMG       fix #356 (change callsign dialog should not pop up until
+#                         its new entry widget is active (i.e. the active stack item)
 #
 # #############################################################################
 #
@@ -873,8 +875,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			rprint("Fleetsync is now unmuted")
 			self.fsMuteBlink("off")
 			self.ui.incidentNameLabel.setText(self.incidentName)
-			self.ui.incidentNameLabel.setStyleSheet("background-color:none")
-	
+			self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black;font-size:"+str(self.limitedFontSize)+"pt;")
+			
 	# FleetSync - check for pending data
 	# - check for pending data at regular interval (from timer)
 	#     (it's important to check for ID-only lines, since handhelds with no
@@ -2422,7 +2424,13 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.newEntryWidget.ui.teamField.setFocus()
 				self.newEntryWidget.ui.teamField.selectAll()
 			if callsign[0:6]=="Radio " or callsign[0:3]=="KW-":
-				QTimer.singleShot(500,lambda:self.newEntryWidget.openChangeCallsignDialog())
+				rprint("setting needsChangeCallsign")
+				self.newEntryWidget.needsChangeCallsign=True
+				# if it's the only item on the stack, open the change callsign
+				#   dialog right now, since the normal event loop won't process
+				#   needsChangeCallsign until the tab changes
+				if self.newEntryWidget==self.newEntryWindow.ui.tabWidget.currentWidget():
+					QTimer.singleShot(500,lambda:self.newEntryWidget.openChangeCallsignDialog())
 				# note that changeCallsignDialog.accept is responsible for
 				#  setting focus back to the messageField of the active message
 				#  (not always the same as the new message)
@@ -2983,8 +2991,11 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 		rprint("tabCount="+str(tabCount)+" currentIndex="+str(currentIndex))
 		if tabCount>2: # skip all this if 'NEWEST' and 'OLDEST' are the only tabs remaining
 			if (tabCount-currentIndex)>1: # don't try to throb the 'OLDEST' label - it has no throb method
+				currentWidget=self.ui.tabWidget.widget(currentIndex)
+				if currentWidget.needsChangeCallsign:
+					QTimer.singleShot(500,lambda:currentWidget.openChangeCallsignDialog())
 				if throb:
-					self.ui.tabWidget.widget(currentIndex).throb()
+					currentWidget.throb()
 
 ##	def activeTabMessageFieldFocus(self):
 ##		currentIndex=self.ui.tabWidget.currentIndex()
@@ -3077,9 +3088,8 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 ##				self.parent.entryHold=True
 
 ##			self.ui.tabWidget.setStyleSheet("QTabWidget::tab {background-color:lightgray;}")
-		else:
+		else: # this should be fallback dead code since addTab is always called with a widget:
 			self.parent.openNewEntry()
-		self.tabChanged(throb=False)
 
 ##	def clearHold(self):
 ##		self.entryHold=False
@@ -3101,8 +3111,6 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 		# otherwise, activate the tab at the bottom of the stack, if there is one
 		elif i<count-3: # count-1 no longer exists; count-2="OLDEST"; count-3=bottom item of the stack
 			self.ui.tabWidget.setCurrentIndex(count-3)
-
-		self.tabChanged(throb=False)
 
 		if count<4: # lower the window if the stack is empty
 			rprint("lowering: count="+str(count))
@@ -3181,6 +3189,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.formattedLocString=formattedLocString
 		self.origLocString=origLocString
 		self.fleet=fleet
+		self.needsChangeCallsign=False # can be set to True by openNewEntry
 		self.dev=dev
 		self.parent=parent
 		if amendFlag:
@@ -3406,6 +3415,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		# problem: changeCallsignDialog does not stay on top of newEntryWindow!
 		# only open the dialog if the newEntryWidget was created from an incoming fleetSync ID
 		#  (it has no meaning for hotkey-opened newEntryWidgets)
+		self.needsChangeCallsign=False
 		rprint("FLEET:'"+str(self.fleet)+"'")
 		if self.fleet:
 			self.changeCallsignDialog=changeCallsignDialog(self,self.ui.teamField.text(),self.fleet,self.dev)
