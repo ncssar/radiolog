@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>552</width>
+    <width>595</width>
     <height>484</height>
    </rect>
   </property>
@@ -27,7 +27,7 @@
     <rect>
      <x>10</x>
      <y>10</y>
-     <width>531</width>
+     <width>576</width>
      <height>461</height>
     </rect>
    </property>
@@ -87,8 +87,11 @@
       <property name="font">
        <font>
         <family>Segoe UI</family>
-        <pointsize>9</pointsize>
+        <pointsize>12</pointsize>
        </font>
+      </property>
+      <property name="midLineWidth">
+       <number>0</number>
       </property>
       <property name="alternatingRowColors">
        <bool>true</bool>

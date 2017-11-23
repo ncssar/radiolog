@@ -101,6 +101,8 @@
 #                         add focus rules and timeline documentation; change hold time
 #                         to 20 sec (based on observations during class); set focus
 #                         to the active stack item's message field on changeCallsignDialog close
+#   11-23-17   TMG       address #31 (css / font size issues) - not yet checked against
+#                         dispatch computer - only tested on home computer
 #
 # #############################################################################
 #
@@ -612,6 +614,9 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		self.newEntryDialogList=[]
 		self.blinkToggle=0
 		self.fontSize=10
+		# font size is constrained to min and max for several items
+		self.minLimitedFontSize=8
+		self.maxLimitedFontSize=20
 		self.timeoutRedSec=1800 # 30 minutes
 		self.timeoutOrangeSec=1500 # 25 minutes
 		self.datum="WGS84" # NCSSAR officially changed from NAD27 to WGS84 7-1-15
@@ -792,11 +797,11 @@ class MyWindow(QDialog,Ui_Dialog):
 	def fsMuteBlink(self,state):
 		if state=="on":
 			self.ui.incidentNameLabel.setText("FleetSync is Muted")
-			self.ui.incidentNameLabel.setStyleSheet("background-color:#ff5050;color:white")
+			self.ui.incidentNameLabel.setStyleSheet("background-color:#ff5050;color:white;font-size:"+str(self.limitedFontSize)+"pt;")
 			self.ui.fsCheckBox.setStyleSheet("border:3px outset red")
 		else:
 			self.ui.incidentNameLabel.setText(self.incidentName)
-			self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black")
+			self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black;font-size:"+str(self.limitedFontSize)+"pt;")
 			self.ui.fsCheckBox.setStyleSheet("border:3px inset lightgray")
 	
 	def fsFilterBlink(self,state):
@@ -851,10 +856,10 @@ class MyWindow(QDialog,Ui_Dialog):
 	def fsFilteredCallDisplay(self,state="off",fleet=0,dev=0,callsign=''):
 		if state=="on":
 			self.ui.incidentNameLabel.setText("Incoming FS call filtered/ignored:\n"+callsign+"   ("+str(fleet)+":"+str(dev)+")")
-			self.ui.incidentNameLabel.setStyleSheet("background-color:#ff5050;color:white;font-size:"+str(self.fontSize*5/8)+"pt")
+			self.ui.incidentNameLabel.setStyleSheet("background-color:#ff5050;color:white;font-size:"+str(self.limitedFontSize/2)+"pt")
 		else:
 			self.ui.incidentNameLabel.setText(self.incidentName)
-			self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black;font-size:"+str(self.fontSize)+"pt")
+			self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black;font-size:"+str(self.limitedFontSize)+"pt")
 				
 	def fsCheckBoxCB(self):
 		self.fsMuted=not self.ui.fsCheckBox.isChecked()
@@ -1767,6 +1772,11 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def fontsChanged(self):
 		rprint("1 - begin fontsChanged")
+		self.limitedFontSize=self.fontSize
+		if self.limitedFontSize>self.maxLimitedFontSize:
+			self.limitedFontSize=self.maxLimitedFontSize
+		if self.limitedFontSize<self.minLimitedFontSize:
+			self.limitedFontSize=self.minLimitedFontSize
 		# preserve the currently selected tab, since something in this function
 		#  causes the rightmost tab to be selected
 		i=self.ui.tabWidget.currentIndex()
@@ -1780,11 +1790,27 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint("2")
 		self.redrawTables()
 		self.ui.tabWidget.setCurrentIndex(i)
+		self.ui.incidentNameLabel.setStyleSheet("font-size:"+str(self.limitedFontSize)+"pt;")
+
+		# NOTE that setStyleSheet is DESTRUCTIVE, not INCREMENTAL.  To set a new style
+		#  without affecting previous style settings for the same identifier, you
+		#  need to use getStyleSheet()+"....".  To avoid confusion, do as many settings
+		#  as possible in one text block as below.
+		
+		# hardcode dialog button box pushbutton font size to 14pt since QTDesiger-generated code doesn't work
+		self.parent.setStyleSheet("""
+			QMessageBox,QDialogButtonBox QPushButton {
+				font-size:14pt;
+			}
+			QToolTip {
+				font-size:"""+str(self.fontSize*2/3)+"""pt;
+				color:#555;
+			}
+			QMenu {
+				font-size:"""+str(self.limitedFontSize*3/4)+"""pt;
+			}
+		""")
 		rprint("3 - end of fontsChanged")
-		# changin QLabel size application-wide is too impactful; investigate later
-		self.ui.incidentNameLabel.setStyleSheet("font-size:"+str(self.fontSize)+"pt;")
-		self.parent.setStyleSheet("QMessageBox,QPushButton,QMenu { font-size:"+str(self.fontSize)+"pt; }")
-		self.parent.setStyleSheet("QToolTip { font-size:"+str(self.fontSize*2/3)+"pt; color:#222; }")
 
 	def redrawTables(self):
 		# column sizing rules, in sequence:
@@ -2781,7 +2807,6 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_optionsDialog()
 		self.ui.setupUi(self)
-		self.ui.buttonBox.setStyleSheet("font-size:16pt;")
 		self.ui.timeoutField.valueChanged.connect(self.displayTimeout)
 		self.displayTimeout()
 		self.setWindowFlags(Qt.WindowStaysOnTopHint)
@@ -2809,8 +2834,6 @@ class printDialog(QDialog,Ui_printDialog):
 		self.parent=parent
 		self.ui=Ui_printDialog()
 		self.ui.setupUi(self)
-		self.ui.OKButton.setStyleSheet("font-size:14pt;")
-		self.ui.CancelButton.setStyleSheet("font-size:14pt;")
 		self.ui.opPeriodComboBox.addItem("1")
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setFixedSize(self.size())
@@ -2820,11 +2843,11 @@ class printDialog(QDialog,Ui_printDialog):
 		rprint("teamNameList:"+str(self.parent.teamNameList))
 		rprint("allTeamsList:"+str(self.parent.allTeamsList))
 		if self.parent.exitClicked:
-			self.ui.OKButton.setText("Print")
-			self.ui.CancelButton.setText("Exit without printing")
+			self.ui.buttonBox.button(QDialogButtonBox.Ok).setText("Print")
+			self.ui.buttonBox.button(QDialogButtonBox.Cancel).setText("Exit without printing")
 		else:
-			self.ui.OKButton.setText("OK")
-			self.ui.CancelButton.setText("Cancel")
+			self.ui.buttonBox.button(QDialogButtonBox.Ok).setText("Ok")
+			self.ui.buttonBox.button(QDialogButtonBox.Cancel).setText("Cancel")
 		if len(self.parent.clueLog)>0:
 			self.ui.clueLogField.setChecked(True)
 			self.ui.clueLogField.setEnabled(True)
@@ -3173,8 +3196,6 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		if not fleet:
 			self.ui.label_2.setText("")
 
-		self.setStyleSheet("QPushButton { font-size:9pt; }")
-		self.ui.buttonBox.setStyleSheet("font-size:12pt;")
 		self.setAttribute(Qt.WA_DeleteOnClose) # so that closeEvent gets called when closed by GUI
 		self.palette=QPalette()
 		self.setAutoFillBackground(True)
@@ -3715,8 +3736,6 @@ class clueDialog(QDialog,Ui_clueDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_clueDialog()
 		self.ui.setupUi(self)
-		self.setStyleSheet("QPushButton { font-size:9pt; }")
-		self.ui.buttonBox.setStyleSheet("font-size:12pt;")
 		self.ui.timeField.setText(t)
 		self.ui.dateField.setText(time.strftime("%x"))
 		self.ui.callsignField.setText(callsign)
@@ -3874,7 +3893,6 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_nonRadioClueDialog()
 		self.ui.setupUi(self)
-		self.ui.buttonBox.setStyleSheet("font-size:16pt;")
 		self.ui.timeField.setText(t)
 		self.ui.dateField.setText(time.strftime("%x"))
 		self.ui.clueNumberField.setText(str(newClueNumber))
@@ -3953,7 +3971,6 @@ class clueLogDialog(QDialog,Ui_clueLogDialog):
 		self.ui.setupUi(self)
 		self.parent=parent
 		self.tableModel = clueTableModel(parent.clueLog, self)
-		self.ui.tableView.setStyleSheet("font-size:"+str(parent.fontSize)+"pt")
 		self.ui.tableView.setModel(self.tableModel)
 
 		self.ui.tableView.verticalHeader().setVisible(True)
@@ -3974,6 +3991,7 @@ class clueLogDialog(QDialog,Ui_clueLogDialog):
 	def showEvent(self,event):
 		self.ui.tableView.resizeRowsToContents()
 		self.ui.tableView.scrollToBottom()
+		self.ui.tableView.setStyleSheet("font-size:"+str(self.parent.limitedFontSize)+"pt")
 
 	def resizeEvent(self,event):
 		self.ui.tableView.resizeRowsToContents()
@@ -4199,6 +4217,7 @@ class fsFilterDialog(QDialog,Ui_fsFilterDialog):
 		self.ui.tableView.clicked.connect(self.tableClicked)
 		self.ui.tableView.horizontalHeader().setSectionResizeMode(2,QHeaderView.Stretch)
 		self.setFixedSize(self.size())
+		self.ui.tableView.setStyleSheet("font-size:12pt")
 		
 	def tableClicked(self,index):
 		if index.column()==3:

@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'printDialog.ui'
 #
-# Created by: PyQt5 UI code generator 5.7
+# Created by: PyQt5 UI code generator 5.8.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -22,20 +22,14 @@ class Ui_printDialog(object):
         self.horizontalLayout_2.setObjectName("horizontalLayout_2")
         spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout_2.addItem(spacerItem)
-        self.OKButton = QtWidgets.QPushButton(self.layoutWidget)
+        self.buttonBox = QtWidgets.QDialogButtonBox(self.layoutWidget)
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
-        font.setPointSize(12)
-        self.OKButton.setFont(font)
-        self.OKButton.setObjectName("OKButton")
-        self.horizontalLayout_2.addWidget(self.OKButton)
-        self.CancelButton = QtWidgets.QPushButton(self.layoutWidget)
-        font = QtGui.QFont()
-        font.setFamily("Segoe UI")
-        font.setPointSize(12)
-        self.CancelButton.setFont(font)
-        self.CancelButton.setObjectName("CancelButton")
-        self.horizontalLayout_2.addWidget(self.CancelButton)
+        font.setPointSize(14)
+        self.buttonBox.setFont(font)
+        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
+        self.buttonBox.setObjectName("buttonBox")
+        self.horizontalLayout_2.addWidget(self.buttonBox)
         self.gridLayout_2.addLayout(self.horizontalLayout_2, 4, 0, 1, 1)
         self.gridLayout = QtWidgets.QGridLayout()
         self.gridLayout.setObjectName("gridLayout")
@@ -115,15 +109,13 @@ class Ui_printDialog(object):
         self.gridLayout_2.addLayout(self.horizontalLayout, 3, 0, 1, 1)
 
         self.retranslateUi(printDialog)
-        self.OKButton.released.connect(printDialog.accept)
-        self.CancelButton.released.connect(printDialog.reject)
+        self.buttonBox.accepted.connect(printDialog.accept)
+        self.buttonBox.rejected.connect(printDialog.reject)
         QtCore.QMetaObject.connectSlotsByName(printDialog)
 
     def retranslateUi(self, printDialog):
         _translate = QtCore.QCoreApplication.translate
         printDialog.setWindowTitle(_translate("printDialog", "Print"))
-        self.OKButton.setText(_translate("printDialog", "OK"))
-        self.CancelButton.setText(_translate("printDialog", "Cancel"))
         self.radioLogField.setText(_translate("printDialog", "Radio Log"))
         self.clueLogField.setText(_translate("printDialog", "Clue Log"))
         self.teamRadioLogsField.setText(_translate("printDialog", "Team Radio Logs"))
