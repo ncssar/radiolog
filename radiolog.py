@@ -798,7 +798,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def fsMuteBlink(self,state):
 		if state=="on":
-			self.ui.incidentNameLabel.setText("FleetSync is Muted")
+			self.ui.incidentNameLabel.setText("FleetSync Muted")
 			self.ui.incidentNameLabel.setStyleSheet("background-color:#ff5050;color:white;font-size:"+str(self.limitedFontSize)+"pt;")
 			self.ui.fsCheckBox.setStyleSheet("border:3px outset red")
 		else:
