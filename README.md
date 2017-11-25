@@ -5,6 +5,11 @@ We've put together the 28-minute screencast video above, covering the key featur
 Click any of the quick links in the 'Key Features' section below to start watching at that section, or at that section's demo.
 
 ---
+[![radiolog fleetsync_screen shot](/doc/radiolog_fleetsync_screenshot.png)](https://youtu.be/Q786OtFgZDc)
+
+November 2017: here's a new 8-minute screencast video on the FleetSync features of Radiolog, including FleetSync muting and selective device filtering.
+
+---
 Nevada County Sheriff's Search and Rescue (ncssar-nc.org) has been using this radio log tool on every callout since early 2015.
 
 This open-source project is mainly intended for use by other Search and Rescue teams.  While it's not currently (Nov. 10 2016) in an easily installable state, one of our biggest issues will be to make a clean installer.  Until then, please contact the author if your team is interested in using this software.
