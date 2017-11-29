@@ -544,6 +544,9 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		os.chdir(self.cwd)
 ##		rprint("t3")
 
+		self.configFileName="radiolog.cfg"
+		
+		# set some config defaults, in case the config file isn't found
 		self.printLogoFileName="radiolog_logo.jpg"
 		self.fillableClueReportPdfFileName="clueReportFillable.pdf"
 		self.GISInternalsSDKRoot="C:\\GISInternals" # avoid spaces in the path - demons be here
@@ -784,6 +787,48 @@ class MyWindow(QDialog,Ui_Dialog):
 		QTimer.singleShot(1000,self.startupOptions)
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
+
+	def readConfigFile(self):
+		configFile=QFile(self.configFileName)
+		if not configFile.open(QFile.ReadOnly|QFile.Text):
+			warn=QMessageBox(QMessageBox.Warning,"Error","Cannot read configuration file " + self.configFileName + "; using default settings. "+configFile.errorString(),
+							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			warn.show()
+			warn.raise_()
+			warn.exec_()
+			return
+		inStr=QTextStream(configFile)
+		line=inStr.readLine()
+		if line!="[RadioLog]":
+			warn=QMessageBox(QMessageBox.Warning,"Error","Specified resource file " + self.configFileName + " is not a valid resource file; using default settings.",
+							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			warn.show()
+			warn.raise_()
+			warn.exec_()
+			configFile.close()
+			return
+		while not inStr.atEnd():
+			line=inStr.readLine()
+			tokens=line.split("=")
+			if tokens[0]=="agencyName":
+				self.agencyName=tokens[1]
+			elif tokens[0]=="datum":
+				self.datum=tokens[1]
+			elif tokens[0]=="coordFormat":
+				self.coordFormat=tokens[1]
+			elif tokens[0]=="timeoutMinutes":
+				self.timeoutSeconds=int(tokens[1])*60
+			elif tokens[0]=="logo":
+				self.logoFileName=tokens[1]
+			elif tokens[0]=="clueReport":
+				self.clueReportFileName=tokens[1]
+			elif tokens[0]=="gisInternalsDir":
+				self.gisInternalsDir=tokens[1]
+			elif tokens[0]=="firstWorkingDir":
+				self.firstWorkingDir=tokens[1]
+			elif tokens[0]=="secondWorkingDir":
+				self.secondWorkingDir=tokens[1]
+		configFile.close()
 
 	def setColumnResizedFlag(self):
 		self.columnResizedFlag=True
