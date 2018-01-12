@@ -270,6 +270,7 @@ import win32print
 import win32con
 import shutil
 import math
+import textwrap
 from reportlab.lib import colors,utils
 from reportlab.lib.pagesizes import letter,landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
@@ -527,10 +528,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsFilterBlinkState=False
 		self.getString=""
 
-		self.firstWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents"
-		if self.firstWorkingDir[1]!=":":
-			self.firstWorkingDir=os.getenv('HOMEDRIVE','C:')+self.firstWorkingDir
-		self.secondWorkingDir='Z:' # COMMON drive on the NCSSAR network
 ##		self.secondWorkingDir="C:\\Users\\Tom\\Documents\\sar"
 
 ##		# attempt to change to the second working dir and back again, to 'wake up'
@@ -545,11 +542,7 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		rprint("t3")
 
 		self.configFileName="radiolog.cfg"
-		
-		# set some config defaults, in case the config file isn't found
-		self.printLogoFileName="radiolog_logo.jpg"
-		self.fillableClueReportPdfFileName="clueReportFillable.pdf"
-		self.GISInternalsSDKRoot="C:\\GISInternals" # avoid spaces in the path - demons be here
+		self.readConfigFile() # defaults are set inside readConfigFile
 
 		self.helpFont1=QFont()
 		self.helpFont1.setFamily("Segoe UI")
@@ -602,10 +595,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.fsFilterButton.clicked.connect(self.fsFilterDialog.show)
 		self.ui.printButton.clicked.connect(self.printDialog.show)
 ##		self.ui.printButton.clicked.connect(self.testConvertCoords)
-
-		self.sarsoftServerName="ncssar"
-		if develMode:
-			self.sarsoftServerName="localhost" # DEVEL
 
 		self.ui.tabList=["dummy"]
 		self.ui.tabGridLayoutList=["dummy"]
@@ -789,6 +778,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.saveRcFile()
 
 	def readConfigFile(self):
+		# specify defaults here
+		self.fillableClueReportPdfFileName="clueReportFillable.pdf"
+		self.GISInternalsSDKRoot="C:\\GISInternals" # avoid spaces in the path - demons be here
+		self.agencyName=""
+		self.datum="WGS84"
+		self.coordFormat="UTM"
+		self.timeoutSeconds=1800 # 30 minutes
+		self.printLogoFileName="radiolog_logo.jpg"
+		self.firstWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents"
+		self.secondWorkingDir='Z:' # COMMON drive on the NCSSAR network
+		self.sarsoftServerName="localhost"
+		
 		configFile=QFile(self.configFileName)
 		if not configFile.open(QFile.ReadOnly|QFile.Text):
 			warn=QMessageBox(QMessageBox.Warning,"Error","Cannot read configuration file " + self.configFileName + "; using default settings. "+configFile.errorString(),
@@ -819,16 +820,33 @@ class MyWindow(QDialog,Ui_Dialog):
 			elif tokens[0]=="timeoutMinutes":
 				self.timeoutSeconds=int(tokens[1])*60
 			elif tokens[0]=="logo":
-				self.logoFileName=tokens[1]
+				self.printLogoFileName=tokens[1]
 			elif tokens[0]=="clueReport":
-				self.clueReportFileName=tokens[1]
+				self.fillableClueReportPdfFileName=tokens[1]
 			elif tokens[0]=="gisInternalsDir":
-				self.gisInternalsDir=tokens[1]
+				self.GISInternalsSDKRoot=tokens[1]
 			elif tokens[0]=="firstWorkingDir":
 				self.firstWorkingDir=tokens[1]
 			elif tokens[0]=="secondWorkingDir":
 				self.secondWorkingDir=tokens[1]
+			elif tokens[0]=="server":
+				self.sarsoftServerName=tokens[1]
 		configFile.close()
+		
+		# post-read processing and validation of each item
+		
+		# if agencyName contains newline character(s), use it as-is for print;
+		#  if not, textwrap with max line length that looks best on pdf reports
+		self.agencyNameForPrint=self.agencyName
+		if not "\n" in self.agencyName:
+			self.agencyNameForPrint="\n".join(textwrap.wrap(self.agencyName.upper(),width=len(self.agencyName)/2+6))
+		
+		if self.firstWorkingDir[1]!=":":
+			self.firstWorkingDir=os.getenv('HOMEDRIVE','C:')+self.firstWorkingDir
+
+		if develMode:
+			self.sarsoftServerName="localhost" # DEVEL
+		
 
 	def setColumnResizedFlag(self):
 		self.columnResizedFlag=True
@@ -1489,7 +1507,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			imgAspect=imgH/float(imgW)
 			self.img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
 			headerTable=[
-					[self.img,"NEVADA COUNTY SHERIFF'S\nSEARCH AND RESCUE","Incident: "+self.incidentName,formNameText+" - Page "+str(canvas.getPageNumber())],
+					[self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,formNameText+" - Page "+str(canvas.getPageNumber())],
 					["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
 			t=Table(headerTable,colWidths=[x*inch for x in [0.8,4.2,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
@@ -1508,7 +1526,7 @@ class MyWindow(QDialog,Ui_Dialog):
 										  ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
 		else:
 			headerTable=[
-					[self.img,"NEVADA COUNTY SHERIFF'S\nSEARCH AND RESCUE","Incident: "+self.incidentName,formNameText+" - Page "+str(canvas.getPageNumber())],
+					[self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,formNameText+" - Page "+str(canvas.getPageNumber())],
 					["","","Operational Period: ","Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
 			t=Table(headerTable,colWidths=[x*inch for x in [0.0,5,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
@@ -1632,7 +1650,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			imgAspect=imgH/float(imgW)
 			self.img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
 			headerTable=[
-					[self.img,"NEVADA COUNTY SHERIFF'S\nSEARCH AND RESCUE","Incident: "+self.incidentName,"Clue Log - Page "+str(canvas.getPageNumber())],
+					[self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,"Clue Log - Page "+str(canvas.getPageNumber())],
 					["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
 			t=Table(headerTable,colWidths=[x*inch for x in [0.8,4.2,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
@@ -1650,7 +1668,7 @@ class MyWindow(QDialog,Ui_Dialog):
 										  ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
 		else:
 			headerTable=[
-					[self.img,"NEVADA COUNTY SHERIFF'S\nSEARCH AND RESCUE","Incident: "+self.incidentName,"Clue Log - Page "+str(canvas.getPageNumber())],
+					[self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,"Clue Log - Page "+str(canvas.getPageNumber())],
 					["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
 			t=Table(headerTable,colWidths=[x*inch for x in [0.0,5,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
