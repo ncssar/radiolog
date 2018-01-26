@@ -12,7 +12,7 @@ Click any of the quick links in the 'Key Features' section below to start watchi
 November 2017: here's a new 8-minute screencast video on the FleetSync features of Radiolog, including FleetSync muting and selective device filtering.
 
 ---
-[![radiolog non_fleetsync_screen shot](/doc/radiolog_non_fs_video.png)](https://youtu.be/J_sFsYn4sbY)
+[![radiolog non_fleetsync_screen shot](/doc/radiolog_non_fs_video2.png)](https://youtu.be/J_sFsYn4sbY)
 
 January 2018: here's a new 4-minute summary screencast video on using Radiolog without Fleetsync.
 
