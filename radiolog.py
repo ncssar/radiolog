@@ -489,7 +489,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.loadFlag=False # set this to true during load, to prevent save on each newEntry
 		self.totalEntryCount=0 # rotate backups after every 5 entries; see newEntryWidget.accept
 		
-		self.homeDir=os.getenv('HOMEPATH','C:\\Users\\Default')
+		self.homeDir=os.path.expanduser("~")
 		
 		# fix #342 (focus-follows-mouse causes freezes) - disable FFM here;
 		#  restore to initial setting on shutdown (note this would leave it
@@ -792,7 +792,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.timeoutOrangeSec=1500 # 25 minutes
 		self.printLogoFileName="radiolog_logo.jpg"
 		self.firstWorkingDir=self.homeDir+"\\Documents"
-		self.secondWorkingDir='Z:' # COMMON drive on the NCSSAR network
+		self.secondWorkingDir=None
 		self.sarsoftServerName="localhost"
 		
 		configFile=QFile(self.configFileName)
@@ -866,9 +866,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.datum="WGS84"
 			self.optionsDialog.ui.formatField.setEnabled(False)
 			self.coordFormatAscii="D.d"
-						
-		if self.firstWorkingDir[1]!=":":
-			self.firstWorkingDir=os.getenv('HOMEDRIVE','C:')+self.firstWorkingDir
+		
+		# process any ~ characters
+		self.firstWorkingDir=os.path.expanduser(self.firstWorkingDir)
+		if self.secondWorkingDir:				
+			self.secondWorkingDir=os.path.expanduser(self.secondWorkingDir)				
 
 		if not os.path.isdir(self.firstWorkingDir):
 			configErr="FATAL ERROR: first working directory '"+self.firstWorkingDir+"' does not exist.  ABORTING."
@@ -877,7 +879,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.configErrMsgBox.exec_()
 			sys.exit(-1)
 			
-		if not os.path.isdir(self.secondWorkingDir):
+		if self.secondWorkingDir and not os.path.isdir(self.secondWorkingDir):
 			configErr+="ERROR: second working directory '"+self.secondWorkingDir+"' does not exist.  Maybe it is not mounted yet; radiolog will try to write to it after every entry.\n\n"
 		
 		self.coordFormat=self.csDisplayDict[self.coordFormatAscii]
@@ -1714,7 +1716,7 @@ class MyWindow(QDialog,Ui_Dialog):
 # 		self.logMsgBox.setInformativeText("Finalizing and Printing...")
 		win32api.ShellExecute(0,"print",pdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
 		self.radioLogNeedsPrint=False
-		if os.path.isdir(self.secondWorkingDir):
+		if self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
 			rprint("copying radio log pdf"+msgAdder+" to "+self.secondWorkingDir)
 			shutil.copy(pdfName,self.secondWorkingDir)
 
@@ -1821,7 +1823,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			doc.build(elements,onFirstPage=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod),onLaterPages=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod))
 # 			self.clueLogMsgBox.setInformativeText("Finalizing and Printing...")
 			win32api.ShellExecute(0,"print",clueLogPdfFileName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
-			if os.path.isdir(self.secondWorkingDir):
+			if self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
 				rprint("copying clue log pdf to "+self.secondWorkingDir)
 				shutil.copy(clueLogPdfFileName,self.secondWorkingDir)
 # 		else:
@@ -1908,7 +1910,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		os.system(pdftk_cmd)
 
 		win32api.ShellExecute(0,"print",cluePdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
-		if os.path.isdir(self.secondWorkingDir):
+		if self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
 			rprint("copying clue report pdf to "+self.secondWorkingDir)
 # 			shutil.copy(clueFdfName,self.secondWorkingDir)
 			shutil.copy(cluePdfName,self.secondWorkingDir)
@@ -2286,7 +2288,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def save(self,finalize=False):
 		csvFileNameList=[self.firstWorkingDir+"\\"+self.csvFileName]
-		if os.path.isdir(self.secondWorkingDir):
+		if self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
 			csvFileNameList.append(self.secondWorkingDir+"\\"+self.csvFileName)
 		for fileName in csvFileNameList:
 			with open(fileName,'w',newline='') as csvFile:
@@ -3631,9 +3633,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				rotateCsvBackups(self.parent.firstWorkingDir+"\\"+self.parent.csvFileName)
 				rotateCsvBackups(self.parent.firstWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"))
 				rotateCsvBackups(self.parent.firstWorkingDir+"\\"+self.parent.fsFileName)
-				rotateCsvBackups(self.parent.secondWorkingDir+"\\"+self.parent.csvFileName)
-				rotateCsvBackups(self.parent.secondWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"))
-				rotateCsvBackups(self.parent.secondWorkingDir+"\\"+self.parent.fsFileName)
+				if self.parent.secondWorkingDir and os.path.isdir(self.parent.secondWorkingDir):
+					rotateCsvBackups(self.parent.secondWorkingDir+"\\"+self.parent.csvFileName)
+					rotateCsvBackups(self.parent.secondWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"))
+					rotateCsvBackups(self.parent.secondWorkingDir+"\\"+self.parent.fsFileName)
 	
 			rprint("Accepted2")
 		
