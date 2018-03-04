@@ -2,8 +2,7 @@
 
 # Form implementation generated from reading ui file 'options.ui'
 #
-# Created: Wed Feb  4 21:54:28 2015
-#      by: PyQt5 UI code generator 5.4
+# Created by: PyQt5 UI code generator 5.8.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -65,6 +64,7 @@ class Ui_optionsDialog(object):
         self.formatField.addItem("")
         self.formatField.addItem("")
         self.formatField.addItem("")
+        self.formatField.addItem("")
         self.gridLayout.addWidget(self.formatField, 2, 1, 1, 1)
         self.label_4 = QtWidgets.QLabel(optionsDialog)
         font = QtGui.QFont()
@@ -119,10 +119,11 @@ class Ui_optionsDialog(object):
         self.datumField.setItemText(0, _translate("optionsDialog", "NAD27 CONUS"))
         self.datumField.setItemText(1, _translate("optionsDialog", "WGS84"))
         self.timeoutLabel.setText(_translate("optionsDialog", "Timeout"))
-        self.formatField.setItemText(0, _translate("optionsDialog", "UTM"))
-        self.formatField.setItemText(1, _translate("optionsDialog", "D.d°"))
-        self.formatField.setItemText(2, _translate("optionsDialog", "D° M.m\'"))
-        self.formatField.setItemText(3, _translate("optionsDialog", "D° M\' S.s\""))
+        self.formatField.setItemText(0, _translate("optionsDialog", "UTM 5x5"))
+        self.formatField.setItemText(1, _translate("optionsDialog", "UTM 7x7"))
+        self.formatField.setItemText(2, _translate("optionsDialog", "D.d°"))
+        self.formatField.setItemText(3, _translate("optionsDialog", "D° M.m\'"))
+        self.formatField.setItemText(4, _translate("optionsDialog", "D° M\' S.s\""))
         self.label_4.setText(_translate("optionsDialog", "Coordinate Format"))
         self.incidentField.setText(_translate("optionsDialog", "New Incident"))
         self.label_3.setText(_translate("optionsDialog", "Datum"))

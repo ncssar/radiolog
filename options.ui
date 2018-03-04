@@ -112,7 +112,12 @@
      </property>
      <item>
       <property name="text">
-       <string>UTM</string>
+       <string>UTM 5x5</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>UTM 7x7</string>
       </property>
      </item>
      <item>
