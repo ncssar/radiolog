@@ -276,7 +276,7 @@ from reportlab.lib.pagesizes import letter,landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.units import inch
-# from fdfgen import forge_fdf
+from fdfgen import forge_fdf
 from FingerTabs import *
 
 # process command-line arguments
@@ -477,7 +477,7 @@ def rotateCsvBackups(fileName):
 	
 def normName(name):
 	return re.sub("[^A-Za-z0-9_]+","_",name)
-       
+  
 class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
@@ -745,7 +745,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tabWidget.customContextMenuRequested.connect(self.tabContextMenu)
 
 		self.newEntryWindow=newEntryWindow(self) # create the window but don't show it until needed
-		
+
 		# load resource file; process default values and resource file values
 		self.rcFileName="radiolog_rc.txt"
 		self.previousCleanShutdown=self.loadRcFile()
@@ -1210,7 +1210,7 @@ class MyWindow(QDialog,Ui_Dialog):
 ##				widget.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 				found=True
 ##				if origLocString!='' and origLocString!='NO FIX':  # don't overwrite location if earlier transmission had a good lock
-				prevLocString=widget.ui.radioLocField.text()
+				prevLocString=widget.ui.radioLocField.toPlainText()
 				# if previous location string was blank, always overwrite;
 				#  if previous location string was not blank, only overwrite if new location is valid
 				if prevLocString=='' or (formattedLocString!='' and formattedLocString!='NO FIX'):
@@ -1882,8 +1882,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		instructionsOtherText=instructions
 
 # 		locText=clueData[6]
-# 		if clueData[8]!="":
+		if clueData[8]!="":
 # 			locText=locText+"\n(Radio GPS = "+clueData[8]+")"
+			radioLocText="(Radio GPS: "+re.sub(r"\n","  x  ",clueData[8])+")"
+		else:
+			radioLocText=""
 		fields=[('titleField',self.agencyNameForPrint),
 				('incidentNameField',self.incidentName),
             	('dateField',time.strftime("%x")),
@@ -1892,7 +1895,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				('dateTimeField',clueData[4]+"   "+clueData[3]),
 				('teamField',clueData[2]),
 				('descriptionField',clueData[1]),
-				('locationRadioGPSField',clueData[8]),
+				('locationRadioGPSField',radioLocText),
 				('locationField',clueData[6]),
 				('instructionsCollectField',instructionsCollect),
 				('instructionsDisregardField',instructionsDisregard),
@@ -1903,7 +1906,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		fdf_file=open(clueFdfName,"wb")
 		fdf_file.write(fdf)
 		fdf_file.close()
- 
+
 		pdftk_cmd='pdftk "'+self.fillableClueReportPdfFileName+'" fill_form "'+clueFdfName+'" output "'+cluePdfName+'" flatten'
 		rprint("Calling pdftk with the following command:")
 		rprint(pdftk_cmd)
@@ -1912,7 +1915,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		win32api.ShellExecute(0,"print",cluePdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
 		if self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
 			rprint("copying clue report pdf to "+self.secondWorkingDir)
-# 			shutil.copy(clueFdfName,self.secondWorkingDir)
+			shutil.copy(clueFdfName,self.secondWorkingDir)
 			shutil.copy(cluePdfName,self.secondWorkingDir)
 
 
@@ -3537,11 +3540,11 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 	def quickTextClueAction(self): # do not push clues on the quick text stack, to make sure they can't be undone
 		rprint(str(self.clueDialogOpen))
 		if not self.clueDialogOpen: # only allow one open clue diolog at a time per radio log entry; see init and clueDialog init and closeEvent
-			self.newClueDialog=clueDialog(self,self.ui.timeField.text(),self.ui.teamField.text(),self.ui.radioLocField.text(),lastClueNumber+1)
+			self.newClueDialog=clueDialog(self,self.ui.timeField.text(),self.ui.teamField.text(),self.ui.radioLocField.toPlainText(),lastClueNumber+1)
 			self.newClueDialog.show()
 
 	def quickTextSubjectLocatedAction(self):
-		self.subjectLocatedDialog=subjectLocatedDialog(self,self.ui.timeField.text(),self.ui.teamField.text(),self.ui.radioLocField.text())
+		self.subjectLocatedDialog=subjectLocatedDialog(self,self.ui.timeField.text(),self.ui.teamField.text(),self.ui.radioLocField.toPlainText())
 		self.subjectLocatedDialog.show()
 
 	# if Enter or Return is pressed while in the teamField, jump to messageField
@@ -3959,7 +3962,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		team=self.ui.callsignField.text()
 		clueDate=self.ui.dateField.text()
 		clueTime=self.ui.timeField.text()
-		radioLoc=self.ui.radioLocField.text()
+		radioLoc=self.ui.radioLocField.toPlainText()
 
 		# validation: description, location, instructions fields must all be non-blank
 		vText=""
@@ -4208,7 +4211,7 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		team=self.ui.callsignField.text()
 		subjDate=self.ui.dateField.text()
 		subjTime=self.ui.timeField.text()
-		radioLoc=self.ui.radioLocField.text()
+		radioLoc=self.ui.radioLocField.toPlainText()
 
 		# validation: description, location, instructions fields must all be non-blank
 		vText=""
