@@ -276,7 +276,7 @@ from reportlab.lib.pagesizes import letter,landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.units import inch
-from fdfgen import forge_fdf
+# from fdfgen import forge_fdf
 from FingerTabs import *
 
 # process command-line arguments
@@ -477,7 +477,7 @@ def rotateCsvBackups(fileName):
 	
 def normName(name):
 	return re.sub("[^A-Za-z0-9_]+","_",name)
-
+       
 class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
@@ -488,6 +488,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.loadFlag=False # set this to true during load, to prevent save on each newEntry
 		self.totalEntryCount=0 # rotate backups after every 5 entries; see newEntryWidget.accept
+		
+		self.homeDir=os.getenv('HOMEPATH','C:\\Users\\Default')
 		
 		# fix #342 (focus-follows-mouse causes freezes) - disable FFM here;
 		#  restore to initial setting on shutdown (note this would leave it
@@ -520,15 +522,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsFileName="radiolog_fleetsync.csv" # this is the default; modified filename is based on csvfilename at modify-time
 ##		self.fsFileName=self.getFileNameBase(self.incidentNameNormalized)+"_fleetsync.csv"
 
-		self.fsValidFleetList=[100]
+		# disable fsValidFleetList checking to allow arbitrary fleets; this
+		#  idea is probably obsolete
+# 		self.fsValidFleetList=[100]
 		self.fsLog=[]
 # 		self.fsLog.append(['','','','',''])
 		self.fsMuted=False
 		self.fsMutedBlink=False
 		self.fsFilterBlinkState=False
 		self.getString=""
-
-##		self.secondWorkingDir="C:\\Users\\Tom\\Documents\\sar"
 
 ##		# attempt to change to the second working dir and back again, to 'wake up'
 ##		#  any mount points, to hopefully avoid problems of second working dir
@@ -541,6 +543,21 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		os.chdir(self.cwd)
 ##		rprint("t3")
 
+		self.optionsDialog=optionsDialog(self)
+		self.optionsDialog.accepted.connect(self.optionsAccepted)
+		
+		self.validDatumList=["WGS84","NAD27","NAD27 CONUS"]
+		
+		# coordinate system name translation dictionary:
+		#  key = ASCII name in the config file
+		#  value = utf-8 name used in the rest of this code
+		self.csDisplayDict={}
+		self.csDisplayDict["UTM 5x5"]="UTM 5x5"
+		self.csDisplayDict["UTM 7x7"]="UTM 7x7"
+		self.csDisplayDict["D.d"]="D.d°"
+		self.csDisplayDict["DM.m"]="D° M.m'"
+		self.csDisplayDict["DMS.s"]="D° M' S.s\""
+		
 		self.configFileName="radiolog.cfg"
 		self.readConfigFile() # defaults are set inside readConfigFile
 
@@ -580,9 +597,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.radioLogNeedsPrint=False # set to True with each new log entry; set to False when printed
 		self.clueLogNeedsPrint=False
 
-		self.optionsDialog=optionsDialog()
-		self.optionsDialog.accepted.connect(self.optionsAccepted)
-
 		self.fsFilterDialog=fsFilterDialog(self)
 		self.fsFilterDialog.ui.tableView.setColumnWidth(0,50)
 		self.fsFilterDialog.ui.tableView.setColumnWidth(1,75)
@@ -611,10 +625,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		# font size is constrained to min and max for several items
 		self.minLimitedFontSize=8
 		self.maxLimitedFontSize=20
-		self.timeoutRedSec=1800 # 30 minutes
-		self.timeoutOrangeSec=1500 # 25 minutes
-		self.datum="WGS84" # NCSSAR officially changed from NAD27 to WGS84 7-1-15
-		self.coordFormat="UTM"
 		self.x=100
 		self.y=100
 		self.w=600
@@ -709,7 +719,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		# automatically expand the 'message' column width to fill available space
 		self.ui.tableView.horizontalHeader().setSectionResizeMode(3,QHeaderView.Stretch)
 
-		self.ui.datumFormatLabel.setText(self.datum+"\n"+self.coordFormat)
 		self.updateClock()
 
 		self.fsLoadLookup(startupFlag=True)
@@ -728,11 +737,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.logTimer.timeout.connect(writeLogBuffer)
 		self.logTimer.start(5000)
 
-		self.optionsDialog.ui.datumField.setCurrentIndex(self.optionsDialog.ui.datumField.findText(self.datum))
-		self.optionsDialog.ui.formatField.setCurrentIndex(self.optionsDialog.ui.formatField.findText(self.coordFormat))
-		self.timeoutDisplaySecList=[i[1] for i in timeoutDisplayList]
-		self.optionsDialog.ui.timeoutField.setValue(self.timeoutDisplaySecList.index(int(self.timeoutRedSec)))
-
 		self.ui.tabWidget.insertTab(0,QWidget(),'TEAMS:')
 ##		self.ui.tabWidget.setStyleSheet("font-size:12px")
 		self.ui.tabWidget.setTabEnabled(0,False)
@@ -741,7 +745,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tabWidget.customContextMenuRequested.connect(self.tabContextMenu)
 
 		self.newEntryWindow=newEntryWindow(self) # create the window but don't show it until needed
-
+		
 		# load resource file; process default values and resource file values
 		self.rcFileName="radiolog_rc.txt"
 		self.previousCleanShutdown=self.loadRcFile()
@@ -781,16 +785,17 @@ class MyWindow(QDialog,Ui_Dialog):
 		# specify defaults here
 		self.fillableClueReportPdfFileName="clueReportFillable.pdf"
 		self.GISInternalsSDKRoot="C:\\GISInternals" # avoid spaces in the path - demons be here
-		self.agencyName=""
+		self.agencyName="Search and Rescue"
 		self.datum="WGS84"
-		self.coordFormat="UTM"
-		self.timeoutSeconds=1800 # 30 minutes
+		self.coordFormatAscii="UTM 5x5"
+		self.timeoutRedSec=1800 # 30 minutes
+		self.timeoutOrangeSec=1500 # 25 minutes
 		self.printLogoFileName="radiolog_logo.jpg"
-		self.firstWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents"
+		self.firstWorkingDir=self.homeDir+"\\Documents"
 		self.secondWorkingDir='Z:' # COMMON drive on the NCSSAR network
 		self.sarsoftServerName="localhost"
 		
-		configFile=QFile(self.configFileName)
+		configFile=QFile("./local/"+self.configFileName)
 		if not configFile.open(QFile.ReadOnly|QFile.Text):
 			warn=QMessageBox(QMessageBox.Warning,"Error","Cannot read configuration file " + self.configFileName + "; using default settings. "+configFile.errorString(),
 							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
@@ -816,9 +821,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			elif tokens[0]=="datum":
 				self.datum=tokens[1]
 			elif tokens[0]=="coordFormat":
-				self.coordFormat=tokens[1]
+				self.coordFormatAscii=tokens[1]
 			elif tokens[0]=="timeoutMinutes":
-				self.timeoutSeconds=int(tokens[1])*60
+				self.timeoutRedSec=int(tokens[1])*60
 			elif tokens[0]=="logo":
 				self.printLogoFileName=tokens[1]
 			elif tokens[0]=="clueReport":
@@ -833,16 +838,74 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.sarsoftServerName=tokens[1]
 		configFile.close()
 		
-		# post-read processing and validation of each item
+		# validation and post-processing of each item
+		configErr=""
+		self.printLogoFileName="./local/"+self.printLogoFileName
+		
+		if self.datum not in self.validDatumList:
+			configErr+="ERROR: invalid datum '"+self.datum+"' specified in config file "+self.configFileName+"\n"
+			configErr+="  Valid choices are: "+str(self.validDatumList)+"\n"
+			configErr+="  Will use "+str(self.validDatumList[0])+" for this session.\n\n"
+			self.datum=self.validDatumList[0]
+		# if specified datum is just NAD27, assume NAD27 CONUS
+		if self.datum=="NAD27":
+			self.datum="NAD27 CONUS"
+
+		if self.coordFormatAscii not in self.csDisplayDict:
+			configErr+="ERROR: coordinate format '"+self.coordFormatAscii+"' specified in config file "+self.configFileName+" is not supported.\n"
+			configErr+="  Supported coordinate format names are: "+str(list(self.csDisplayDict.keys()))+"\n"
+			configErr+="  Will use "+list(self.csDisplayDict.keys())[0]+" for this session.\n\n"
+			self.coordFormatAscii=list(self.csDisplayDict.keys())[0]
+
+		bat=self.GISInternalsSDKRoot+"\\SDKShell.bat"
+		if not os.path.isfile(bat):
+			configErr+="ERROR: invald gisInternalsDir '"+self.GISInternalsSDKRoot+"' specified in config file "+self.configFileName+"\n"
+			configErr+="  Expected file "+bat+" does not exist.\n"
+			configErr+="  Coordinate conversions will be disabled for this session, and all radio coordinates will be displayed as decimal degrees.\n\n"
+			self.GISInternalsSDKRoot=None
+			self.optionsDialog.ui.formatField.setEnabled(False)
+			self.coordFormatAscii="D.d"
+						
+		if self.firstWorkingDir[1]!=":":
+			self.firstWorkingDir=os.getenv('HOMEDRIVE','C:')+self.firstWorkingDir
+
+		if not os.path.isdir(self.firstWorkingDir):
+			configErr="FATAL ERROR: first working directory '"+self.firstWorkingDir+"' does not exist.  ABORTING."
+			self.configErrMsgBox=QMessageBox(QMessageBox.Critical,"Fatal Configuration Error",configErr,
+ 							QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			self.configErrMsgBox.exec_()
+			sys.exit(-1)
+			
+		if not os.path.isdir(self.secondWorkingDir):
+			configErr+="ERROR: second working directory '"+self.secondWorkingDir+"' does not exist.  Maybe it is not mounted yet; radiolog will try to write to it after every entry.\n\n"
+
+		self.timeoutRedSec=max(self.timeoutRedSec,5) # disallow negative or very small timeout values
+		
+		self.coordFormat=self.csDisplayDict[self.coordFormatAscii]
+		self.ui.datumFormatLabel.setText(self.datum+"\n"+self.coordFormat)
+		self.optionsDialog.ui.datumField.setCurrentIndex(self.optionsDialog.ui.datumField.findText(self.datum))
+		self.optionsDialog.ui.formatField.setCurrentIndex(self.optionsDialog.ui.formatField.findText(self.coordFormat))
+		self.timeoutDisplaySecList=[i[1] for i in timeoutDisplayList]
+		self.optionsDialog.ui.timeoutField.setValue(self.timeoutDisplaySecList.index(int(self.timeoutRedSec)))
+		self.optionsAccepted() # at the very least, this sets timeoutOrangeSec
 		
 		# if agencyName contains newline character(s), use it as-is for print;
 		#  if not, textwrap with max line length that looks best on pdf reports
 		self.agencyNameForPrint=self.agencyName
 		if not "\n" in self.agencyName:
 			self.agencyNameForPrint="\n".join(textwrap.wrap(self.agencyName.upper(),width=len(self.agencyName)/2+6))
+
+		if not os.path.isfile(self.fillableClueReportPdfFileName):
+			configErr+="ERROR: specified fillable clue report pdf file '"+self.fillableClueReportPdfFileName+"' does not exist.  Clue report forms will NOT be generated for this session.\n\n"
+			self.fillableClueReportPdfFileName=None
 		
-		if self.firstWorkingDir[1]!=":":
-			self.firstWorkingDir=os.getenv('HOMEDRIVE','C:')+self.firstWorkingDir
+		if not os.path.isfile(self.printLogoFileName):
+			configErr+="ERROR: specified logo file '"+self.printLogoFileName+"' does not exist.  No logo will be included on generated reports.\n\n"
+			
+		if configErr:
+			self.configErrMsgBox=QMessageBox(QMessageBox.Warning,"Non-fatal Configuration Error(s)",configErr,
+ 							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			self.configErrMsgBox.exec_()
 
 		if develMode:
 			self.sarsoftServerName="localhost" # DEVEL
@@ -1218,10 +1281,12 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def fsIsFiltered(self,fleet,dev):
 # 		rprint("checking fsFilter: fleet="+str(fleet)+" dev="+str(dev))
+		# disable fsValidFleetList checking to allow arbitrary fleets; this
+		#  idea is probably obsolete
 		# invalid fleets are always filtered, to prevent fleet-glitches (110-xxxx) from opening new entries
-		if int(fleet) not in self.fsValidFleetList:
+# 		if int(fleet) not in self.fsValidFleetList:
 # 			rprint("true1")
-			return True
+# 			return True
 		# if the fleet is valid, check for filtered device ID
 		for row in self.fsLog:
 			if row[0]==fleet and row[1]==dev and row[3]==True:
@@ -1429,14 +1494,14 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		# if target datum is WGS84 and target format is anything other than UTM, just do the math,
 		# it's quicker than calling cs2cs; otherwise, call cs2cs
-		if targetDatum!="WGS84" or targetFormat=="UTM":
+		if self.GISInternalsSDKRoot and (targetDatum!="WGS84" or re.match("UTM",targetFormat)):
 			sdkShellBat=self.GISInternalsSDKRoot+"\\SDKShell.bat setenv" # must do 'setenv' as argument, otherwise command will terminate; see SDKShell.bat
 			cs2csExe=self.GISInternalsSDKRoot+"\\bin\\proj\\apps\\cs2cs.exe"
 
-			if targetDatum=="WGS84" and targetFormat=="UTM":
+			if targetDatum=="WGS84" and re.match("UTM",targetFormat):
 				targetProj4="+init=EPSG:326{0:02d}".format(targetUTMZone) # EPSG:32610 = WGS84 UTM zone 10N, 32611 = zone 11, etc
 			elif targetDatum=="NAD27 CONUS":
-				if targetFormat=="UTM":
+				if re.match("UTM",targetFormat):
 					targetProj4="+init=EPSG:267{0:02d}".format(targetUTMZone) # EPSG:26710 = NAD27 UTM zone 10N, 26711 = zone 11, etc
 				else:
 					targetProj4="+proj=latlong +init=EPSG:4267"
@@ -1454,7 +1519,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				rprint("LINE:"+line)
 				if line!='' and line[1].isdigit(): # check the second character, in case the first is '-' (negative degrees)
 					rprint("Found it:"+line)
-					if targetFormat=="UTM":
+					if re.match("UTM",targetFormat):
 						[easting,northing,junk]=line.split()
 						easting=str(int(float(easting))).zfill(7)
 						northing=str(int(float(northing))).zfill(7)
@@ -1472,8 +1537,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			lonLetter="E"
 		lon=int(lonDd)
-		lonMin=float((lonDd-float(lonDeg))*60.0)
-		lonSec=float((lonMin-int(lonMin))*60.0)
+		lonMin=float((abs(lonDd)-float(abs(lonDeg
+										)))*60.0)
+		lonSec=float((abs(lonMin)-int(abs(lonMin)))*60.0)
+		rprint("lonDd="+str(lonDd))
+		rprint("lonDeg="+str(lonDeg))
 
 		# return the requested format
 		# desired accuracy / digits of precision:
@@ -1485,12 +1553,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		if targetFormat=="D.dList":
 			return [latDd,lonDd]
 		if targetFormat=="D.d°":
-			return "{:.5f}°N, {:.5f}°{}".format(latDd,lonDd,lonLetter)
+			return "{:.6f}° N\n{:.6f}° {}".format(latDd,lonDd,lonLetter)
 		if targetFormat=="D° M.m'":
-			return "{}° {:.3f}'N, {}° {:.3f}'{}".format(latDeg,latMin,lonDeg,lonMin,lonLetter)
+			return "{}° {:.4f}' N\n{}° {:.4f}' {}".format(latDeg,latMin,abs(lonDeg),lonMin,lonLetter)
 		if targetFormat=="D° M' S.s\"":
-			return "{}° {}' {:.1f}\"N, {}° {}' {:.1f}\"{}".format(latDeg,int(latMin),latSec,lonDeg,int(lonMin),lonSec,lonLetter)
-		if targetFormat=="UTM":
+			return "{}° {}' {:.2f}\" N\n{}° {}' {:.2f}\" {}".format(latDeg,int(latMin),latSec,abs(lonDeg),int(lonMin),lonSec,lonLetter)
+		if targetFormat=="UTM 7x7":
+			return "{} {}\n{} {}".format(easting[0:2],easting[2:],northing[0:2],northing[2:])
+		if targetFormat=="UTM 5x5":
 			return "{}  {}".format(easting[2:],northing[2:])
 		return "INVALID - UNKNOWN OUTPUT FORMAT REQUESTED"
 
@@ -1502,6 +1572,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		styles = getSampleStyleSheet()
 		self.img=None
 		if os.path.isfile(self.printLogoFileName):
+			rprint("valid logo file "+self.printLogoFileName)
 			imgReader=utils.ImageReader(self.printLogoFileName)
 			imgW,imgH=imgReader.getSize()
 			imgAspect=imgH/float(imgW)
@@ -1753,6 +1824,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.clueLogNeedsPrint=False
 
 	def printClueReport(self,clueData):
+		if not self.fillableClueReportPdfFileName:
+			warn=QMessageBox(QMessageBox.Warning,"Clue Report PDF Unavailable","Reminder: no Clue Report form will be printed, since the fillable clue report PDF does not exist.\n\nThe clue report text is stored as part of the radio message text.\n\nThis warning will automatically close in a few seconds.",
+ 							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			warn.show()
+			warn.raise_()
+			QTimer.singleShot(8000,warn.close)
+			warn.exec_()
+			return
+		
 ##		header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
 		# do not use ui object here, since this could be called later, when the clueDialog is not open
 		cluePdfName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clue"+str(clueData[0]).zfill(2)+".pdf")
@@ -1789,27 +1869,29 @@ class MyWindow(QDialog,Ui_Dialog):
 			instructionsOther=True
 		instructionsOtherText=instructions
 
-		locText=clueData[6]
-		if clueData[8]!="":
-			locText=locText+"\n(Radio GPS = "+clueData[8]+")"
-		fields=[('incidentNameField',self.incidentName),
-              ('dateField',time.strftime("%x")),
-              ('operationalPeriodField',clueData[5]),
-				  ('clueNumberField',clueData[0]),
-				  ('dateTimeField',clueData[4]+"   "+clueData[3]),
-				  ('teamField',clueData[2]),
-				  ('descriptionField',clueData[1]),
-				  ('locationField',locText),
-				  ('instructionsCollectField',instructionsCollect),
-				  ('instructionsDisregardField',instructionsDisregard),
-				  ('instructionsMarkAndLeaveField',instructionsMarkAndLeave),
-				  ('instructionsOtherField',instructionsOther),
-				  ('instructionsOtherTextField',instructionsOtherText)]
+# 		locText=clueData[6]
+# 		if clueData[8]!="":
+# 			locText=locText+"\n(Radio GPS = "+clueData[8]+")"
+		fields=[('titleField',self.agencyNameForPrint),
+				('incidentNameField',self.incidentName),
+            	('dateField',time.strftime("%x")),
+             	('operationalPeriodField',clueData[5]),
+				('clueNumberField',clueData[0]),
+				('dateTimeField',clueData[4]+"   "+clueData[3]),
+				('teamField',clueData[2]),
+				('descriptionField',clueData[1]),
+				('locationRadioGPSField',clueData[8]),
+				('locationField',clueData[6]),
+				('instructionsCollectField',instructionsCollect),
+				('instructionsDisregardField',instructionsDisregard),
+				('instructionsMarkAndLeaveField',instructionsMarkAndLeave),
+				('instructionsOtherField',instructionsOther),
+				('instructionsOtherTextField',instructionsOtherText)]
 		fdf=forge_fdf("",fields,[],[],[])
 		fdf_file=open(clueFdfName,"wb")
 		fdf_file.write(fdf)
 		fdf_file.close()
-
+ 
 		pdftk_cmd='pdftk "'+self.fillableClueReportPdfFileName+'" fill_form "'+clueFdfName+'" output "'+cluePdfName+'" flatten'
 		rprint("Calling pdftk with the following command:")
 		rprint(pdftk_cmd)
@@ -1818,8 +1900,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		win32api.ShellExecute(0,"print",cluePdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
 		if os.path.isdir(self.secondWorkingDir):
 			rprint("copying clue report pdf to "+self.secondWorkingDir)
-			shutil.copy(clueFdfName,self.secondWorkingDir)
+# 			shutil.copy(clueFdfName,self.secondWorkingDir)
 			shutil.copy(cluePdfName,self.secondWorkingDir)
+
 
 
 	def startupOptions(self):
@@ -2124,13 +2207,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			return
 		out=QTextStream(rcFile)
 		out << "[RadioLog]\n"
-		# do not save timeout,datum,coord format in the resource file - keep them at the hardcoded defaults
-		# future improvement: read defaults from radiolog_defaults.txt (necessary for different teams)
+		# datum, coord format, and timeout are saved in the config file
 		# issue 322: use self.lastSavedFileName instead of self.csvFileName to
 		#  make sure the initial rc file doesn't point to a file that does not yet exist
-#		out << "timeout-seconds=" << self.timeoutRedSec << "\n"
-#		out << "datum=" << self.datum << "\n"
-#		out << "coordinate-format=" << self.coordFormat << "\n"
 		out << "lastFileName=" << self.lastSavedFileName << "\n"
 		out << "font-size=" << self.fontSize << "pt\n"
 		out << "x=" << x << "\n"
@@ -2191,15 +2270,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.lastFileName=tokens[1]
 			elif tokens[0]=="cleanShutdown" and tokens[1]=="True":
 				cleanShutdownFlag=True
-
-		# do not save timeout,datum,coord format in the resource file - keep them at the hardcoded defaults
-		# future improvement: read defaults from radiolog_defaults.txt (necessary for different teams)
-#			elif tokens[0]=="timeout-seconds":
-#				self.timeoutRedSec=tokens[1]
-#			elif tokens[0]=="datum":
-#				self.datum=tokens[1]
-#			elif tokens[0]=="coordinate-format":
-#				self.coordFormat=tokens[1]
+			# datum, coord format, and timeout are saved in the config file
 		rcFile.close()
 		return cleanShutdownFlag
 
@@ -2874,8 +2945,9 @@ class helpWindow(QDialog,Ui_Help):
 		
 
 class optionsDialog(QDialog,Ui_optionsDialog):
-	def __init__(self, *args):
+	def __init__(self,parent):
 		QDialog.__init__(self)
+		self.parent=parent
 		self.ui=Ui_optionsDialog()
 		self.ui.setupUi(self)
 		self.ui.timeoutField.valueChanged.connect(self.displayTimeout)
@@ -2937,12 +3009,12 @@ class printDialog(QDialog,Ui_printDialog):
 			self.parent.printTeamLogs(opPeriod)
 		if self.ui.clueLogField.isChecked():
 			rprint("PRINT clue log")
-			rprint("  printDialog.accept.clueLog.trace1")
+# 			rprint("  printDialog.accept.clueLog.trace1")
 			self.parent.printClueLog(opPeriod)
-			rprint("  printDialog.accept.clueLog.trace2")
-		rprint("  printDialog.accept.end.trace1")
+# 			rprint("  printDialog.accept.clueLog.trace2")
+# 		rprint("  printDialog.accept.end.trace1")
 		super(printDialog,self).accept()
-		rprint("  printDialog.accept.end.trace2")
+# 		rprint("  printDialog.accept.end.trace2")
 
 # newEntryWindow is the window that has a QTabWidget;
 #  each tab's widget (except the first and last which are just labels) is a newEntryWidget
@@ -4330,7 +4402,7 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Filter (ignore) future incoming messages\n  from this FleetSync device?",
 			QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 		if really.exec_()==QMessageBox.No:
-			event.ignore()
+			self.close()
 			return
 		self.parent.parent.fsFilterEdit(self.fleet,self.device,True)
 		self.close()
