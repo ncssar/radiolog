@@ -558,7 +558,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.csDisplayDict["DM.m"]="D° M.m'"
 		self.csDisplayDict["DMS.s"]="D° M' S.s\""
 		
-		self.configFileName="radiolog.cfg"
+		self.configFileName="./local/radiolog.cfg"
 		self.readConfigFile() # defaults are set inside readConfigFile
 
 		self.helpFont1=QFont()
@@ -795,7 +795,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.secondWorkingDir='Z:' # COMMON drive on the NCSSAR network
 		self.sarsoftServerName="localhost"
 		
-		configFile=QFile("./local/"+self.configFileName)
+		configFile=QFile(self.configFileName)
 		if not configFile.open(QFile.ReadOnly|QFile.Text):
 			warn=QMessageBox(QMessageBox.Warning,"Error","Cannot read configuration file " + self.configFileName + "; using default settings. "+configFile.errorString(),
 							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
@@ -823,7 +823,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			elif tokens[0]=="coordFormat":
 				self.coordFormatAscii=tokens[1]
 			elif tokens[0]=="timeoutMinutes":
-				self.timeoutRedSec=int(tokens[1])*60
+				self.timeoutMinutes=tokens[1]
 			elif tokens[0]=="logo":
 				self.printLogoFileName=tokens[1]
 			elif tokens[0]=="clueReport":
@@ -843,7 +843,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.printLogoFileName="./local/"+self.printLogoFileName
 		
 		if self.datum not in self.validDatumList:
-			configErr+="ERROR: invalid datum '"+self.datum+"' specified in config file "+self.configFileName+"\n"
+			configErr+="ERROR: invalid datum '"+self.datum+"'\n"
 			configErr+="  Valid choices are: "+str(self.validDatumList)+"\n"
 			configErr+="  Will use "+str(self.validDatumList[0])+" for this session.\n\n"
 			self.datum=self.validDatumList[0]
@@ -852,17 +852,18 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.datum="NAD27 CONUS"
 
 		if self.coordFormatAscii not in self.csDisplayDict:
-			configErr+="ERROR: coordinate format '"+self.coordFormatAscii+"' specified in config file "+self.configFileName+" is not supported.\n"
+			configErr+="ERROR: coordinate format '"+self.coordFormatAscii+"'\n"
 			configErr+="  Supported coordinate format names are: "+str(list(self.csDisplayDict.keys()))+"\n"
 			configErr+="  Will use "+list(self.csDisplayDict.keys())[0]+" for this session.\n\n"
 			self.coordFormatAscii=list(self.csDisplayDict.keys())[0]
 
 		bat=self.GISInternalsSDKRoot+"\\SDKShell.bat"
 		if not os.path.isfile(bat):
-			configErr+="ERROR: invald gisInternalsDir '"+self.GISInternalsSDKRoot+"' specified in config file "+self.configFileName+"\n"
+			configErr+="ERROR: invald gisInternalsDir '"+self.GISInternalsSDKRoot+"'\n"
 			configErr+="  Expected file "+bat+" does not exist.\n"
-			configErr+="  Coordinate conversions will be disabled for this session, and all radio coordinates will be displayed as decimal degrees.\n\n"
+			configErr+="  Coordinate conversions will be disabled for this session, and all radio coordinates will be displayed as WGS84 decimal degrees.\n\n"
 			self.GISInternalsSDKRoot=None
+			self.datum="WGS84"
 			self.optionsDialog.ui.formatField.setEnabled(False)
 			self.coordFormatAscii="D.d"
 						
@@ -878,14 +879,23 @@ class MyWindow(QDialog,Ui_Dialog):
 			
 		if not os.path.isdir(self.secondWorkingDir):
 			configErr+="ERROR: second working directory '"+self.secondWorkingDir+"' does not exist.  Maybe it is not mounted yet; radiolog will try to write to it after every entry.\n\n"
-
-		self.timeoutRedSec=max(self.timeoutRedSec,5) # disallow negative or very small timeout values
 		
 		self.coordFormat=self.csDisplayDict[self.coordFormatAscii]
 		self.ui.datumFormatLabel.setText(self.datum+"\n"+self.coordFormat)
 		self.optionsDialog.ui.datumField.setCurrentIndex(self.optionsDialog.ui.datumField.findText(self.datum))
 		self.optionsDialog.ui.formatField.setCurrentIndex(self.optionsDialog.ui.formatField.findText(self.coordFormat))
+	
 		self.timeoutDisplaySecList=[i[1] for i in timeoutDisplayList]
+		self.timeoutDisplayMinList=[int(i/60) for i in self.timeoutDisplaySecList if i>=60]
+		if not self.timeoutMinutes.isdigit():
+			configErr+="ERROR: timeout minutes value must be an integer.  Will use 30 minutes for this session.\n\n"
+			self.timeoutMinutes=30
+		self.timeoutRedSec=int(self.timeoutMinutes)*60	
+		if not self.timeoutRedSec in self.timeoutDisplaySecList:
+			configErr+="ERROR: invalid timeout period ("+str(self.timeoutMinutes)+" minutes)\n"
+			configErr+="  Valid choices:"+str(self.timeoutDisplayMinList)+"\nWill use 30 minutes for this session.\n\n"
+			self.timeoutRedSec=1800
+			
 		self.optionsDialog.ui.timeoutField.setValue(self.timeoutDisplaySecList.index(int(self.timeoutRedSec)))
 		self.optionsAccepted() # at the very least, this sets timeoutOrangeSec
 		
@@ -903,7 +913,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			configErr+="ERROR: specified logo file '"+self.printLogoFileName+"' does not exist.  No logo will be included on generated reports.\n\n"
 			
 		if configErr:
-			self.configErrMsgBox=QMessageBox(QMessageBox.Warning,"Non-fatal Configuration Error(s)",configErr,
+			self.configErrMsgBox=QMessageBox(QMessageBox.Warning,"Non-fatal Configuration Error(s)","Error(s) encountered in config file "+self.configFileName+":\n\n"+configErr,
  							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			self.configErrMsgBox.exec_()
 
