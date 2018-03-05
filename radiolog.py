@@ -788,8 +788,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.agencyName="Search and Rescue"
 		self.datum="WGS84"
 		self.coordFormatAscii="UTM 5x5"
-		self.timeoutRedSec=1800 # 30 minutes
-		self.timeoutOrangeSec=1500 # 25 minutes
+		self.timeoutMinutes="30"
 		self.printLogoFileName="radiolog_logo.jpg"
 		self.firstWorkingDir=self.homeDir+"\\Documents"
 		self.secondWorkingDir=None
