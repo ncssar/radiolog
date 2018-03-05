@@ -519,7 +519,6 @@ class MyWindow(QDialog,Ui_Dialog):
 # 		self.pdfFileName=getFileNameBase(self.incidentNameNormalized)+".pdf"
 		self.updateFileNames()
 		self.lastSavedFileName="NONE"
-		self.fsFileName="radiolog_fleetsync.csv" # this is the default; modified filename is based on csvfilename at modify-time
 ##		self.fsFileName=self.getFileNameBase(self.incidentNameNormalized)+"_fleetsync.csv"
 
 		# disable fsValidFleetList checking to allow arbitrary fleets; this
@@ -560,7 +559,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		
 		self.configFileName="./local/radiolog.cfg"
 		self.readConfigFile() # defaults are set inside readConfigFile
-
+		
+		# set the default lookup name - this must be after readConfigFile
+		#  since that function accepts the options form which updates the
+		#  lookup filename based on the current incedent name and time
+		self.fsFileName="radiolog_fleetsync.csv"
+		
 		self.helpFont1=QFont()
 		self.helpFont1.setFamily("Segoe UI")
 		self.helpFont1.setPointSize(9)
@@ -1307,6 +1311,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		return False
 
 	def fsLoadLookup(self,startupFlag=False,fsFileName=None,hideWarnings=False):
+		rprint("fsLoadLookup called: startupFlag="+str(startupFlag)+"  fsFileName="+str(fsFileName)+"  hideWarnings="+str(hideWarnings))
 		if not startupFlag and not fsFileName: # don't ask for confirmation on startup or on restore
 			really=QMessageBox(QMessageBox.Warning,'Please Confirm','Are you sure you want to reload the default FleetSync lookup table?  This will overwrite any callsign changes you have made.',
 				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
@@ -1321,6 +1326,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		if not fsFileName:
 			fsFileName=self.fsFileName
 		try:
+			rprint("  trying "+fsFileName)
 			with open(fsFileName,'r') as fsFile:
 				rprint("Loading FleetSync Lookup Table from file "+fsFileName)
 				self.fsLookup=[]
