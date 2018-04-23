@@ -2177,7 +2177,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# if radioLogNeedsPrint or clueLogNeedsPrint is True, bring up the print dialog
 		if self.radioLogNeedsPrint or self.clueLogNeedsPrint:
 			rprint("needs print!")
-			self.printDialog.exec()
+			self.printDialog.exec_()
 		else:
 			rprint("no print needed")
 		# note, this type of messagebox is needed to show above all other dialogs for this application,
@@ -3574,7 +3574,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		rprint("FLEET:'"+str(self.fleet)+"'")
 		if self.fleet:
 			self.changeCallsignDialog=changeCallsignDialog(self,self.ui.teamField.text(),self.fleet,self.dev)
-			self.changeCallsignDialog.exec() # required to make it stay on top
+			self.changeCallsignDialog.exec_() # required to make it stay on top
 
 	def callsignLostFocus(self):
 		# if the callsign is only numbers, prepend 'Team ' to avoid the zero-left-padding problem
@@ -4338,7 +4338,7 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 
 	def accept(self):
 		if self.ui.printCheckBox.isChecked():
-			self.parent.printDialog.exec() # instead of show(), to pause execution until the print dialog is closed
+			self.parent.printDialog.exec_() # instead of show(), to pause execution until the print dialog is closed
 
 		if self.ui.deleteTabsCheckBox.isChecked():
 			for extTeamName in teamStatusDict:
