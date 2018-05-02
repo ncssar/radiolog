@@ -105,6 +105,7 @@
 #                         dispatch computer - only tested on home computer
 #   11-23-17   TMG       fix #356 (change callsign dialog should not pop up until
 #                         its new entry widget is active (i.e. the active stack item)
+#     5-1-18   TMG       fix #357 (freeze after print, introduced by fix # 345)
 #
 # #############################################################################
 #
@@ -531,8 +532,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		if self.firstWorkingDir[1]!=":":
 			self.firstWorkingDir=os.getenv('HOMEDRIVE','C:')+self.firstWorkingDir
 		self.secondWorkingDir='Z:' # COMMON drive on the NCSSAR network
-##		self.secondWorkingDir="C:\\Users\\Tom\\Documents\\sar"
-
+# 		self.secondWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents\\sar"
+		
 ##		# attempt to change to the second working dir and back again, to 'wake up'
 ##		#  any mount points, to hopefully avoid problems of second working dir
 ##		#  not always being written to, at all, for a given run of this program;
@@ -1510,10 +1511,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			return
 		else:
 			f.close()
-# 		if teams:
-# 			msgAdder=" for individual teams"
-# 		else:
-# 			msgAdder=""
+		if teams:
+			msgAdder=" for individual teams"
+		else:
+			msgAdder=""
 # 		self.logMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF"+msgAdder+"; will send to default printer automatically; please wait...",
 # 							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 # 		self.logMsgBox.setInformativeText("Initializing...")
@@ -1570,6 +1571,7 @@ class MyWindow(QDialog,Ui_Dialog):
 # 		self.logMsgBox.setInformativeText("Finalizing and Printing...")
 		win32api.ShellExecute(0,"print",pdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
 		self.radioLogNeedsPrint=False
+		rprint("looking for second working dir at "+self.secondWorkingDir)
 		if os.path.isdir(self.secondWorkingDir):
 			rprint("copying radio log pdf"+msgAdder+" to "+self.secondWorkingDir)
 			shutil.copy(pdfName,self.secondWorkingDir)
