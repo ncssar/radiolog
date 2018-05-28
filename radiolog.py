@@ -426,6 +426,8 @@ def getShortNiceTeamName(niceTeamName):
 	# 1. remove spaces, then prune leading 'Team'
 	shortNiceTeamName=niceTeamName.replace(' ','')
 	shortNiceTeamName=shortNiceTeamName.replace('Team','')
+	# 2. remove any leading zeros since this is only used for the tab label
+	shortNiceTeamName=shortNiceTeamName.lstrip('0')
 	return shortNiceTeamName
 
 def getFileNameBase(root):
@@ -2013,7 +2015,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# if radioLogNeedsPrint or clueLogNeedsPrint is True, bring up the print dialog
 		if self.radioLogNeedsPrint or self.clueLogNeedsPrint:
 			rprint("needs print!")
-			self.printDialog.exec()
+			self.printDialog.exec_()
 		else:
 			rprint("no print needed")
 		# note, this type of messagebox is needed to show above all other dialogs for this application,
@@ -2643,7 +2645,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableViewList[i].setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		self.ui.tabGridLayoutList[i].addWidget(self.ui.tableViewList[i],0,0,1,1)
 		self.ui.tabWidget.insertTab(i,self.ui.tabList[i],'')
-		noSpaceNiceTeamName=niceTeamName.replace(' ','')
 		label=QLabel(" "+shortNiceTeamName+" ")
 		label.setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
 		self.ui.tabWidget.tabBar().setTabButton(i,QTabBar.LeftSide,label)
@@ -2753,7 +2754,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		# must also modify related lists to keep everything in sync
 		extTeamName=getExtTeamName(teamName)
 		niceTeamName=getNiceTeamName(extTeamName)
-		shortNiceTeamName=getShortNiceTeamName(niceTeamName)
 		self.extTeamNameList.sort()
 		if extTeamName in self.extTeamNameList: # pass through if trying to delete a tab that doesn't exist / has already been deleted
 			i=self.extTeamNameList.index(extTeamName)
@@ -3421,7 +3421,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		rprint("FLEET:'"+str(self.fleet)+"'")
 		if self.fleet:
 			self.changeCallsignDialog=changeCallsignDialog(self,self.ui.teamField.text(),self.fleet,self.dev)
-			self.changeCallsignDialog.exec() # required to make it stay on top
+			self.changeCallsignDialog.exec_() # required to make it stay on top
 
 	def callsignLostFocus(self):
 		# if the callsign is only numbers, prepend 'Team ' to avoid the zero-left-padding problem
@@ -4184,7 +4184,7 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 
 	def accept(self):
 		if self.ui.printCheckBox.isChecked():
-			self.parent.printDialog.exec() # instead of show(), to pause execution until the print dialog is closed
+			self.parent.printDialog.exec_() # instead of show(), to pause execution until the print dialog is closed
 
 		if self.ui.deleteTabsCheckBox.isChecked():
 			for extTeamName in teamStatusDict:
