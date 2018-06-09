@@ -1,11 +1,12 @@
 [RadioLog]
-lastFileName=NONE
+lastFileName=New_Incident_2018_06_09_131132.csv
 font-size=14pt
 x=1920
 y=29
-w=1280
+w=1289
 h=691
 clueLog_x=75
 clueLog_y=75
 clueLog_w=1820
 clueLog_h=930
+cleanShutdown=True
