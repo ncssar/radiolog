@@ -105,6 +105,7 @@
 #                         dispatch computer - only tested on home computer
 #   11-23-17   TMG       fix #356 (change callsign dialog should not pop up until
 #                         its new entry widget is active (i.e. the active stack item)
+#     5-1-18   TMG       fix #357 (freeze after print, introduced by fix # 345)
 #
 # #############################################################################
 #
@@ -426,6 +427,8 @@ def getShortNiceTeamName(niceTeamName):
 	# 1. remove spaces, then prune leading 'Team'
 	shortNiceTeamName=niceTeamName.replace(' ','')
 	shortNiceTeamName=shortNiceTeamName.replace('Team','')
+	# 2. remove any leading zeros since this is only used for the tab label
+	shortNiceTeamName=shortNiceTeamName.lstrip('0')
 	return shortNiceTeamName
 
 def getFileNameBase(root):
@@ -531,6 +534,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsFilterBlinkState=False
 		self.getString=""
 
+<<<<<<< HEAD
+		self.firstWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents"
+		if self.firstWorkingDir[1]!=":":
+			self.firstWorkingDir=os.getenv('HOMEDRIVE','C:')+self.firstWorkingDir
+		self.secondWorkingDir='Z:' # COMMON drive on the NCSSAR network
+# 		self.secondWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents\\sar"
+		
+=======
+>>>>>>> config
 ##		# attempt to change to the second working dir and back again, to 'wake up'
 ##		#  any mount points, to hopefully avoid problems of second working dir
 ##		#  not always being written to, at all, for a given run of this program;
@@ -1661,10 +1673,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			return
 		else:
 			f.close()
-# 		if teams:
-# 			msgAdder=" for individual teams"
-# 		else:
-# 			msgAdder=""
+		if teams:
+			msgAdder=" for individual teams"
+		else:
+			msgAdder=""
 # 		self.logMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF"+msgAdder+"; will send to default printer automatically; please wait...",
 # 							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 # 		self.logMsgBox.setInformativeText("Initializing...")
@@ -1721,7 +1733,12 @@ class MyWindow(QDialog,Ui_Dialog):
 # 		self.logMsgBox.setInformativeText("Finalizing and Printing...")
 		win32api.ShellExecute(0,"print",pdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
 		self.radioLogNeedsPrint=False
+<<<<<<< HEAD
+		rprint("looking for second working dir at "+self.secondWorkingDir)
+		if os.path.isdir(self.secondWorkingDir):
+=======
 		if self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
+>>>>>>> config
 			rprint("copying radio log pdf"+msgAdder+" to "+self.secondWorkingDir)
 			shutil.copy(pdfName,self.secondWorkingDir)
 
@@ -2795,7 +2812,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableViewList[i].setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		self.ui.tabGridLayoutList[i].addWidget(self.ui.tableViewList[i],0,0,1,1)
 		self.ui.tabWidget.insertTab(i,self.ui.tabList[i],'')
-		noSpaceNiceTeamName=niceTeamName.replace(' ','')
 		label=QLabel(" "+shortNiceTeamName+" ")
 		label.setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
 		self.ui.tabWidget.tabBar().setTabButton(i,QTabBar.LeftSide,label)
@@ -2905,7 +2921,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		# must also modify related lists to keep everything in sync
 		extTeamName=getExtTeamName(teamName)
 		niceTeamName=getNiceTeamName(extTeamName)
-		shortNiceTeamName=getShortNiceTeamName(niceTeamName)
 		self.extTeamNameList.sort()
 		if extTeamName in self.extTeamNameList: # pass through if trying to delete a tab that doesn't exist / has already been deleted
 			i=self.extTeamNameList.index(extTeamName)
