@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'clueDialog.ui'
 #
-# Created by: PyQt5 UI code generator 5.8
+# Created by: PyQt5 UI code generator 5.8.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -85,19 +85,9 @@ class Ui_clueDialog(object):
         self.label_6.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
         self.label_6.setObjectName("label_6")
         self.groupBox = QtWidgets.QGroupBox(clueDialog)
-        self.groupBox.setGeometry(QtCore.QRect(30, 70, 661, 81))
+        self.groupBox.setGeometry(QtCore.QRect(30, 70, 661, 92))
         self.groupBox.setTitle("")
         self.groupBox.setObjectName("groupBox")
-        self.radioLocField = QtWidgets.QLineEdit(self.groupBox)
-        self.radioLocField.setEnabled(False)
-        self.radioLocField.setGeometry(QtCore.QRect(420, 20, 221, 31))
-        font = QtGui.QFont()
-        font.setFamily("Segoe UI")
-        font.setPointSize(12)
-        self.radioLocField.setFont(font)
-        self.radioLocField.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.radioLocField.setText("")
-        self.radioLocField.setObjectName("radioLocField")
         self.callsignField = QtWidgets.QLineEdit(self.groupBox)
         self.callsignField.setEnabled(False)
         self.callsignField.setGeometry(QtCore.QRect(240, 20, 161, 31))
@@ -119,7 +109,7 @@ class Ui_clueDialog(object):
         self.label_5.setObjectName("label_5")
         self.label_8 = QtWidgets.QLabel(self.groupBox)
         self.label_8.setEnabled(False)
-        self.label_8.setGeometry(QtCore.QRect(420, 40, 221, 41))
+        self.label_8.setGeometry(QtCore.QRect(424, 59, 221, 41))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(9)
@@ -164,6 +154,14 @@ class Ui_clueDialog(object):
         self.label_9.setFont(font)
         self.label_9.setAlignment(QtCore.Qt.AlignCenter)
         self.label_9.setObjectName("label_9")
+        self.radioLocField = QtWidgets.QTextEdit(self.groupBox)
+        self.radioLocField.setEnabled(False)
+        self.radioLocField.setGeometry(QtCore.QRect(429, 6, 211, 63))
+        font = QtGui.QFont()
+        font.setPointSize(11)
+        self.radioLocField.setFont(font)
+        self.radioLocField.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.radioLocField.setObjectName("radioLocField")
         self.clueQuickTextButton1 = QtWidgets.QPushButton(clueDialog)
         self.clueQuickTextButton1.setGeometry(QtCore.QRect(20, 430, 161, 31))
         font = QtGui.QFont()

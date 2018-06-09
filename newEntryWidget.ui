@@ -118,9 +118,9 @@
    </property>
    <property name="geometry">
     <rect>
-     <x>330</x>
-     <y>130</y>
-     <width>251</width>
+     <x>152</x>
+     <y>127</y>
+     <width>196</width>
      <height>20</height>
     </rect>
    </property>
@@ -134,7 +134,7 @@
     <string>DATUM / FORMAT</string>
    </property>
    <property name="alignment">
-    <set>Qt::AlignCenter</set>
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
    </property>
   </widget>
   <widget class="QPushButton" name="quickTextButton9">
@@ -339,9 +339,9 @@
   <widget class="QLabel" name="label_5">
    <property name="geometry">
     <rect>
-     <x>220</x>
+     <x>176</x>
      <y>100</y>
-     <width>101</width>
+     <width>172</width>
      <height>21</height>
     </rect>
    </property>
@@ -352,7 +352,7 @@
     </font>
    </property>
    <property name="text">
-    <string>Radio Loc.:</string>
+    <string>Radio Location:</string>
    </property>
    <property name="alignment">
     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -580,9 +580,9 @@
   <widget class="QLabel" name="label_6">
    <property name="geometry">
     <rect>
-     <x>30</x>
-     <y>100</y>
-     <width>71</width>
+     <x>51</x>
+     <y>88</y>
+     <width>53</width>
      <height>21</height>
     </rect>
    </property>
@@ -597,34 +597,6 @@
    </property>
    <property name="alignment">
     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-   </property>
-  </widget>
-  <widget class="QLineEdit" name="radioLocField">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="geometry">
-    <rect>
-     <x>330</x>
-     <y>100</y>
-     <width>251</width>
-     <height>31</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <family>Segoe UI</family>
-     <pointsize>12</pointsize>
-    </font>
-   </property>
-   <property name="focusPolicy">
-    <enum>Qt::NoFocus</enum>
-   </property>
-   <property name="text">
-    <string/>
-   </property>
-   <property name="readOnly">
-    <bool>false</bool>
    </property>
   </widget>
   <widget class="QPushButton" name="quickTextUndoButton">
@@ -664,8 +636,8 @@
    </property>
    <property name="geometry">
     <rect>
-     <x>110</x>
-     <y>100</y>
+     <x>111</x>
+     <y>87</y>
      <width>91</width>
      <height>31</height>
     </rect>
@@ -688,7 +660,7 @@
     <rect>
      <x>210</x>
      <y>10</y>
-     <width>371</width>
+     <width>382</width>
      <height>61</height>
     </rect>
    </property>
@@ -898,6 +870,34 @@
    </property>
    <property name="alignment">
     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QTextEdit" name="radioLocField">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>361</x>
+     <y>96</y>
+     <width>231</width>
+     <height>56</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Segoe UI</family>
+     <pointsize>11</pointsize>
+    </font>
+   </property>
+   <property name="focusPolicy">
+    <enum>Qt::NoFocus</enum>
+   </property>
+   <property name="verticalScrollBarPolicy">
+    <enum>Qt::ScrollBarAlwaysOff</enum>
+   </property>
+   <property name="horizontalScrollBarPolicy">
+    <enum>Qt::ScrollBarAlwaysOff</enum>
    </property>
   </widget>
  </widget>
