@@ -109,6 +109,9 @@
 #    5-28-18   TMG       fix #360 (remove leading zeros from team tab names)
 #     6-9-18   TMG		 allow configuration by different teams using optional local/radiolog.cfg
 #                          (merged config branch to master)
+#    7-22-18   TMG       add team hotkeys (fix #370); change return/enter/space to open
+#                          a new entry dialog with blank callsign (i.e. LEO callsigns);
+#                          toggle team hotkeys vs normal hotkeys using F12
 #
 # #############################################################################
 #
@@ -495,6 +498,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.loadFlag=False # set this to true during load, to prevent save on each newEntry
 		self.totalEntryCount=0 # rotate backups after every 5 entries; see newEntryWidget.accept
 		
+		self.ui.teamHotkeysWidget.setVisible(False) # disabled by default		
+		self.hotkeyDict={}
+		self.nextAvailHotkeyIndex=0
+		self.hotkeyPool=["1","2","3","4","5","6","7","8","9","0","q","w","e","r","t","y","u","i","o","p","a","s","d","f","g","h","j","k","l"]
 		self.homeDir=os.path.expanduser("~")
 		
 		# fix #342 (focus-follows-mouse causes freezes) - disable FFM here;
@@ -755,6 +762,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tabWidget.insertTab(0,QWidget(),'TEAMS:')
 ##		self.ui.tabWidget.setStyleSheet("font-size:12px")
 		self.ui.tabWidget.setTabEnabled(0,False)
+		
+		self.ui.teamHotkeysHLayout.insertWidget(0,QLabel("HOTKEYS:"))
 
 		self.ui.tabWidget.setContextMenuPolicy(Qt.CustomContextMenu)
 		self.ui.tabWidget.customContextMenuRequested.connect(self.tabContextMenu)
@@ -2142,17 +2151,24 @@ class MyWindow(QDialog,Ui_Dialog):
 				rprint("** keyPressEvent ambiguous timing; key press ignored: key="+str(hex(event.key())))
 			else:
 				key=event.text().lower() # hotkeys are case insensitive
-				if re.match("\d",key):
-					self.openNewEntry(key)
-				elif key=='t' or event.key()==Qt.Key_Right:
-					self.openNewEntry('t')
-				elif key=='f' or event.key()==Qt.Key_Left:
-					self.openNewEntry('f')
-				elif key=='a':
-					self.openNewEntry('a')
-				elif key=='s':
-					self.openNewEntry('s')
-				elif key=='=' or key=='+':
+				if self.ui.teamHotkeysWidget.isVisible():
+					# these key handlers apply only if hotkeys are enabled:
+					if key in self.hotkeyDict.keys():
+						self.openNewEntry(key)
+				else:
+					# these key handlers apply only if hotkeys are disabled:
+					if re.match("\d",key):
+						self.openNewEntry(key)
+					elif key=='t' or event.key()==Qt.Key_Right:
+						self.openNewEntry('t')
+					elif key=='f' or event.key()==Qt.Key_Left:
+						self.openNewEntry('f')
+					elif key=='a':
+						self.openNewEntry('a')
+					elif key=='s':
+						self.openNewEntry('s')
+				# these key handlers apply regardless of hotkeys enabled state:
+				if key=='=' or key=='+':
 					self.fontSize=self.fontSize+2
 					self.fontsChanged()
 				elif key=='-' or key=='_':
@@ -2165,6 +2181,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.load()
 				elif event.key()==Qt.Key_F5:
 					self.fsLoadLookup()
+					self.ui.teamHotkeysWidget.setVisible(not self.ui.teamHotkeysWidget.isVisible())
 				elif event.key()==Qt.Key_F6:
 					q=QMessageBox(QMessageBox.Question,"Please Confirm","Restore the last saved files (Radio Log, Clue Log, and FleetSync table)?",
 							QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
@@ -2177,9 +2194,11 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.ui.fsCheckBox.toggle()
 				elif event.key()==Qt.Key_F8:
 					self.fsFilterDialog.show()
+				elif event.key()==Qt.Key_F12:
+					self.toggleTeamHotkeys()
 				elif event.key()==Qt.Key_Space or event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
 					self.openNewEntry('pop')
-				event.accept()
+			event.accept()
 		else:
 			event.ignore()
 
@@ -2530,53 +2549,59 @@ class MyWindow(QDialog,Ui_Dialog):
 		#       if it still exists / has not been auto-cleaned)
 		
 		if key:
-			if key=='fs': # spawned by fleetsync: let addTab determine focus
-				pass
-			elif key=='a':
-				self.newEntryWidget.ui.to_fromField.setCurrentIndex(1)
-				# all three of these lines are needed to override the default 'pseudo-selected'
-				# behavior; see http://stackoverflow.com/questions/27856032
-				self.newEntryWidget.ui.teamField.setFocus()
-				self.newEntryWidget.ui.teamField.setText("All Teams ")
-				self.newEntryWidget.ui.messageField.setFocus()
-			elif key=='t':
-				self.newEntryWidget.ui.to_fromField.setCurrentIndex(1)
-				# need to 'burp' the focus to prevent two blinking cursors
-				#  see http://stackoverflow.com/questions/42475602
-				self.newEntryWidget.ui.messageField.setFocus()
-				# all three of these lines are needed to override the default 'pseudo-selected'
-				# behavior; see http://stackoverflow.com/questions/27856032
-				self.newEntryWidget.ui.teamField.setFocus()
-				self.newEntryWidget.ui.teamField.setText("Team  ")
-				self.newEntryWidget.ui.teamField.setSelection(5,1)
-			elif key=='f' or key=='pop':
+			if self.ui.teamHotkeysWidget.isVisible() and len(key)==1:
 				self.newEntryWidget.ui.to_fromField.setCurrentIndex(0)
-				# need to 'burp' the focus to prevent two blinking cursors
-				#  see http://stackoverflow.com/questions/42475602
+				self.newEntryWidget.ui.teamField.setText(self.hotkeyDict[key])
 				self.newEntryWidget.ui.messageField.setFocus()
-				self.newEntryWidget.ui.teamField.setFocus()
-				self.newEntryWidget.ui.teamField.setText("Team  ")
-				self.newEntryWidget.ui.teamField.setSelection(5,1)
-			elif key=='s':
-				self.newEntryWidget.ui.to_fromField.setCurrentIndex(0)
-				# need to 'burp' the focus to prevent two blinking cursors
-				#  see http://stackoverflow.com/questions/42475602
-				self.newEntryWidget.ui.messageField.setFocus()
-				self.newEntryWidget.ui.teamField.setFocus()
-				self.newEntryWidget.ui.teamField.setText("SAR  ")
-				self.newEntryWidget.ui.teamField.setSelection(4,1)
-			elif key=='tab': # team tab context menu - activate right away
-				self.newEntryWindow.ui.tabWidget.setCurrentIndex(1)
-				self.newEntryWidget.ui.to_fromField.setCurrentIndex(0)
-				self.newEntryWidget.ui.messageField.setFocus()
-			else: # some other keyboard key - assume it's the start of the team name
-				self.newEntryWidget.ui.to_fromField.setCurrentIndex(0)
-				# need to 'burp' the focus to prevent two blinking cursors
-				#  see http://stackoverflow.com/questions/42475602
-				self.newEntryWidget.ui.messageField.setFocus()
-				self.newEntryWidget.ui.teamField.setFocus()
-				self.newEntryWidget.ui.teamField.setText("Team "+key+" ")
-				self.newEntryWidget.ui.teamField.setSelection(6,1)
+			else:
+				if key=='fs': # spawned by fleetsync: let addTab determine focus
+					pass
+				elif key=='a':
+					self.newEntryWidget.ui.to_fromField.setCurrentIndex(1)
+					# all three of these lines are needed to override the default 'pseudo-selected'
+					# behavior; see http://stackoverflow.com/questions/27856032
+					self.newEntryWidget.ui.teamField.setFocus()
+					self.newEntryWidget.ui.teamField.setText("All Teams ")
+					self.newEntryWidget.ui.messageField.setFocus()
+				elif key=='t':
+					self.newEntryWidget.ui.to_fromField.setCurrentIndex(1)
+					# need to 'burp' the focus to prevent two blinking cursors
+					#  see http://stackoverflow.com/questions/42475602
+					self.newEntryWidget.ui.messageField.setFocus()
+					# all three of these lines are needed to override the default 'pseudo-selected'
+					# behavior; see http://stackoverflow.com/questions/27856032
+					self.newEntryWidget.ui.teamField.setFocus()
+					self.newEntryWidget.ui.teamField.setText("Team  ")
+					self.newEntryWidget.ui.teamField.setSelection(5,1)
+				elif key=='f' or key=='pop':
+					self.newEntryWidget.ui.to_fromField.setCurrentIndex(0)
+					# need to 'burp' the focus to prevent two blinking cursors
+					#  see http://stackoverflow.com/questions/42475602
+					self.newEntryWidget.ui.messageField.setFocus()
+					self.newEntryWidget.ui.teamField.setFocus()
+					if key=='f':
+						self.newEntryWidget.ui.teamField.setText("Team  ")
+						self.newEntryWidget.ui.teamField.setSelection(5,1)
+				elif key=='s':
+					self.newEntryWidget.ui.to_fromField.setCurrentIndex(0)
+					# need to 'burp' the focus to prevent two blinking cursors
+					#  see http://stackoverflow.com/questions/42475602
+					self.newEntryWidget.ui.messageField.setFocus()
+					self.newEntryWidget.ui.teamField.setFocus()
+					self.newEntryWidget.ui.teamField.setText("SAR  ")
+					self.newEntryWidget.ui.teamField.setSelection(4,1)
+				elif key=='tab': # team tab context menu - activate right away
+					self.newEntryWindow.ui.tabWidget.setCurrentIndex(1)
+					self.newEntryWidget.ui.to_fromField.setCurrentIndex(0)
+					self.newEntryWidget.ui.messageField.setFocus()
+				else: # some other keyboard key - assume it's the start of the team name
+					self.newEntryWidget.ui.to_fromField.setCurrentIndex(0)
+					# need to 'burp' the focus to prevent two blinking cursors
+					#  see http://stackoverflow.com/questions/42475602
+					self.newEntryWidget.ui.messageField.setFocus()
+					self.newEntryWidget.ui.teamField.setFocus()
+					self.newEntryWidget.ui.teamField.setText("Team "+key+" ")
+					self.newEntryWidget.ui.teamField.setSelection(6,1)
 		else: # no key pressed; opened from the 'add entry' GUI button; activate right away
 			# need to 'burp' the focus to prevent two blinking cursors
 			#  see http://stackoverflow.com/questions/42475602
@@ -2813,6 +2838,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tabWidget.tabBar().setTabButton(i,QTabBar.LeftSide,label)
 		self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
 
+		self.hotkeyDict[self.hotkeyPool[self.nextAvailHotkeyIndex]]=shortNiceTeamName
+		self.nextAvailHotkeyIndex=self.nextAvailHotkeyIndex+1
+		
+		self.rebuildTeamHotkeys()
 ##		deleteTeamTabAction=QAction("Delete Tab",None)
 ##		deleteTeamTabAction.triggered.connect(self.deletePrint)
 ##		self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setContextMenuPolicy(Qt.ActionsContextMenu)
@@ -2929,6 +2958,44 @@ class MyWindow(QDialog,Ui_Dialog):
 			del self.ui.tableViewList[i]
 			self.ui.tabWidget.removeTab(i)
 			del self.proxyModelList[i]
+		self.rebuildTeamHotkeys()
+
+	def rebuildTeamHotkeys(self):
+		# delete all child widgets
+		while self.ui.teamHotkeysHLayout.count():
+			child=self.ui.teamHotkeysHLayout.takeAt(0)
+			if child.widget():
+				child.widget().deleteLater()
+		l=QLabel("HOTKEYS:")
+		l.setFixedWidth(self.ui.tabWidget.tabBar().tabRect(0).width())
+		self.ui.teamHotkeysHLayout.addWidget(l)
+# 		icon = QIcon()
+# 		icon.addPixmap(QPixmap(":/radiolog_ui/blank-computer-key.png"), QIcon.Normal, QIcon.Off)
+# 		p=QPalette();
+# 		p.setBrush(self.backgroundRole(),QBrush(QPixmap(":/radiolog_ui/blank-computer-key.png").scaled(30,30)))
+		hotkeyRDict={}
+		for key,val in self.hotkeyDict.items():
+			hotkeyRDict[val]=key
+		for i in range(1,self.ui.tabWidget.tabBar().count()):
+			callsign=self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).text().replace(' ','')
+			hotkey=hotkeyRDict.get(callsign,"")
+			rprint("building hotkey tab: callsign="+callsign+"  hotkey="+hotkey)
+			l=QLabel(hotkey)
+			l.setFixedWidth(self.ui.tabWidget.tabBar().tabRect(i).width())
+# 			l.setStyleSheet("border:0px solid black;margin:0px;font-style:italic;font-size:14px;border-image:url(:/radiolog_ui/blank-computer-key.png) 0 0 30 30;")
+			l.setStyleSheet("border:0px solid black;margin:0px;font-style:italic;font-size:14px;background-image:url(:/radiolog_ui/blank-computer-key.png) 0 0 30 30;")
+			l.setAlignment(Qt.AlignCenter)
+# 			l.setPalette(p)
+# 			w.setPixmap(QPixmap(":/radiolog_ui/blank-computer-key.png").scaled(30,30))
+# 			l.setIconSize(QSize(30, 30))
+			self.ui.teamHotkeysHLayout.addWidget(l)
+		self.ui.teamHotkeysHLayout.addStretch()
+		
+	def toggleTeamHotkeys(self):
+		vis=self.ui.teamHotkeysWidget.isVisible()
+		if not vis:
+			self.rebuildTeamHotkeys()
+		self.ui.teamHotkeysWidget.setVisible(not vis)
 
 	def openOpPeriodDialog(self):
 		self.opPeriodDialog=opPeriodDialog(self)

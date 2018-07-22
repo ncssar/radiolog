@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="radiolog_ui">
+    <file>blank-computer-key.png</file>
     <file>fs_greencheckbox.png</file>
     <file>fs_redcircleslash.png</file>
     <file>empty_filter.png</file>
