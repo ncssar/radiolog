@@ -112,6 +112,7 @@
 #    7-22-18   TMG       add team hotkeys (fix #370); change return/enter/space to open
 #                          a new entry dialog with blank callsign (i.e. LEO callsigns);
 #                          toggle team hotkeys vs normal hotkeys using F12
+#    7-22-18   TMG       fix #373 (esc closes NED in same manner as cancel button)
 #
 # #############################################################################
 #
@@ -3641,6 +3642,13 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				self.accept()
 			else:
 				super().keyPressEvent(event) # pass the event as normal
+		elif key==Qt.Key_Escape:
+			# need to force focus away from callsignField so that
+			#  callsignLostFocus gets called, to keep callsign and tab name in sync,
+			#  otherwise this will cause a crash (hitting the cancel button does
+			#  not cause a crash because the button takes focus before closing)
+			self.ui.messageField.setFocus()
+			self.close()
 		else:
 			super().keyPressEvent(event) # pass the event as normal
 
@@ -3779,25 +3787,15 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		#  as soon as the dialog is opened (or as soon as the change callsign dialog
 		#  is accepted), so, bypassing the confirmation in this manner will
 		#  still preserve and process any incoming GPS coordinates
-		rprint("closeEvent trace1")
 		if not accepted and not force and self.ui.messageField.text()!="":
-			rprint("closeEvent trace2")
 			self.really1=QMessageBox(QMessageBox.Warning,"Please Confirm","Cancel this entry?\nIt cannot be recovered.",
 				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			rprint("closeEvent trace3")
 			self.really1.setDefaultButton(QMessageBox.No)
-			rprint("closeEvent trace4")
 			self.really1.show()
-			rprint("closeEvent trace5")
 			self.really1.raise_()
-			rprint("closeEvent trace6")
 			if self.really1.exec_()==QMessageBox.No:
-				rprint("closeEvent trace7")
 				event.ignore()
-				rprint("closeEvent trace8")
 				return
-				rprint("closeEvent trace9")
-			rprint("closeEvent trace10")
 		# whether OK or Cancel, ignore the event if child dialog(s) are open,
 		#  and raise the child window(s)
 		if self.clueDialogOpen or self.subjectLocatedDialogOpen:
@@ -3826,7 +3824,6 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 	##		self.parent.newEntryWindow.removeTab(self.parent.newEntryWindow.ui.tabWidget.indexOf(self))
 			self.parent.newEntryWindow.removeTab(self)
 			newEntryWidget.instances.remove(self)
-			rprint("closed")
 ##		else:
 ##			event.ignore()
 
