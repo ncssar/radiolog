@@ -113,6 +113,9 @@
 #                          a new entry dialog with blank callsign (i.e. LEO callsigns);
 #                          toggle team hotkeys vs normal hotkeys using F12
 #    7-22-18   TMG       fix #373 (esc closes NED in same manner as cancel button)
+#    7-22-18   TMG       fix #360 again (leading zeros still showed up in tab
+#                          context menus, therefore in callsign field of NED created
+#                          from tab context menus)
 #
 # #############################################################################
 #
@@ -407,7 +410,7 @@ def getExtTeamName(teamName):
 		rest=teamName # preserve case if there are no numbers
 ##	rprint("prefix="+prefix+" rest="+rest+" name="+name)
 	extTeamName=prefix+rest
-#	print("Team Name:"+teamName+": extended team name:"+extTeamName)
+# 	rprint("Team Name:"+teamName+": extended team name:"+extTeamName)
 	return extTeamName
 
 def getNiceTeamName(extTeamName):
@@ -418,6 +421,7 @@ def getNiceTeamName(extTeamName):
 	#  (left-zero-padded to 5 digits)
 	firstNum=re.search("\d",extTeamName)
 	firstNumIndex=-1 # assume there is no number at all
+	prefix=""
 	if firstNum:
 		firstNumIndex=firstNum.start()
 	if firstNumIndex>0:
@@ -426,8 +430,11 @@ def getNiceTeamName(extTeamName):
 		name=prefix.capitalize()+" "+str(extTeamName[firstNumIndex:]).lstrip('0')
 	else:
 		name=extTeamName
-#	print("FirstNumIndex:"+str(firstNumIndex)+" Prefix:'"+prefix+"'")
-#	print("Human Readable Name:'"+name+"'")
+	# finally, remove any leading zeros (necessary for non-'Team' callsigns)
+	name=name.lstrip('0')
+# 	rprint("getNiceTeamName("+extTeamName+")")
+# 	rprint("FirstNumIndex:"+str(firstNumIndex)+" Prefix:'"+prefix+"'")
+# 	rprint("Human Readable Name:'"+name+"'")
 	return name
 
 def getShortNiceTeamName(niceTeamName):
