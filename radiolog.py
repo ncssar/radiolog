@@ -116,6 +116,9 @@
 #    7-22-18   TMG       fix #360 again (leading zeros still showed up in tab
 #                          context menus, therefore in callsign field of NED created
 #                          from tab context menus)
+#     8-2-18   TMG       space bar event does not reach the main window after the
+#                          first team tab gets created, so disable it for now -
+#                          must use enter or return to open a NED with no callsign (#370)
 #
 # #############################################################################
 #
@@ -2204,7 +2207,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.fsFilterDialog.show()
 				elif event.key()==Qt.Key_F12:
 					self.toggleTeamHotkeys()
-				elif event.key()==Qt.Key_Space or event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
+				elif event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
 					self.openNewEntry('pop')
 			event.accept()
 		else:
