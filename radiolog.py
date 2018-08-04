@@ -3808,7 +3808,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		#  is accepted), so, bypassing the confirmation in this manner will
 		#  still preserve and process any incoming GPS coordinates
 		if not accepted and not force and self.ui.messageField.text()!="":
-			self.really1=QMessageBox(QMessageBox.Warning,"Please Confirm","Cancel this entry?\nIt cannot be recovered.",
+			msg="Cancel this entry?\nIt cannot be recovered."
+			if self.amendFlag:
+				msg="Cancel this amendment?\nOriginal message will be preserved."
+			self.really1=QMessageBox(QMessageBox.Warning,"Please Confirm",msg,
 				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			self.really1.setDefaultButton(QMessageBox.No)
 			self.really1.show()
