@@ -119,6 +119,7 @@
 #     8-2-18   TMG       space bar event does not reach the main window after the
 #                          first team tab gets created, so disable it for now -
 #                          must use enter or return to open a NED with no callsign (#370)
+#     8-3-18   TMG       fix #372 (combobox / cyclic callsign selection)
 #
 # #############################################################################
 #
@@ -3455,6 +3456,14 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.clueDialogOpen=False # only allow one clue dialog at a time per newEntryWidget
 		self.subjectLocatedDialogOpen=False
 
+		if len(self.parent.allTeamsList)<2:
+			self.ui.teamComboBox.setEnabled(False)
+		else:
+			self.ui.teamComboBox.clear()
+			for team in self.parent.allTeamsList:
+				if team!='dummy':
+					self.ui.teamComboBox.addItem(team)
+		
 ##		# close and accept the dialog as a new entry if message is no user input for 30 seconds
 
 ##		QTimer.singleShot(100,lambda:self.changeBackgroundColor(0))
@@ -3676,6 +3685,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		# if the callsign is only numbers, prepend 'Team ' to avoid the zero-left-padding problem
 		if self.ui.teamField.text().isdigit():
 			self.ui.teamField.setText("Team "+self.ui.teamField.text())
+		self.ui.teamComboBox.setCurrentText(self.ui.teamField.text().strip())
 			
 	def accept(self):
 		if not self.clueDialogOpen and not self.subjectLocatedDialogOpen:
@@ -3951,6 +3961,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				button.setChecked(False)
 		self.ui.statusButtonGroup.setExclusive(True)
 
+	def setCallsignFromComboBox(self,str):
+		self.ui.teamField.setText(str)
+		self.ui.teamField.setFocus()
+		
 	def setStatusFromButton(self):
 ##		self.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 		clickedStatus=self.ui.statusButtonGroup.checkedButton().text()
