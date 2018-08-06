@@ -120,6 +120,7 @@
 #                          first team tab gets created, so disable it for now -
 #                          must use enter or return to open a NED with no callsign (#370)
 #     8-3-18   TMG       fix #372 (combobox / cyclic callsign selection)
+#     8-5-18   TMG       fix #371 (amend callsign of existing message)
 #
 # #############################################################################
 #
@@ -3730,6 +3731,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 	
 				# use to_from value "AMEND" and blank msg text to make sure team timer does not reset
 				self.parent.newEntryProcessTeam(niceTeamName,status,"AMEND","")
+				
+				# reapply the filter on team tables, in case callsign was changed
+				for t in self.parent.ui.tableViewList[1:]:
+					t.model().invalidateFilter()
 			else:
 				self.parent.newEntry(self.getValues())
 	
