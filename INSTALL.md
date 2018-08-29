@@ -4,7 +4,7 @@ As of Nov 19, 2016, there is no installation script or program.  Installation ju
 
 1. Python 3.4.2 or higher (32 or 64 bit should be fine since currently this is not compiled)
 2. Python modules
- * PyQt 5.4 or higher (pip install pyqt)
+ * PyQt 5.4 or higher (pip install pyqt5)
  * reportlab (pip install reportlab)
  * pyserial (pip install pyserial)
  * requests (pip install requests)
