@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>931</width>
-    <height>497</height>
+    <height>532</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -31,7 +31,7 @@
      <x>12</x>
      <y>17</y>
      <width>939</width>
-     <height>470</height>
+     <height>504</height>
     </rect>
    </property>
    <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -102,11 +102,17 @@
         <property name="selectionMode">
          <enum>QAbstractItemView::NoSelection</enum>
         </property>
+        <property name="textElideMode">
+         <enum>Qt::ElideRight</enum>
+        </property>
         <property name="showGrid">
          <bool>false</bool>
         </property>
         <property name="gridStyle">
          <enum>Qt::SolidLine</enum>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
         </property>
         <property name="columnCount">
          <number>3</number>
@@ -138,6 +144,9 @@
         <attribute name="verticalHeaderCascadingSectionResizes">
          <bool>false</bool>
         </attribute>
+        <attribute name="verticalHeaderDefaultSectionSize">
+         <number>30</number>
+        </attribute>
         <row>
          <property name="text">
           <string>New Row</string>
@@ -196,6 +205,11 @@
         <row>
          <property name="text">
           <string>New Row</string>
+         </property>
+        </row>
+        <row>
+         <property name="text">
+          <string>F12</string>
          </property>
         </row>
         <row>
@@ -637,11 +651,10 @@
         </item>
         <item row="12" column="0">
          <property name="text">
-          <string>+ / -</string>
+          <string>F12</string>
          </property>
          <property name="font">
           <font>
-           <pointsize>9</pointsize>
            <weight>75</weight>
            <bold>true</bold>
           </font>
@@ -659,6 +672,34 @@
          </property>
         </item>
         <item row="12" column="2">
+         <property name="text">
+          <string>Toggle Team Hotkeys (disables default alphanumeric hotkeys)</string>
+         </property>
+        </item>
+        <item row="13" column="0">
+         <property name="text">
+          <string>+ / -</string>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>9</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="textAlignment">
+          <set>AlignRight|AlignVCenter</set>
+         </property>
+        </item>
+        <item row="13" column="1">
+         <property name="text">
+          <string>-</string>
+         </property>
+         <property name="textAlignment">
+          <set>AlignHCenter|AlignVCenter|AlignCenter</set>
+         </property>
+        </item>
+        <item row="13" column="2">
          <property name="text">
           <string>Enlarge / Reduce Font</string>
          </property>
@@ -1067,8 +1108,6 @@
     </item>
    </layout>
   </widget>
-  <zorder>label_7</zorder>
-  <zorder>horizontalLayoutWidget</zorder>
  </widget>
  <resources/>
  <connections/>

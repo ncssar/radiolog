@@ -10,3 +10,7 @@ radiolog.log_childSubjLocCrash
 .settings/org.eclipse.core.resources.prefs
 radiolog_fleetsync.csv
 local
+local_bak/radiolog.cfg
+local_bak/radiolog_logo.jpg
+radiolog_rc.txt
+radiolog_rc.txt

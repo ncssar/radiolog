@@ -121,6 +121,7 @@
 #                          must use enter or return to open a NED with no callsign (#370)
 #     8-3-18   TMG       fix #372 (combobox / cyclic callsign selection)
 #     8-5-18   TMG       fix #371 (amend callsign of existing message)
+#    8-29-18   TMG       fix #375 (crash during new entry for new team)
 #
 # #############################################################################
 #
@@ -825,6 +826,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.agencyName="Search and Rescue"
 		self.datum="WGS84"
 		self.coordFormatAscii="UTM 5x5"
+		self.coordFormat=self.csDisplayDict[self.coordFormatAscii]
 		self.timeoutMinutes="30"
 		self.printLogoFileName="radiolog_logo.jpg"
 		self.firstWorkingDir=self.homeDir+"\\Documents"
@@ -2162,6 +2164,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  test case to proceed with that question
 			if self.newEntryWindow.isVisible():
 				rprint("** keyPressEvent ambiguous timing; key press ignored: key="+str(hex(event.key())))
+				event.ignore()
 			else:
 				key=event.text().lower() # hotkeys are case insensitive
 				if self.ui.teamHotkeysWidget.isVisible():
@@ -2211,7 +2214,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.toggleTeamHotkeys()
 				elif event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
 					self.openNewEntry('pop')
-			event.accept()
+				event.accept()
 		else:
 			event.ignore()
 
@@ -2848,10 +2851,17 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tabWidget.insertTab(i,self.ui.tabList[i],'')
 		label=QLabel(" "+shortNiceTeamName+" ")
 		label.setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
-		self.ui.tabWidget.tabBar().setTabButton(i,QTabBar.LeftSide,label)
-		self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
+		rprint("setting tab button #"+str(i)+" to "+label.text())
+		bar=self.ui.tabWidget.tabBar()
+		bar.setTabButton(i,QTabBar.LeftSide,label)
+		# during rebuildTeamHotkeys, we need to read the name of currently displayed tabs.
+		#  An apparent bug causes the tabButton (a label) to not have a text attrubite;
+		#  so, use the whatsThis attribute instead.
+		bar.setTabWhatsThis(i,niceTeamName)
+		bar.tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
 
-		self.hotkeyDict[self.hotkeyPool[self.nextAvailHotkeyIndex]]=shortNiceTeamName
+
+		self.hotkeyDict[self.hotkeyPool[self.nextAvailHotkeyIndex]]=niceTeamName
 		self.nextAvailHotkeyIndex=self.nextAvailHotkeyIndex+1
 		
 		self.rebuildTeamHotkeys()
@@ -2979,9 +2989,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			child=self.ui.teamHotkeysHLayout.takeAt(0)
 			if child.widget():
 				child.widget().deleteLater()
-		l=QLabel("HOTKEYS:")
-		l.setFixedWidth(self.ui.tabWidget.tabBar().tabRect(0).width())
-		self.ui.teamHotkeysHLayout.addWidget(l)
+						
+		bar=self.ui.tabWidget.tabBar()
+		label=QLabel("HOTKEYS:")
+		label.setFixedWidth(bar.tabRect(0).width())
+		self.ui.teamHotkeysHLayout.addWidget(label)
 # 		icon = QIcon()
 # 		icon.addPixmap(QPixmap(":/radiolog_ui/blank-computer-key.png"), QIcon.Normal, QIcon.Off)
 # 		p=QPalette();
@@ -2989,12 +3001,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		hotkeyRDict={}
 		for key,val in self.hotkeyDict.items():
 			hotkeyRDict[val]=key
-		for i in range(1,self.ui.tabWidget.tabBar().count()):
-			callsign=self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).text().replace(' ','')
+		rprint("tab count="+str(bar.count()))
+		for i in range(1,bar.count()):
+			#  An apparent bug causes the tabButton (a label) to not have a text attrubite;
+			#  so, use the whatsThis attribute instead.
+			callsign=bar.tabWhatsThis(i)
 			hotkey=hotkeyRDict.get(callsign,"")
 			rprint("building hotkey tab: callsign="+callsign+"  hotkey="+hotkey)
 			l=QLabel(hotkey)
-			l.setFixedWidth(self.ui.tabWidget.tabBar().tabRect(i).width())
+			l.setFixedWidth(bar.tabRect(i).width())
 # 			l.setStyleSheet("border:0px solid black;margin:0px;font-style:italic;font-size:14px;border-image:url(:/radiolog_ui/blank-computer-key.png) 0 0 30 30;")
 			l.setStyleSheet("border:0px solid black;margin:0px;font-style:italic;font-size:14px;background-image:url(:/radiolog_ui/blank-computer-key.png) 0 0 30 30;")
 			l.setAlignment(Qt.AlignCenter)
