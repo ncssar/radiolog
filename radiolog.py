@@ -124,6 +124,11 @@
 #    8-29-18   TMG       fix #375 (crash during new entry for new team)
 #     9-9-18   TMG       fix #379 (subject located form - field type error; confirmed
 #                           that all other calls to toPlainText are for valid fields)
+#     9-9-18   TMG       add a very short timeout to the requests.get locator update call to 
+#                           eliminate lag while completely ignoring the response
+#                           ('fire-and-forget'); would have to use a thread-based module
+#                           if the response were important; works well on home computer,
+#                           hopefully this fixes #378
 #
 # #############################################################################
 #
@@ -1286,7 +1291,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				try:
 					rprint("Sending GET request:")
 					rprint(self.getString)
-					requests.get(self.getString)
+					# fire-and-forget: completely ignore the response, but, return immediately
+					requests.get(self.getString,timeout=0.0001)
 				except:
 					pass
 				self.getString=''
