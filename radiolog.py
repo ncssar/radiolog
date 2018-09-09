@@ -3,9 +3,9 @@
 #  radiolog.py - SAR Radio Log program, based on PyQt 5.4, Python 3.4.2
 #
 #   developed for Nevada County Sheriff's Search and Rescue
-#    Copyright (c) 2015 Tom Grundy
+#    Copyright (c) 2015-2018 Tom Grundy
 #
-#  http://ncssarradiologsoftware.sourceforge.net
+#  http://github.com/ncssar/radiolog
 #
 #  Contact the author at nccaves@yahoo.com
 #   Attribution, feedback, bug reports and feature requests are appreciated
@@ -122,6 +122,8 @@
 #     8-3-18   TMG       fix #372 (combobox / cyclic callsign selection)
 #     8-5-18   TMG       fix #371 (amend callsign of existing message)
 #    8-29-18   TMG       fix #375 (crash during new entry for new team)
+#     9-9-18   TMG       fix #379 (subject located form - field type error; confirmed
+#                           that all other calls to toPlainText are for valid fields)
 #
 # #############################################################################
 #
@@ -315,7 +317,7 @@ if len(sys.argv)>1:
 if minMode:
 	from radiolog_min_ui import Ui_Dialog # built to look decent at 800x600
 else:
-   from radiolog_ui import Ui_Dialog # normal version, for higher resolution
+	from radiolog_ui import Ui_Dialog # normal version, for higher resolution
 
 statusStyleDict={}
 # even though tab labels are created with font-size:20px and the tab sizes and margins are created accordingly,
@@ -4338,7 +4340,7 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		team=self.ui.callsignField.text()
 		subjDate=self.ui.dateField.text()
 		subjTime=self.ui.timeField.text()
-		radioLoc=self.ui.radioLocField.toPlainText()
+		radioLoc=self.ui.radioLocField.text()
 
 		# validation: description, location, instructions fields must all be non-blank
 		vText=""
