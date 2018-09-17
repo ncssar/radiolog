@@ -129,6 +129,7 @@
 #                           ('fire-and-forget'); would have to use a thread-based module
 #                           if the response were important; works well on home computer,
 #                           hopefully this fixes #378
+#    9-17-18   TMG       fix and improve team hotkey selection and recycling
 #
 # #############################################################################
 #
@@ -522,7 +523,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.teamHotkeysWidget.setVisible(False) # disabled by default		
 		self.hotkeyDict={}
 		self.nextAvailHotkeyIndex=0
-		self.hotkeyPool=["1","2","3","4","5","6","7","8","9","0","q","w","e","r","t","y","u","i","o","p","a","s","d","f","g","h","j","k","l"]
+		self.hotkeyPool=["1","2","3","4","5","6","7","8","9","0","q","w","e","r","t","y","u","i","o","p","a","s","d","f","g","h","j","k","l","z","x","c","v","b","n","m"]
 		self.homeDir=os.path.expanduser("~")
 		
 		# fix #342 (focus-follows-mouse causes freezes) - disable FFM here;
@@ -2868,9 +2869,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		bar.setTabWhatsThis(i,niceTeamName)
 		bar.tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
 
-
-		self.hotkeyDict[self.hotkeyPool[self.nextAvailHotkeyIndex]]=niceTeamName
-		self.nextAvailHotkeyIndex=self.nextAvailHotkeyIndex+1
+		# hotkeyDict: key=hotkey  val=niceTeamName
+		# hotkeyRDict: key=niceTeamName  val=hotkey
+		
+		hotkey=self.getNextAvailHotkey()
+		if hotkey:
+			self.hotkeyDict[hotkey]=niceTeamName
+		else:
+			rprint("Team hotkey pool has been used up.  Not setting any hotkeyDict entry for "+niceTeamName)
 		
 		self.rebuildTeamHotkeys()
 ##		deleteTeamTabAction=QAction("Delete Tab",None)
@@ -2989,7 +2995,30 @@ class MyWindow(QDialog,Ui_Dialog):
 			del self.ui.tableViewList[i]
 			self.ui.tabWidget.removeTab(i)
 			del self.proxyModelList[i]
+			# free the hotkey, and reassign it to the first (if any) displayed callsign that has no hotkey
+			hotkeyRDict={v:k for k,v in self.hotkeyDict.items()}
+			if niceTeamName in hotkeyRDict:
+				hotkey=hotkeyRDict[niceTeamName]
+				rprint("Freeing hotkey '"+hotkey+"' which was used for callsign '"+niceTeamName+"'")
+				del self.hotkeyDict[hotkey]
+				bar=self.ui.tabWidget.tabBar()
+				taken=False
+				for i in range(1,bar.count()):
+					if not taken:
+						callsign=bar.tabWhatsThis(i)
+						rprint("checking tab#"+str(i)+":"+callsign)
+						if callsign not in hotkeyRDict:
+							rprint("  does not have a hotkey; using the freed hotkey '"+hotkey+"'")
+							self.hotkeyDict[hotkey]=callsign
+							taken=True
 		self.rebuildTeamHotkeys()
+
+	def getNextAvailHotkey(self):
+		# iterate through hotkey pool until finding one that is not taken
+		for hotkey in self.hotkeyPool:
+			if hotkey not in self.hotkeyDict:
+				return hotkey
+		return None # no available hotkeys
 
 	def rebuildTeamHotkeys(self):
 		# delete all child widgets
@@ -3006,9 +3035,7 @@ class MyWindow(QDialog,Ui_Dialog):
 # 		icon.addPixmap(QPixmap(":/radiolog_ui/blank-computer-key.png"), QIcon.Normal, QIcon.Off)
 # 		p=QPalette();
 # 		p.setBrush(self.backgroundRole(),QBrush(QPixmap(":/radiolog_ui/blank-computer-key.png").scaled(30,30)))
-		hotkeyRDict={}
-		for key,val in self.hotkeyDict.items():
-			hotkeyRDict[val]=key
+		hotkeyRDict={v:k for k,v in self.hotkeyDict.items()}
 		rprint("tab count="+str(bar.count()))
 		for i in range(1,bar.count()):
 			#  An apparent bug causes the tabButton (a label) to not have a text attrubite;
