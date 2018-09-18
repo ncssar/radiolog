@@ -3752,6 +3752,20 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			# getValues return value: [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
 			rprint("Accepted")
 			val=self.getValues()
+			
+			# validation: callsign field must be non-blank
+			vText=""
+			if val[2]=="":
+				vText+="\nCallsign cannot be blank."
+			rprint("vText:"+vText)
+			if vText!="":
+				self.entryMsgBox=QMessageBox(QMessageBox.Critical,"Error","Please complete the form and try again:\n"+vText,
+					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				self.entryMsgBox.show()
+				self.entryMsgBox.raise_()
+				self.entryMsgBox.exec_()
+				return
+				
 			if self.amendFlag:
 				prevToFrom=self.parent.radioLog[self.amendRow][1]
 				newToFrom=self.ui.to_fromField.currentText()
