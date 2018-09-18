@@ -130,6 +130,8 @@
 #                           if the response were important; works well on home computer,
 #                           hopefully this fixes #378
 #    9-17-18   TMG       fix and improve team hotkey selection and recycling
+#    9-17-18   TMG       change some dictionary lookups to use get() with a default,
+#                           to avoid possible KeyErrors
 #
 # #############################################################################
 #
@@ -2113,11 +2115,11 @@ class MyWindow(QDialog,Ui_Dialog):
 				if widget.ui.to_fromField.currentText()=="FROM" and getExtTeamName(widget.ui.teamField.text())==extTeamName:
 					hold=True
 			i=self.extTeamNameList.index(extTeamName)
-			status=teamStatusDict[extTeamName]
-			fsFilter=teamFSFilterDict[extTeamName]
+			status=teamStatusDict.get(extTeamName,"")
+			fsFilter=teamFSFilterDict.get(extTeamName,0)
 ##			rprint("blinking "+extTeamName+": status="+status)
 # 			rprint("fsFilter "+extTeamName+": "+str(fsFilter))
-			secondsSinceContact=teamTimersDict[extTeamName]
+			secondsSinceContact=teamTimersDict.get(extTeamName,0)
 			if status=="Waiting for Transport" or status=="STANDBY" or (secondsSinceContact>=self.timeoutOrangeSec):
 				if self.blinkToggle==0:
 					# blink 0: style is one of these:
