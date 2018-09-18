@@ -132,6 +132,8 @@
 #    9-17-18   TMG       fix and improve team hotkey selection and recycling
 #    9-17-18   TMG       change some dictionary lookups to use get() with a default,
 #                           to avoid possible KeyErrors
+#    9-17-18   TMG       catch any sync errors during deletion of proxyModelList entries
+#                           (which happens during team tab deletion)
 #
 # #############################################################################
 #
@@ -2737,32 +2739,32 @@ class MyWindow(QDialog,Ui_Dialog):
 			QTimer.singleShot(100,lambda:self.newEntryPost(extTeamName))
 
 	def newEntryPost(self,extTeamName=None):
-		rprint("1: called newEntryPost")
+# 		rprint("1: called newEntryPost")
 		self.radioLogNeedsPrint=True
 		# don't do any sorting at all since layoutChanged during/after sort is
 		#  a huge cause of lag; see notes in newEntry function
-		rprint("3")
+# 		rprint("3")
 		# resize the bottom-most rows (up to 10 of them):
 		#  this makes lag time independent of total row count for large tables,
 		#  and reduces overall lag about 30% vs resizeRowsToContents (about 3 sec vs 4.5 sec for a 1300-row table)
 		for n in range(len(self.radioLog)-10,len(self.radioLog)):
 			if n>=0:
 				self.ui.tableView.resizeRowToContents(n+1)
-		rprint("4")
+# 		rprint("4")
 		self.ui.tableView.scrollToBottom()
-		rprint("5")
+# 		rprint("5")
 		for i in [2,4]: # hardcode results in significant speedup
 			self.ui.tableView.resizeColumnToContents(i)
-		rprint("5.1")
+# 		rprint("5.1")
 		# note, the following clause results in a small lag for very large team count
 		#  and large radioLog (about 0.1sec on TomZen for 180kB log file); probably
 		#  not worth trying to optimize
 		for n in self.ui.tableViewList[1:]:
 			for i in [2,4]: # hardcode results in significant speedup
 				n.resizeColumnToContents(i)
-		rprint("5.2")
+# 		rprint("5.2")
 		if extTeamName:
-			rprint("5.2.1")
+# 			rprint("5.2.1")
 			if extTeamName=="ALL TEAMS":
 				for i in range(1,len(self.extTeamNameList)):
 					self.ui.tabWidget.setCurrentIndex(i)
@@ -2772,26 +2774,26 @@ class MyWindow(QDialog,Ui_Dialog):
 							self.ui.tableViewList[i].resizeRowToContents(n+1)
 					self.ui.tableViewList[i].scrollToBottom()
 			elif extTeamName!="z_00000":
-				rprint("5.2.1.2")
+# 				rprint("5.2.1.2")
 				if extTeamName in self.extTeamNameList:
-					rprint("5.2.1.2.1")
+# 					rprint("5.2.1.2.1")
 					i=self.extTeamNameList.index(extTeamName)
-					rprint("  a: i="+str(i))
+# 					rprint("  a: i="+str(i))
 					self.ui.tabWidget.setCurrentIndex(i)
-					rprint("  b")
+# 					rprint("  b")
 					self.ui.tableViewList[i].resizeRowsToContents()
-					rprint("  c")
+# 					rprint("  c")
 					for n in range(len(self.radioLog)-10,len(self.radioLog)):
 						if n>=0:
 							self.ui.tableViewList[i].resizeRowToContents(n+1)
-					rprint("  d")
+# 					rprint("  d")
 					self.ui.tableViewList[i].scrollToBottom()
-					rprint("  e")
-		rprint("6")
+# 					rprint("  e")
+# 		rprint("6")
 		self.save()
 ##		self.redrawTables()
 ##		QCoreApplication.processEvents()
-		rprint("7: finished newEntryPost")
+# 		rprint("7: finished newEntryPost")
 
 	def tableContextMenu(self,pos):
 		row=self.ui.tableView.rowAt(pos.y())
@@ -2996,7 +2998,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			del self.ui.tabGridLayoutList[i]
 			del self.ui.tableViewList[i]
 			self.ui.tabWidget.removeTab(i)
-			del self.proxyModelList[i]
+			try:
+				del self.proxyModelList[i]
+			except:
+				rprint("  ** sync error: proxyModelList current length = "+str(len(self.proxyModelList))+"; requested to delete index "+str(i)+"; continuing...")
+			else:
+				rprint("  deleted proxyModelList index "+str(i))
 			# free the hotkey, and reassign it to the first (if any) displayed callsign that has no hotkey
 			hotkeyRDict={v:k for k,v in self.hotkeyDict.items()}
 			if niceTeamName in hotkeyRDict:
