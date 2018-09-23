@@ -134,6 +134,8 @@
 #                           to avoid possible KeyErrors
 #    9-17-18   TMG       catch any sync errors during deletion of proxyModelList entries
 #                           (which happens during team tab deletion)
+#    9-17-18   TMG       disallow blank callsign for new entry
+#    9-23-18   TMG       cleanup config file defaults handling
 #
 # #############################################################################
 #
@@ -590,6 +592,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.optionsDialog.accepted.connect(self.optionsAccepted)
 		
 		self.validDatumList=["WGS84","NAD27","NAD27 CONUS"]
+		self.timeoutDisplaySecList=[i[1] for i in timeoutDisplayList]
+		self.timeoutDisplayMinList=[int(i/60) for i in self.timeoutDisplaySecList if i>=60]
 		
 		# coordinate system name translation dictionary:
 		#  key = ASCII name in the config file
@@ -844,7 +848,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.firstWorkingDir=self.homeDir+"\\Documents"
 		self.secondWorkingDir=None
 		self.sarsoftServerName="localhost"
-		
+
 		configFile=QFile(self.configFileName)
 		if not configFile.open(QFile.ReadOnly|QFile.Text):
 			warn=QMessageBox(QMessageBox.Warning,"Error","Cannot read configuration file " + self.configFileName + "; using default settings. "+configFile.errorString(),
@@ -852,6 +856,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			warn.show()
 			warn.raise_()
 			warn.exec_()
+			self.timeoutRedSec=int(self.timeoutMinutes)*60
+			self.updateOptionsDialog()
 			return
 		inStr=QTextStream(configFile)
 		line=inStr.readLine()
@@ -862,7 +868,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			warn.raise_()
 			warn.exec_()
 			configFile.close()
+			self.timeoutRedSec=int(self.timeoutMinutes)*60
+			self.updateOptionsDialog()
 			return
+		
 		while not inStr.atEnd():
 			line=inStr.readLine()
 			tokens=line.split("=")
@@ -934,22 +943,17 @@ class MyWindow(QDialog,Ui_Dialog):
 		
 		self.coordFormat=self.csDisplayDict[self.coordFormatAscii]
 		self.ui.datumFormatLabel.setText(self.datum+"\n"+self.coordFormat)
-		self.optionsDialog.ui.datumField.setCurrentIndex(self.optionsDialog.ui.datumField.findText(self.datum))
-		self.optionsDialog.ui.formatField.setCurrentIndex(self.optionsDialog.ui.formatField.findText(self.coordFormat))
 	
-		self.timeoutDisplaySecList=[i[1] for i in timeoutDisplayList]
-		self.timeoutDisplayMinList=[int(i/60) for i in self.timeoutDisplaySecList if i>=60]
 		if not self.timeoutMinutes.isdigit():
 			configErr+="ERROR: timeout minutes value must be an integer.  Will use 30 minutes for this session.\n\n"
 			self.timeoutMinutes=30
-		self.timeoutRedSec=int(self.timeoutMinutes)*60	
+		self.timeoutRedSec=int(self.timeoutMinutes)*60
 		if not self.timeoutRedSec in self.timeoutDisplaySecList:
 			configErr+="ERROR: invalid timeout period ("+str(self.timeoutMinutes)+" minutes)\n"
 			configErr+="  Valid choices:"+str(self.timeoutDisplayMinList)+"\nWill use 30 minutes for this session.\n\n"
 			self.timeoutRedSec=1800
-			
-		self.optionsDialog.ui.timeoutField.setValue(self.timeoutDisplaySecList.index(int(self.timeoutRedSec)))
-		self.optionsAccepted() # at the very least, this sets timeoutOrangeSec
+		
+		self.updateOptionsDialog()
 		
 		# if agencyName contains newline character(s), use it as-is for print;
 		#  if not, textwrap with max line length that looks best on pdf reports
@@ -971,7 +975,13 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		if develMode:
 			self.sarsoftServerName="localhost" # DEVEL
-		
+
+	def updateOptionsDialog(self):
+		rprint("updating options dialog: datum="+self.datum)
+		self.optionsDialog.ui.datumField.setCurrentIndex(self.optionsDialog.ui.datumField.findText(self.datum))
+		self.optionsDialog.ui.formatField.setCurrentIndex(self.optionsDialog.ui.formatField.findText(self.coordFormat))
+		self.optionsDialog.ui.timeoutField.setValue(self.timeoutDisplaySecList.index(int(self.timeoutRedSec)))
+		self.optionsAccepted() # at the very least, this sets timeoutOrangeSec
 
 	def setColumnResizedFlag(self):
 		self.columnResizedFlag=True
