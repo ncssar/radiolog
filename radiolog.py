@@ -136,6 +136,11 @@
 #                           (which happens during team tab deletion)
 #    9-17-18   TMG       disallow blank callsign for new entry
 #    9-23-18   TMG       cleanup config file defaults handling
+#    10-3-18   TMG       fix #364: eliminate backup rotation lag by running it
+#                          in the background (external powershell script on Windows
+#                          systems; custom script can be specified in config file;
+#                          currently there is no default backup rotation script for
+#                          non-Windows systems)
 #
 # #############################################################################
 #
@@ -490,27 +495,6 @@ def writeLogBuffer():
 		logFile.write(logBuffer)
 		logFile.close()
 		logBuffer=""
-
-def rotateCsvBackups(fileName):
-	rprint("Rotating backups for "+fileName)
-	# iterate downwards through version depth (5 by default):
-	# if the version exists, increment its version (if past max, delete it)
-	# copy the current data file to backup version 1
-	if not os.path.isfile(fileName):
-		rprint(" No such file "+fileName+"; skipping rotateBackups")
-		return
-	for v in range(versionDepth,0,-1):
-		rprint(" v="+str(v))
-		if v==versionDepth:
-			f=fileName.replace(".csv","_bak"+str(v)+".csv")
-			if os.path.isfile(f):
-				os.remove(f)
-		else:
-			src=fileName.replace(".csv","_bak"+str(v)+".csv")
-			dst=fileName.replace(".csv","_bak"+str(v+1)+".csv")
-			if os.path.isfile(src):
-				os.rename(src,dst)
-	shutil.copy(fileName,fileName.replace(".csv","_bak1.csv"))
 	
 def normName(name):
 	return re.sub("[^A-Za-z0-9_]+","_",name)
@@ -848,6 +832,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.firstWorkingDir=self.homeDir+"\\Documents"
 		self.secondWorkingDir=None
 		self.sarsoftServerName="localhost"
+		self.rotateScript=None
+		self.rotateDelimiter=None
+		if os.name=="nt":
+			rprint("Operating system is Windows.")
+			if shutil.which("powershell.exe"):
+				rprint("PowerShell.exe is in the path.")
+				self.rotateScript="powershell.exe -ExecutionPolicy Bypass .\\rotateCsvBackups.ps1 -filenames "
+				self.rotateDelimiter=","
+			else:
+				rprint("PowerShell.exe is not in the path; poweshell-based backup rotation script cannot be used.")
+		else:
+			rprint("Operating system is not Windows.  Powershell-based backup rotation script cannot be used.")
 
 		configFile=QFile(self.configFileName)
 		if not configFile.open(QFile.ReadOnly|QFile.Text):
@@ -895,6 +891,10 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.secondWorkingDir=tokens[1]
 			elif tokens[0]=="server":
 				self.sarsoftServerName=tokens[1]
+			elif tokens[0]=="rotateScript":
+				self.rotateScript=tokens[1]
+			elif tokens[0]=="rotateDelimiter":
+				self.rotateDelimiter=tokens[1]
 		configFile.close()
 		
 		# validation and post-processing of each item
@@ -976,6 +976,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		if develMode:
 			self.sarsoftServerName="localhost" # DEVEL
 
+	def rotateCsvBackups(self,filenames):
+		if self.rotateScript and self.rotateDelimiter:
+			cmd=self.rotateScript+' '+self.rotateDelimiter.join(filenames)
+			rprint("Invoking backup rotation script: "+cmd)
+			subprocess.Popen(cmd)
+		else:
+			rprint("No backup rotation script and/or delimiter was specified; no rotation is being performed.")
+		
 	def updateOptionsDialog(self):
 		rprint("updating options dialog: datum="+self.datum)
 		self.optionsDialog.ui.datumField.setCurrentIndex(self.optionsDialog.ui.datumField.findText(self.datum))
@@ -3831,15 +3839,20 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				self.parent.newEntry(v)
 	
 			self.parent.totalEntryCount+=1
-			if self.parent.totalEntryCount%5==0: # rotate backup files after every 5 entries
-				rotateCsvBackups(self.parent.firstWorkingDir+"\\"+self.parent.csvFileName)
-				rotateCsvBackups(self.parent.firstWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"))
-				rotateCsvBackups(self.parent.firstWorkingDir+"\\"+self.parent.fsFileName)
-				if self.parent.secondWorkingDir and os.path.isdir(self.parent.secondWorkingDir):
-					rotateCsvBackups(self.parent.secondWorkingDir+"\\"+self.parent.csvFileName)
-					rotateCsvBackups(self.parent.secondWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"))
-					rotateCsvBackups(self.parent.secondWorkingDir+"\\"+self.parent.fsFileName)
-	
+			if self.parent.totalEntryCount%5==0:
+				# rotate backup files after every 5 entries, but note the actual
+				#  entry interval could be off during fast entries since the
+				#  rotate script is called asynchronously (i.e. backgrounded)
+				filesToBackup=[
+						self.parent.firstWorkingDir+"\\"+self.parent.csvFileName,
+						self.parent.firstWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"),
+						self.parent.firstWorkingDir+"\\"+self.parent.fsFileName]
+				if self.parent.secondWorkingDir:
+					filesToBackup=filesToBackup+[
+							self.parent.secondWorkingDir+"\\"+self.parent.csvFileName,
+							self.parent.secondWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"),
+							self.parent.secondWorkingDir+"\\"+self.parent.fsFileName]
+				self.parent.rotateCsvBackups(filesToBackup)	
 			rprint("Accepted2")
 		
 		self.closeEvent(QEvent(QEvent.Close),True)
