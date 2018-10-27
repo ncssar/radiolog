@@ -141,6 +141,8 @@
 #                          systems; custom script can be specified in config file;
 #                          currently there is no default backup rotation script for
 #                          non-Windows systems)
+#   10-26-18   TMG       fix #380 (fleetsync CID parsing issue); add more CID parsing
+#                          and callsign-change messages
 #
 # #############################################################################
 #
@@ -480,7 +482,9 @@ def rprint(text):
 	logText=str(int(time.time()))[-4:]+":"+str(text)
 	print(logText)
 	global logBuffer
-	logBuffer+=logText+"\n"
+	if not logText.endswith("\n"):
+		logText+="\n"
+	logBuffer+=logText
 
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
@@ -1236,6 +1240,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			if '$PKLSH' in line:
 				[pklsh,nval,nstr,wval,wstr,utc,valid,fleet,dev,chksum]=line.split(',')
 				callsign=self.getCallsign(fleet,dev)
+				rprint("$PKLSH detected containing CID: fleet="+fleet+"  dev="+dev+"  -->  callsign="+callsign)
 				if valid=='A':  # only process if there is a GPS lock
 #				if valid!='Z':  # process regardless of GPS lock
 					locList=[nval,nstr,wval,wstr]
@@ -1264,9 +1269,18 @@ class MyWindow(QDialog,Ui_Dialog):
 					origLocString='NO FIX'
 					formattedLocString='NO FIX'
 			elif '\x02I' in line:
-				fleet=line[3:6]
-				dev=line[6:10]
+				# caller ID lines look like " I110040021004002" (first character is \x02, may show as a space)
+				# " I<n>" is a prefix, n is either 0 or 1 (not sure why)
+				# the next three characters (100 above) are the fleet#
+				# the next four characters (4002 above) are the device#
+				# fleet and device# are repeated
+				# apparently a delay elsewhere can result in an extra leading character here;
+				#  so, find the exact characters rather than assuming character index
+				i=line.index('\x02I')
+				fleet=line[i+3:i+6]
+				dev=line[i+6:i+10]
 				callsign=self.getCallsign(fleet,dev)
+				rprint("CID detected (not in $PKLSH): fleet="+fleet+"  dev="+dev+"  callsign="+callsign)
 		# if any new entry dialogs are already open with 'from' and the
 		#  current callsign, and that entry has been edited within the 'continue' time,
 		#  update it with the current location if available;
@@ -1316,6 +1330,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					rprint(self.getString)
 					# fire-and-forget: completely ignore the response, but, return immediately
 					requests.get(self.getString,timeout=0.0001)
+					rprint("  returned from get request")
 				except:
 					pass
 				self.getString=''
@@ -2395,10 +2410,12 @@ class MyWindow(QDialog,Ui_Dialog):
 				if self.lastSavedFileName!=self.csvFileName: # this is the first save since startup, since restore, or since incident name change
 					self.lastSavedFileName=self.csvFileName
 					self.saveRcFile()
+			rprint("  done writing "+fileName)
 		# now write the clue log to a separate csv file: same filename appended by '.clueLog'
 		if len(self.clueLog)>0:
 			for fileName in csvFileNameList:
 				fileName=fileName.replace(".csv","_clueLog.csv")
+				rprint("  writing "+fileName)
 				with open(fileName,'w',newline='') as csvFile:
 					csvWriter=csv.writer(csvFile)
 					csvWriter.writerow(["## Clue Log data file"])
@@ -2409,6 +2426,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						csvWriter.writerow(row)
 					if finalize:
 						csvWriter.writerow(["## end"])
+				rprint("  done writing "+fileName)
 
 	def load(self,fileName=None):
 		# loading scheme:
@@ -3754,7 +3772,6 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		# only open the dialog if the newEntryWidget was created from an incoming fleetSync ID
 		#  (it has no meaning for hotkey-opened newEntryWidgets)
 		self.needsChangeCallsign=False
-		rprint("FLEET:'"+str(self.fleet)+"'")
 		if self.fleet:
 			self.changeCallsignDialog=changeCallsignDialog(self,self.ui.teamField.text(),self.fleet,self.dev)
 			self.changeCallsignDialog.exec_() # required to make it stay on top
@@ -4611,6 +4628,8 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		self.currentCallsign=callsign
 		self.fleet=int(fleet)
 		self.device=int(device)
+		
+		rprint("openChangeCallsignDialog called.  fleet="+str(self.fleet)+"  dev="+str(self.device))
 
 		self.ui.fleetField.setText(fleet)
 		self.ui.deviceField.setText(device)
@@ -4660,6 +4679,7 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		#  the same as the new entry, as determined by addTab
 		self.parent.parent.newEntryWindow.ui.tabWidget.currentWidget().ui.messageField.setFocus()
 		super(changeCallsignDialog,self).accept()
+		rprint("New callsign pairing created: fleet="+fleet+"  dev="+dev+"  callsign="+newCallsign)
 
 
 ##class convertDialog(QDialog,Ui_convertDialog):
