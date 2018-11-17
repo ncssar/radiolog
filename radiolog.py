@@ -143,6 +143,9 @@
 #                          non-Windows systems)
 #   10-26-18   TMG       fix #380 (fleetsync CID parsing issue); add more CID parsing
 #                          and callsign-change messages
+#   11-17-18   TMG       overhaul logging: use the logging module, making sure
+#                          to show uncaught exceptions on the screen and in the
+#                          log file
 #
 # #############################################################################
 #
@@ -293,6 +296,7 @@ from subjectLocatedDialog_ui import Ui_subjectLocatedDialog
 
 import functools
 import sys
+import logging
 import time
 import re
 import serial
@@ -475,16 +479,42 @@ def getShortNiceTeamName(niceTeamName):
 def getFileNameBase(root):
 	return root+"_"+time.strftime("%Y_%m_%d_%H%M%S")
 
-logBuffer=""
+###### LOGGING CODE BEGIN ######
+
+# do not pass ERRORs to stdout - they already show up on the screen from stderr
+class LoggingFilter(logging.Filter):
+	def filter(self,record):
+		return record.levelno < logging.ERROR
+
 logFileName=getFileNameBase("radiolog_log")+".txt"
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+fh=logging.FileHandler(logFileName)
+fh.setLevel(logging.INFO)
+ch=logging.StreamHandler(stream=sys.stdout)
+ch.setLevel(logging.INFO)
+ch.addFilter(LoggingFilter())
+logger.addHandler(fh)
+logger.addHandler(ch)
+
+# redirect stderr to stdout here by overriding excepthook
+# from https://stackoverflow.com/a/16993115/3577105
+# and https://www.programcreek.com/python/example/1013/sys.excepthook
+def handle_exception(exc_type, exc_value, exc_traceback):
+	if not issubclass(exc_type, KeyboardInterrupt):
+		logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+	sys.__excepthook__(exc_type, exc_value, exc_traceback)
+	# interesting that the program no longer exits after uncaught exceptions
+	#  if this function replaces __excepthook__.  Probably a good thing but
+	#  it would be nice to undertstand why.
+	return
+# note: 'sys.excepthook = handle_exception' must be done inside main()
 
 def rprint(text):
 	logText=str(int(time.time()))[-4:]+":"+str(text)
-	print(logText)
-	global logBuffer
-	if not logText.endswith("\n"):
-		logText+="\n"
-	logBuffer+=logText
+	logger.info(logText)
+
+###### LOGGING CODE END ######
 
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
@@ -492,13 +522,6 @@ def rprint(text):
 def rreplace(s,old,new,occurrence):
 	li=s.rsplit(old,occurrence)
 	return new.join(li)
-
-def writeLogBuffer():
-	with open(logFileName,'a') as logFile:
-		global logBuffer
-		logFile.write(logBuffer)
-		logFile.close()
-		logBuffer=""
 	
 def normName(name):
 	return re.sub("[^A-Za-z0-9_]+","_",name)
@@ -772,10 +795,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fastTimer=QTimer(self)
 		self.fastTimer.timeout.connect(self.resizeRowsToContentsIfNeeded)
 		self.fastTimer.start(100)
-
-		self.logTimer=QTimer(self)
-		self.logTimer.timeout.connect(writeLogBuffer)
-		self.logTimer.start(5000)
 
 		self.ui.tabWidget.insertTab(0,QWidget(),'TEAMS:')
 ##		self.ui.tabWidget.setStyleSheet("font-size:12px")
@@ -2289,7 +2308,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.save(finalize=True)
 		self.fsSaveLookup()
 		self.saveRcFile(cleanShutdownFlag=True)
-		writeLogBuffer()
 
 		self.teamTimer.stop()
 		if self.firstComPortFound:
@@ -3871,7 +3889,6 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 							self.parent.secondWorkingDir+"\\"+self.parent.fsFileName]
 				self.parent.rotateCsvBackups(filesToBackup)	
 			rprint("Accepted2")
-		
 		self.closeEvent(QEvent(QEvent.Close),True)
 ##		self.close()
 
@@ -4938,4 +4955,5 @@ def main():
 	sys.exit(app.exec_())
 
 if __name__ == "__main__":
+	sys.excepthook = handle_exception
 	main()
