@@ -148,6 +148,8 @@
 #                          log file
 #   11-17-18   TMG       fix #382 (disable locator requests from GUI);
 #                          fix #383 (disable second working dir from GUI)
+#   11-17-18   TMG       fix #381 (auto-accept entry on clue report or subj located accept);
+#                          fix #339 (don't increment clue# if clue form is canceled)
 #
 # #############################################################################
 #
@@ -4283,7 +4285,10 @@ class clueDialog(QDialog,Ui_clueDialog):
 				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			if really.exec_()==QMessageBox.No:
 				event.ignore()
-				return	
+				return
+			if clueDialog.openDialogCount==1:
+				global lastClueNumber
+				lastClueNumber=lastClueNumber-1 # only release the clue# if no other clue forms are open
 			self.values=self.parent.getValues()
 			self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'LOCATED A CLUE' form"
 			self.parent.parent.newEntry(self.values)
@@ -4293,6 +4298,8 @@ class clueDialog(QDialog,Ui_clueDialog):
 		clueDialog.openDialogCount-=1
 		self.parent.childDialogs.remove(self)
 		event.accept()
+		if accepted:
+			self.parent.accept()
 ##		newEntryWidget.instances.remove(self)
 
 	def clueQuickTextAction(self):
@@ -4535,6 +4542,8 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		self.parent.subjectLocatedDialogOpen=False
 		subjectLocatedDialog.openDialogCount-=1
 		self.parent.childDialogs.remove(self)
+		if accepted:
+			self.parent.accept()
 
 	# fix issue #338: prevent 'esc' from closing the newEntryWindow
 	def keyPressEvent(self,event):
