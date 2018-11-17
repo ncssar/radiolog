@@ -146,6 +146,8 @@
 #   11-17-18   TMG       overhaul logging: use the logging module, making sure
 #                          to show uncaught exceptions on the screen and in the
 #                          log file
+#   11-17-18   TMG       fix #382 (disable locator requests from GUI);
+#                          fix #383 (disable second working dir from GUI)
 #
 # #############################################################################
 #
@@ -579,6 +581,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsLog=[]
 # 		self.fsLog.append(['','','','',''])
 		self.fsMuted=False
+		self.noSend=noSend
 		self.fsMutedBlink=False
 		self.fsFilterBlinkState=False
 		self.getString=""
@@ -961,7 +964,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.configErrMsgBox.exec_()
 			sys.exit(-1)
 			
-		if self.secondWorkingDir and not os.path.isdir(self.secondWorkingDir):
+		if self.use2WD and self.secondWorkingDir and not os.path.isdir(self.secondWorkingDir):
 			configErr+="ERROR: second working directory '"+self.secondWorkingDir+"' does not exist.  Maybe it is not mounted yet; radiolog will try to write to it after every entry.\n\n"
 		
 		self.coordFormat=self.csDisplayDict[self.coordFormatAscii]
@@ -1024,16 +1027,21 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.ui.tableView.scrollToBottom()
 			for n in self.ui.tableViewList[1:]:
 				n.resizeRowsToContents()
-
+		
 	def fsMuteBlink(self,state):
 		if state=="on":
 			self.ui.incidentNameLabel.setText("FleetSync Muted")
 			self.ui.incidentNameLabel.setStyleSheet("background-color:#ff5050;color:white;font-size:"+str(self.limitedFontSize)+"pt;")
 			self.ui.fsCheckBox.setStyleSheet("border:3px outset red")
 		else:
-			self.ui.incidentNameLabel.setText(self.incidentName)
-			self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black;font-size:"+str(self.limitedFontSize)+"pt;")
-			self.ui.fsCheckBox.setStyleSheet("border:3px inset lightgray")
+			if state=="noSend":
+				self.ui.incidentNameLabel.setText("FS Locators Muted")
+				self.ui.incidentNameLabel.setStyleSheet("background-color:#ff5050;color:white;font-size:"+str(self.limitedFontSize)+"pt;")
+				self.ui.fsCheckBox.setStyleSheet("border:3px outset red")
+			else:
+				self.ui.incidentNameLabel.setText(self.incidentName)
+				self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black;font-size:"+str(self.limitedFontSize)+"pt;")
+				self.ui.fsCheckBox.setStyleSheet("border:3px inset lightgray")
 	
 	def fsFilterBlink(self,state):
 		if state=="on":
@@ -1093,7 +1101,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black;font-size:"+str(self.limitedFontSize)+"pt")
 				
 	def fsCheckBoxCB(self):
-		self.fsMuted=not self.ui.fsCheckBox.isChecked()
+		# 0 = unchecked / empty: mute fleetsync completely
+		# 1 = partial check / square: listen for CID and location, but do not send locator requests
+		# 2 = checked (normal behavior): listen for CID and location, and send locator requests
+		self.fsMuted=self.ui.fsCheckBox.checkState()==0
+		self.noSend=self.ui.fsCheckBox.checkState()<2
 		# blinking is handled in fsCheck which is called once a second anyway;
 		# make sure to set display back to normal if mute was just turned off
 		#  since we don't know the previous blink state
@@ -1101,10 +1113,14 @@ class MyWindow(QDialog,Ui_Dialog):
 			rprint("FleetSync is now muted")
 			self.fsMuteBlink("on") # blink on immediately so user sees immediate response
 		else:
-			rprint("Fleetsync is now unmuted")
-			self.fsMuteBlink("off")
-			self.ui.incidentNameLabel.setText(self.incidentName)
-			self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black;font-size:"+str(self.limitedFontSize)+"pt;")
+			if self.noSend:
+				rprint("Fleetsync is unmuted but locator requests will not be sent")
+				self.fsMuteBlink("noSend")
+			else:
+				rprint("Fleetsync is unmuted and locator requests will be sent")
+				self.fsMuteBlink("off")
+				self.ui.incidentNameLabel.setText(self.incidentName)
+				self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black;font-size:"+str(self.limitedFontSize)+"pt;")
 			
 	# FleetSync - check for pending data
 	# - check for pending data at regular interval (from timer)
@@ -1223,12 +1239,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  even if they are muted, so that the com port buffers don't fill up
 		#  while muted, which would result in buffer overrun or just all the
 		#  queued up fs traffic being processed when fs is unmuted
-		if self.fsMuted:
-			self.fsBuffer="" # make sure the buffer is clear, i.e. any incoming
-			 # fs traffic while muted should be read but disregarded
-			self.fsMutedBlink=not self.fsMutedBlink
+		if self.fsMuted or self.noSend:
+			if self.fsMuted:
+				self.fsBuffer="" # make sure the buffer is clear, i.e. any incoming
+			 		# fs traffic while muted should be read but disregarded
+			if (self.fsMuted or self.noSend):
+				self.fsMutedBlink=not self.fsMutedBlink
 			if self.fsMutedBlink:
-				self.fsMuteBlink("on")
+				if self.fsMuted:
+					self.fsMuteBlink("on")
+				else:
+					if self.noSend:
+						self.fsMuteBlink("noSend")
 			else:
 				self.fsMuteBlink("off")
 				
@@ -1339,7 +1361,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		# also, if it ends in hyphen, defer sending until accept of change callsign dialog, or closeEvent of newEntryDialog
 		#  (see getString construction comments above)
-		if not noSend:
+		if not self.noSend:
 			if self.getString!='': # to avoid sending a GET string that is nothing but the callsign
 				self.getString=self.getString+suffix
 			if self.getString!='' and not self.getString.endswith("-"):
@@ -1822,7 +1844,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		win32api.ShellExecute(0,"print",pdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
 		self.radioLogNeedsPrint=False
 
-		if self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
+		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
 			rprint("copying radio log pdf"+msgAdder+" to "+self.secondWorkingDir)
 			shutil.copy(pdfName,self.secondWorkingDir)
 
@@ -1929,7 +1951,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			doc.build(elements,onFirstPage=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod),onLaterPages=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod))
 # 			self.clueLogMsgBox.setInformativeText("Finalizing and Printing...")
 			win32api.ShellExecute(0,"print",clueLogPdfFileName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
-			if self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
+			if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
 				rprint("copying clue log pdf to "+self.secondWorkingDir)
 				shutil.copy(clueLogPdfFileName,self.secondWorkingDir)
 # 		else:
@@ -2019,7 +2041,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		os.system(pdftk_cmd)
 
 		win32api.ShellExecute(0,"print",cluePdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
-		if self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
+		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
 			rprint("copying clue report pdf to "+self.secondWorkingDir)
 			shutil.copy(clueFdfName,self.secondWorkingDir)
 			shutil.copy(cluePdfName,self.secondWorkingDir)
@@ -2407,7 +2429,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def save(self,finalize=False):
 		csvFileNameList=[self.firstWorkingDir+"\\"+self.csvFileName]
-		if self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
+		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
 			csvFileNameList.append(self.secondWorkingDir+"\\"+self.csvFileName)
 		for fileName in csvFileNameList:
 			rprint("  writing "+fileName)
@@ -3182,6 +3204,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.datumField.setEnabled(False) # since convert menu is not working yet, TMG 4-8-15
 		self.ui.formatField.setEnabled(False) # since convert menu is not working yet, TMG 4-8-15
 		self.setFixedSize(self.size())
+		self.secondWorkingDirCB()
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
@@ -3190,9 +3213,13 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.datumField.clearFocus()
 		self.ui.formatField.clearFocus()
 		self.ui.timeoutField.clearFocus()
+		self.ui.secondWorkingDirCheckBox.clearFocus()
 
 	def displayTimeout(self):
 		self.ui.timeoutLabel.setText("Timeout: "+timeoutDisplayList[self.ui.timeoutField.value()][0])
+	
+	def secondWorkingDirCB(self):
+		self.parent.use2WD=self.ui.secondWorkingDirCheckBox.isChecked()
 
 
 class printDialog(QDialog,Ui_printDialog):
@@ -3882,7 +3909,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 						self.parent.firstWorkingDir+"\\"+self.parent.csvFileName,
 						self.parent.firstWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"),
 						self.parent.firstWorkingDir+"\\"+self.parent.fsFileName]
-				if self.parent.secondWorkingDir:
+				if self.parent.use2WD and self.parent.secondWorkingDir:
 					filesToBackup=filesToBackup+[
 							self.parent.secondWorkingDir+"\\"+self.parent.csvFileName,
 							self.parent.secondWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"),

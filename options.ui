@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>572</width>
-    <height>339</height>
+    <width>616</width>
+    <height>378</height>
    </rect>
   </property>
   <property name="font">
@@ -20,6 +20,22 @@
    <string>Options</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="0">
+    <widget class="QLabel" name="label">
+     <property name="font">
+      <font>
+       <family>Segoe UI</family>
+       <pointsize>16</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>Incident Name</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+    </widget>
+   </item>
    <item row="1" column="1">
     <widget class="QComboBox" name="datumField">
      <property name="font">
@@ -41,6 +57,22 @@
        <string>WGS84</string>
       </property>
      </item>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="label_4">
+     <property name="font">
+      <font>
+       <family>Segoe UI</family>
+       <pointsize>16</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>Coordinate Format</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
     </widget>
    </item>
    <item row="3" column="1">
@@ -83,8 +115,24 @@
      </property>
     </widget>
    </item>
-   <item row="3" column="0">
-    <widget class="QLabel" name="timeoutLabel">
+   <item row="9" column="1">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="font">
+      <font>
+       <family>Segoe UI</family>
+       <pointsize>16</pointsize>
+      </font>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="label_3">
      <property name="font">
       <font>
        <family>Segoe UI</family>
@@ -92,7 +140,7 @@
       </font>
      </property>
      <property name="text">
-      <string>Timeout</string>
+      <string>Datum</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -137,8 +185,8 @@
      </item>
     </widget>
    </item>
-   <item row="2" column="0">
-    <widget class="QLabel" name="label_4">
+   <item row="3" column="0">
+    <widget class="QLabel" name="timeoutLabel">
      <property name="font">
       <font>
        <family>Segoe UI</family>
@@ -146,7 +194,7 @@
       </font>
      </property>
      <property name="text">
-      <string>Coordinate Format</string>
+      <string>Timeout</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -169,51 +217,21 @@
      </property>
     </widget>
    </item>
-   <item row="4" column="1">
-    <widget class="QDialogButtonBox" name="buttonBox">
+   <item row="8" column="1">
+    <widget class="QCheckBox" name="secondWorkingDirCheckBox">
      <property name="font">
       <font>
-       <family>Segoe UI</family>
-       <pointsize>16</pointsize>
+       <pointsize>14</pointsize>
       </font>
      </property>
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="0">
-    <widget class="QLabel" name="label_3">
-     <property name="font">
-      <font>
-       <family>Segoe UI</family>
-       <pointsize>16</pointsize>
-      </font>
+     <property name="whatsThis">
+      <string extracomment="Uncheck if local network is slow or intermittent"/>
      </property>
      <property name="text">
-      <string>Datum</string>
+      <string>Use Second Working Directory</string>
      </property>
-     <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="0">
-    <widget class="QLabel" name="label">
-     <property name="font">
-      <font>
-       <family>Segoe UI</family>
-       <pointsize>16</pointsize>
-      </font>
-     </property>
-     <property name="text">
-      <string>Incident Name</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     <property name="checked">
+      <bool>true</bool>
      </property>
     </widget>
    </item>
@@ -228,8 +246,8 @@
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>248</x>
-     <y>254</y>
+     <x>492</x>
+     <y>352</y>
     </hint>
     <hint type="destinationlabel">
      <x>157</x>
@@ -244,8 +262,8 @@
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>316</x>
-     <y>260</y>
+     <x>560</x>
+     <y>352</y>
     </hint>
     <hint type="destinationlabel">
      <x>286</x>
@@ -253,5 +271,24 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>secondWorkingDirCheckBox</sender>
+   <signal>stateChanged(int)</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>secondWorkingDirCB()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>263</x>
+     <y>263</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>188</x>
+     <y>321</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
+ <slots>
+  <slot>secondWorkingDirCB()</slot>
+ </slots>
 </ui>

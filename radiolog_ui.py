@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'radiolog.ui'
 #
-# Created by: PyQt5 UI code generator 5.8.2
+# Created by: PyQt5 UI code generator 5.11.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -59,6 +59,7 @@ class Ui_Dialog(object):
         self.fsCheckBox.setStyleSheet("border:3px inset lightgray")
         self.fsCheckBox.setIconSize(QtCore.QSize(20, 20))
         self.fsCheckBox.setChecked(True)
+        self.fsCheckBox.setTristate(True)
         self.fsCheckBox.setObjectName("fsCheckBox")
         self.fsEnableLayout.addWidget(self.fsCheckBox)
         self.comPortSectionLayout.addLayout(self.fsEnableLayout)
@@ -296,7 +297,7 @@ class Ui_Dialog(object):
 
         self.retranslateUi(Dialog)
         self.tabWidget.setCurrentIndex(-1)
-        self.fsCheckBox.toggled['bool'].connect(Dialog.fsCheckBoxCB)
+        self.fsCheckBox.stateChanged['int'].connect(Dialog.fsCheckBoxCB)
         QtCore.QMetaObject.connectSlotsByName(Dialog)
         Dialog.setTabOrder(self.pushButton, self.tableView)
 

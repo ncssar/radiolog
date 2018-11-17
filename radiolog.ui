@@ -103,6 +103,9 @@
             <property name="checked">
              <bool>true</bool>
             </property>
+            <property name="tristate">
+             <bool>true</bool>
+            </property>
            </widget>
           </item>
          </layout>
@@ -648,13 +651,13 @@ FORMAT</string>
  <connections>
   <connection>
    <sender>fsCheckBox</sender>
-   <signal>toggled(bool)</signal>
+   <signal>stateChanged(int)</signal>
    <receiver>Dialog</receiver>
    <slot>fsCheckBoxCB()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>363</x>
-     <y>28</y>
+     <x>294</x>
+     <y>38</y>
     </hint>
     <hint type="destinationlabel">
      <x>450</x>
