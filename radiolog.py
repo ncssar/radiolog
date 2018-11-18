@@ -151,6 +151,7 @@
 #   11-17-18   TMG       fix #381 (auto-accept entry on clue report or subj located accept);
 #                          fix #339 (don't increment clue# if clue form is canceled)
 #   11-18-18   TMG       fix #358 and make FS location parsing more robust
+#   11-18-18   TMG       fix #351 (don't show options at startup after restore)
 #
 # #############################################################################
 #
@@ -816,6 +817,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# load resource file; process default values and resource file values
 		self.rcFileName="radiolog_rc.txt"
 		self.previousCleanShutdown=self.loadRcFile()
+		showStartupOptions=True
 		if not self.previousCleanShutdown:
 			self.reallyRestore=QMessageBox(QMessageBox.Critical,"Restore last saved files?","The previous Radio Log session may have shut down incorrectly.  Do you want to restore the last saved files (Radio Log, Clue Log, and FleetSync table)?",
 										QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
@@ -823,6 +825,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.reallyRestore.raise_()
 			if self.reallyRestore.exec_()==QMessageBox.Yes:
 				self.restore()
+				showStartupOptions=False
 			
 		# make sure x/y/w/h from resource file will fit on the available display
 		d=QApplication.desktop()
@@ -844,7 +847,8 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		self.ui.timeoutLabel.setText("TIMEOUT:\n"+timeoutDisplayList[self.optionsDialog.ui.timeoutField.value()][0])
 		# pop up the options dialog to enter the incident name right away
-		QTimer.singleShot(1000,self.startupOptions)
+		if showStartupOptions:
+			QTimer.singleShot(1000,self.startupOptions)
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
 
