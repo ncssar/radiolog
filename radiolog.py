@@ -152,6 +152,7 @@
 #                          fix #339 (don't increment clue# if clue form is canceled)
 #   11-18-18   TMG       fix #358 and make FS location parsing more robust
 #   11-18-18   TMG       fix #351 (don't show options at startup after restore)
+#   12-12-18   TMG       fix #384 (bad data causes unpack error)
 #
 # #############################################################################
 #
@@ -1286,69 +1287,75 @@ class MyWindow(QDialog,Ui_Dialog):
 		for line in self.fsBuffer.split('\n'):
 			rprint(" line:"+line)
 			if '$PKLSH' in line:
-				[pklsh,nval,nstr,wval,wstr,utc,valid,fleet,dev,chksum]=line.split(',')
-				callsign=self.getCallsign(fleet,dev)
-				rprint("$PKLSH detected containing CID: fleet="+fleet+"  dev="+dev+"  -->  callsign="+callsign)
-				# unusual PKLSH lines seen from log files:
-				# $PKLSH,2913.1141,N,,,175302,A,100,2016,*7A - no data for west - this caused
-				#   parsing error "ValueError: invalid literal for int() with base 10: ''"
-				# $PKLSH,3851.3330,N,09447.9417,W,012212,V,100,1202,*23 - what's 'V'?
-				#   in standard NMEA sentences, status 'V' = 'warning'.  Dead GPS mic?
-				#   we should flag these to the user somehow; note, the coordinates are
-				#   for the Garmin factory in Olathe, KS
-				# so:
-				# - if valid=='V' set coord field to 'WARNING', do not attempt to parse, and carry on
-				# - if valid=='A' and coords are incomplete or otherwise invalid, set coord field
-				#    to 'INVALID', do not attempt to parse, and carry on
-				if valid=='A':  # only process if there is a GPS lock
-#				if valid!='Z':  # process regardless of GPS lock
-					locList=[nval,nstr,wval,wstr]
-					origLocString='|'.join(locList) # don't use comma, that would conflict with CSV delimeter
-					validated=True
-					try:
-						float(nval)
-					except ValueError:
-						validated=False
-					try:
-						float(wval)
-					except ValueError:
-						validated=False
-					validated=validated and nstr in ['N','S'] and wstr in ['W','E']
-					if validated:
-						rprint("Valid location string:'"+origLocString+"'")
-						formattedLocString=self.convertCoords(locList,self.datum,self.coordFormat)
-						rprint("Formatted location string:'"+formattedLocString+"'")
-						[lat,lon]=self.convertCoords(locList,targetDatum="WGS84",targetFormat="D.dList")
-						rprint("WGS84 lat="+str(lat)+"  lon="+str(lon))
-						# sarsoft requires &id=FLEET:<fleet#>-<deviceID>
-						#  fleet# must match the locatorGroup fleet number in sarsoft
-						#  but deviceID can be any text; use the callsign to get useful names in sarsoft
-						if callsign.startswith("KW-"):
-	                   # did not find a good callsign; use the device number in the GET request
-							devTxt=dev
+				lineParse=line.split(',')
+				if len(lineParse)==10:
+					[pklsh,nval,nstr,wval,wstr,utc,valid,fleet,dev,chksum]=lineParse
+					callsign=self.getCallsign(fleet,dev)
+					rprint("$PKLSH detected containing CID: fleet="+fleet+"  dev="+dev+"  -->  callsign="+callsign)
+					# unusual PKLSH lines seen from log files:
+					# $PKLSH,2913.1141,N,,,175302,A,100,2016,*7A - no data for west - this caused
+					#   parsing error "ValueError: invalid literal for int() with base 10: ''"
+					# $PKLSH,3851.3330,N,09447.9417,W,012212,V,100,1202,*23 - what's 'V'?
+					#   in standard NMEA sentences, status 'V' = 'warning'.  Dead GPS mic?
+					#   we should flag these to the user somehow; note, the coordinates are
+					#   for the Garmin factory in Olathe, KS
+					# so:
+					# - if valid=='V' set coord field to 'WARNING', do not attempt to parse, and carry on
+					# - if valid=='A' and coords are incomplete or otherwise invalid, set coord field
+					#    to 'INVALID', do not attempt to parse, and carry on
+					if valid=='A':  # only process if there is a GPS lock
+	#				if valid!='Z':  # process regardless of GPS lock
+						locList=[nval,nstr,wval,wstr]
+						origLocString='|'.join(locList) # don't use comma, that would conflict with CSV delimeter
+						validated=True
+						try:
+							float(nval)
+						except ValueError:
+							validated=False
+						try:
+							float(wval)
+						except ValueError:
+							validated=False
+						validated=validated and nstr in ['N','S'] and wstr in ['W','E']
+						if validated:
+							rprint("Valid location string:'"+origLocString+"'")
+							formattedLocString=self.convertCoords(locList,self.datum,self.coordFormat)
+							rprint("Formatted location string:'"+formattedLocString+"'")
+							[lat,lon]=self.convertCoords(locList,targetDatum="WGS84",targetFormat="D.dList")
+							rprint("WGS84 lat="+str(lat)+"  lon="+str(lon))
+							# sarsoft requires &id=FLEET:<fleet#>-<deviceID>
+							#  fleet# must match the locatorGroup fleet number in sarsoft
+							#  but deviceID can be any text; use the callsign to get useful names in sarsoft
+							if callsign.startswith("KW-"):
+		                   # did not find a good callsign; use the device number in the GET request
+								devTxt=dev
+							else:
+								# found a good callsign; use the callsign in the GET request
+								devTxt=callsign
+							self.getString="http://"+self.sarsoftServerName+":8080/rest/location/update/position?lat="+str(lat)+"&lng="+str(lon)+"&id=FLEET:"+fleet+"-"
+							# if callsign = "Radio ..." then leave the getString ending with hyphen for now, as a sign to defer
+							#  sending until accept of change callsign dialog, or closeEvent of newEntryWidget, whichever comes first;
+							#  otherwise, append the callsign now, as a sign to send immediately
+							if not devTxt.startswith("Radio "):
+								self.getString=self.getString+devTxt
 						else:
-							# found a good callsign; use the callsign in the GET request
-							devTxt=callsign
-						self.getString="http://"+self.sarsoftServerName+":8080/rest/location/update/position?lat="+str(lat)+"&lng="+str(lon)+"&id=FLEET:"+fleet+"-"
-						# if callsign = "Radio ..." then leave the getString ending with hyphen for now, as a sign to defer
-						#  sending until accept of change callsign dialog, or closeEvent of newEntryWidget, whichever comes first;
-						#  otherwise, append the callsign now, as a sign to send immediately
-						if not devTxt.startswith("Radio "):
-							self.getString=self.getString+devTxt
+							rprint("INVALID location string parsed from $PKLSH: '"+origLocString+"'")
+							origLocString='INVALID'
+							formattedLocString='INVALID'
+					elif valid=='Z':
+						origLocString='NO FIX'
+						formattedLocString='NO FIX'
+					elif valid=='V':
+						rprint("WARNING status character parsed from $PKLSH; check the GPS mic attached to that radio")
+						origLocString='WARNING'
+						formattedLocString='WARNING'
 					else:
-						rprint("INVALID location string parsed from $PKLSH: '"+origLocString+"'")
-						origLocString='INVALID'
-						formattedLocString='INVALID'
-				elif valid=='Z':
-					origLocString='NO FIX'
-					formattedLocString='NO FIX'
-				elif valid=='V':
-					rprint("WARNING status character parsed from $PKLSH; check the GPS mic attached to that radio")
-					origLocString='WARNING'
-					formattedLocString='WARNING'
+						origLocString='UNDEFINED'
+						formattedLocString='UNDEFINED'
 				else:
-					origLocString='UNDEFINED'
-					formattedLocString='UNDEFINED'
+					rprint("Parsed line contained "+str(len(lineParse))+" tokens instead of the expected 10; skipping.")
+					origLocString='BAD DATA'
+					formattedLocString='BAD DATA'
 			elif '\x02I' in line:
 				# caller ID lines look like " I110040021004002" (first character is \x02, may show as a space)
 				# " I<n>" is a prefix, n is either 0 or 1 (not sure why)
