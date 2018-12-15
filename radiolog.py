@@ -155,6 +155,8 @@
 #   12-12-18   TMG       fix #384 (bad data causes unpack error)
 #   12-14-18   TMG       fix #385 (print team log from team tab context menu)
 #   12-15-18   TMG       fix #387 (file browser sort by date)
+#   12-15-18   TMG       simplify code for #387 fix above; also filter out _clueLog_bak
+#                         and _fleetSync_bak files from file browser
 #
 # #############################################################################
 #
@@ -5029,23 +5031,16 @@ class CSVFileSortFilterProxyModel(QSortFilterProxyModel):
 		# never show non- .csv files
 		if filename.count(".csv")<1:
 			return False
-		if filename.count("_fleetsync.csv")+filename.count("_cluelog.csv")==0:
+		if filename.count("_fleetsync")+filename.count("_cluelog")==0:
 			return True
 		else:
 			return False
-	
-	# must override lessThan to sort using sourcemodel for date column,
-	#  otherwise date column sort will be alphanumeric, i.e. 9-1-2000 is sorted
-	#  as being more recent than 12-15-2018 because 9 is greater than 1
+
+	# use source model sort, otherwise date sort will be done alphamerically
+	#  i.e. 9-1-2010 will be shown as more recent than 12-1-2018 since 9 > 1 
 	#  see https://stackoverflow.com/a/53797546/3577105
-	def lessThan(self, left, right):
-		if left.column() == right.column() == 1: 
-			if self.sourceModel().isDir(left) and not self.sourceModel().isDir(right):
-				return True
-			return self.sourceModel().size(left) < self.sourceModel().size(right)
-		if left.column() == right.column() == 3:
-			return self.sourceModel().lastModified(left) < self.sourceModel().lastModified(right)
-		return super(CSVFileSortFilterProxyModel, self).lessThan(left, right)
+	def sort(self, column, order):
+		self.sourceModel().sort(column, order)
 	
  
 class customEventFilter(QObject):
