@@ -154,6 +154,7 @@
 #   11-18-18   TMG       fix #351 (don't show options at startup after restore)
 #   12-12-18   TMG       fix #384 (bad data causes unpack error)
 #   12-14-18   TMG       fix #385 (print team log from team tab context menu)
+#   12-15-18   TMG       fix #387 (file browser sort by date)
 #
 # #############################################################################
 #
@@ -5032,7 +5033,20 @@ class CSVFileSortFilterProxyModel(QSortFilterProxyModel):
 			return True
 		else:
 			return False
-		
+	
+	# must override lessThan to sort using sourcemodel for date column,
+	#  otherwise date column sort will be alphanumeric, i.e. 9-1-2000 is sorted
+	#  as being more recent than 12-15-2018 because 9 is greater than 1
+	#  see https://stackoverflow.com/a/53797546/3577105
+	def lessThan(self, left, right):
+		if left.column() == right.column() == 1: 
+			if self.sourceModel().isDir(left) and not self.sourceModel().isDir(right):
+				return True
+			return self.sourceModel().size(left) < self.sourceModel().size(right)
+		if left.column() == right.column() == 3:
+			return self.sourceModel().lastModified(left) < self.sourceModel().lastModified(right)
+		return super(CSVFileSortFilterProxyModel, self).lessThan(left, right)
+	
  
 class customEventFilter(QObject):
 	def eventFilter(self,receiver,event):
