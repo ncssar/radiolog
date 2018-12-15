@@ -1,8 +1,8 @@
 [RadioLog]
-lastFileName=New_Incident_2018_11_18_081912.csv
+lastFileName=New_Incident_2018_12_14_210242.csv
 font-size=14pt
-x=460
-y=112
+x=377
+y=161
 w=1289
 h=770
 clueLog_x=9

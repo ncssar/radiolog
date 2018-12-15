@@ -153,6 +153,7 @@
 #   11-18-18   TMG       fix #358 and make FS location parsing more robust
 #   11-18-18   TMG       fix #351 (don't show options at startup after restore)
 #   12-12-18   TMG       fix #384 (bad data causes unpack error)
+#   12-14-18   TMG       fix #385 (print team log from team tab context menu)
 #
 # #############################################################################
 #
@@ -1753,7 +1754,10 @@ class MyWindow(QDialog,Ui_Dialog):
 	def printLogHeaderFooter(self,canvas,doc,opPeriod="",teams=False):
 		formNameText="Radio Log"
 		if teams:
-			formNameText="Team Radio Logs"
+			if isinstance(teams,str):
+				formNameText="Team: "+teams
+			else:
+				formNameText="Team Radio Logs"
 		canvas.saveState()
 		styles = getSampleStyleSheet()
 		self.img=None
@@ -1812,11 +1816,28 @@ class MyWindow(QDialog,Ui_Dialog):
 	# optonal argument 'teams': if True, generate one pdf of all individual team logs;
 	#  so, this function should be called once to generate the overall log pdf, and
 	#  again with teams=True to generate team logs pdf
+	# if 'teams' is an array of team names, just print those team log(s)
 	def printLog(self,opPeriod,teams=False):
 		opPeriod=int(opPeriod)
 		pdfName=self.firstWorkingDir+"\\"+self.pdfFileName
+		teamFilterList=[""] # by default, print print all entries; if teams=True, add a filter for each team
 		if teams:
-			pdfName=pdfName.replace('.pdf','_teams.pdf')
+			if isinstance(teams,list):
+				# recursively call this function for each team in list of teams
+				for team in teams:
+					self.printLog(opPeriod,team)
+			elif isinstance(teams,str):
+				pdfName=pdfName.replace('.pdf','_'+teams.replace(' ','_').replace('.','_')+'.pdf')
+				msgAdder=" for "+teams
+				teamFilterList=[teams]
+			else:
+				pdfName=pdfName.replace('.pdf','_teams.pdf')
+				msgAdder=" for individual teams"
+				teamFilterList=[]
+				for team in self.allTeamsList:
+					if team!="dummy":
+						teamFilterList.append(team)
+		rprint("teamFilterList="+str(teamFilterList))
 		pdfName=pdfName.replace('.pdf','_OP'+str(opPeriod)+'.pdf')
 		rprint("generating radio log pdf: "+pdfName)
 		try:
@@ -1830,10 +1851,6 @@ class MyWindow(QDialog,Ui_Dialog):
 			return
 		else:
 			f.close()
-		if teams:
-			msgAdder=" for individual teams"
-		else:
-			msgAdder=""
 # 		self.logMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF"+msgAdder+"; will send to default printer automatically; please wait...",
 # 							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 # 		self.logMsgBox.setInformativeText("Initializing...")
@@ -1844,13 +1861,6 @@ class MyWindow(QDialog,Ui_Dialog):
 # 		QTimer.singleShot(5000,self.logMsgBox.close)
 		QCoreApplication.processEvents()
 		elements=[]
-		teamFilterList=[""] # by default, print print all entries; if teams=True, add a filter for each team
-		if teams:
-			teamFilterList=[]
-			for team in self.allTeamsList:
-				if team!="dummy":
-					teamFilterList.append(team)
-		rprint("teamFilterList="+str(teamFilterList))
 		for team in teamFilterList:
 			radioLogPrint=[]
 			styles = getSampleStyleSheet()
@@ -3051,6 +3061,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			newEntryFromAction=menu.addAction("New Entry FROM "+str(niceTeamName))
 			newEntryToAction=menu.addAction("New Entry TO "+str(niceTeamName))
 			menu.addSeparator()
+			printTeamLogAction=menu.addAction(QIcon(QPixmap(":/radiolog_ui/print_icon.png")),"Print "+str(niceTeamName)+" Log")
+			menu.addSeparator()
 ##			relabelTeamTabAction=menu.addAction("Change Label / Assignment for "+str(niceTeamName))
 ##			menu.addSeparator()
 
@@ -3086,6 +3098,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			if action==newEntryToAction:
 				self.openNewEntry('tab',str(niceTeamName))
 				self.newEntryWidget.ui.to_fromField.setCurrentIndex(1)
+			if action==printTeamLogAction:
+				rprint("printing team log for "+str(niceTeamName))
+				self.printLog(self.opPeriod,str(niceTeamName))
+				self.radioLogNeedsPrint=True # since only one log has been printed; need to enhance this
 			if action==deleteTeamTabAction:
 				self.deleteTeamTab(niceTeamName)
 			if action and action.data(): # only the single-device toggle actions will have data
