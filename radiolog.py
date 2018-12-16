@@ -157,6 +157,7 @@
 #   12-15-18   TMG       fix #387 (file browser sort by date)
 #   12-15-18   TMG       simplify code for #387 fix above; also filter out _clueLog_bak
 #                         and _fleetSync_bak files from file browser
+#   12-16-18   TMG       fix #388 (team log print variant team names)
 #
 # #############################################################################
 #
@@ -1865,6 +1866,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		QCoreApplication.processEvents()
 		elements=[]
 		for team in teamFilterList:
+			extTeamNameLower=getExtTeamName(team).lower()
 			radioLogPrint=[]
 			styles = getSampleStyleSheet()
 			radioLogPrint.append(MyTableModel.header_labels[0:6])
@@ -1882,8 +1884,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					entryOpPeriod=int(row[3].split()[2])
 ##				rprint("desired op period="+str(opPeriod)+"; this entry op period="+str(entryOpPeriod))
 				if entryOpPeriod == opPeriod:
-##					rprint("hit")
-					if team=="" or team.lower()==row[2].lower() or opStartRow: # filter by team name if argument was specified
+					if team=="" or extTeamNameLower==getExtTeamName(row[2]).lower() or opStartRow: # filter by team name if argument was specified
 						radioLogPrint.append([row[0],row[1],row[2],Paragraph(row[3],styles['Normal']),Paragraph(row[4],styles['Normal']),Paragraph(row[5],styles['Normal'])])
 ##						hits=True
 			if not teams:
