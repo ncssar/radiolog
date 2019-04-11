@@ -1224,22 +1224,6 @@
    </hints>
   </connection>
   <connection>
-   <sender>teamField</sender>
-   <signal>editingFinished()</signal>
-   <receiver>newEntryWidget</receiver>
-   <slot>callsignLostFocus()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>222</x>
-     <y>55</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>212</x>
-     <y>88</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
    <sender>teamComboBox</sender>
    <signal>activated(QString)</signal>
    <receiver>newEntryWidget</receiver>
@@ -1255,6 +1239,38 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>teamField</sender>
+   <signal>textChanged(QString)</signal>
+   <receiver>newEntryWidget</receiver>
+   <slot>teamFieldTextChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>251</x>
+     <y>45</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>163</x>
+     <y>81</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>teamField</sender>
+   <signal>editingFinished()</signal>
+   <receiver>newEntryWidget</receiver>
+   <slot>teamFieldEditingFinished()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>212</x>
+     <y>49</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>207</x>
+     <y>86</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>accept()</slot>
@@ -1267,6 +1283,8 @@
   <slot>quickTextRequestingDeputyAction()</slot>
   <slot>callsignLostFocus()</slot>
   <slot>setCallsignFromComboBox()</slot>
+  <slot>teamFieldTextChanged()</slot>
+  <slot>teamFieldEditingFinished()</slot>
  </slots>
  <buttongroups>
   <buttongroup name="statusButtonGroup">

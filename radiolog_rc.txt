@@ -1,10 +1,10 @@
 [RadioLog]
-lastFileName=New_Incident_2018_12_14_210242.csv
+lastFileName=New_Incident_2019_04_11_060551.csv
 font-size=14pt
-x=377
-y=161
-w=1289
-h=770
+x=162
+y=208
+w=1587
+h=721
 clueLog_x=9
 clueLog_y=38
 clueLog_w=1000

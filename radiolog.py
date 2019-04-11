@@ -158,6 +158,9 @@
 #   12-15-18   TMG       simplify code for #387 fix above; also filter out _clueLog_bak
 #                         and _fleetSync_bak files from file browser
 #   12-16-18   TMG       fix #388 (team log print variant team names)
+#    4-11-19   TMG       fix #392 (get rid of leading 'Team ' when appropriate);
+#                         fix #393 (preserve case of new callsigns);
+#                         fix #394 (show actual tie in log messages)
 #
 # #############################################################################
 #
@@ -425,8 +428,7 @@ lastClueNumber=0
 def getExtTeamName(teamName):
 	if teamName.lower().startswith("all ") or teamName.lower()=="all":
 		return "ALL TEAMS"
-	name=teamName.lower()
-	name=name.replace(' ','')
+	name=teamName.replace(' ','')
 	# find index of first number in the name; everything left of that is the 'prefix';
 	# assume that everything after the prefix is a number
 	firstNum=re.search("\d",name)
@@ -523,7 +525,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 # note: 'sys.excepthook = handle_exception' must be done inside main()
 
 def rprint(text):
-	logText=str(int(time.time()))[-4:]+":"+str(text)
+	logText=time.strftime("%H%M%S")+":"+str(text)
 	logger.info(logText)
 
 ###### LOGGING CODE END ######
@@ -2766,7 +2768,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					#  see http://stackoverflow.com/questions/42475602
 					self.newEntryWidget.ui.messageField.setFocus()
 					self.newEntryWidget.ui.teamField.setFocus()
-					self.newEntryWidget.ui.teamField.setText("Team "+key+" ")
+					self.newEntryWidget.ui.teamField.setText("Team "+key)
 					self.newEntryWidget.ui.teamField.setSelection(6,1)
 		else: # no key pressed; opened from the 'add entry' GUI button; activate right away
 			# need to 'burp' the focus to prevent two blinking cursors
@@ -2798,7 +2800,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.newEntryWidget.ui.datumFormatLabel.setText("("+self.datum+"  "+self.coordFormat+")")
 		else:
 			self.newEntryWidget.ui.datumFormatLabel.setText("")
-
+	
 	def newEntry(self,values):
 		# values array format: [time,to_from,team,message,locString,status,sec,fleet,dev]
 		#  locString is also stored in the table in a column after dev, unmodified;
@@ -3888,12 +3890,6 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			self.changeCallsignDialog=changeCallsignDialog(self,self.ui.teamField.text(),self.fleet,self.dev)
 			self.changeCallsignDialog.exec_() # required to make it stay on top
 
-	def callsignLostFocus(self):
-		# if the callsign is only numbers, prepend 'Team ' to avoid the zero-left-padding problem
-		if self.ui.teamField.text().isdigit():
-			self.ui.teamField.setText("Team "+self.ui.teamField.text())
-		self.ui.teamComboBox.setCurrentText(self.ui.teamField.text().strip())
-			
 	def accept(self):
 		if not self.clueDialogOpen and not self.subjectLocatedDialogOpen:
 			# getValues return value: [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
@@ -4024,11 +4020,6 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 # 		clueDialog.openDialogCount-=1
 # ##		newEntryWidget.instances.remove(self)
 
-
-
-
-
-
 	def closeEvent(self,event,accepted=False,force=False):
 		# if the user hit cancel, make sure the user really wanted to cancel
 		# fix #325: repeated cancel-confirm cycles are annoying; bypass the
@@ -4104,6 +4095,28 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##			tmpTxt="New Entry"
 ##		self.setWindowTitle("Radio Log - "+tmpTxt+" - "+self.ui.to_fromField.currentText()+" "+self.ui.teamField.text())
 
+	def teamFieldTextChanged(self):
+		# if typed callsign is only a three-or-fewer-digit number, prefix it with 'Team '
+		#  otherwise do not prefix it
+		cs=self.ui.teamField.text()
+		csraw=cs.replace("Team ","")
+# 		rprint("csraw: '"+csraw+"'")
+		if re.match(".*\D.*",csraw) or len(csraw)>3:
+			csout=csraw
+		else:
+			csout="Team "+csraw
+# 		rprint("csout: '"+csout+"'")
+		self.ui.teamField.setText(csout)
+
+	def teamFieldEditingFinished(self):
+		cs=self.ui.teamField.text()
+		if re.match(".*\D.*",cs):
+			# change it to any case-insensitive-matching existing callsign
+			for t in self.parent.allTeamsList:
+				if t.upper()==cs.upper():
+					self.ui.teamField.setText(t)
+					break
+		
 	def messageTextChanged(self): # gets called after every keystroke or button press, so, should be fast
 ##		self.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 		message=self.ui.messageField.text().lower()

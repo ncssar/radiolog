@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'newEntryWidget.ui'
 #
-# Created by: PyQt5 UI code generator 5.8.2
+# Created by: PyQt5 UI code generator 5.11.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -394,8 +394,9 @@ class Ui_newEntryWidget(object):
         self.quickTextButton8.clicked.connect(newEntryWidget.quickTextAction)
         self.quickTextButton10.clicked.connect(newEntryWidget.quickTextSubjectLocatedAction)
         self.quickTextButton1_2.clicked.connect(newEntryWidget.quickTextAction)
-        self.teamField.editingFinished.connect(newEntryWidget.callsignLostFocus)
         self.teamComboBox.activated['QString'].connect(newEntryWidget.setCallsignFromComboBox)
+        self.teamField.textChanged['QString'].connect(newEntryWidget.teamFieldTextChanged)
+        self.teamField.editingFinished.connect(newEntryWidget.teamFieldEditingFinished)
         QtCore.QMetaObject.connectSlotsByName(newEntryWidget)
         newEntryWidget.setTabOrder(self.teamField, self.messageField)
         newEntryWidget.setTabOrder(self.messageField, self.to_fromField)
