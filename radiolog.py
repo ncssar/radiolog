@@ -161,6 +161,10 @@
 #    4-11-19   TMG       fix #392 (get rid of leading 'Team ' when appropriate);
 #                         fix #393 (preserve case of new callsigns);
 #                         fix #394 (show actual tie in log messages)
+#     5-3-19   TMG       fix #329 (team tab bar grouping) - default groups are just
+#                         numbered teams, vs everything else; can specify a more
+#                         elaborate set of group names and regular expressions
+#                         in the config file (tabGroups)
 #
 # #############################################################################
 #
@@ -697,7 +701,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.allTeamsList=["dummy"] # same as teamNameList but hidden tabs are not deleted from this list
 		self.extTeamNameList=["dummy"]
 		self.fsLookup=[]
-		self.tabGroups=[["NCSO","^1[psdel][0-9]+"],["CHP","^22s[0-9]+"]]
 		
 ##		self.newEntryDialogList=[]
 		self.blinkToggle=0
@@ -877,6 +880,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.sarsoftServerName="localhost"
 		self.rotateScript=None
 		self.rotateDelimiter=None
+		# 		self.tabGroups=[["NCSO","^1[tpsdel][0-9]+"],["CHP","^22s[0-9]+"],["Numbers","^Team [0-9]+"]]
+		# the only default tab group should be number-only callsigns; everything
+		#  else goes in a separate catch-all group; override this in radiolog.cfg
+		defaultTabGroups=[["Numbers","^Team [0-9]+"]]
+		self.tabGroups=defaultTabGroups
+		
 		if os.name=="nt":
 			rprint("Operating system is Windows.")
 			if shutil.which("powershell.exe"):
@@ -901,7 +910,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		inStr=QTextStream(configFile)
 		line=inStr.readLine()
 		if line!="[RadioLog]":
-			warn=QMessageBox(QMessageBox.Warning,"Error","Specified resource file " + self.configFileName + " is not a valid resource file; using default settings.",
+			warn=QMessageBox(QMessageBox.Warning,"Error","Specified configuration file " + self.configFileName + " is not a valid configuration file; using default settings.",
 							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			warn.show()
 			warn.raise_()
@@ -938,6 +947,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.rotateScript=tokens[1]
 			elif tokens[0]=="rotateDelimiter":
 				self.rotateDelimiter=tokens[1]
+			elif tokens[0]=="tabGroups":
+				self.tabGroups=eval(tokens[1])
 		configFile.close()
 		
 		# validation and post-processing of each item
@@ -1010,7 +1021,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		
 		if not os.path.isfile(self.printLogoFileName):
 			configErr+="ERROR: specified logo file '"+self.printLogoFileName+"' does not exist.  No logo will be included on generated reports.\n\n"
-			
+		
+		if not isinstance(self.tabGroups,list):
+			configErr+="ERROR: specified tab group '"+str(self.tabGroups)+"' is not a list.  Using the default tabGroups group list.\n\n"
+			self.tabGroups=defaultTabGroups
+			 
 		if configErr:
 			self.configErrMsgBox=QMessageBox(QMessageBox.Warning,"Non-fatal Configuration Error(s)","Error(s) encountered in config file "+self.configFileName+":\n\n"+configErr,
  							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
@@ -3217,7 +3232,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		for etn in [x for x in self.extTeamNameList if not x.startswith("spacer")]: # spacerless list
 			g="other" # default to the 'other' group
 			for grp in self.tabGroups:
-				if re.match(grp[1].replace("^","^z_0*"),etn):
+				if re.match(grp[1].replace("^","^z_0*").replace("Team ","Team"),etn):
 					# account for leading 'z_' and any zeros introduced by getExtTeamName
 					g=grp[0]
 					break # use only the first matching group
@@ -3245,13 +3260,14 @@ class MyWindow(QDialog,Ui_Dialog):
 			
 	def tabContextMenu(self,pos):
 		menu=QMenu()
-# 		rprint("tab context menu requested: pos="+str(pos))
+		rprint("tab context menu requested: pos="+str(pos))
 ##		menu.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		bar=self.ui.tabWidget.tabBar()
 		i=bar.tabAt(pos) # returns -1 if not a valid tab
-# 		rprint("  i="+str(i)+"  tabRect="+str(bar.tabRect(i).bottomLeft())+":"+str(bar.tabRect(i).topRight()))
+		rprint("  i="+str(i)+"  tabRect="+str(bar.tabRect(i).bottomLeft())+":"+str(bar.tabRect(i).topRight()))
 		extTeamName=self.extTeamNameList[i]
 		niceTeamName=getNiceTeamName(extTeamName)
+		rprint("  extTeamName="+str(extTeamName)+"  niceTeamName="+str(niceTeamName))
 # 		if i>0:
 		if i>-1 and not extTeamName.lower().startswith("spacer"):
 			newEntryFromAction=menu.addAction("New Entry FROM "+str(niceTeamName))
@@ -3318,19 +3334,25 @@ class MyWindow(QDialog,Ui_Dialog):
 ####				self.ui.tabWidget.tabBar().setTabText(i,"boo")
 ##				self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
 
-	def deleteTeamTab(self,teamName):
+	def deleteTeamTab(self,teamName,ext=False):
+		# optional arg 'ext' if called with extTeamName
 		# must also modify related lists to keep everything in sync
 		extTeamName=getExtTeamName(teamName)
+		if ext:
+			extTeamName=teamName
 		niceTeamName=getNiceTeamName(extTeamName)
-		self.extTeamNameList.sort()
+# 		self.extTeamNameList.sort()
 		rprint("deleting team tab: teamName="+str(teamName)+"  extTeamName="+str(extTeamName)+"  niceTeamName="+str(niceTeamName))
 		rprint("  teamNameList before deletion:"+str(self.teamNameList))
+		rprint("  extTeamNameList before deletion:"+str(self.extTeamNameList))
 		if extTeamName in self.extTeamNameList: # pass through if trying to delete a tab that doesn't exist / has already been deleted
 			i=self.extTeamNameList.index(extTeamName)
+			rprint("  i="+str(i))
 			self.extTeamNameList.remove(extTeamName)
-			self.teamNameList.remove(niceTeamName)
-			del teamTimersDict[extTeamName]
-			del teamCreatedTimeDict[extTeamName]
+			if not teamName.lower().startswith("spacer"):
+				self.teamNameList.remove(niceTeamName)
+				del teamTimersDict[extTeamName]
+				del teamCreatedTimeDict[extTeamName]
 			del self.ui.tabList[i]
 			del self.ui.tabGridLayoutList[i]
 			del self.ui.tableViewList[i]
@@ -3358,6 +3380,13 @@ class MyWindow(QDialog,Ui_Dialog):
 							self.hotkeyDict[hotkey]=callsign
 							taken=True
 		self.rebuildTeamHotkeys()
+		rprint("  extTeamNameList after delete: "+str(self.extTeamNameList))
+		# if there are two adjacent spacers, delete the second one
+		for n in range(len(self.extTeamNameList)-1):
+			if self.extTeamNameList[n].lower().startswith("spacer"):
+				if self.extTeamNameList[n+1].lower().startswith("spacer"):
+					rprint("  found back-to-back spacers at indices "+str(n)+" and "+str(n+1))
+					self.deleteTeamTab(self.extTeamNameList[n+1],True)
 
 	def getNextAvailHotkey(self):
 		# iterate through hotkey pool until finding one that is not taken
