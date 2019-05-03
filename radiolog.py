@@ -361,18 +361,19 @@ statusStyleDict={}
 # even though tab labels are created with font-size:20px and the tab sizes and margins are created accordingly,
 #  something after creation time is changing font-sizes to a smaller size.  So, just
 #  hardcode them all here to force 20px always.
-statusStyleDict["At IC"]="font-size:18px;background:#00ff00;border:1px outset black;padding-left:0px;padding-right:0px"
-statusStyleDict["In Transit"]="font-size:18px;background:blue;color:white;border:1px outset black;padding-left:0px;padding-right:0px"
-statusStyleDict["Working"]="font-size:18px;background:none;border:1px outset black;padding-left:0px;padding-right:0px"
+tabFontSize="20px"
+statusStyleDict["At IC"]="font-size:"+tabFontSize+";background:#00ff00;border:1px outset black;padding-left:0px;padding-right:0px"
+statusStyleDict["In Transit"]="font-size:"+tabFontSize+";background:blue;color:white;border:1px outset black;padding-left:0px;padding-right:0px"
+statusStyleDict["Working"]="font-size:"+tabFontSize+";background:none;border:1px outset black;padding-left:0px;padding-right:0px"
 # Waiting for Transport should still flash even if not timed out, but it doesn't
 #  prevent a timeout.  So, for this code, and alternating timer cycles (seconds):
 # cycle 1: style as in the following line
 # cycle 2: if not timed out, style as "" (blank); if timed out, style as timeout as expected
-statusStyleDict["Waiting for Transport"]="font-size:18px;background:blue;color:white;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
-statusStyleDict["STANDBY"]="font-size:18px;background:black;color:white;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
-statusStyleDict[""]="font-size:18px;background:none;padding-left:1px;padding-right:1px"
-statusStyleDict["TIMED_OUT_ORANGE"]="font-size:18px;background:orange;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
-statusStyleDict["TIMED_OUT_RED"]="font-size:18px;background:red;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
+statusStyleDict["Waiting for Transport"]="font-size:"+tabFontSize+";background:blue;color:white;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
+statusStyleDict["STANDBY"]="font-size:"+tabFontSize+";background:black;color:white;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
+statusStyleDict[""]="font-size:"+tabFontSize+";background:none;padding-left:1px;padding-right:1px"
+statusStyleDict["TIMED_OUT_ORANGE"]="font-size:"+tabFontSize+";background:orange;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
+statusStyleDict["TIMED_OUT_RED"]="font-size:"+tabFontSize+";background:red;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
 
 timeoutDisplayList=[["10 sec",10]]
 for n in range (1,13):
@@ -696,6 +697,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.allTeamsList=["dummy"] # same as teamNameList but hidden tabs are not deleted from this list
 		self.extTeamNameList=["dummy"]
 		self.fsLookup=[]
+		self.tabGroups=[["NCSO","^1[psdel][0-9]+"],["CHP","^22s[0-9]+"]]
 		
 ##		self.newEntryDialogList=[]
 		self.blinkToggle=0
@@ -777,7 +779,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				margin-top:3px;
 			}
 			QTabBar::tab:disabled {
-				width:80px;
+				width:20px;
 				color:black;
 				font-weight:bold;
 				background:transparent;
@@ -811,11 +813,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fastTimer.timeout.connect(self.resizeRowsToContentsIfNeeded)
 		self.fastTimer.start(100)
 
-		self.ui.tabWidget.insertTab(0,QWidget(),'TEAMS:')
-##		self.ui.tabWidget.setStyleSheet("font-size:12px")
-		self.ui.tabWidget.setTabEnabled(0,False)
+# 		self.ui.tabWidget.insertTab(0,QWidget(),'TEAMS:')
+# ##		self.ui.tabWidget.setStyleSheet("font-size:12px")
+# 		self.ui.tabWidget.setTabEnabled(0,False)
 		
-		self.ui.teamHotkeysHLayout.insertWidget(0,QLabel("HOTKEYS:"))
+# 		self.ui.teamHotkeysHLayout.insertWidget(0,QLabel("HOTKEYS:"))
 
 		self.ui.tabWidget.setContextMenuPolicy(Qt.CustomContextMenu)
 		self.ui.tabWidget.customContextMenuRequested.connect(self.tabContextMenu)
@@ -2317,6 +2319,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				event.ignore()
 			else:
 				key=event.text().lower() # hotkeys are case insensitive
+				mod=event.modifiers()
+# 				rprint("  key:"+QKeySequence(event.key()).toString()+"  mod:"+str(mod))
 				if self.ui.teamHotkeysWidget.isVisible():
 					# these key handlers apply only if hotkeys are enabled:
 					if key in self.hotkeyDict.keys():
@@ -2965,6 +2969,37 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint("Amending row "+str(row))
 		amendDialog=self.openNewEntry(amendFlag=True,amendRow=row)
 
+	def rebuildTabs(self):
+# 		groupDict=self.rebuildGroupedTabDict()
+# 		tabs=[]
+# 		for group in groupDict:
+# 			tabs.extend(groupDict[group])
+# 			tabs.append("")
+# 		rprint("Final tabs list:"+str(tabs))
+# 		bar=self.ui.tabWidget.tabBar()
+# 		for i in range(len(tabs)):
+# 			bar.insertTab(i,tabs[i])
+# 			if tabs[i]=="":
+# 				bar.setTabEnabled(i,False)
+# 		rprint("extTeamNameList before sort:"+str(self.extTeamNameList))
+# # 		self.extTeamNameList.sort()
+# 		self.rebuildGroupedTabDict()
+# 		rprint("extTeamNameList after sort:"+str(self.extTeamNameList))
+		self.ui.tabList=[]
+		self.ui.tabGridLayoutList=[]
+		self.ui.tableViewList=[]
+# 		self.proxyModelList=["dummy"]
+# 		self.teamNameList=["dummy"]
+		self.allTeamsList=[] # same as teamNameList but hidden tabs are not deleted from this list
+		
+		bar=self.ui.tabWidget.tabBar()
+		while bar.count()>0:
+			print("count:"+str(bar.count()))
+			bar.removeTab(0)
+		for extTeamName in self.extTeamNameList:
+			self.addTab(extTeamName)
+# 		self.rebuildTeamHotkeys()
+	
 	def newTeam(self,newTeamName):
 		# not sure why newTeamName is False (bool) when called as a slot;
 		# setting a default val for the arg has not effect, so just work with it
@@ -2982,8 +3017,40 @@ class MyWindow(QDialog,Ui_Dialog):
 		shortNiceTeamName=getShortNiceTeamName(niceTeamName)
 		rprint("new team: newTeamName="+newTeamName+" extTeamName="+extTeamName+" niceTeamName="+niceTeamName+" shortNiceTeamName="+shortNiceTeamName)
 		self.extTeamNameList.append(extTeamName)
-		self.extTeamNameList.sort()
-		i=self.extTeamNameList.index(extTeamName)
+		rprint("extTeamNameList before sort:"+str(self.extTeamNameList))
+# 		self.extTeamNameList.sort()
+		
+		self.rebuildGroupedTabDict()
+		rprint("extTeamNameList after sort:"+str(self.extTeamNameList))
+		self.rebuildTabs()
+		
+		if not extTeamName.startswith("spacer"):
+			# add to team name lists and dictionaries
+			i=self.extTeamNameList.index(extTeamName) # i is zero-based
+			self.teamNameList.insert(i,niceTeamName)
+			if self.allTeamsList.count(niceTeamName)==0:
+				self.allTeamsList.insert(i,niceTeamName)
+				self.allTeamsList.sort()
+			teamTimersDict[extTeamName]=0
+			teamCreatedTimeDict[extTeamName]=time.time()
+			# assign team hotkey
+			hotkey=self.getNextAvailHotkey()
+			rprint("next available hotkey:"+str(hotkey))
+			if hotkey:
+				self.hotkeyDict[hotkey]=niceTeamName
+			else:
+				rprint("Team hotkey pool has been used up.  Not setting any hotkeyDict entry for "+niceTeamName)
+				
+		self.rebuildTeamHotkeys()
+
+		"""		
+		i=self.extTeamNameList.index(extTeamName) # i is zero-based
+		if len(self.extTeamNameList)>>i+1:
+			if self.extTeamNameList[i+1]=="":
+				rprint("  spacer needed after this new team")
+		if i>>0:
+			if self.extTeamNameList[i-1]=="":
+				rprint("  spacer needed before this new team")
 		self.teamNameList.insert(i,niceTeamName)
 		if self.allTeamsList.count(niceTeamName)==0:
 			self.allTeamsList.insert(i,niceTeamName)
@@ -3010,8 +3077,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  An apparent bug causes the tabButton (a label) to not have a text attrubite;
 		#  so, use the whatsThis attribute instead.
 		bar.setTabWhatsThis(i,niceTeamName)
-		bar.tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
-
+		bar.tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignHCenter")
+		# spacers should be disabled
+		if extTeamName=="":
+			bar.setTabEnabled(i,False)
 		# hotkeyDict: key=hotkey  val=niceTeamName
 		# hotkeyRDict: key=niceTeamName  val=hotkey
 		
@@ -3035,7 +3104,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# of the value in column 2 matches the human readable form of the tab name
 		self.proxyModelList.insert(i,CustomSortFilterProxyModel(self))
 		self.proxyModelList[i].setSourceModel(self.tableModel)
-		self.proxyModelList[i].setFilterFixedString(getExtTeamName(newTeamName))
+		self.proxyModelList[i].setFilterFixedString(extTeamName)
 		self.ui.tableViewList[i].setModel(self.proxyModelList[i])
 		self.ui.tableViewList[i].hideColumn(6) # hide epoch seconds
 		self.ui.tableViewList[i].hideColumn(7) # hide epoch seconds
@@ -3054,16 +3123,137 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		self.redrawTables()
 ##		self.fontsChanged()
 
+
+# 		self.rebuildTabs()
+			
 ##	def deletePrint(self):
 ##		rprint("deleting")
 
+		"""
+
+	def addTab(self,extTeamName):
+		niceTeamName=getNiceTeamName(extTeamName)
+		shortNiceTeamName=getShortNiceTeamName(niceTeamName)
+		rprint("new team: extTeamName="+extTeamName+" niceTeamName="+niceTeamName+" shortNiceTeamName="+shortNiceTeamName)
+		i=self.extTeamNameList.index(extTeamName) # i is zero-based
+		self.ui.tabList.insert(i,QWidget())
+		self.ui.tabGridLayoutList.insert(i,QGridLayout(self.ui.tabList[i]))
+		self.ui.tableViewList.insert(i,QTableView(self.ui.tabList[i]))
+		self.ui.tableViewList[i].verticalHeader().setVisible(False)
+		self.ui.tableViewList[i].setTextElideMode(Qt.ElideNone)
+		self.ui.tableViewList[i].setFocusPolicy(Qt.NoFocus)
+		self.ui.tableViewList[i].setSelectionMode(QAbstractItemView.NoSelection)
+		self.ui.tableViewList[i].setStyleSheet("font-size:"+str(self.fontSize)+"pt")
+		self.ui.tabGridLayoutList[i].addWidget(self.ui.tableViewList[i],0,0,1,1)
+		self.ui.tabWidget.insertTab(i,self.ui.tabList[i],'')
+		label=QLabel(" "+shortNiceTeamName+" ")
+		if len(shortNiceTeamName)<2:
+			label.setText("  "+shortNiceTeamName+"  ") # extra spaces to make effective tab min width
+		if extTeamName.startswith("spacer"):
+			label.setText("")
+		else:
+# 			rprint("setting style for label "+extTeamName)
+			label.setStyleSheet("font-size:18px;qproperty-alignment:AlignCenter")
+# 			label.setStyleSheet(statusStyleDict[""])
+# 		rprint("setting tab button #"+str(i)+" to "+label.text())
+		bar=self.ui.tabWidget.tabBar()
+		bar.setTabButton(i,QTabBar.LeftSide,label)
+		# during rebuildTeamHotkeys, we need to read the name of currently displayed tabs.
+		#  An apparent bug causes the tabButton (a label) to not have a text attrubite;
+		#  so, use the whatsThis attribute instead.
+		bar.setTabWhatsThis(i,niceTeamName)
+# 		rprint("setting style for tab#"+str(i))
+# 		bar.tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:18px;qproperty-alignment:AlignHCenter")
+		bar.tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[""])
+# 		if not extTeamName.startswith("spacer"):
+# 			label.setStyleSheet("font-size:40px;border:1px outset green;qproperty-alignment:AlignHCenter")
+		# spacers should be disabled
+		if extTeamName.startswith("spacer"):
+			bar.setTabEnabled(i,False)
+
+# 		if not extTeamName.startswith("spacer"):
+# 			hotkey=self.getNextAvailHotkey()
+# 			rprint("next available hotkey:"+str(hotkey))
+# 			if hotkey:
+# 				self.hotkeyDict[hotkey]=niceTeamName
+# 			else:
+# 				rprint("Team hotkey pool has been used up.  Not setting any hotkeyDict entry for "+niceTeamName)
+# 		self.rebuildTeamHotkeys()
+		
+		# better to NOT modify the entered team name value, for data integrity;
+		# instead, set the filter to only display rows where the human readable form
+		# of the value in column 2 matches the human readable form of the tab name
+		self.proxyModelList.insert(i,CustomSortFilterProxyModel(self))
+		self.proxyModelList[i].setSourceModel(self.tableModel)
+		self.proxyModelList[i].setFilterFixedString(extTeamName)
+		self.ui.tableViewList[i].setModel(self.proxyModelList[i])
+		self.ui.tableViewList[i].hideColumn(6) # hide epoch seconds
+		self.ui.tableViewList[i].hideColumn(7) # hide epoch seconds
+		self.ui.tableViewList[i].hideColumn(8) # hide epoch seconds
+		self.ui.tableViewList[i].hideColumn(9) # hide epoch seconds
+		self.ui.tableViewList[i].resizeRowsToContents()
+
+		#NOTE if you do this section before the model is assigned to the tableView,
+		# python will crash every time!
+		# see the QHeaderView.ResizeMode docs for descriptions of each resize mode value
+		# note QHeaderView.setResizeMode is deprecated in 5.4, replaced with
+		# .setSectionResizeMode but also has both global and column-index forms
+		self.ui.tableViewList[i].horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+		# automatically expand the 'message' column width to fill available space
+		self.ui.tableViewList[i].horizontalHeader().setSectionResizeMode(3,QHeaderView.Stretch)
+		
+	def rebuildGroupedTabDict(self):
+		# sort the tabs list, inserting hidden uniquely-named spacer tabs between groups
+		# grouping sequence and regular expressions are defined in the local config file
+		#  with the 'tabGroups' variable, which is a list of regular expressions;
+		#  any callsign that does not match any of the regular expressions will
+		#  be placed in a catch-all group at the end.
+		# Once a callsign has been assigned to a group, make sure to not assign it
+		#  to any other groups.
+		grouped=dict()
+		for grp in self.tabGroups:
+			grouped[grp[0]]=[]
+		grouped["other"]=[]
+		for etn in [x for x in self.extTeamNameList if not x.startswith("spacer")]: # spacerless list
+			g="other" # default to the 'other' group
+			for grp in self.tabGroups:
+				if re.match(grp[1].replace("^","^z_0*"),etn):
+					# account for leading 'z_' and any zeros introduced by getExtTeamName
+					g=grp[0]
+					break # use only the first matching group
+			grouped[g].append(etn)
+		rprint("grouped tabs:"+str(grouped))
+		self.groupedTabDict=grouped
+		
+		# rebuild self.extTeamNameList, with groups and spacers in the correct order,
+		#  since everything throughout the code keys off its sequence;
+		#  note the spacer names need to be unique for later processing
+		self.extTeamNameList=[]
+		spacerIndex=1 # start with 1 so trailing 0 doesn't get deleted in getNiceTeamName
+		for grp in self.tabGroups:
+			rprint("group:"+str(grp)+":"+str(grouped[grp[0]]))
+			for val in grouped[grp[0]]:
+				rprint("appending:"+val)
+				self.extTeamNameList.append(val)
+			if len(grouped[grp[0]])>0:
+				self.extTeamNameList.append("spacer"+str(spacerIndex))
+				spacerIndex=spacerIndex+1
+		for val in grouped["other"]:
+			if val!="dummy":
+				rprint("appending other:"+val)
+				self.extTeamNameList.append(val)
+			
 	def tabContextMenu(self,pos):
 		menu=QMenu()
+# 		rprint("tab context menu requested: pos="+str(pos))
 ##		menu.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
-		i=self.ui.tabWidget.tabBar().tabAt(pos)
+		bar=self.ui.tabWidget.tabBar()
+		i=bar.tabAt(pos) # returns -1 if not a valid tab
+# 		rprint("  i="+str(i)+"  tabRect="+str(bar.tabRect(i).bottomLeft())+":"+str(bar.tabRect(i).topRight()))
 		extTeamName=self.extTeamNameList[i]
 		niceTeamName=getNiceTeamName(extTeamName)
-		if i>0:
+# 		if i>0:
+		if i>-1 and not extTeamName.lower().startswith("spacer"):
 			newEntryFromAction=menu.addAction("New Entry FROM "+str(niceTeamName))
 			newEntryToAction=menu.addAction("New Entry TO "+str(niceTeamName))
 			menu.addSeparator()
@@ -3133,6 +3323,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		extTeamName=getExtTeamName(teamName)
 		niceTeamName=getNiceTeamName(extTeamName)
 		self.extTeamNameList.sort()
+		rprint("deleting team tab: teamName="+str(teamName)+"  extTeamName="+str(extTeamName)+"  niceTeamName="+str(niceTeamName))
+		rprint("  teamNameList before deletion:"+str(self.teamNameList))
 		if extTeamName in self.extTeamNameList: # pass through if trying to delete a tab that doesn't exist / has already been deleted
 			i=self.extTeamNameList.index(extTeamName)
 			self.extTeamNameList.remove(extTeamName)
@@ -3161,7 +3353,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					if not taken:
 						callsign=bar.tabWhatsThis(i)
 						rprint("checking tab#"+str(i)+":"+callsign)
-						if callsign not in hotkeyRDict:
+						if callsign not in hotkeyRDict and not callsign.lower().startswith("spacer"):
 							rprint("  does not have a hotkey; using the freed hotkey '"+hotkey+"'")
 							self.hotkeyDict[hotkey]=callsign
 							taken=True
@@ -3182,16 +3374,16 @@ class MyWindow(QDialog,Ui_Dialog):
 				child.widget().deleteLater()
 						
 		bar=self.ui.tabWidget.tabBar()
-		label=QLabel("HOTKEYS:")
-		label.setFixedWidth(bar.tabRect(0).width())
-		self.ui.teamHotkeysHLayout.addWidget(label)
+# 		label=QLabel("HOTKEYS:")
+# 		label.setFixedWidth(bar.tabRect(0).width())
+# 		self.ui.teamHotkeysHLayout.addWidget(label)
 # 		icon = QIcon()
 # 		icon.addPixmap(QPixmap(":/radiolog_ui/blank-computer-key.png"), QIcon.Normal, QIcon.Off)
 # 		p=QPalette();
 # 		p.setBrush(self.backgroundRole(),QBrush(QPixmap(":/radiolog_ui/blank-computer-key.png").scaled(30,30)))
 		hotkeyRDict={v:k for k,v in self.hotkeyDict.items()}
 		rprint("tab count="+str(bar.count()))
-		for i in range(1,bar.count()):
+		for i in range(0,bar.count()):
 			#  An apparent bug causes the tabButton (a label) to not have a text attrubite;
 			#  so, use the whatsThis attribute instead.
 			callsign=bar.tabWhatsThis(i)
