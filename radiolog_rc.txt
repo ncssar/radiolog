@@ -1,12 +1,11 @@
 [RadioLog]
-lastFileName=New_Incident_2019_05_03_061917.csv
+lastFileName=LoboQA_2019_05_04_145402.csv
 font-size=14pt
-x=26
-y=87
-w=1869
-h=830
+x=0
+y=29
+w=1920
+h=1051
 clueLog_x=9
 clueLog_y=38
 clueLog_w=1000
 clueLog_h=500
-cleanShutdown=True

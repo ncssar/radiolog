@@ -165,6 +165,12 @@
 #                         numbered teams, vs everything else; can specify a more
 #                         elaborate set of group names and regular expressions
 #                         in the config file (tabGroups)
+#     5-4-19   TMG       enhance #393: if typed callsign is a case-insensitive
+#                         match with an existing callsign, use the existing callsign;
+#                         fix #397 ('Available' status - also added 'Off Duty' status
+#                         which does not time out and has no background and gray text;
+#                         '10-8' changes to 'Available', '10-97' changes to 'Working',
+#                         '10-10' changes to 'Off Duty')
 #
 # #############################################################################
 #
@@ -369,10 +375,12 @@ tabFontSize="20px"
 statusStyleDict["At IC"]="font-size:"+tabFontSize+";background:#00ff00;border:1px outset black;padding-left:0px;padding-right:0px"
 statusStyleDict["In Transit"]="font-size:"+tabFontSize+";background:blue;color:white;border:1px outset black;padding-left:0px;padding-right:0px"
 statusStyleDict["Working"]="font-size:"+tabFontSize+";background:none;border:1px outset black;padding-left:0px;padding-right:0px"
-# Waiting for Transport should still flash even if not timed out, but it doesn't
+statusStyleDict["Off Duty"]="font-size:"+tabFontSize+";color:#aaaaaa;background:none;border:none;padding-left:0px;padding-right:0px"
+# Waiting for Transport and Available should still flash even if not timed out, but they don't
 #  prevent a timeout.  So, for this code, and alternating timer cycles (seconds):
-# cycle 1: style as in the following line
+# cycle 1: style as in the line specified for that status name
 # cycle 2: if not timed out, style as "" (blank); if timed out, style as timeout as expected
+statusStyleDict["Available"]="font-size:"+tabFontSize+";background:#00ff00;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
 statusStyleDict["Waiting for Transport"]="font-size:"+tabFontSize+";background:blue;color:white;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
 statusStyleDict["STANDBY"]="font-size:"+tabFontSize+";background:black;color:white;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
 statusStyleDict[""]="font-size:"+tabFontSize+";background:none;padding-left:1px;padding-right:1px"
@@ -2276,7 +2284,7 @@ class MyWindow(QDialog,Ui_Dialog):
 ##			rprint("blinking "+extTeamName+": status="+status)
 # 			rprint("fsFilter "+extTeamName+": "+str(fsFilter))
 			secondsSinceContact=teamTimersDict.get(extTeamName,0)
-			if status=="Waiting for Transport" or status=="STANDBY" or (secondsSinceContact>=self.timeoutOrangeSec):
+			if status in ["Waiting for Transport","STANDBY","Available"] or (secondsSinceContact>=self.timeoutOrangeSec):
 				if self.blinkToggle==0:
 					# blink 0: style is one of these:
 					# - style as normal per status
@@ -2287,14 +2295,14 @@ class MyWindow(QDialog,Ui_Dialog):
 					# - timeout red
 					# - no change (if status is anything but 'Waiting for transport' or 'STANDBY')
 					# - blank (black on white) (if status is 'Waiting for transport' or 'STANDBY', and not timed out)
-					if not hold and status!="At IC" and secondsSinceContact>=self.timeoutRedSec:
+					if not hold and status not in ["At IC","Off Duty"] and secondsSinceContact>=self.timeoutRedSec:
 						self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict["TIMED_OUT_RED"])
-					elif not hold and status!="At IC" and (secondsSinceContact>=self.timeoutOrangeSec and secondsSinceContact<self.timeoutRedSec):
+					elif not hold and status not in ["At IC","Off Duty"] and (secondsSinceContact>=self.timeoutOrangeSec and secondsSinceContact<self.timeoutRedSec):
 						self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict["TIMED_OUT_ORANGE"])
-					elif status=="Waiting for Transport"or status=="STANDBY":
+					elif status=="Waiting for Transport" or status=="STANDBY" or status=="Available":
 						self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[""])
 			else:
-				# not Waiting for transport, and not in orange/red time zone: draw the normal style
+				# not Waiting for Transport or Available, and not in orange/red time zone: draw the normal style
 				self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
 				
 			# always check for fleetsync filtering, independent from team status
@@ -2872,8 +2880,14 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def newEntryProcessTeam(self,niceTeamName,status,to_from,msg):
 		extTeamName=getExtTeamName(niceTeamName)
+		# 393: if the new entry's extTeamName is a case-insensitive match for an
+		#   existing extTeamName, use that already-existing extTeamName instead
+		for existingExtTeamName in self.extTeamNameList:
+			if extTeamName.lower()==existingExtTeamName.lower():
+				extTeamName=existingExtTeamName
+				break
       # skip entries with no team like 'radio log begins', or multiple entries like 'all'
-		if niceTeamName!='' and not niceTeamName.lower()=="all" and not niceTeamName.lower().startswith("all"):
+		if niceTeamName!='' and not niceTeamName.lower()=="all" and not niceTeamName.lower().startswith("all "):
 			# if it's a team that doesn't already have a tab, make a new tab
 			if extTeamName not in self.extTeamNameList:
 				self.newTeam(niceTeamName)
@@ -3005,7 +3019,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableViewList=[]
 # 		self.proxyModelList=["dummy"]
 # 		self.teamNameList=["dummy"]
-		self.allTeamsList=[] # same as teamNameList but hidden tabs are not deleted from this list
+# 		self.allTeamsList=[] # same as teamNameList but hidden tabs are not deleted from this list
 		
 		bar=self.ui.tabWidget.tabBar()
 		while bar.count()>0:
@@ -3043,9 +3057,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			# add to team name lists and dictionaries
 			i=self.extTeamNameList.index(extTeamName) # i is zero-based
 			self.teamNameList.insert(i,niceTeamName)
+# 			rprint("   niceTeamName="+str(niceTeamName)+"  allTeamsList before:"+str(self.allTeamsList)+"  count:"+str(self.allTeamsList.count(niceTeamName)))
 			if self.allTeamsList.count(niceTeamName)==0:
 				self.allTeamsList.insert(i,niceTeamName)
 				self.allTeamsList.sort()
+# 				rprint("   allTeamsList after:"+str(self.allTeamsList))
 			teamTimersDict[extTeamName]=0
 			teamCreatedTimeDict[extTeamName]=time.time()
 			# assign team hotkey
@@ -3232,11 +3248,16 @@ class MyWindow(QDialog,Ui_Dialog):
 		for etn in [x for x in self.extTeamNameList if not x.startswith("spacer")]: # spacerless list
 			g="other" # default to the 'other' group
 			for grp in self.tabGroups:
-				if re.match(grp[1].replace("^","^z_0*").replace("Team ","Team"),etn):
+				if re.match(grp[1].replace("^","^z_0*").replace("Team ","Team"),etn,re.IGNORECASE):
 					# account for leading 'z_' and any zeros introduced by getExtTeamName
 					g=grp[0]
 					break # use only the first matching group
 			grouped[g].append(etn)
+			
+		# sort alphanumerically within each group
+		for grp in grouped:
+			grouped[grp].sort()
+			
 		rprint("grouped tabs:"+str(grouped))
 		self.groupedTabDict=grouped
 		
@@ -3664,7 +3685,7 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 ##	def throb(self):
 		tabCount=self.ui.tabWidget.count()
 		currentIndex=self.ui.tabWidget.currentIndex()
-		rprint("tabCount="+str(tabCount)+" currentIndex="+str(currentIndex))
+# 		rprint("tabCount="+str(tabCount)+" currentIndex="+str(currentIndex))
 		if tabCount>2: # skip all this if 'NEWEST' and 'OLDEST' are the only tabs remaining
 			if (tabCount-currentIndex)>1: # don't try to throb the 'OLDEST' label - it has no throb method
 				currentWidget=self.ui.tabWidget.widget(currentIndex)
@@ -3778,7 +3799,7 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 		i=self.ui.tabWidget.indexOf(caller)
 		# determine the number of tabs BEFORE removal of the tab in question
 		count=self.ui.tabWidget.count()
-		rprint("removeTab: count="+str(count)+" i="+str(i))
+# 		rprint("removeTab: count="+str(count)+" i="+str(i))
 		# remove that tab
 		self.ui.tabWidget.removeTab(i)
 		# activate the next tab upwards in the stack, if there is one
@@ -3789,7 +3810,7 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 			self.ui.tabWidget.setCurrentIndex(count-3)
 
 		if count<4: # lower the window if the stack is empty
-			rprint("lowering: count="+str(count))
+# 			rprint("lowering: count="+str(count))
 			self.setWindowFlags(self.windowFlags() & ~Qt.WindowStaysOnTopHint) # disable always on top
 			self.lower()
 
@@ -3887,6 +3908,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.clueDialogOpen=False # only allow one clue dialog at a time per newEntryWidget
 		self.subjectLocatedDialogOpen=False
 
+# 		rprint(" new entry widget opened.  allteamslist:"+str(self.parent.allTeamsList))
 		if len(self.parent.allTeamsList)<2:
 			self.ui.teamComboBox.setEnabled(False)
 		else:
@@ -3899,7 +3921,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 
 ##		QTimer.singleShot(100,lambda:self.changeBackgroundColor(0))
 
-		rprint("newEntryWidget created")
+# 		rprint("newEntryWidget created")
 		self.quickTextAddedStack=[]
 
 		self.childDialogs=[] # keep track of exactly which clueDialog or
@@ -3937,15 +3959,15 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.parent.newEntryWindow.addTab(time.strftime("%H%M"),self)
 		# do not raise the window if there is an active clue report form
       # or an active changeCallsignDialog
-		rprint("clueLog.openDialogCount="+str(clueDialog.openDialogCount))
-		rprint("changeCallsignDialog.openDialogCount="+str(changeCallsignDialog.openDialogCount))
-		rprint("subjectLocatedDialog.openDialogCount="+str(subjectLocatedDialog.openDialogCount))
-		rprint("showing")
+# 		rprint("clueLog.openDialogCount="+str(clueDialog.openDialogCount))
+# 		rprint("changeCallsignDialog.openDialogCount="+str(changeCallsignDialog.openDialogCount))
+# 		rprint("subjectLocatedDialog.openDialogCount="+str(subjectLocatedDialog.openDialogCount))
+# 		rprint("showing")
 		if not self.parent.newEntryWindow.isVisible():
 			self.parent.newEntryWindow.show()
 # 		self.parent.newEntryWindow.setFocus()
 		if clueDialog.openDialogCount==0 and subjectLocatedDialog.openDialogCount==0 and changeCallsignDialog.openDialogCount==0:
-			rprint("raising")
+# 			rprint("raising")
 			self.parent.newEntryWindow.raise_()
 		# the following line is needed to get fix the apparent Qt bug (?) that causes
 		#  the messageField text to all be selected when a new message comes in
@@ -4046,12 +4068,13 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##				self.parent.entryHold=False
 
 	def resetLastModAge(self):
-		rprint("resetting last mod age for "+self.ui.teamField.text())
+# 		rprint("resetting last mod age for "+self.ui.teamField.text())
 		self.lastModAge=-1
 		self.parent.currentEntryLastModAge=self.lastModAge
 
 	def quickTextAction(self):
 		quickText=self.sender().text()
+# 		rprint("  quickTextAction called: text="+str(quickText))
 		quickText=re.sub(r' +\[.*$','',quickText) # prune one or more spaces followed by open bracket, thru end
 		existingText=self.ui.messageField.text()
 		if existingText=="":
@@ -4177,7 +4200,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 	
 			# make entries for attached callsigns
 			# values array format: [time,to_from,team,message,locString,status,sec,fleet,dev]
-			rprint("attached callsigns: "+str(self.attachedCallsignList))
+# 			rprint("attached callsigns: "+str(self.attachedCallsignList))
 			for attachedCallsign in self.attachedCallsignList:
 				v=val[:] # v is a fresh, independent copy of val for each iteration
 				v[2]=getNiceTeamName(attachedCallsign)
@@ -4348,6 +4371,14 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		newStatus="" #  need to actively set it back to blank if neeeded, since this function is called on every text change
 		# use an if/elif/else clause, which requires a search order; use the more final messages first
 		# note, these hints can be trumped by clicking the status button AFTER typing
+		
+		# multiple things have to be in place to have a new status text here actually
+		#  change the status of the new entry:
+		# 1. button with matching text() must exist in newEntryWidget and must
+		#     be a member of statusButtonGroup (it can be behind another button
+		#     so that it never gets clicked and is not visible, but, it must exist)
+		# 2. the clicked() signal from that button must have a reciever of
+		#     newEntryWidget.quickTextAction()
 		if "at ic" in message:
 			newStatus="At IC"
 		elif "requesting transport" in message:
@@ -4364,9 +4395,17 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			newStatus="STANDBY"
 		elif "requesting deputy" in message:
 			newStatus="STANDBY"
+		elif "10-8" in message:
+			newStatus="Available"
+		elif "10-97" in message:
+			newStatus="Working"
+		elif "10-10" in message:
+			newStatus="Off Duty"
 		else:
 			newStatus=prevStatus
 		
+# 		rprint("message:"+str(message))
+# 		rprint("  previous status:"+str(prevStatus)+"  newStatus:"+str(newStatus))
 		# attached callsigns (issue 306):
 		# this takes place in two phases:
 		# 1. determine the list of attached callsigns during message entry
@@ -4421,6 +4460,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		# allow it to be set back to blank; must set exclusive to false and iterate over each button
 		self.ui.statusButtonGroup.setExclusive(False)
 		for button in self.ui.statusButtonGroup.buttons():
+# 			rprint("checking button: "+button.text())
 			if button.text()==newStatus:
 				button.setChecked(True)
 			else:

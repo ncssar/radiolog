@@ -338,6 +338,66 @@
      <string notr="true">statusButtonGroup</string>
     </attribute>
    </widget>
+   <widget class="QRadioButton" name="availableField">
+    <property name="geometry">
+     <rect>
+      <x>170</x>
+      <y>48</y>
+      <width>121</width>
+      <height>35</height>
+     </rect>
+    </property>
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
+    <property name="font">
+     <font>
+      <family>Segoe UI</family>
+      <pointsize>14</pointsize>
+      <weight>50</weight>
+      <bold>false</bold>
+     </font>
+    </property>
+    <property name="text">
+     <string>Available</string>
+    </property>
+    <attribute name="buttonGroup">
+     <string notr="true">statusButtonGroup</string>
+    </attribute>
+   </widget>
+   <widget class="QRadioButton" name="availableField_2">
+    <property name="geometry">
+     <rect>
+      <x>170</x>
+      <y>80</y>
+      <width>150</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
+    <property name="font">
+     <font>
+      <family>Segoe UI</family>
+      <pointsize>14</pointsize>
+      <weight>50</weight>
+      <bold>false</bold>
+     </font>
+    </property>
+    <property name="text">
+     <string>Off Duty</string>
+    </property>
+    <attribute name="buttonGroup">
+     <string notr="true">statusButtonGroup</string>
+    </attribute>
+   </widget>
   </widget>
   <widget class="QLabel" name="label_5">
    <property name="geometry">
