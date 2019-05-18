@@ -12,6 +12,8 @@ As of Nov 19, 2016, there is no installation script or program.  Installation ju
  * win32api (pip install pypiwin32)
 3. GISInternals SDK (http://www.gisinternals.com/release.php - pick the latest release for your platform, such as release-1800-x64-gdal-2-1-2-mapserver-7-0-2)
 4. PDFtk Free (https://www.pdflabs.com/tools/pdftk-the-pdf-toolkit/ - download and install the free version; during install, you will be asked if the pdftk directory should be added to your path; make sure you answer 'yes')
+5. Adobe Acrobat Reader must be installed and must have been run once to initialize itself; otherwise the terminal will show a win32api error during printing.  Not sure why this is, but, we found a stackoverflow thread where someone else had the same issue.
+6. Liberation Sans font, if not already installed through the operating system (acquire the Liberation Sans .ttf file, right-click to install).  You will know if you are missing it when a generated PDF during print will show up with a bunch of dots instead of letters.
 
 After you have all the files from this repo, and all the above prerequisites are in place, you may need to check and/or edit some hardcoded paths in radiolog.py:
 
