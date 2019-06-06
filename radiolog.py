@@ -380,7 +380,7 @@ statusStyleDict["Off Duty"]="font-size:"+tabFontSize+";color:#aaaaaa;background:
 #  prevent a timeout.  So, for this code, and alternating timer cycles (seconds):
 # cycle 1: style as in the line specified for that status name
 # cycle 2: if not timed out, style as "" (blank); if timed out, style as timeout as expected
-statusStyleDict["Available"]="font-size:"+tabFontSize+";background:#00ff00;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
+statusStyleDict["Available"]="font-size:"+tabFontSize+";background:#00ffff;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
 statusStyleDict["Waiting for Transport"]="font-size:"+tabFontSize+";background:blue;color:white;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
 statusStyleDict["STANDBY"]="font-size:"+tabFontSize+";background:black;color:white;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
 statusStyleDict[""]="font-size:"+tabFontSize+";background:none;padding-left:1px;padding-right:1px"
@@ -3023,7 +3023,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		
 		bar=self.ui.tabWidget.tabBar()
 		while bar.count()>0:
-			print("count:"+str(bar.count()))
+# 			print("count:"+str(bar.count()))
 			bar.removeTab(0)
 		for extTeamName in self.extTeamNameList:
 			self.addTab(extTeamName)
@@ -3165,7 +3165,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	def addTab(self,extTeamName):
 		niceTeamName=getNiceTeamName(extTeamName)
 		shortNiceTeamName=getShortNiceTeamName(niceTeamName)
-		rprint("new team: extTeamName="+extTeamName+" niceTeamName="+niceTeamName+" shortNiceTeamName="+shortNiceTeamName)
+# 		rprint("new team: extTeamName="+extTeamName+" niceTeamName="+niceTeamName+" shortNiceTeamName="+shortNiceTeamName)
 		i=self.extTeamNameList.index(extTeamName) # i is zero-based
 		self.ui.tabList.insert(i,QWidget())
 		self.ui.tabGridLayoutList.insert(i,QGridLayout(self.ui.tabList[i]))
@@ -3267,16 +3267,16 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.extTeamNameList=[]
 		spacerIndex=1 # start with 1 so trailing 0 doesn't get deleted in getNiceTeamName
 		for grp in self.tabGroups:
-			rprint("group:"+str(grp)+":"+str(grouped[grp[0]]))
+# 			rprint("group:"+str(grp)+":"+str(grouped[grp[0]]))
 			for val in grouped[grp[0]]:
-				rprint("appending:"+val)
+# 				rprint("appending:"+val)
 				self.extTeamNameList.append(val)
 			if len(grouped[grp[0]])>0:
 				self.extTeamNameList.append("spacer"+str(spacerIndex))
 				spacerIndex=spacerIndex+1
 		for val in grouped["other"]:
 			if val!="dummy":
-				rprint("appending other:"+val)
+# 				rprint("appending other:"+val)
 				self.extTeamNameList.append(val)
 			
 	def tabContextMenu(self,pos):
@@ -3432,13 +3432,12 @@ class MyWindow(QDialog,Ui_Dialog):
 # 		p=QPalette();
 # 		p.setBrush(self.backgroundRole(),QBrush(QPixmap(":/radiolog_ui/blank-computer-key.png").scaled(30,30)))
 		hotkeyRDict={v:k for k,v in self.hotkeyDict.items()}
-		rprint("tab count="+str(bar.count()))
+# 		rprint("tab count="+str(bar.count()))
 		for i in range(0,bar.count()):
 			#  An apparent bug causes the tabButton (a label) to not have a text attrubite;
 			#  so, use the whatsThis attribute instead.
 			callsign=bar.tabWhatsThis(i)
 			hotkey=hotkeyRDict.get(callsign,"")
-			rprint("building hotkey tab: callsign="+callsign+"  hotkey="+hotkey)
 			l=QLabel(hotkey)
 			l.setFixedWidth(bar.tabRect(i).width())
 # 			l.setStyleSheet("border:0px solid black;margin:0px;font-style:italic;font-size:14px;border-image:url(:/radiolog_ui/blank-computer-key.png) 0 0 30 30;")
