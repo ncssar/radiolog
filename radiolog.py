@@ -4400,6 +4400,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			newStatus="Working"
 		elif "10-10" in message:
 			newStatus="Off Duty"
+		elif prevStatus=="Available" and "evac" in message:
+			newStatus="In Transit"
 		else:
 			newStatus=prevStatus
 		
