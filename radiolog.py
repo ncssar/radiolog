@@ -1852,6 +1852,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		opPeriod=int(opPeriod)
 		pdfName=self.firstWorkingDir+"\\"+self.pdfFileName
 		teamFilterList=[""] # by default, print print all entries; if teams=True, add a filter for each team
+		msgAdder=""
 		if teams:
 			if isinstance(teams,list):
 				# recursively call this function for each team in list of teams
