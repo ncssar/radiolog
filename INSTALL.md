@@ -20,14 +20,19 @@ After you have all the files from this repo (download the zip and extract to C:\
 # radiolog.cfg optional settings
 default values should be fine and will be used if nothing is specified in radiolog.cfg, but can be overridden as defined here:
 
+Config file format:  
+Line one of the file must be this: "[RadioLog]"  
+Each line following should be in the following format: (avoid spaces)  
+printLogoFileName="radiolog_logo.jpg"  
+
 Path to the logo that, if the file exists, will appear in the top left of generated printouts:
-self.printLogoFileName="radiolog_logo.jpg"
+printLogoFileName="radiolog_logo.jpg"
 (Note that this file is intentionally not part of the repo, to make sure that only NCSSAR will be using the NCSSAR logo; each SAR group should use their own logo.)
 
 Filename (in the same directory as radiolog.py) of fillable clue report PDF:
-self.fillableClueReportPdfFileName="clueReportFillable.pdf"
+fillableClueReportPdfFileName="clueReportFillable.pdf"
 
 Path to GISInternals installation, i.e. the directory that contains bin\proj\apps\cs2cs.exe:
-self.GISInternalsSDKRoot="C:\\GISInternals" # avoid spaces in the path - demons be here
+GISInternalsSDKRoot="C:\\GISInternals" # avoid spaces in the path - demons be here
 
 That should do it!  Just run 'python radiolog.py' to run the program.  You may want to create a desktop shortcut and use the included icon.
