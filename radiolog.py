@@ -171,6 +171,7 @@
 #                         which does not time out and has no background and gray text;
 #                         '10-8' changes to 'Available', '10-97' changes to 'Working',
 #                         '10-10' changes to 'Off Duty')
+#     2-8-20   TMG       re-fix #41: repair hot-unplug handling for current pyserial
 #
 # #############################################################################
 #
@@ -1197,8 +1198,12 @@ class MyWindow(QDialog,Ui_Dialog):
 						rprint("  Checking buffer for already-open port "+comPortTry.name)
 					try:
 						isWaiting=comPortTry.inWaiting()
+					except serial.serialutil.SerialException as err:
+						if "ClearCommError failed" in str(err):
+							rprint("  COM port unplugged.  Scan continues...")
+							self.comPortTryList.remove(comPortTry)
 					except:
-						pass
+						pass # unicode decode errors may occur here for non-radio com devices
 					else:
 						if isWaiting:
 							rprint("     DATA IS WAITING!!!")
@@ -1252,7 +1257,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			try:
 				waiting=self.firstComPort.inWaiting()
 			except serial.serialutil.SerialException as err:
-				if str(err)=="call to ClearCommError failed":
+				if "ClearCommError failed" in str(err):
 					rprint("first com port unplugged")
 					self.firstComPortFound=False
 					self.firstComPortAlive=False
@@ -1266,7 +1271,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			try:
 				waiting=self.secondComPort.inWaiting()
 			except serial.serialutil.SerialException as err:
-				if str(err)=="call to ClearCommError failed":
+				if "ClearCommError failed" in str(err):
 					rprint("second com port unplugged")
 					self.secondComPortFound=False
 					self.secondComPortAlive=False
