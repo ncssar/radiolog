@@ -1,4 +1,4 @@
-#Installation
+# Installation
 
 As of Nov 19, 2016, there is no installation script or program.  Installation just involves cloning or downloading this repository, but, there is an important list of prerequisites.  You could consider these to be part of the installation procedure:
 
@@ -18,16 +18,14 @@ As of Nov 19, 2016, there is no installation script or program.  Installation ju
 After you have all the files from this repo (download the zip and extract to C:\), and all the above prerequisites are in place, you will need to set up the 'local' directory.  As of 8-1-19 there is no code in place to create the local directory for a fresh installation: you will need to create a dir named 'local' in the radiolog install dir (such as C:\radiolog-master\local) and in that directory you will need to place radiolog.cfg (can be blank) and an optional logo file as spelled out below.
 
 # radiolog.cfg optional settings
-default values should be fine and will be used if nothing is specified in radiolog.cfg, but can be overridden as defined here:
+Optional file local/radiolog.cfg can be used to change various settings.  That file is plain text, and has documentation inside it.
 
-Path to the logo that, if the file exists, will appear in the top left of generated printouts:
-self.printLogoFileName="radiolog_logo.jpg"
-(Note that this file is intentionally not part of the repo, to make sure that only NCSSAR will be using the NCSSAR logo; each SAR group should use their own logo.)
+If the 'local' directory does not exist yet, i.e. the first time you run radiolog, it will be created as a copy of the 'local_default' directory included as part of the installation.
 
-Filename (in the same directory as radiolog.py) of fillable clue report PDF:
-self.fillableClueReportPdfFileName="clueReportFillable.pdf"
+If new radiolog versions contain new user-definable options, local_default/radiolog.cfg will contain the new options and documentation.
 
-Path to GISInternals installation, i.e. the directory that contains bin\proj\apps\cs2cs.exe:
-self.GISInternalsSDKRoot="C:\\GISInternals" # avoid spaces in the path - demons be here
+# radiolog_logo.jpg
+You can optionally provide a logo image to be incldued on radiolog printouts (except for clue reports).  The file will be scaled to print in the pdf files, so a starting size of 200x200 pixels or less should be fine.  Name the file local/radiolog_logo.jpg.  Note that a default logo is included in local_default so will be copied in to place the first time you run radiolog.  You can then delete local/radiolog_logo.jpg or overwrite it with your own logo.
+
 
 That should do it!  Just run 'python radiolog.py' to run the program.  You may want to create a desktop shortcut and use the included icon.
