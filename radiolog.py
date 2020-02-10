@@ -172,6 +172,7 @@
 #                         '10-8' changes to 'Available', '10-97' changes to 'Working',
 #                         '10-10' changes to 'Off Duty')
 #     2-8-20   TMG       re-fix #41: repair hot-unplug handling for current pyserial
+#    2-10-20   TMG       fix #396: create default local dir and config file if needed
 #
 # #############################################################################
 #
@@ -557,6 +558,16 @@ def normName(name):
 class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
+		
+		# create the local dir if it doesn't already exist, and populate it
+		#  with files from local_default
+		if not os.path.isdir("local"):
+			rprint("'local' directory not found; copying 'local_default' to 'local'; you may want to edit local/radiolog.cfg")
+			shutil.copytree("local_default","local")
+		if not os.path.isfile("local/radiolog.cfg"):
+			rprint("'local' directory was found but did not contain radiolog.cfg; copying from local_default")
+			shutil.copyfile("local_default/radiolog.cfg","local/radiolog.cfg")
+			
 		self.setWindowFlags(self.windowFlags()|Qt.WindowMinMaxButtonsHint)
 		self.parent=parent
 		self.ui=Ui_Dialog()
