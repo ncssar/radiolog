@@ -173,6 +173,7 @@
 #                         '10-10' changes to 'Off Duty')
 #     2-8-20   TMG       re-fix #41: repair hot-unplug handling for current pyserial
 #    2-10-20   TMG       fix #396: create default local dir and config file if needed
+#    5-28-20   TMG       fix #412: relayed message features
 #
 # #############################################################################
 #
@@ -4416,7 +4417,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			relayedBy=self.ui.relayedByComboBox.currentText()
 # 		rprint("setRelayedPrefix:"+relayedBy)
 		if relayedBy=="":
-			prefix="[RELAYED] "
+			if self.relayed:
+				prefix="[RELAYED] "
+			else:
+				prefix=""
 		else:
 			prefix="[RELAYED by "+relayedBy+"] "
 		mt=self.ui.messageField.text()
