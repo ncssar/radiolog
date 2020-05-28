@@ -11,7 +11,8 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_newEntryWidget(object):
     def setupUi(self, newEntryWidget):
         newEntryWidget.setObjectName("newEntryWidget")
-        newEntryWidget.resize(952, 481)
+        newEntryWidget.setEnabled(True)
+        newEntryWidget.resize(952, 490)
         newEntryWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         newEntryWidget.setStyleSheet("")
         self.quickTextButton3 = QtWidgets.QPushButton(newEntryWidget)
@@ -45,15 +46,6 @@ class Ui_newEntryWidget(object):
         self.label.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
         self.label.setWordWrap(True)
         self.label.setObjectName("label")
-        self.datumFormatLabel = QtWidgets.QLabel(newEntryWidget)
-        self.datumFormatLabel.setEnabled(False)
-        self.datumFormatLabel.setGeometry(QtCore.QRect(152, 127, 196, 20))
-        font = QtGui.QFont()
-        font.setFamily("Segoe UI")
-        font.setPointSize(9)
-        self.datumFormatLabel.setFont(font)
-        self.datumFormatLabel.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
-        self.datumFormatLabel.setObjectName("datumFormatLabel")
         self.quickTextButton9 = QtWidgets.QPushButton(newEntryWidget)
         self.quickTextButton9.setGeometry(QtCore.QRect(20, 360, 291, 51))
         font = QtGui.QFont()
@@ -66,7 +58,7 @@ class Ui_newEntryWidget(object):
         self.quickTextButton9.setObjectName("quickTextButton9")
         self.statusGroupBox = QtWidgets.QGroupBox(newEntryWidget)
         self.statusGroupBox.setEnabled(True)
-        self.statusGroupBox.setGeometry(QtCore.QRect(610, 0, 311, 151))
+        self.statusGroupBox.setGeometry(QtCore.QRect(627, 3, 303, 151))
         font = QtGui.QFont()
         font.setPointSize(11)
         self.statusGroupBox.setFont(font)
@@ -161,12 +153,13 @@ class Ui_newEntryWidget(object):
         self.availableField_2.setObjectName("availableField_2")
         self.statusButtonGroup.addButton(self.availableField_2)
         self.label_5 = QtWidgets.QLabel(newEntryWidget)
-        self.label_5.setGeometry(QtCore.QRect(176, 100, 172, 21))
+        self.label_5.setGeometry(QtCore.QRect(361, 76, 62, 55))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(12)
         self.label_5.setFont(font)
         self.label_5.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.label_5.setWordWrap(True)
         self.label_5.setObjectName("label_5")
         self.to_fromField = QtWidgets.QComboBox(newEntryWidget)
         self.to_fromField.setGeometry(QtCore.QRect(13, 8, 151, 61))
@@ -196,7 +189,7 @@ class Ui_newEntryWidget(object):
         self.quickTextButton1.setFocusPolicy(QtCore.Qt.NoFocus)
         self.quickTextButton1.setIconSize(QtCore.QSize(32, 32))
         self.quickTextButton1.setObjectName("quickTextButton1")
-        self.messageField = QtWidgets.QLineEdit(newEntryWidget)
+        self.messageField = QLineEditWithDeselect(newEntryWidget)
         self.messageField.setGeometry(QtCore.QRect(110, 160, 821, 41))
         font = QtGui.QFont()
         font.setFamily("Courier New")
@@ -249,7 +242,7 @@ class Ui_newEntryWidget(object):
         self.line_4.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.line_4.setObjectName("line_4")
         self.label_6 = QtWidgets.QLabel(newEntryWidget)
-        self.label_6.setGeometry(QtCore.QRect(51, 88, 53, 21))
+        self.label_6.setGeometry(QtCore.QRect(276, 93, 53, 21))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(12)
@@ -263,12 +256,14 @@ class Ui_newEntryWidget(object):
         font.setPointSize(9)
         self.quickTextUndoButton.setFont(font)
         self.quickTextUndoButton.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.quickTextUndoButton.setCheckable(False)
+        self.quickTextUndoButton.setStyleSheet("")
+        self.quickTextUndoButton.setCheckable(True)
         self.quickTextUndoButton.setChecked(False)
+        self.quickTextUndoButton.setFlat(False)
         self.quickTextUndoButton.setObjectName("quickTextUndoButton")
         self.timeField = QtWidgets.QLineEdit(newEntryWidget)
         self.timeField.setEnabled(False)
-        self.timeField.setGeometry(QtCore.QRect(111, 87, 91, 31))
+        self.timeField.setGeometry(QtCore.QRect(271, 121, 74, 30))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(12)
@@ -277,7 +272,7 @@ class Ui_newEntryWidget(object):
         self.timeField.setReadOnly(False)
         self.timeField.setObjectName("timeField")
         self.teamField = QtWidgets.QLineEdit(newEntryWidget)
-        self.teamField.setGeometry(QtCore.QRect(175, 8, 394, 61))
+        self.teamField.setGeometry(QtCore.QRect(175, 8, 415, 61))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(24)
@@ -308,7 +303,7 @@ class Ui_newEntryWidget(object):
         self.quickTextButton8.setObjectName("quickTextButton8")
         self.label_2 = QtWidgets.QLabel(newEntryWidget)
         self.label_2.setEnabled(False)
-        self.label_2.setGeometry(QtCore.QRect(220, 70, 341, 21))
+        self.label_2.setGeometry(QtCore.QRect(278, 68, 312, 21))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(9)
@@ -356,10 +351,10 @@ class Ui_newEntryWidget(object):
         self.label_7.setObjectName("label_7")
         self.radioLocField = QtWidgets.QTextEdit(newEntryWidget)
         self.radioLocField.setEnabled(False)
-        self.radioLocField.setGeometry(QtCore.QRect(361, 96, 231, 56))
+        self.radioLocField.setGeometry(QtCore.QRect(379, 121, 230, 30))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
-        font.setPointSize(11)
+        font.setPointSize(12)
         self.radioLocField.setFont(font)
         self.radioLocField.setFocusPolicy(QtCore.Qt.NoFocus)
         self.radioLocField.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
@@ -367,19 +362,98 @@ class Ui_newEntryWidget(object):
         self.radioLocField.setObjectName("radioLocField")
         self.teamComboBox = QtWidgets.QComboBox(newEntryWidget)
         self.teamComboBox.setEnabled(True)
-        self.teamComboBox.setGeometry(QtCore.QRect(291, 8, 309, 61))
+        self.teamComboBox.setGeometry(QtCore.QRect(291, 8, 327, 61))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(14)
         self.teamComboBox.setFont(font)
         self.teamComboBox.setFrame(True)
         self.teamComboBox.setObjectName("teamComboBox")
+        self.relayedByComboBox = QtWidgets.QComboBox(newEntryWidget)
+        self.relayedByComboBox.setEnabled(False)
+        self.relayedByComboBox.setGeometry(QtCore.QRect(44, 118, 196, 33))
+        font = QtGui.QFont()
+        font.setFamily("Segoe UI")
+        font.setPointSize(10)
+        self.relayedByComboBox.setFont(font)
+        self.relayedByComboBox.setStyleSheet("QComboBox{background-color:#dddddd; border:2px inset gray}\n"
+"QComboBox:disabled{background-color:#eeeeee;border:2px inset lightgray}")
+        self.relayedByComboBox.setObjectName("relayedByComboBox")
+        self.relayedByLabel = QtWidgets.QLabel(newEntryWidget)
+        self.relayedByLabel.setEnabled(False)
+        self.relayedByLabel.setGeometry(QtCore.QRect(16, 126, 57, 20))
+        font = QtGui.QFont()
+        font.setFamily("Segoe UI")
+        font.setPointSize(10)
+        self.relayedByLabel.setFont(font)
+        self.relayedByLabel.setObjectName("relayedByLabel")
+        self.datumFormatLabel = QtWidgets.QLabel(newEntryWidget)
+        self.datumFormatLabel.setGeometry(QtCore.QRect(424, 96, 183, 20))
+        font = QtGui.QFont()
+        font.setFamily("Segoe UI")
+        font.setPointSize(10)
+        self.datumFormatLabel.setFont(font)
+        self.datumFormatLabel.setStyleSheet("QLabel{color:#555}")
+        self.datumFormatLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.datumFormatLabel.setObjectName("datumFormatLabel")
+        self.line = QtWidgets.QFrame(newEntryWidget)
+        self.line.setGeometry(QtCore.QRect(342, 96, 40, 48))
+        self.line.setFrameShape(QtWidgets.QFrame.VLine)
+        self.line.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.line.setObjectName("line")
+        self.line_2 = QtWidgets.QFrame(newEntryWidget)
+        self.line_2.setGeometry(QtCore.QRect(232, 86, 44, 59))
+        self.line_2.setFrameShape(QtWidgets.QFrame.VLine)
+        self.line_2.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.line_2.setObjectName("line_2")
+        self.relayedCheckBox = QtWidgets.QCheckBox(newEntryWidget)
+        self.relayedCheckBox.setGeometry(QtCore.QRect(54, 75, 210, 39))
+        font = QtGui.QFont()
+        font.setFamily("Segoe UI")
+        font.setPointSize(14)
+        self.relayedCheckBox.setFont(font)
+        self.relayedCheckBox.setStyleSheet("QCheckBox::indicator {\n"
+"     width: 30px;\n"
+"     height: 30px;\n"
+" }\n"
+"\n"
+"  QCheckBox::indicator:checked\n"
+"  {\n"
+"    image: url(:/radiolog_ui/checkbox_checked_30x30_turquoise.png);\n"
+"  }\n"
+"  QCheckBox::indicator:unchecked\n"
+"  {\n"
+"    image: url(:/radiolog_ui/checkbox_unchecked_30x30.png);\n"
+"  }\n"
+"  QCheckBox::indicator:checked:hover\n"
+"  {\n"
+"    image: url(:/radiolog_ui/checkbox_checked_30x30_turquoise.png);\n"
+"  }\n"
+"  QCheckBox::indicator:unchecked:hover\n"
+"  {\n"
+"    image: url(:/radiolog_ui/checkbox_unchecked_30x30.png);\n"
+"  }\n"
+"  QCheckBox::indicator:checked:pressed\n"
+"  {\n"
+"    image: url(:/radiolog_ui/checkbox_checked_30x30_turquoise.png);\n"
+"  }\n"
+"  QCheckBox::indicator:unchecked:pressed\n"
+"  {\n"
+"    image: url(:/radiolog_ui/checkbox_unchecked_30x30.png);\n"
+"  }\n"
+"  QCheckBox::indicator:checked:disabled\n"
+"  {\n"
+"    image: url(:/radiolog_ui/checkbox_checked_30x30_turquoise.png);\n"
+"  }")
+        self.relayedCheckBox.setIconSize(QtCore.QSize(30, 30))
+        self.relayedCheckBox.setCheckable(True)
+        self.relayedCheckBox.setChecked(False)
+        self.relayedCheckBox.setObjectName("relayedCheckBox")
         self.teamComboBox.raise_()
         self.quickTextButton3.raise_()
         self.quickTextButton6.raise_()
         self.line_3.raise_()
         self.label.raise_()
-        self.datumFormatLabel.raise_()
         self.quickTextButton9.raise_()
         self.statusGroupBox.raise_()
         self.label_5.raise_()
@@ -406,6 +480,12 @@ class Ui_newEntryWidget(object):
         self.attachedField.raise_()
         self.label_7.raise_()
         self.radioLocField.raise_()
+        self.relayedByComboBox.raise_()
+        self.relayedByLabel.raise_()
+        self.datumFormatLabel.raise_()
+        self.line.raise_()
+        self.line_2.raise_()
+        self.relayedCheckBox.raise_()
 
         self.retranslateUi(newEntryWidget)
         self.buttonBox.accepted.connect(newEntryWidget.accept)
@@ -427,6 +507,8 @@ class Ui_newEntryWidget(object):
         self.teamComboBox.activated['QString'].connect(newEntryWidget.setCallsignFromComboBox)
         self.teamField.textChanged['QString'].connect(newEntryWidget.teamFieldTextChanged)
         self.teamField.editingFinished.connect(newEntryWidget.teamFieldEditingFinished)
+        self.relayedByComboBox.currentIndexChanged['int'].connect(newEntryWidget.relayedByComboBoxChanged)
+        self.relayedCheckBox.stateChanged['int'].connect(newEntryWidget.relayedCheckBoxStateChanged)
         QtCore.QMetaObject.connectSlotsByName(newEntryWidget)
         newEntryWidget.setTabOrder(self.teamField, self.messageField)
         newEntryWidget.setTabOrder(self.messageField, self.to_fromField)
@@ -442,7 +524,6 @@ class Ui_newEntryWidget(object):
         self.quickTextButton6.setText(_translate("newEntryWidget", "WELFARE CHECK: OK  [F8]"))
         self.quickTextButton6.setShortcut(_translate("newEntryWidget", "F8"))
         self.label.setText(_translate("newEntryWidget", "Message:"))
-        self.datumFormatLabel.setText(_translate("newEntryWidget", "DATUM / FORMAT"))
         self.quickTextButton9.setText(_translate("newEntryWidget", "LOCATED A CLUE  [F10]"))
         self.quickTextButton9.setShortcut(_translate("newEntryWidget", "F10"))
         self.statusGroupBox.setTitle(_translate("newEntryWidget", "Team Status"))
@@ -453,7 +534,7 @@ class Ui_newEntryWidget(object):
         self.standbyField.setText(_translate("newEntryWidget", "STANDBY"))
         self.availableField.setText(_translate("newEntryWidget", "Available"))
         self.availableField_2.setText(_translate("newEntryWidget", "Off Duty"))
-        self.label_5.setText(_translate("newEntryWidget", "Radio Location:"))
+        self.label_5.setText(_translate("newEntryWidget", "GPS:"))
         self.to_fromField.setItemText(0, _translate("newEntryWidget", "FROM"))
         self.to_fromField.setItemText(1, _translate("newEntryWidget", "TO"))
         self.quickTextButton2.setText(_translate("newEntryWidget", "STARTING ASSIGNMENT  [F2]"))
@@ -479,4 +560,9 @@ class Ui_newEntryWidget(object):
         self.quickTextButton1_2.setText(_translate("newEntryWidget", "ENROUTE TO IC  [F4]"))
         self.quickTextButton1_2.setShortcut(_translate("newEntryWidget", "F1"))
         self.label_7.setText(_translate("newEntryWidget", "Attached callsign(s):"))
+        self.relayedByLabel.setText(_translate("newEntryWidget", "by"))
+        self.datumFormatLabel.setText(_translate("newEntryWidget", "DATUM / FORMAT"))
+        self.relayedCheckBox.setText(_translate("newEntryWidget", "Relayed?"))
 
+from QLineEditWithDeselect import QLineEditWithDeselect
+import radiolog_ui_rc

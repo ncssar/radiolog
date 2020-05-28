@@ -1432,10 +1432,17 @@ class MyWindow(QDialog,Ui_Dialog):
 				# if previous location string was blank, always overwrite;
 				#  if previous location string was not blank, only overwrite if new location is valid
 				if prevLocString=='' or (formattedLocString!='' and formattedLocString!='NO FIX'):
-					widget.ui.radioLocField.setText(formattedLocString)
-					widget.ui.datumFormatLabel.setText("("+self.datum+"  "+self.coordFormat+")")
-					widget.formattedLocString=formattedLocString
-					widget.origLocString=origLocString
+					datumFormatString="("+self.datum+"  "+self.coordFormat+")"
+					if widget.relayed:
+						rprint("location strings not updated because the message is relayed")
+						widget.radioLocTemp=formattedLocString
+						widget.datumFormatTemp=datumFormatString
+					else:
+						rprint("location strings updated because the message is not relayed")
+						widget.ui.radioLocField.setText(formattedLocString)
+						widget.ui.datumFormatLabel.setText(datumFormatString)
+						widget.formattedLocString=formattedLocString
+						widget.origLocString=origLocString
 		self.fsLogUpdate(int(fleet),int(dev))
 		# only open a new entry widget if the fleet/dev is not being filtered
 		if not found:
@@ -2824,6 +2831,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		if callsign:
 			extTeamName=getExtTeamName(callsign)
 			self.newEntryWidget.ui.teamField.setText(callsign)
+			self.newEntryWidget.teamFieldEditingFinished() # check for relay
 			if callsign[0:3]=='KW-':
 				self.newEntryWidget.ui.teamField.setFocus()
 				self.newEntryWidget.ui.teamField.selectAll()
@@ -2840,8 +2848,13 @@ class MyWindow(QDialog,Ui_Dialog):
 				#  (not always the same as the new message)
 
 		if formattedLocString:
-			self.newEntryWidget.ui.radioLocField.setText(formattedLocString)
-			self.newEntryWidget.ui.datumFormatLabel.setText("("+self.datum+"  "+self.coordFormat+")")
+			datumFormatString="("+self.datum+"  "+self.coordFormat+")"
+			if self.newEntryWidget.relayed:
+				self.newEntryWidget.radioLocTemp=formattedLocString
+				self.newEntryWidget.datumFormatTemp=datumFormatString
+			else:
+				self.newEntryWidget.ui.radioLocField.setText(formattedLocString)
+				self.newEntryWidget.ui.datumFormatLabel.setText(datumFormatString)
 		else:
 			self.newEntryWidget.ui.datumFormatLabel.setText("")
 	
@@ -3993,6 +4006,13 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.timer=QTimer(self)
 		self.timer.start(1000)
 		self.timer.timeout.connect(self.updateTimer)
+		
+		self.relayed=None
+		# store field values in case relayed checkbox is toggled accidentally
+		self.relayedByTemp=None
+		self.callsignTemp=None
+		self.radioLocTemp=None
+		self.datumFormatTemp=None
 
 ##		# unless an entry is currently being edited, activate the newly added tab
 ##		if newEntryWidgetHold:
@@ -4094,12 +4114,15 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		quickText=re.sub(r' +\[.*$','',quickText) # prune one or more spaces followed by open bracket, thru end
 		existingText=self.ui.messageField.text()
 		if existingText=="":
-			self.quickTextAddedStack.append(quickText)
-			self.ui.messageField.setText(quickText)
+			textToAdd=quickText
+		elif existingText.endswith("]"):
+			textToAdd=" "+quickText
+		elif existingText.endswith("] "):
+			textToAdd=quickText
 		else:
 			textToAdd="; "+quickText
-			self.quickTextAddedStack.append(textToAdd)
-			self.ui.messageField.setText(existingText+textToAdd)
+		self.quickTextAddedStack.append(textToAdd)
+		self.ui.messageField.setText(existingText+textToAdd)
 		self.ui.messageField.setFocus()
 
 	def quickTextUndo(self):
@@ -4369,6 +4392,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.ui.teamField.setText(csout)
 
 	def teamFieldEditingFinished(self):
+# 		rprint("teamFieldEditingFinished")
 		cs=self.ui.teamField.text()
 		if re.match(".*\D.*",cs):
 			# change it to any case-insensitive-matching existing callsign
@@ -4376,7 +4400,84 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				if t.upper()==cs.upper():
 					self.ui.teamField.setText(t)
 					break
-		
+		if re.match(".*relay.*",cs,re.IGNORECASE):
+			rprint("relay callsign detected")
+			# if the relay callsign is already in the callsign list, i.e. if
+			#  they have previously called in, then assume they are relaying
+			#  a message; if not, assume they are not yet relaying a message
+			for t in self.parent.allTeamsList:
+				if t.upper()==cs.upper():
+					self.ui.relayedCheckBox.setChecked(True)
+					self.ui.relayedByComboBox.setCurrentText(t)
+					break
+
+	def setRelayedPrefix(self,relayedBy=None):
+		if relayedBy is None:
+			relayedBy=self.ui.relayedByComboBox.currentText()
+# 		rprint("setRelayedPrefix:"+relayedBy)
+		if relayedBy=="":
+			prefix="[RELAYED] "
+		else:
+			prefix="[RELAYED by "+relayedBy+"] "
+		mt=self.ui.messageField.text()
+		if mt.startswith("[RELAYED"):
+			relayedEndIndex=mt.find("]")
+# 			rprint("before relayed prefix removal:"+mt)
+			mt=mt.replace(mt[:relayedEndIndex+2],"")
+# 			rprint("after relayed prefix removal:"+mt)
+		mt=prefix+mt
+		self.ui.messageField.setText(mt)			
+			
+	def relayedCheckBoxStateChanged(self):
+		self.relayed=self.ui.relayedCheckBox.isChecked()
+		self.ui.relayedByLabel.setEnabled(self.relayed)
+		self.ui.relayedByComboBox.setEnabled(self.relayed)
+		if self.relayed:
+			# store field values in case this was inadvertently checked
+			self.callsignTemp=self.ui.teamField.text()
+			self.radioLocTemp=self.ui.radioLocField.toPlainText()
+			self.datumFormatTemp=self.ui.datumFormatLabel.text()
+			self.ui.radioLocField.setText("")
+			self.ui.datumFormatLabel.setText("")
+			self.ui.relayedCheckBox.setText("Relayed")
+# 			rprint("relayed")
+			self.ui.relayedByComboBox.clear()
+			for team in self.parent.allTeamsList:
+				if team!='dummy':
+					self.ui.relayedByComboBox.addItem(team)
+			cs=self.ui.teamField.text()
+			if self.relayedByTemp is not None:
+				self.ui.relayedByComboBox.setCurrentText(self.relayedByTemp)
+			elif cs!="":
+				self.ui.relayedByComboBox.setCurrentText(cs)
+			self.ui.teamField.setText("")
+			self.setRelayedPrefix()
+			# need to 'burp' the focus to prevent two blinking cursors
+			#  see http://stackoverflow.com/questions/42475602
+			self.ui.messageField.setFocus()
+			self.ui.teamField.setFocus()
+		else:
+# 			rprint("not relayed")
+			# store field values in case this was inadvertently checked
+			self.relayedByTemp=self.ui.relayedByComboBox.currentText()
+			self.ui.relayedCheckBox.setText("Relayed?")
+			if self.callsignTemp is not None:
+				self.ui.teamField.setText(self.callsignTemp)
+			else:
+				self.ui.teamField.setText(self.ui.relayedByComboBox.currentText())
+			if self.radioLocTemp is not None:
+				self.ui.radioLocField.setText(self.radioLocTemp)
+			if self.datumFormatTemp is not None:
+				self.ui.datumFormatLabel.setText(self.datumFormatTemp)
+			self.ui.relayedByComboBox.clear()
+			self.setRelayedPrefix()
+			self.ui.messageField.setFocus()
+	
+	def relayedByComboBoxChanged(self):
+		rprint("relayedByComboBoxChanged")
+		self.relayedBy=self.ui.relayedByComboBox.currentText()
+		self.setRelayedPrefix(self.relayedBy)
+			
 	def messageTextChanged(self): # gets called after every keystroke or button press, so, should be fast
 ##		self.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 		message=self.ui.messageField.text().lower()
@@ -4484,6 +4585,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			else:
 				button.setChecked(False)
 		self.ui.statusButtonGroup.setExclusive(True)
+		self.ui.messageField.deselect()
 
 	def setCallsignFromComboBox(self,str):
 		self.ui.teamField.setText(str)
@@ -4506,11 +4608,15 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		to_from=self.ui.to_fromField.currentText()
 		team=self.ui.teamField.text().strip() # remove leading and trailing spaces
 		message=self.ui.messageField.text()
+		if self.relayed:
+			locString=""
+		else:
+			locString=self.formattedLocString
 #		location=self.ui.radioLocField.text()
 		status=''
 		if self.ui.statusButtonGroup.checkedButton()!=None:
 			status=self.ui.statusButtonGroup.checkedButton().text()
-		return [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+		return [time,to_from,team,message,locString,status,self.sec,self.fleet,self.dev,self.origLocString]
 
 
 class clueDialog(QDialog,Ui_clueDialog):

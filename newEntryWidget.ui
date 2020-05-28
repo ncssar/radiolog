@@ -2,12 +2,15 @@
 <ui version="4.0">
  <class>newEntryWidget</class>
  <widget class="QWidget" name="newEntryWidget">
+  <property name="enabled">
+   <bool>true</bool>
+  </property>
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
     <width>952</width>
-    <height>481</height>
+    <height>490</height>
    </rect>
   </property>
   <property name="contextMenuPolicy">
@@ -115,31 +118,6 @@
     <bool>true</bool>
    </property>
   </widget>
-  <widget class="QLabel" name="datumFormatLabel">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="geometry">
-    <rect>
-     <x>152</x>
-     <y>127</y>
-     <width>196</width>
-     <height>20</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <family>Segoe UI</family>
-     <pointsize>9</pointsize>
-    </font>
-   </property>
-   <property name="text">
-    <string>DATUM / FORMAT</string>
-   </property>
-   <property name="alignment">
-    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-   </property>
-  </widget>
   <widget class="QPushButton" name="quickTextButton9">
    <property name="geometry">
     <rect>
@@ -173,9 +151,9 @@
    </property>
    <property name="geometry">
     <rect>
-     <x>610</x>
-     <y>0</y>
-     <width>311</width>
+     <x>627</x>
+     <y>3</y>
+     <width>303</width>
      <height>151</height>
     </rect>
    </property>
@@ -402,10 +380,10 @@
   <widget class="QLabel" name="label_5">
    <property name="geometry">
     <rect>
-     <x>176</x>
-     <y>100</y>
-     <width>172</width>
-     <height>21</height>
+     <x>361</x>
+     <y>76</y>
+     <width>62</width>
+     <height>55</height>
     </rect>
    </property>
    <property name="font">
@@ -415,10 +393,13 @@
     </font>
    </property>
    <property name="text">
-    <string>Radio Location:</string>
+    <string>GPS:</string>
    </property>
    <property name="alignment">
     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+   <property name="wordWrap">
+    <bool>true</bool>
    </property>
   </widget>
   <widget class="QComboBox" name="to_fromField">
@@ -505,7 +486,7 @@
     <string>F1</string>
    </property>
   </widget>
-  <widget class="QLineEdit" name="messageField">
+  <widget class="QLineEditWithDeselect" name="messageField">
    <property name="geometry">
     <rect>
      <x>110</x>
@@ -643,8 +624,8 @@
   <widget class="QLabel" name="label_6">
    <property name="geometry">
     <rect>
-     <x>51</x>
-     <y>88</y>
+     <x>276</x>
+     <y>93</y>
      <width>53</width>
      <height>21</height>
     </rect>
@@ -680,6 +661,9 @@
    <property name="focusPolicy">
     <enum>Qt::NoFocus</enum>
    </property>
+   <property name="styleSheet">
+    <string notr="true"/>
+   </property>
    <property name="text">
     <string>UNDO  [Ctrl+Z]</string>
    </property>
@@ -687,9 +671,12 @@
     <string>Ctrl+Z</string>
    </property>
    <property name="checkable">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
    <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="flat">
     <bool>false</bool>
    </property>
   </widget>
@@ -699,10 +686,10 @@
    </property>
    <property name="geometry">
     <rect>
-     <x>111</x>
-     <y>87</y>
-     <width>91</width>
-     <height>31</height>
+     <x>271</x>
+     <y>121</y>
+     <width>74</width>
+     <height>30</height>
     </rect>
    </property>
    <property name="font">
@@ -723,7 +710,7 @@
     <rect>
      <x>175</x>
      <y>8</y>
-     <width>394</width>
+     <width>415</width>
      <height>61</height>
     </rect>
    </property>
@@ -803,9 +790,9 @@
    </property>
    <property name="geometry">
     <rect>
-     <x>220</x>
-     <y>70</y>
-     <width>341</width>
+     <x>278</x>
+     <y>68</y>
+     <width>312</width>
      <height>21</height>
     </rect>
    </property>
@@ -941,16 +928,16 @@
    </property>
    <property name="geometry">
     <rect>
-     <x>361</x>
-     <y>96</y>
-     <width>231</width>
-     <height>56</height>
+     <x>379</x>
+     <y>121</y>
+     <width>230</width>
+     <height>30</height>
     </rect>
    </property>
    <property name="font">
     <font>
      <family>Segoe UI</family>
-     <pointsize>11</pointsize>
+     <pointsize>12</pointsize>
     </font>
    </property>
    <property name="focusPolicy">
@@ -971,7 +958,7 @@
     <rect>
      <x>291</x>
      <y>8</y>
-     <width>309</width>
+     <width>327</width>
      <height>61</height>
     </rect>
    </property>
@@ -985,12 +972,173 @@
     <bool>true</bool>
    </property>
   </widget>
+  <widget class="QComboBox" name="relayedByComboBox">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>44</x>
+     <y>118</y>
+     <width>196</width>
+     <height>33</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Segoe UI</family>
+     <pointsize>10</pointsize>
+    </font>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QComboBox{background-color:#dddddd; border:2px inset gray}
+QComboBox:disabled{background-color:#eeeeee;border:2px inset lightgray}</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="relayedByLabel">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>16</x>
+     <y>126</y>
+     <width>57</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Segoe UI</family>
+     <pointsize>10</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>by</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="datumFormatLabel">
+   <property name="geometry">
+    <rect>
+     <x>424</x>
+     <y>96</y>
+     <width>183</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Segoe UI</family>
+     <pointsize>10</pointsize>
+    </font>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QLabel{color:#555}</string>
+   </property>
+   <property name="text">
+    <string>DATUM / FORMAT</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignCenter</set>
+   </property>
+  </widget>
+  <widget class="Line" name="line">
+   <property name="geometry">
+    <rect>
+     <x>342</x>
+     <y>96</y>
+     <width>40</width>
+     <height>48</height>
+    </rect>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Vertical</enum>
+   </property>
+  </widget>
+  <widget class="Line" name="line_2">
+   <property name="geometry">
+    <rect>
+     <x>232</x>
+     <y>86</y>
+     <width>44</width>
+     <height>59</height>
+    </rect>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Vertical</enum>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="relayedCheckBox">
+   <property name="geometry">
+    <rect>
+     <x>54</x>
+     <y>75</y>
+     <width>210</width>
+     <height>39</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Segoe UI</family>
+     <pointsize>14</pointsize>
+    </font>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QCheckBox::indicator {
+     width: 30px;
+     height: 30px;
+ }
+
+  QCheckBox::indicator:checked
+  {
+    image: url(:/radiolog_ui/checkbox_checked_30x30_turquoise.png);
+  }
+  QCheckBox::indicator:unchecked
+  {
+    image: url(:/radiolog_ui/checkbox_unchecked_30x30.png);
+  }
+  QCheckBox::indicator:checked:hover
+  {
+    image: url(:/radiolog_ui/checkbox_checked_30x30_turquoise.png);
+  }
+  QCheckBox::indicator:unchecked:hover
+  {
+    image: url(:/radiolog_ui/checkbox_unchecked_30x30.png);
+  }
+  QCheckBox::indicator:checked:pressed
+  {
+    image: url(:/radiolog_ui/checkbox_checked_30x30_turquoise.png);
+  }
+  QCheckBox::indicator:unchecked:pressed
+  {
+    image: url(:/radiolog_ui/checkbox_unchecked_30x30.png);
+  }
+  QCheckBox::indicator:checked:disabled
+  {
+    image: url(:/radiolog_ui/checkbox_checked_30x30_turquoise.png);
+  }</string>
+   </property>
+   <property name="text">
+    <string>Relayed?</string>
+   </property>
+   <property name="iconSize">
+    <size>
+     <width>30</width>
+     <height>30</height>
+    </size>
+   </property>
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+  </widget>
   <zorder>teamComboBox</zorder>
   <zorder>quickTextButton3</zorder>
   <zorder>quickTextButton6</zorder>
   <zorder>line_3</zorder>
   <zorder>label</zorder>
-  <zorder>datumFormatLabel</zorder>
   <zorder>quickTextButton9</zorder>
   <zorder>statusGroupBox</zorder>
   <zorder>label_5</zorder>
@@ -1017,7 +1165,20 @@
   <zorder>attachedField</zorder>
   <zorder>label_7</zorder>
   <zorder>radioLocField</zorder>
+  <zorder>relayedByComboBox</zorder>
+  <zorder>relayedByLabel</zorder>
+  <zorder>datumFormatLabel</zorder>
+  <zorder>line</zorder>
+  <zorder>line_2</zorder>
+  <zorder>relayedCheckBox</zorder>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QLineEditWithDeselect</class>
+   <extends>QLineEdit</extends>
+   <header>QLineEditWithDeselect.h</header>
+  </customwidget>
+ </customwidgets>
  <tabstops>
   <tabstop>teamField</tabstop>
   <tabstop>messageField</tabstop>
@@ -1025,7 +1186,9 @@
   <tabstop>quickTextButton10</tabstop>
   <tabstop>standbyField</tabstop>
  </tabstops>
- <resources/>
+ <resources>
+  <include location="radiolog_ui.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>buttonBox</sender>
@@ -1331,6 +1494,38 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>relayedByComboBox</sender>
+   <signal>currentIndexChanged(int)</signal>
+   <receiver>newEntryWidget</receiver>
+   <slot>relayedByComboBoxChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>111</x>
+     <y>143</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>8</x>
+     <y>133</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>relayedCheckBox</sender>
+   <signal>stateChanged(int)</signal>
+   <receiver>newEntryWidget</receiver>
+   <slot>relayedCheckBoxStateChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>71</x>
+     <y>92</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>25</x>
+     <y>94</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>accept()</slot>
@@ -1345,6 +1540,9 @@
   <slot>setCallsignFromComboBox()</slot>
   <slot>teamFieldTextChanged()</slot>
   <slot>teamFieldEditingFinished()</slot>
+  <slot>relayedButtonReleased()</slot>
+  <slot>relayedByComboBoxChanged()</slot>
+  <slot>relayedCheckBoxStateChanged()</slot>
  </slots>
  <buttongroups>
   <buttongroup name="statusButtonGroup">
