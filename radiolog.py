@@ -174,6 +174,10 @@
 #     2-8-20   TMG       re-fix #41: repair hot-unplug handling for current pyserial
 #    2-10-20   TMG       fix #396: create default local dir and config file if needed
 #    5-28-20   TMG       fix #412: relayed message features
+#    6-15-20   TMG       fix #415: restore timeout on auto-recover (in rc file);
+#                          fix #404: show http request response in log;
+#                          address #413: multiple crashes - add more logging; 
+#                          improve relay features to be more intuitive
 #
 # #############################################################################
 #
@@ -657,6 +661,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.csDisplayDict["DM.m"]="D° M.m'"
 		self.csDisplayDict["DMS.s"]="D° M' S.s\""
 		
+		# config file (e.g. ./local/radiolog.cfg) stores the team standards;
+		#  it should be created/modified by hand, and is read at radiolog startup,
+		#  and is not modified by radiolog at any point
+		# resource file / 'rc file' (e.g. ./radiolog_rc.txt) stores the search-specific
+		#  options settings; it is read at radiolog startup, and is written
+		#  whenever the options dialog is accepted
 		self.configFileName="./local/radiolog.cfg"
 		self.readConfigFile() # defaults are set inside readConfigFile
 		
@@ -1428,7 +1438,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text()==callsign and widget.lastModAge<continueSec:
 ##				widget.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 				found=True
-##				if origLocString!='' and origLocString!='NO FIX':  # don't overwrite location if earlier transmission had a good lock
+				rprint("  new entry widget is already open from this callsign within the 'continue time'; not opening a new one")
 				prevLocString=widget.ui.radioLocField.toPlainText()
 				# if previous location string was blank, always overwrite;
 				#  if previous location string was not blank, only overwrite if new location is valid
@@ -1468,15 +1478,17 @@ class MyWindow(QDialog,Ui_Dialog):
 			if self.getString!='': # to avoid sending a GET string that is nothing but the callsign
 				self.getString=self.getString+suffix
 			if self.getString!='' and not self.getString.endswith("-"):
+				rprint("calling processEvents before sending GET request...")
 				QCoreApplication.processEvents()
 				try:
 					rprint("Sending GET request:")
 					rprint(self.getString)
 					# fire-and-forget: completely ignore the response, but, return immediately
-					requests.get(self.getString,timeout=0.0001)
-					rprint("  returned from get request")
-				except:
-					pass
+					r=requests.get(self.getString,timeout=0.0001)
+					rprint("  request sent")
+					rprint("  response: "+str(r))
+				except Exception as e:
+					rprint("  exception during sending of GET request: "+str(e))
 				self.getString=''
 				
 	# for fsLog, a dictionary would probably be easier, but we have to use an array
@@ -1486,7 +1498,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	#  if the entry does not yet exist, add it
 	def fsLogUpdate(self,fleet,dev,callsign=False):
 		# row structure: [fleet,dev,callsign,filtered,last_received]
-# 		rprint("fsLogUpdate called: fleet="+str(fleet)+" dev="+str(dev)+" callsign="+(callsign or "<None>"))
+		rprint("fsLogUpdate called: fleet="+str(fleet)+" dev="+str(dev)+" callsign="+(callsign or "<None>"))
 		found=False
 		t=time.strftime("%a %H:%M:%S")
 		for row in self.fsLog:
@@ -2465,6 +2477,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	def saveRcFile(self,cleanShutdownFlag=False):
 		(x,y,w,h)=self.geometry().getRect()
 		(cx,cy,cw,ch)=self.clueLogDialog.geometry().getRect()
+		timeout=timeoutDisplayList[self.optionsDialog.ui.timeoutField.value()][0]
 		rcFile=QFile(self.rcFileName)
 		if not rcFile.open(QFile.WriteOnly|QFile.Text):
 			warn=QMessageBox(QMessageBox.Warning,"Error","Cannot write resource file " + self.rcFileName + "; proceeding, but, current settings will be lost. "+rcFile.errorString(),
@@ -2476,6 +2489,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		out=QTextStream(rcFile)
 		out << "[RadioLog]\n"
 		# datum, coord format, and timeout are saved in the config file
+		#  but also need to be able to auto-recover from .rc file
 		# issue 322: use self.lastSavedFileName instead of self.csvFileName to
 		#  make sure the initial rc file doesn't point to a file that does not yet exist
 		out << "lastFileName=" << self.lastSavedFileName << "\n"
@@ -2488,11 +2502,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		out << "clueLog_y=" << cy << "\n"
 		out << "clueLog_w=" << cw << "\n"
 		out << "clueLog_h=" << ch << "\n"
+		out << "timeout="<< timeout << "\n"
+		out << "datum=" << self.datum << "\n"
+		out << "coordFormat=" << self.coordFormat << "\n"
 		if cleanShutdownFlag:
 			out << "cleanShutdown=True\n"
 		rcFile.close()
 
 	def loadRcFile(self):
+		# this function gets called at startup (whether it's a clean fresh start
+		#  or an auto-recover) but timeout, datum, and coordFormat should only
+		#  be used if this is an auto-recover; otherwise those values should
+		#  be taken from the config file.
 		rcFile=QFile(self.rcFileName)
 		if not rcFile.open(QFile.ReadOnly|QFile.Text):
 			warn=QMessageBox(QMessageBox.Warning,"Error","Cannot read resource file " + self.rcFileName + "; using default settings. "+rcFile.errorString(),
@@ -2513,6 +2534,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			return
 		cleanShutdownFlag=False
 		self.lastFileName="NONE"
+		timeoutDisplay='30 min'
+		datum=None
+		coordFormat=None
 		while not inStr.atEnd():
 			line=inStr.readLine()
 			tokens=line.split("=")
@@ -2536,9 +2560,26 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.clueLog_h=int(tokens[1])
 			elif tokens[0]=="lastFileName":
 				self.lastFileName=tokens[1]
+			elif tokens[0]=="timeout":
+				timeoutDisplay=tokens[1]
+			elif tokens[0]=="datum":
+				datum=tokens[1]
+			elif tokens[0]=="coordFormat":
+				coordFormat=tokens[1]
 			elif tokens[0]=="cleanShutdown" and tokens[1]=="True":
 				cleanShutdownFlag=True
-			# datum, coord format, and timeout are saved in the config file
+		# only apply datum, coordFormat, and timout if it's an auto-recover
+		if not cleanShutdownFlag:
+			if datum:
+				self.datum=datum
+			if coordFormat:
+				self.coordFormat=coordFormat
+			for n in range(len(timeoutDisplayList)):
+				pair=timeoutDisplayList[n]
+				if pair[0]==timeoutDisplay:
+					self.timeoutRedSec=pair[1]
+					break
+		self.updateOptionsDialog()
 		rcFile.close()
 		return cleanShutdownFlag
 
@@ -2737,6 +2778,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.timeoutLabel.setText("TIMEOUT:\n"+timeoutDisplayList[self.optionsDialog.ui.timeoutField.value()][0])
 
 	def openNewEntry(self,key=None,callsign=None,formattedLocString=None,fleet=None,dev=None,origLocString=None,amendFlag=False,amendRow=None):
+		rprint("openNewEntry called:key="+str(key)+" callsign="+str(callsign)+" formattedLocString="+str(formattedLocString)+" fleet="+str(fleet)+" dev="+str(dev)+" origLocString="+str(origLocString)+" amendFlag="+str(amendFlag)+" amendRow="+str(amendRow))
 		if clueDialog.openDialogCount==0:
 			self.newEntryWindow.setWindowFlags(Qt.WindowTitleHint|Qt.WindowStaysOnTopHint) # enable always on top
 		else:
@@ -3562,6 +3604,12 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	def secondWorkingDirCB(self):
 		self.parent.use2WD=self.ui.secondWorkingDirCheckBox.isChecked()
 
+	def accept(self):
+		# only save the rc file when the options dialog is accepted interactively;
+		#  saving from self.optionsAccepted causes errors because that function
+		#  is called during init, before the values are ready to save
+		self.parent.saveRcFile()
+		super(optionsDialog,self).accept()
 
 class printDialog(QDialog,Ui_printDialog):
 	def __init__(self,parent):
@@ -4010,10 +4058,13 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		
 		self.relayed=None
 		# store field values in case relayed checkbox is toggled accidentally
+		self.relayedByTypedTemp=None
 		self.relayedByTemp=None
 		self.callsignTemp=None
 		self.radioLocTemp=None
 		self.datumFormatTemp=None
+		
+		self.ui.relayedByComboBox.lineEdit().editingFinished.connect(self.relayedByComboBoxChanged)
 
 ##		# unless an entry is currently being edited, activate the newly added tab
 ##		if newEntryWidgetHold:
@@ -4431,56 +4482,85 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 # 			rprint("after relayed prefix removal:"+mt)
 		mt=prefix+mt
 		self.ui.messageField.setText(mt)			
-			
+	
+	def getRelayedByItems(self):
+		items=[]
+		for n in range(self.ui.relayedByComboBox.count()):
+			items.append(self.ui.relayedByComboBox.itemText(n))
+		return items
+		
 	def relayedCheckBoxStateChanged(self):
+		# if this was a fleetsync call, move the incoming callsign to 'relayed by'
+		#  and set focus to the callsign field to prompt for the callsign of the
+		#  originating team/unit
+		# if it was not a fleetsync call, leave the callsign alone and set 'relayed by'
+		#  to blank, since it's likely that the radio operator may have typed the
+		#  originating team/unit callsign in to the callsign field first, and then
+		#  checked 'relayed' afterwards
+		rprint("relayedCheckBoxStateChanged; fleet="+str(self.fleet)+"; dev="+str(self.dev))
 		self.relayed=self.ui.relayedCheckBox.isChecked()
 		self.ui.relayedByLabel.setEnabled(self.relayed)
 		self.ui.relayedByComboBox.setEnabled(self.relayed)
-		if self.relayed:
-			# store field values in case this was inadvertently checked
-			self.callsignTemp=self.ui.teamField.text()
-			self.radioLocTemp=self.ui.radioLocField.toPlainText()
-			self.datumFormatTemp=self.ui.datumFormatLabel.text()
-			self.ui.radioLocField.setText("")
-			self.ui.datumFormatLabel.setText("")
-			self.ui.relayedCheckBox.setText("Relayed")
-# 			rprint("relayed")
-			self.ui.relayedByComboBox.clear()
+		self.ui.relayedByComboBox.clear() # rebuild the list from scratch to avoid duplicates
+		if self.relayed: # do these steps regardless of whether it was a fleetsync call
 			for team in self.parent.allTeamsList:
 				if team!='dummy':
 					self.ui.relayedByComboBox.addItem(team)
-			cs=self.ui.teamField.text()
-			if self.relayedByTemp is not None:
-				self.ui.relayedByComboBox.setCurrentText(self.relayedByTemp)
-			elif cs!="":
-				self.ui.relayedByComboBox.setCurrentText(cs)
-			self.ui.teamField.setText("")
-			self.setRelayedPrefix()
-			# need to 'burp' the focus to prevent two blinking cursors
-			#  see http://stackoverflow.com/questions/42475602
-			self.ui.messageField.setFocus()
-			self.ui.teamField.setFocus()
-		else:
-# 			rprint("not relayed")
-			# store field values in case this was inadvertently checked
-			self.relayedByTemp=self.ui.relayedByComboBox.currentText()
-			self.ui.relayedCheckBox.setText("Relayed?")
-			if self.callsignTemp is not None:
-				self.ui.teamField.setText(self.callsignTemp)
+			# remove the current callsign from the list of 'relayed by' choices
+			for n in range(self.ui.relayedByComboBox.count()):
+				if self.ui.relayedByComboBox.itemText(n).lower()==self.ui.teamField.text().lower():
+					self.ui.relayedByComboBox.removeItem(n)
+					break	
+			self.ui.relayedCheckBox.setText("Relayed")
+			if self.relayedByTypedTemp is not None:
+				self.ui.relayedByComboBox.setCurrentText(self.relayedByTypedTemp)
+		else: # just unchecked the box, regadless of fleetsync
+			text=self.ui.relayedByComboBox.currentText()
+			if text!="" and text not in self.getRelayedByItems():
+				self.relayedByTypedTemp=text
+			self.ui.relayedByComboBox.setCurrentText("")
+		if self.dev is not None: # only do these steps if it was a fleetsync call
+			if self.relayed:
+				# store field values in case this was inadvertently checked
+				self.callsignTemp=self.ui.teamField.text()
+				self.radioLocTemp=self.ui.radioLocField.toPlainText()
+				self.datumFormatTemp=self.ui.datumFormatLabel.text()
+				self.ui.radioLocField.setText("")
+				self.ui.datumFormatLabel.setText("")
+	# 			rprint("relayed")
+				self.ui.relayedByComboBox.clear()
+				cs=self.ui.teamField.text()
+				if self.relayedByTemp is not None:
+					self.ui.relayedByComboBox.setCurrentText(self.relayedByTemp)
+				elif cs!="":
+					self.ui.relayedByComboBox.setCurrentText(cs)
+				self.ui.teamField.setText("")
+				# need to 'burp' the focus to prevent two blinking cursors
+				#  see http://stackoverflow.com/questions/42475602
+				self.ui.messageField.setFocus()
+				self.ui.teamField.setFocus()
 			else:
-				self.ui.teamField.setText(self.ui.relayedByComboBox.currentText())
-			if self.radioLocTemp is not None:
-				self.ui.radioLocField.setText(self.radioLocTemp)
-			if self.datumFormatTemp is not None:
-				self.ui.datumFormatLabel.setText(self.datumFormatTemp)
-			self.ui.relayedByComboBox.clear()
-			self.setRelayedPrefix()
-			self.ui.messageField.setFocus()
+	# 			rprint("not relayed")
+				# store field values in case this was inadvertently checked
+				self.relayedByTemp=self.ui.relayedByComboBox.currentText()
+				self.ui.relayedCheckBox.setText("Relayed?")
+				if self.callsignTemp is not None:
+					self.ui.teamField.setText(self.callsignTemp)
+				else:
+					self.ui.teamField.setText(self.ui.relayedByComboBox.currentText())
+				if self.radioLocTemp is not None:
+					self.ui.radioLocField.setText(self.radioLocTemp)
+				if self.datumFormatTemp is not None:
+					self.ui.datumFormatLabel.setText(self.datumFormatTemp)
+				self.ui.relayedByComboBox.clear()
+				self.ui.messageField.setFocus()
+		self.setRelayedPrefix()
 	
 	def relayedByComboBoxChanged(self):
 		rprint("relayedByComboBoxChanged")
 		self.relayedBy=self.ui.relayedByComboBox.currentText()
 		self.setRelayedPrefix(self.relayedBy)
+		self.ui.messageField.setFocus()
 			
 	def messageTextChanged(self): # gets called after every keystroke or button press, so, should be fast
 ##		self.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
