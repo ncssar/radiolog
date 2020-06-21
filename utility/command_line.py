@@ -11,9 +11,11 @@ class CommandLineSwitches:
 				if arg.lower()=="-devel":
 					self.develMode=True
 					print("Development mode enabled.")
-				if arg.lower()=="-min":
+				elif arg.lower()=="-min":
 					self.minMode=True
 					print("Minimum display size mode enabled.")
-				if arg.lower()=="-nosend":
+				elif arg.lower()=="-nosend":
 					self.noSend=True
 					print("Will not send any GET requests for this session.")
+				else:
+					print("ERROR Unrecognized command linbe switch: "+arg)

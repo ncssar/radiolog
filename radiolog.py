@@ -352,24 +352,13 @@ from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.units import inch
 from fdfgen import forge_fdf
 from FingerTabs import *
+from utility.command_line import CommandLineSwitches
 
 # process command-line arguments
-minMode=False
-develMode=False
-noSend=False
-if len(sys.argv)>1:
-	for arg in sys.argv[1:]:
-		if arg.lower()=="-devel":
-			develMode=True
-			print("Development mode enabled.")
-		if arg.lower()=="-min":
-			minMode=True
-			print("Minimum display size mode enabled.")
-		if arg.lower()=="-nosend":
-			noSend=True
-			print("Will not send any GET requests for this session.")
+switches = CommandLineSwitches()
+switches.parse(sys.argv)
 
-if minMode:
+if switches.minMode:
 	from radiolog_min_ui import Ui_Dialog # built to look decent at 800x600
 else:
 	from radiolog_ui import Ui_Dialog # normal version, for higher resolution
@@ -623,7 +612,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsLog=[]
 # 		self.fsLog.append(['','','','',''])
 		self.fsMuted=False
-		self.noSend=noSend
+		self.noSend=switches.noSend
 		self.fsMutedBlink=False
 		self.fsFilterBlinkState=False
 		self.getString=""
@@ -753,7 +742,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.secondComPortFound=False
 		self.comPortScanInProgress=False
 		self.comPortTryList=[]
-##		if develMode:
+##		if switches.develMode:
 ##			self.comPortTryList=[serial.Serial("\\\\.\\CNCB0")] # DEVEL
 		self.fsBuffer=""
 		self.entryHold=False
@@ -1062,7 +1051,7 @@ class MyWindow(QDialog,Ui_Dialog):
  							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			self.configErrMsgBox.exec_()
 
-		if develMode:
+		if switches.develMode:
 			self.sarsoftServerName="localhost" # DEVEL
 
 	def rotateCsvBackups(self,filenames):
