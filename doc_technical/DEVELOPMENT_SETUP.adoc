@@ -65,7 +65,7 @@ Designer:
 
 Pyuic:
 
-    pyiuc5.exe -d -o ./"${fileBasenameNoExtension}_ui.py"
+    pyuic5.exe -d -o ./"${fileBasenameNoExtension}_ui.py"
 
 Pyrcc:
     
