@@ -11,7 +11,7 @@ You could consider these to be part of the installation procedure.
 2. Python modules -- The required Python modules are listed in requirements.txt.
 To install them, use: 
 
-    pip install -i requirements.txt
+    pip install -r requirements.txt
 
 3. We use GISInternals SDK for geospatial calculations.
 Download it from http://www.gisinternals.com/release.php 
