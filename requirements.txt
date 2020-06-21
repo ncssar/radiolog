@@ -1,7 +1,7 @@
 pytest>=5.4.3
 pyqt5>=5.4
-reportlab 
-pyserial 
-requests 
-fdfgen 
-win32api 
+reportlab
+pyserial
+requests
+fdfgen
+pypiwin32
