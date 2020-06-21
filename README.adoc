@@ -60,7 +60,7 @@ Please contact the author if other documentation would be helpful.
 == Project Status
 
 This open-source project is mainly intended for use by Search and Rescue teams.
-Nevada County Sheriff's Search and Rescue (https://https://www.mynevadacounty.com/258/Search-Rescue) has been using this tool on every callout since early 2015.
+Nevada County Sheriff's Search and Rescue (https://www.mynevadacounty.com/258/Search-Rescue) has been using this tool on every callout since early 2015.
 
 June 2020: Red Rock Search and Rescue (https://redrocksar.org) is in the process of adapting it for their use.
 
@@ -90,7 +90,7 @@ The guidelines for contributing to this project are link:doc_technical/CONTRIBUT
 
 == Credits
 
-Tom Grundy:: Volunteer - link:https://https://www.mynevadacounty.com/258/Search-Rescue[Nevada County Sheriff's Search and Rescue], Nevada County, California. https://github.com/caver456
+Tom Grundy:: Volunteer - link:https://www.mynevadacounty.com/258/Search-Rescue[Nevada County Sheriff's Search and Rescue], Nevada County, California. https://github.com/caver456
 
 Craig Jones:: Volunteer - link:https://redrocksar.org[Red Rock Search and Rescue], Las Vegas, Nevada. https://github.com/polyglot-jones
 
