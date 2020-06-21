@@ -1,12 +1,19 @@
 = Notes on Setting Up a Development Environment
 
+== Installing the radiolog source code
+
+See link:../doc/INSTALL.adoc[INSTALL]
+
 == Installing Visual Studio Code (Windows, Mac OS, or Linux), if desitred
 
 Microsoft Visual Studio Code (we'll call it VSC from now on) is a free IDE (integrated development environment) that runs on Windows, Mac OS, and Linux.
 
-NOTE: "Visual Studio Code" is different than full-fledged "Visual Studio." VSC is slimmed down. You can work on Python code in either, but VSC is preferred.
+NOTE: "Visual Studio Code" is different than full-fledged "Visual Studio." 
+VSC is slimmed down. 
+You can work on Python code in either, but VSC is preferred.
 
-Official documentation on editing Python with VSC is at: https://code.visualstudio.com/docs/languages/python. Here is a bare-bones summary:
+Official documentation on editing Python with VSC is at: https://code.visualstudio.com/docs/languages/python. 
+Here is a bare-bones summary:
 
 . Install Python, if not already. (TIP: The Python installer defaults to placing it in your user-folder's appdata subfolder. You'll save yourself a world of hurt if you change it to something simpler, e.g. C:\Python38).
 . Download VSC from https://code.visualstudio.com/ and install.
@@ -30,7 +37,7 @@ Official documentation on editing Python with VSC is at: https://code.visualstud
 == User Interface
 
 This project uses PyQT5 for the user-interface.
-The source for the UI elements (forms, dialog boxes, etc.) are stored in .ui files. 
+The source for the UI elements (forms, dialog boxes, etc.) are stored in .ui files (with resource information, if any, stored in a corresponding .rc file). 
 
 QT Designer (designer.exe) is the tool that creates the ui files.
 To install QT Designer, use:
@@ -45,7 +52,8 @@ The following command generates the corresponding python code:
 
     pyuic5 -x file.ui -o file_ui.py
 
-In VSC, there are several plugins for QT. It looks like the best option for now is "Qt for Python" by Sean Wu.
+In VSC, there are several plugins for QT. 
+It looks like the best option for now is "Qt for Python" by Sean Wu.
 The plugin has 7 configuration settings.
 Of those, you'll need to set 3 of them:
 
@@ -65,7 +73,7 @@ Pyrcc:
 
 NOTES: 
 
-. Use quotes around any path that contains a space. 
+. Be sure to use quotes around any path that contains a space.
 . Be sure to notice that for this project we add "_rc" and "_ui" before the .py extension for the output files.
 . Make sure that your Python Scripts folder (C:\Python38\Scripts) is in the PATH.
 
