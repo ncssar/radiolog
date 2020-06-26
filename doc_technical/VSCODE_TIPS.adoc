@@ -1,0 +1,33 @@
+= Tips for Using Visual Studio Code
+
+== Keyboard Bindings
+
+You can easily remap the keyboard bindings to be the same (well, similar, anyway) as your favorite editor (Vim, Sublime, IntelliJ, Notepad++, etc.)
+
+	File > Preferences > Keymaps
+
+This will install a corresponding extension. In the case of the Sublime extension, for example, it finds your current Sublime settings and (tries to) replicates them.
+
+After that, you can refine the bindings, one-by-one:
+
+	File > Preferences > Keyboard Shortcuts
+
+== The Python Extension
+
+See https://code.visualstudio.com/docs/python/editing for a summary of what VSCode's Python extension does for you.
+
+See also: https://switowski.com/blog/18-plugins-for-python-in-vscode
+
+
+== Snippets
+
+VSCode has an internal system for working with snippets that is very much the same as Textmate/Sublime. 
+
+	File > Preferences > User Snippets > Python
+
+There is also built-in support for Emmet, a unique snippet processor for generating HTML and CSS code based on CSS syntax. See http://emmet.io for an explanation.
+
+
+
+
+
