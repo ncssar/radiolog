@@ -29,6 +29,7 @@ Attribution, feedback, bug reports and feature requests are appreciated
 #
 # REVISION HISTORY: See doc_technical\CHANGE_LOG.adoc
 
+
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
@@ -226,10 +227,6 @@ def getShortNiceTeamName(niceTeamName):
 	return shortNiceTeamName
 
 LOG = utility.loggingHelpers.newLogger()
-
-def LOG.info(text):
-	logText=time.strftime("%H%M%S")+":"+str(text)
-	LOG.info(logText)
 
 
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
@@ -1221,7 +1218,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		return False
 
 	def fsLoadLookup(self,startupFlag=False,fsFileName=None,hideWarnings=False):
-		LOG.info("fsLoadLookup called: startupFlag="+str(startupFlag)+"  fsFileName="+str(fsFileName)+"  hideWarnings="+str(hideWarnings))
+		LOG.debug("(trace) fsLoadLookup called: startupFlag="+str(startupFlag)+"  fsFileName="+str(fsFileName)+"  hideWarnings="+str(hideWarnings))
 		if not startupFlag and not fsFileName: # don't ask for confirmation on startup or on restore
 			really=QMessageBox(QMessageBox.Warning,'Please Confirm','Are you sure you want to reload the default FleetSync lookup table?  This will overwrite any callsign changes you have made.',
 				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
@@ -1236,7 +1233,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		if not fsFileName:
 			fsFileName=self.fsFileName
 		try:
-			LOG.info("  trying "+fsFileName)
+			LOG.debug("(trace) trying "+fsFileName)
 			with open(fsFileName,'r') as fsFile:
 				LOG.info("Loading FleetSync Lookup Table from file "+fsFileName)
 				self.fsLookup=[]
@@ -1270,7 +1267,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		fsName=fsName.replace(".csv","_fleetsync.csv")
 		try:
 			with open(fsName,'w',newline='') as fsFile:
-				LOG.info("Writing file "+fsName)
+				LOG.debug("(trace) Writing file "+fsName)
 				csvWriter=csv.writer(fsFile)
 				csvWriter.writerow(["## Radio Log FleetSync lookup table"])
 				csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
@@ -1501,7 +1498,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		styles = getSampleStyleSheet()
 		self.img=None
 		if os.path.isfile(self.printLogoFileName):
-			LOG.info("valid logo file "+self.printLogoFileName)
+			LOG.debug("valid logo file "+self.printLogoFileName)
 			imgReader=utils.ImageReader(self.printLogoFileName)
 			imgW,imgH=imgReader.getSize()
 			imgAspect=imgH/float(imgW)
@@ -1543,14 +1540,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		w,h=t.wrapOn(canvas,doc.width,doc.height)
 # 		self.logMsgBox.setInformativeText("Generating page "+str(canvas.getPageNumber()))
 		QCoreApplication.processEvents()
-		LOG.info("Page number:"+str(canvas.getPageNumber()))
-		LOG.info("Height:"+str(h))
-		LOG.info("Pagesize:"+str(doc.pagesize))
+		LOG.debug("Page number:"+str(canvas.getPageNumber()))
+		LOG.debug("Height:"+str(h))
+		LOG.debug("Pagesize:"+str(doc.pagesize))
 		t.drawOn(canvas,doc.leftMargin,doc.pagesize[1]-h-0.5*inch) # enforce a 0.5 inch top margin regardless of paper size
 ##		canvas.grid([x*inch for x in [0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10,10.5,11]],[y*inch for y in [0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5]])
-		LOG.info("done drawing printLogHeaderFooter canvas")
+		LOG.debug("(trace) done drawing printLogHeaderFooter canvas")
 		canvas.restoreState()
-		LOG.info("end of printLogHeaderFooter")
+		LOG.debug("(trace) end of printLogHeaderFooter")
 
 	# optonal argument 'teams': if True, generate one pdf of all individual team logs;
 	#  so, this function should be called once to generate the overall log pdf, and
@@ -1577,9 +1574,9 @@ class MyWindow(QDialog,Ui_Dialog):
 				for team in self.allTeamsList:
 					if team!="dummy":
 						teamFilterList.append(team)
-		LOG.info("teamFilterList="+str(teamFilterList))
+		LOG.debug("teamFilterList="+str(teamFilterList))
 		pdfName=pdfName.replace('.pdf','_OP'+str(opPeriod)+'.pdf')
-		LOG.info("generating radio log pdf: "+pdfName)
+		LOG.debug("generating radio log pdf: "+pdfName)
 		try:
 			f=open(pdfName,"wb")
 		except:
@@ -1625,7 +1622,7 @@ class MyWindow(QDialog,Ui_Dialog):
 ##						hits=True
 			if not teams:
 				radioLogPrint[1][4]=self.datum
-			LOG.info("length:"+str(len(radioLogPrint)))
+			LOG.debug("length:"+str(len(radioLogPrint)))
 			if not teams or len(radioLogPrint)>2: # don't make a table for teams that have no entries during the requested op period
 				t=Table(radioLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.5,0.6,1.25,5.5,1.25,0.9]])
 				t.setStyle(TableStyle([('FONT',(0,0),(-1,-1),'Helvetica'),
@@ -1642,7 +1639,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.radioLogNeedsPrint=False
 
 		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-			LOG.info("copying radio log pdf"+msgAdder+" to "+self.secondWorkingDir)
+			LOG.debug("copying radio log pdf"+msgAdder+" to "+self.secondWorkingDir)
 			shutil.copy(pdfName,self.secondWorkingDir)
 
 	def printTeamLogs(self,opPeriod):
@@ -1692,20 +1689,20 @@ class MyWindow(QDialog,Ui_Dialog):
 		w,h=t.wrapOn(canvas,doc.width,doc.height)
 # 		self.clueLogMsgBox.setInformativeText("Generating page "+str(canvas.getPageNumber()))
 		QCoreApplication.processEvents()
-		LOG.info("Page number:"+str(canvas.getPageNumber()))
-		LOG.info("Height:"+str(h))
-		LOG.info("Pagesize:"+str(doc.pagesize))
+		LOG.debug("Page number:"+str(canvas.getPageNumber()))
+		LOG.debug("Height:"+str(h))
+		LOG.debug("Pagesize:"+str(doc.pagesize))
 		t.drawOn(canvas,doc.leftMargin,doc.pagesize[1]-h-0.5*inch) # enforce a 0.5 inch top margin regardless of paper size
-		LOG.info("done drawing printClueLogHeaderFooter canvas")
+		LOG.debug("(trace) done drawing printClueLogHeaderFooter canvas")
 ##		canvas.grid([x*inch for x in [0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10,10.5,11]],[y*inch for y in [0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5]])
 		canvas.restoreState()
-		LOG.info("end of printClueLogHeaderFooter")
+		LOG.debug("(trace) end of printClueLogHeaderFooter")
 
 	def printClueLog(self,opPeriod):
 ##      header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
 		opPeriod=int(opPeriod)
 		clueLogPdfFileName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clueLog_OP"+str(opPeriod)+".pdf")
-		LOG.info("generating clue log pdf: "+clueLogPdfFileName)
+		LOG.debug("(trace) generating clue log pdf: "+clueLogPdfFileName)
 		try:
 			f=open(clueLogPdfFileName,"wb")
 		except:
@@ -1732,7 +1729,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		clueLogPrint=[]
 		clueLogPrint.append(clueTableModel.header_labels[0:5]+clueTableModel.header_labels[6:8]) # omit operational period
 		for row in self.clueLog:
-			LOG.info("clue: opPeriod="+str(opPeriod)+"; row="+str(row))
+			LOG.debug("clue: opPeriod="+str(opPeriod)+"; row="+str(row))
 			if (str(row[5])==str(opPeriod) or row[1].startswith("Operational Period "+str(opPeriod)+" Begins:") or (opPeriod==1 and row[1].startswith("Radio Log Begins:"))):
 				clueLogPrint.append([row[0],Paragraph(row[1],styles['Normal']),row[2],row[3],row[4],Paragraph(row[6],styles['Normal']),Paragraph(row[7],styles['Normal'])])
 		clueLogPrint[1][5]=self.datum
@@ -1749,7 +1746,7 @@ class MyWindow(QDialog,Ui_Dialog):
 # 			self.clueLogMsgBox.setInformativeText("Finalizing and Printing...")
 			win32api.ShellExecute(0,"print",clueLogPdfFileName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
 			if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-				LOG.info("copying clue log pdf to "+self.secondWorkingDir)
+				LOG.debug("(trace) copying clue log pdf to "+self.secondWorkingDir)
 				shutil.copy(clueLogPdfFileName,self.secondWorkingDir)
 # 		else:
 # 			self.clueLogMsgBox.setText("No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.")
@@ -1773,7 +1770,7 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
 		# do not use ui object here, since this could be called later, when the clueDialog is not open
 		cluePdfName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clue"+str(clueData[0]).zfill(2)+".pdf")
-		LOG.info("generating clue report pdf: "+cluePdfName)
+		LOG.debug("(trace) generating clue report pdf: "+cluePdfName)
 		clueFdfName=cluePdfName.replace(".pdf",".fdf")
 
 # 		self.clueReportMsgBox=QMessageBox(QMessageBox.Information,"Printing Clue #"+clueData[0],"Generating PDF; will send to default printer automatically; please wait...",
@@ -1833,13 +1830,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		fdf_file.close()
 
 		pdftk_cmd='pdftk "'+self.fillableClueReportPdfFileName+'" fill_form "'+clueFdfName+'" output "'+cluePdfName+'" flatten'
-		LOG.info("Calling pdftk with the following command:")
-		LOG.info(pdftk_cmd)
+		LOG.debug("Calling pdftk with the following command:")
+		LOG.debug(pdftk_cmd)
 		os.system(pdftk_cmd)
 
 		win32api.ShellExecute(0,"print",cluePdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
 		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-			LOG.info("copying clue report pdf to "+self.secondWorkingDir)
+			LOG.debug("(trace) copying clue report pdf to "+self.secondWorkingDir)
 			shutil.copy(clueFdfName,self.secondWorkingDir)
 			shutil.copy(cluePdfName,self.secondWorkingDir)
 
@@ -1859,7 +1856,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		QTimer.singleShot(1800,self.optionsDialog.ui.incidentField.setFocus)
 
 	def fontsChanged(self):
-		LOG.info("1 - begin fontsChanged")
+		LOG.debug("(trace) 1 - begin fontsChanged")
 		self.limitedFontSize=self.fontSize
 		if self.limitedFontSize>self.maxLimitedFontSize:
 			self.limitedFontSize=self.maxLimitedFontSize
@@ -1875,7 +1872,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# don't change tab font size unless you find a good way to dynamically
 		# change tab size and margins as well
 ##		self.ui.tabWidget.tabBar().setStyleSheet("font-size:"+str(self.fontSize)+"pt")
-		LOG.info("2")
+		LOG.debug("(trace) 2")
 		self.redrawTables()
 		self.ui.tabWidget.setCurrentIndex(i)
 		self.ui.incidentNameLabel.setStyleSheet("font-size:"+str(self.limitedFontSize)+"pt;")
@@ -1898,7 +1895,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				font-size:"""+str(self.limitedFontSize*3/4)+"""pt;
 			}
 		""")
-		LOG.info("3 - end of fontsChanged")
+		LOG.debug("(trace) 3 - end of fontsChanged")
 
 	def redrawTables(self):
 		# column sizing rules, in sequence:
@@ -1922,16 +1919,16 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		self.ui.tableView.model().layoutChanged.emit()
 ##		self.ui.tableView.scrollToBottom()
 		self.loadFlag=True
-		LOG.info("1: start of redrawTables")
+		LOG.debug("(trace) 1: start of redrawTables")
 		for i in [2,4]: # hardcode results in significant speedup
 			self.ui.tableView.resizeColumnToContents(i) # zero is the first column
-		LOG.info("2")
+		LOG.debug("(trace) 2")
 		self.ui.tableView.setColumnWidth(0,self.fontSize*5) # wide enough for '2345'
 		self.ui.tableView.setColumnWidth(1,self.fontSize*6) # wide enough for 'FROM'
 		self.ui.tableView.setColumnWidth(5,self.fontSize*10) # wide enough for 'STATUS'
-		LOG.info("3")
+		LOG.debug("(trace) 3")
 ##		self.ui.tableView.resizeRowsToContents()
-		LOG.info("4")
+		LOG.debug("(trace) 4")
 		for n in self.ui.tableViewList[1:]:
 			LOG.info(" n="+str(n))
 			for i in [2,4]: # hardcode results in significant speedup, but lag still scales with filtered table length
@@ -1943,13 +1940,13 @@ class MyWindow(QDialog,Ui_Dialog):
 			n.setColumnWidth(5,self.fontSize*10)
 			LOG.info("    resizing rows to contents")
 ##			n.resizeRowsToContents()
-		LOG.info("5")
+		LOG.debug("(trace) 5")
 		self.ui.tableView.scrollToBottom()
-		LOG.info("6")
+		LOG.debug("(trace) 6")
 		for i in range(1,self.ui.tabWidget.count()):
 			self.ui.tabWidget.setCurrentIndex(i)
 			self.ui.tableViewList[i].scrollToBottom()
-		LOG.info("7: end of redrawTables")
+		LOG.debug("(trace) 7: end of redrawTables")
 ##		self.resizeRowsToContentsIfNeeded()
 		self.loadFlag=False
 
@@ -2109,10 +2106,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		
 		# if radioLogNeedsPrint or clueLogNeedsPrint is True, bring up the print dialog
 		if self.radioLogNeedsPrint or self.clueLogNeedsPrint:
-			LOG.info("needs print!")
+			LOG.debug("needs print!")
 			self.printDialog.exec_()
 		else:
-			LOG.info("no print needed")
+			LOG.debug("no print needed")
 		# note, this type of messagebox is needed to show above all other dialogs for this application,
 		#  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
 		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
@@ -2260,7 +2257,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
 			csvFileNameList.append(self.secondWorkingDir+"\\"+self.csvFileName)
 		for fileName in csvFileNameList:
-			LOG.info("  writing "+fileName)
+			LOG.debug("(trace) Writing "+fileName)
 			with open(fileName,'w',newline='') as csvFile:
 				csvWriter=csv.writer(csvFile)
 				csvWriter.writerow(["## Radio Log data file"])
@@ -2278,12 +2275,12 @@ class MyWindow(QDialog,Ui_Dialog):
 				if self.lastSavedFileName!=self.csvFileName: # this is the first save since startup, since restore, or since incident name change
 					self.lastSavedFileName=self.csvFileName
 					self.saveRcFile()
-			LOG.info("  done writing "+fileName)
+			LOG.debug("(trace) Done writing "+fileName)
 		# now write the clue log to a separate csv file: same filename appended by '.clueLog'
 		if len(self.clueLog)>0:
 			for fileName in csvFileNameList:
 				fileName=fileName.replace(".csv","_clueLog.csv")
-				LOG.info("  writing "+fileName)
+				LOG.debug("(trace) Writing "+fileName)
 				with open(fileName,'w',newline='') as csvFile:
 					csvWriter=csv.writer(csvFile)
 					csvWriter.writerow(["## Clue Log data file"])
@@ -2294,7 +2291,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						csvWriter.writerow(row)
 					if finalize:
 						csvWriter.writerow(["## end"])
-				LOG.info("  done writing "+fileName)
+				LOG.debug("(trace) Done writing "+fileName)
 
 	def load(self,fileName=None):
 		# loading scheme:
@@ -4169,7 +4166,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		#  to blank, since it's likely that the radio operator may have typed the
 		#  originating team/unit callsign in to the callsign field first, and then
 		#  checked 'relayed' afterwards
-		LOG.trace("relayedCheckBoxStateChanged; fleet="+str(self.fleet)+"; dev="+str(self.dev))
+		LOG.debug("(trace) relayedCheckBoxStateChanged; fleet="+str(self.fleet)+"; dev="+str(self.dev))
 		self.relayed=self.ui.relayedCheckBox.isChecked()
 		self.ui.relayedByLabel.setEnabled(self.relayed)
 		self.ui.relayedByComboBox.setEnabled(self.relayed)
@@ -4229,7 +4226,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.setRelayedPrefix()
 	
 	def relayedByComboBoxChanged(self):
-		LOG.trace("relayedByComboBoxChanged")
+		LOG.debug("(trace) relayedByComboBoxChanged")
 		self.relayedBy=self.ui.relayedByComboBox.currentText()
 		self.setRelayedPrefix(self.relayedBy)
 		self.ui.messageField.setFocus()
@@ -4485,7 +4482,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.parent.parent.clueLog.append(clueData)
 		if self.ui.clueReportPrintCheckBox.isChecked():
 			self.parent.parent.printClueReport(clueData)
-		LOG.trace("accepted - calling close")
+		LOG.debug("(trace) accepted - calling close")
 		self.parent.parent.clueLogDialog.ui.tableView.model().layoutChanged.emit()
 		self.closeEvent(QEvent(QEvent.Close),True)
 ##		pixmap=QPixmap(":/radiolog_ui/print_icon.png")
@@ -4786,7 +4783,7 @@ class printClueLogDialog(QDialog,Ui_printClueLogDialog):
 
 	def accept(self):
 		opPeriod=self.ui.opPeriodComboBox.currentText()
-		LOG.trace("Open printClueLogDialog.accept")
+		LOG.debug("(trace) Open printClueLogDialog.accept")
 		if opPeriod=='--':
 			crit=QMessageBox(QMessageBox.Critical,"No Clues to Print","There are no clues to print.",QMessageBox.Ok,self.parent,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			crit.show()
@@ -4795,9 +4792,9 @@ class printClueLogDialog(QDialog,Ui_printClueLogDialog):
 			self.reject()
 		else:
 			self.parent.printClueLog(opPeriod)
-			LOG.trace("Called parent printClueLogDialog.accept")
+			LOG.debug("(trace) Called parent printClueLogDialog.accept")
 			super(printClueLogDialog,self).accept()
-			LOG.trace("Called super printClueLogDialog.accept")
+			LOG.debug("(trace) Called super printClueLogDialog.accept")
 
 # actions to be performed when changing the operational period:
 # - bring up print dialog for current OP if checked (and wait until it is closed)
@@ -4885,7 +4882,7 @@ class fsFilterDialog(QDialog,Ui_fsFilterDialog):
 			self.parent.fsBuildTooltip()
 			
 	def closeEvent(self,event):
-		LOG.trace("closing fsFilterDialog")
+		LOG.debug("(trace) closing fsFilterDialog")
 				
 		
 class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
