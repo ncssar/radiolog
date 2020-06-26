@@ -62,7 +62,13 @@ Please contact the author if other documentation would be helpful.
 This open-source project is mainly intended for use by Search and Rescue teams.
 Nevada County Sheriff's Search and Rescue (https://www.mynevadacounty.com/258/Search-Rescue) has been using this tool on every callout since early 2015.
 
-June 2020: Red Rock Search and Rescue (https://redrocksar.org) is in the process of adapting it for their use.
+June 2020: Red Rock Search and Rescue (https://redrocksar.org) is in the process of adapting it for their use (and making it easier for other groups to adopt, as well).
+
+See also link:doc_technical/CHANGE_LOG.adoc.
+
+== Known Limitations
+
+* Cannot handle team names that have alpha characters after numeric characters (3b, 4a, etc.)
 
 == Installation and Getting Started
 

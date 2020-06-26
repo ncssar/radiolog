@@ -1,5 +1,4 @@
-﻿# TODO Move this revision history to a separate change-log file
-# #############################################################################
+﻿# #############################################################################
 #
 #  radiolog.py - SAR Radio Log program, based on PyQt 5.4, Python 3.4.2
 #
@@ -10,178 +9,8 @@
 #
 #  Attribution, feedback, bug reports and feature requests are appreciated
 #
-#  REVISION HISTORY
-#-----------------------------------------------------------------------------
-#   DATE   |  AUTHOR  |  NOTES
-#-----------------------------------------------------------------------------
-#  2-22-15     TMG       First version installed and working on NCSSAR Computer 2
-#  4-9-15      TMG       Feature-complete release candidate
-#  4-10-15     TMG       enable reading from a second com port (two radios)
-#  4-28-15     TMG       First release; initial commit to git
-#  5-11-15     TMG       fix bug 10: don't clear team timer unless the message
-#                         is 'FROM' with non-blank message text; change more
-#                         app-wide stylesheet font sizes in fontsChanged, and
-#                         change in children to override as needed
-#  11-27-16    TMG       fix 307 (help window flashing colors are bouncing); also
-#                         verified no ill effects in team tabs
-#  12-1-16     TMG       fix 268 (throb crash on oldest item in non-empty stack)
-#  12-1-16     TMG       add -nosend option to disable sending of GET requests,
-#                         to avoid lag when network is not present
-#  12-10-16    TMG       fix 267 (filename space handler) - remove spaces from
-#                         incident name for purposes of filenames
-#  12-10-16    TMG       fix 25 (print dialog button wording should change when
-#                         called from main window exit button)
-#  12-10-16    TMG       fix 306 (attached callsigns)
-#   1-17-17    TMG       fix 41 (USB hot-plug / hot-unplug)
-#   2-26-17    TMG       fix 311 (attached callsign bug)
-#   2-27-17    TMG       fix 314 (NED focus / two-blinking-cursors)
-#   2-27-17    TMG       fix 315 (ctrl-Z crash on empty list) for NED and for clue report
-#   2-27-17    TMG       fix 312 (prevent orphaned clue/subject dialogs);
-#                         fix 317 (crash on cancel of cancel for clue/subject dialogs);
-#                         this involved changing dialog cancel buttons to just call
-#                         close() instead of reject()
-#   2-28-17    TMG       fix 316,318,320 (add dialog open/cancel radio log entries)
-#                         and extend closeEvent functionality (above) to
-#                         nonRadioClueDialog and changeCallsignDialog
-#    4-7-17    TMG       stopgap for 310 - disable attached callsign handling for now
-#   4-11-17    TMG       fix 322 (restore crashes - file not found) - give a message
-#                         and return gracefully if the file specified in the rc file
-#                         does not exist, and, take steps to make sure the correct
-#                         filename is saved to the rc file at the correct times
-#   4-15-17    TMG       fix 323 (load dialog should only show non-fleetsync and
-#                         non-clueLog .csv files)
-#   4-26-17    TMG       fix 326 (zero-left-padded tabs when callsigns are digits-only)
-#   4-29-17    TMG       fix 34 (fleetsync mute)
-#   5-2-17     TMG       fix 325 (cancel-confirm bypass if message is blank)
-#   5-13-17    TMG       fix 338 (esc key in clue/subject dialogs closes w/out confirm):
-#                          add keyPressEvents to ignore the esc key; note that the
-#                          Qt docs say that .reject() is called by the esc key but
-#                          that has other repercussions in this case; also serves
-#                          as interim fix for #337 (crash due to the above) until
-#                          a strong parent-child dialog relationship can be established
-#                          (see http://stackoverflow.com/questions/43956587)
-#   5-13-17    TMG       fix #333 (crash on throb after widget has been closed)
-#   5-13-17    TMG       further fix on #333: don't try to stop the timer if it
-#                          does not exist, i.e. if not currently mid-throb; caused
-#                          similar crash to #333 during auto-cleanup of delayed stack
-#   5-19-17    TMG       move loadFlag settings closer to core load functionality
-#                          to at least partially address #340
-#   5-21-17    TMG       fix #257, fix #260: 90+% lag reduction: do not do any sorting;
-#                         instead, calculate the correct index to insert a new row
-#                         during newEntry, and use beginInsertRows and endInsertRows
-#                         instead of layoutChanged; see notes in newEntry function
-#   6-15-17    TMG       fix #336 by simply ignoring keyPressEvents that happen
-#                         before newEntryWidget is responsive, and get fielded by
-#                         MyWindows instead; would be nice to find a better long-term
-#                         solution; see https://stackoverflow.com/questions/44148992
-#                         and see notes inline below
-#   7-1-17     TMG       fix #342 (focus-follows-mouse freeze); 'fix' #332 (freeze
-#                         due to modal dialogs displayed underneath other windows)
-#                         by doing full audit and recode and test of all QMessageBox calls
-#   7-1-17     TMG       fix #343 (crash on print clue log when there are no clues):
-#                         show an error message when the print button is clicked if
-#                         there are no operational periods that have clues, and only
-#                         populate the print clue log operational period cyclic field
-#                         with op periods that do have clues
-#   7-3-17     TMG       fix #341 (add checkbox for fleetsync mute)
-#   9-24-17    TMG       fix #346 (slash in incident name kills everything) using
-#                         normName function; get rid of leading space in loaded
-#                         incident name due to incorrect index (17 instead of 18);
-#                         fix #349 (save filename not updated after load)
-#   9-24-17    TMG       fix #350 (do not try to read fleetsync file on restore) by
-#                         adding hideWarnings argument to fsLoadLookup
-#   9-24-17    TMG       fix #345 (get rid of 'printing' message dialog) by commenting
-#                         out all print dialog lines which also fixes # 33 and #263;
-#                         time will tell if this is sufficient, or if we need to
-#                         bring back some less-invasive and less-confusing notification,
-#                         like a line in the main dialog or such
-#   11-5-17    TMG       fix #32 (add fleetsync device filtering) - affects several
-#                         parts of the code and several files
-#   11-15-17   TMG       fix #354 (stolen focus / hold time failure); fix #355 (space bar error);
-#                         add focus rules and timeline documentation; change hold time
-#                         to 20 sec (based on observations during class); set focus
-#                         to the active stack item's message field on changeCallsignDialog close
-#   11-23-17   TMG       address #31 (css / font size issues) - not yet checked against
-#                         dispatch computer - only tested on home computer
-#   11-23-17   TMG       fix #356 (change callsign dialog should not pop up until
-#                         its new entry widget is active (i.e. the active stack item)
-#     5-1-18   TMG       fix #357 (freeze after print, introduced by fix # 345)
-#    5-28-18   TMG       fix #360 (remove leading zeros from team tab names)
-#     6-9-18   TMG		 allow configuration by different teams using optional local/radiolog.cfg
-#                          (merged config branch to master)
-#    7-22-18   TMG       add team hotkeys (fix #370); change return/enter/space to open
-#                          a new entry dialog with blank callsign (i.e. LEO callsigns);
-#                          toggle team hotkeys vs normal hotkeys using F12
-#    7-22-18   TMG       fix #373 (esc closes NED in same manner as cancel button)
-#    7-22-18   TMG       fix #360 again (leading zeros still showed up in tab
-#                          context menus, therefore in callsign field of NED created
-#                          from tab context menus)
-#     8-2-18   TMG       space bar event does not reach the main window after the
-#                          first team tab gets created, so disable it for now -
-#                          must use enter or return to open a NED with no callsign (#370)
-#     8-3-18   TMG       fix #372 (combobox / cyclic callsign selection)
-#     8-5-18   TMG       fix #371 (amend callsign of existing message)
-#    8-29-18   TMG       fix #375 (crash during new entry for new team)
-#     9-9-18   TMG       fix #379 (subject located form - field type error; confirmed
-#                           that all other calls to toPlainText are for valid fields)
-#     9-9-18   TMG       add a very short timeout to the requests.get locator update call to 
-#                           eliminate lag while completely ignoring the response
-#                           ('fire-and-forget'); would have to use a thread-based module
-#                           if the response were important; works well on home computer,
-#                           hopefully this fixes #378
-#    9-17-18   TMG       fix and improve team hotkey selection and recycling
-#    9-17-18   TMG       change some dictionary lookups to use get() with a default,
-#                           to avoid possible KeyErrors
-#    9-17-18   TMG       catch any sync errors during deletion of proxyModelList entries
-#                           (which happens during team tab deletion)
-#    9-17-18   TMG       disallow blank callsign for new entry
-#    9-23-18   TMG       cleanup config file defaults handling
-#    10-3-18   TMG       fix #364: eliminate backup rotation lag by running it
-#                          in the background (external powershell script on Windows
-#                          systems; custom script can be specified in config file;
-#                          currently there is no default backup rotation script for
-#                          non-Windows systems)
-#   10-26-18   TMG       fix #380 (fleetsync CID parsing issue); add more CID parsing
-#                          and callsign-change messages
-#   11-17-18   TMG       overhaul logging: use the logging module, making sure
-#                          to show uncaught exceptions on the screen and in the
-#                          log file
-#   11-17-18   TMG       fix #382 (disable locator requests from GUI);
-#                          fix #383 (disable second working dir from GUI)
-#   11-17-18   TMG       fix #381 (auto-accept entry on clue report or subj located accept);
-#                          fix #339 (don't increment clue# if clue form is canceled)
-#   11-18-18   TMG       fix #358 and make FS location parsing more robust
-#   11-18-18   TMG       fix #351 (don't show options at startup after restore)
-#   12-12-18   TMG       fix #384 (bad data causes unpack error)
-#   12-14-18   TMG       fix #385 (print team log from team tab context menu)
-#   12-15-18   TMG       fix #387 (file browser sort by date)
-#   12-15-18   TMG       simplify code for #387 fix above; also filter out _clueLog_bak
-#                         and _fleetSync_bak files from file browser
-#   12-16-18   TMG       fix #388 (team log print variant team names)
-#    4-11-19   TMG       fix #392 (get rid of leading 'Team ' when appropriate);
-#                         fix #393 (preserve case of new callsigns);
-#                         fix #394 (show actual tie in log messages)
-#     5-3-19   TMG       fix #329 (team tab bar grouping) - default groups are just
-#                         numbered teams, vs everything else; can specify a more
-#                         elaborate set of group names and regular expressions
-#                         in the config file (tabGroups)
-#     5-4-19   TMG       enhance #393: if typed callsign is a case-insensitive
-#                         match with an existing callsign, use the existing callsign;
-#                         fix #397 ('Available' status - also added 'Off Duty' status
-#                         which does not time out and has no background and gray text;
-#                         '10-8' changes to 'Available', '10-97' changes to 'Working',
-#                         '10-10' changes to 'Off Duty')
-#     2-8-20   TMG       re-fix #41: repair hot-unplug handling for current pyserial
-#    2-10-20   TMG       fix #396: create default local dir and config file if needed
-#    5-28-20   TMG       fix #412: relayed message features
-#    6-15-20   TMG       fix #415: restore timeout on auto-recover (in rc file);
-#                          fix #404: show http request response in log;
-#                          address #413: multiple crashes - add more logging; 
-#                          improve relay features to be more intuitive
-#    6-24-20   TMG       fix #48: use pyproj instead of GISInternals for conversion
-#
-# #############################################################################
-#
+#  REVISION HISTORY: See doc_technical\CHANGE_LOG.adoc
+
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
@@ -214,8 +43,6 @@
 #
 # when new entry dialog box has focus:
 #
-# known limitations:
-#  cannot handle team names that have alpha characters after numeric characters (3b, 4a, etc)
 #
 # ############################################################################
 #
