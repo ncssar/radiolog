@@ -1,134 +1,33 @@
-﻿# #############################################################################
-#
-#  radiolog.py - SAR Radio Log program, based on PyQt 5.4, Python 3.4.2
-#
-#   developed for Nevada County Sheriff's Search and Rescue
-#    Copyright (c) 2015-2018 Tom Grundy
-#
-#  http://github.com/ncssar/radiolog
-#
-#  Attribution, feedback, bug reports and feature requests are appreciated
-#
-#  REVISION HISTORY: See doc_technical\CHANGE_LOG.adoc
+﻿"""
+RadioLog is a tool for documenting the activities that occur during a Search and Rescue operation.
 
-#  This program is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
+This file, radiolog.py, is the starting code.
+This program requires Python 3.4.2.
+The user interface is based on PyQt 5.4.
+
+Originally developed for Nevada County Sheriff's Search and Rescue.
+Copyright (c) 2015-2018 Tom Grundy
+
+http://github.com/ncssar/radiolog
+
+Attribution, feedback, bug reports and feature requests are appreciated
+"""
+
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) 
+# any later version.
 #
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
+# This program is distributed WITHOUT ANY WARRANTY; without even the implied 
+# warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+# See the GNU General Public License for more details.
 #
-#  See included file LICENSE.txt for full license terms, also
-#  available at http://opensource.org/licenses/gpl-3.0.html
+# See included file LICENSE.txt for full license terms, also available at
+# http://opensource.org/licenses/gpl-3.0.html
 #
-# ############################################################################
+# IMPORTANT: this file must be encoded as UTF-8, to preserve degree signs in the code
 #
-# Originally written and tested on Windows Vista Home Basic 32-bit;
-#  should run for Windows Vista and higher
-#
-# Note, this file must be encoded as UTF-8, to preserve degree signs in the code
-#
-# ############################################################################
-#
-# key sequence behavior:
-#
-# when radio log form has focus:
-#  <space> - open new entry dialog box: default values = from; first team in team combo box; time; focus goes to team field
-#  <t> - open new entry dialog box: defaults = to; first team in team field; time; focus goes to team field
-#  <f> - same as <space>
-#  <any number> - open new entry dialog box: defaults = from; first team in team field whose first digit matches the typed number, or, new team# if none match; time
-#
-# when new entry dialog box has focus:
-#
-#
-# ############################################################################
-#
-#  message queue / stack rules:
-#
-#  when an incoming message happens during editing of an existing message:
-#   1. add a stack entry on top of the stack and start flashing
-#   2. if the current message has had no keystrokes / activity in the last n seconds,
-#        leave it as is and move to the new entry
-#   3. if the current message has had activity in the last n seconds, leave it open
-#
-#  when message is accepted:
-#   1. go to next message upwards in the stack
-#   2. if none, go the next message downwards in the stack
-#   3. if none, close the dialog
-#
-#  every n seconds of inactivity:
-#   1. accept the top message on the stack, and move to the next one
-#
-#  when any given message is set active:
-#   1. stop flashing, if it was flashing
-#
-# ############################################################################
-#
-# core files of this project (until compiled/deployed):
-#  - radiolog.py - this file, invoke with 'python radiolog.py' if not deployed
-#  - radiolog_ui.py - pyuic5 compilation of radiolog.ui from QTDesigner
-#  - newEntryDialog_ui.py - pyuic5 compilation of newEntryDialog.ui from QTDesigner
-#  - options_ui.py - pyuic5 compilation of options.ui from QTDesigner
-#  - help_ui.py - pyuic5 compilation of help.ui from QTDesigner
-#  - radiolog_ui_qrc.py - pyrcc5 compilation of radiolog_ui.qrc from QTDesigner
-#  - QTDesigner .ui and .qrc files as listed above
-#
-# ancillary files shipped with and/or referenced by this code:
-#  - radiolog_logo.jpg - if the logo exists it is included in the printout
-#  - radiolog_rc.txt - resource file, keeps track of last used window geometry and font size
-#  - radiolog_fleetsync.csv - default CSV lookup table: fleet,device,callsign
-#      (any fleet/device pairs that do not exist in that file will have callsign KW-<fleet>-<device>)
-#
-# files generated by this code:
-#  NOTE: this program uses two working directories for redundancy.  The first one is
-#    the current Windows user's Documents directory, and must be writable to avoid
-#    a fatal error.  The second one will be written to on every new entry if it is available,
-#    but will not cause any error if it is unavailable.  The second working directory
-#    is specified below with the variable 'secondWorkingDir'.
-#  - <incident_name>_<timestamp>.csv - CSV of entire radio log, written after each new entry
-#  - <incident_name>_<timestamp>_fleetsync.csv - CSV FleetSync lookup table, written on each callsign change
-#  - <incident_name>_<timestamp>_clueLog.csv - CSV clue log, written after each clue entry
-#  - <incident_name>_<timestamp>_OP#.pdf - PDF of the radio log for specified operational period
-#  - <incident_name>_<timestamp>_clueLog_OP#.pdf - PDF of the clue log for specified operational period
-#  - <incident_name>_<timestamp>_clue##.fdf - FDF of clue report form (see calls to forge_fdf)
-#  - <incident_name>_<timestamp>_clue##.fdf - PDF of clue report form
-#    NOTE: upon change of incident name, previously saved files are not deleted, but
-#      are kept in place as another backup.  Also, the previous log file is copied
-#      as the new log file, so that file append on each new entry can continue
-#      seamlessly.
-#
-# required non-core python modules:
-#  - reportlab (for printing)
-#  - pyserial (for com port / usb communication)
-#  - requests (for forwarding locator information as a GET request for sarsoft)
-#
-# #############################################################################
-#
-# speed / performance notes
-#
-# once the table length gets about 500 rows or so, some delay is noticable:
-#  - font resize (+/- keys)
-#  - new entry form closed with 'OK' or Enter/Return, until the new entry appears in the table
-#  - window resize
-#  - print (delay per page)
-#
-# conclusions from benchmarking and speed tests on a table of around 1300 rows:
-#  - the single biggest source of delay can be header resize modes:
-#		...verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-#     will cause each row to resize whenever the contents change, which is probably
-#     more often than you want, and will be called in a hidden / nested manner
-#     inside other table view changes.  So, disable any lines like this, and only
-#     resize when you really need to.  Removing this line reduced redraw time
-#     on font change from 12 seconds to 3.  Also, it 'completely' eliminates
-#     window resize delay.
-#  - delay on entry form close is 'eliminated' / deferred by doing all the
-#     redisplay work in a singleshot after the form is closed
-#
-# #############################################################################
-# #############################################################################
+# REVISION HISTORY: See doc_technical\CHANGE_LOG.adoc
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *

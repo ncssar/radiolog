@@ -68,6 +68,7 @@ See also link:doc_technical/CHANGE_LOG.adoc.
 
 == Known Limitations
 
+* Windows Only: This software has only been tested on Windows (Vista and higher, 32-bit)
 * Cannot handle team names that have alpha characters after numeric characters (3b, 4a, etc.)
 
 == Installation and Getting Started
