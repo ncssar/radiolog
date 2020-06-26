@@ -1,8 +1,8 @@
 pytest>=5.4.3
 pyqt5>=5.4
-reportlab
-pyserial
-requests
+reportlab # for printing
+pyserial # for com port / USB communication
+requests # for forwarding locator information as a GET request for sarsoft
 fdfgen
 pypiwin32
-pyproj>=2.6.1
+pyproj>=2.6.1 # for calculations involving coordinates ("projections")
