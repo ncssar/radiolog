@@ -1,6 +1,6 @@
 import sys
 import logging
-from utility.misc_functions import *
+from utility.misc_functions import getFileNameBase
 
 MAIN_LOG_NAME = "RadioLog"
 
@@ -9,27 +9,39 @@ class LoggingFilter(logging.Filter):
 	def filter(self,record):
 		return record.levelno < logging.ERROR
 
-def newLogger(name=MAIN_LOG_NAME):
-	"""Initialize a logger (according to how we use it)."""
-	logFileName=getFileNameBase("radiolog_log")+".txt"
-	LOG = logging.getLogger(name)
-	LOG.setLevel(logging.INFO)
-	
-	# verbose = logging.Formatter("%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s")
-	verbose = logging.Formatter("%(levelname)s %(asctime)s %(module)s %(message)s")
-	simple = logging.Formatter("%(levelname)s %(message)s")
-	
-	fh=logging.FileHandler(logFileName)
-	fh.setFormatter(verbose)
-	fh.setLevel(logging.INFO)
-	
-	ch=logging.StreamHandler(stream=sys.stdout)
-	ch.setFormatter(simple)
+def newConsoleHandler(entryFormat):
+	ch = logging.StreamHandler(stream=sys.stdout)
+	ch.setFormatter(entryFormat)
 	ch.setLevel(logging.INFO)
 	ch.addFilter(LoggingFilter())
+	return ch
+
+def newFileHandler(name,entryFormat):
+	logFileName = getFileNameBase(name+"_log")+".txt"
+	fh = logging.FileHandler(logFileName)
+	fh.setFormatter(entryFormat)
+	return fh
+
+def newLogger(name=MAIN_LOG_NAME):
+	"""
+	Fetch the named logger. 
+	If one of that name does not already exist, then initialize it according to our usage.
+	"""
+	LOG = logging.getLogger(name)
+	if len(LOG.handlers) > 0:
+		return LOG
+
+	# This should be the most chatty level we want (individual handlers can be set to less chatty)
+	LOG.setLevel(logging.DEBUG)
+	LOG.propagate = False
+
+	# We are currently doing anything multi-threaded, so the verbose format doesn't need thread info at this time
+	# verbose = logging.Formatter("%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s")
+	VERBOSE = logging.Formatter("%(asctime)s [%(module)s] %(levelname)s %(message)s")
+	SIMPLE = logging.Formatter("%(levelname)s %(message)s")
 	
-	LOG.addHandler(fh)
-	LOG.addHandler(ch)
+	LOG.addHandler(newConsoleHandler(SIMPLE))
+	LOG.addHandler(newFileHandler(name, VERBOSE))
 	LOG.__format__
 	return LOG
 
