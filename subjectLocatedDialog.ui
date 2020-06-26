@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>728</width>
-    <height>628</height>
+    <height>627</height>
    </rect>
   </property>
   <property name="font">
@@ -160,39 +160,14 @@
    <property name="geometry">
     <rect>
      <x>30</x>
-     <y>60</y>
+     <y>57</y>
      <width>661</width>
-     <height>81</height>
+     <height>96</height>
     </rect>
    </property>
    <property name="title">
     <string/>
    </property>
-   <widget class="QLineEdit" name="radioLocField">
-    <property name="enabled">
-     <bool>false</bool>
-    </property>
-    <property name="geometry">
-     <rect>
-      <x>420</x>
-      <y>20</y>
-      <width>221</width>
-      <height>31</height>
-     </rect>
-    </property>
-    <property name="font">
-     <font>
-      <family>Segoe UI</family>
-      <pointsize>12</pointsize>
-     </font>
-    </property>
-    <property name="focusPolicy">
-     <enum>Qt::NoFocus</enum>
-    </property>
-    <property name="text">
-     <string/>
-    </property>
-   </widget>
    <widget class="QLineEdit" name="callsignField">
     <property name="enabled">
      <bool>false</bool>
@@ -249,9 +224,9 @@
     </property>
     <property name="geometry">
      <rect>
-      <x>420</x>
-      <y>40</y>
-      <width>221</width>
+      <x>426</x>
+      <y>63</y>
+      <width>209</width>
       <height>41</height>
      </rect>
     </property>
@@ -366,6 +341,27 @@
     </property>
     <property name="alignment">
      <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
+   <widget class="QTextEdit" name="radioLocField">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>425</x>
+      <y>6</y>
+      <width>211</width>
+      <height>63</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>12</pointsize>
+     </font>
+    </property>
+    <property name="focusPolicy">
+     <enum>Qt::NoFocus</enum>
     </property>
    </widget>
   </widget>

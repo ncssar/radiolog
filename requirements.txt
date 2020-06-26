@@ -5,3 +5,4 @@ pyserial
 requests
 fdfgen
 pypiwin32
+pyproj>=2.6.1
