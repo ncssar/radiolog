@@ -1,3 +1,4 @@
+# Python itself must be >= 3.4.2
 pytest>=5.4.3
 pyqt5>=5.4
 reportlab # for printing

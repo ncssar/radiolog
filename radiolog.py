@@ -2,8 +2,9 @@
 RadioLog is a tool for documenting the activities that occur during a Search and Rescue operation.
 
 This file, radiolog.py, is the starting code.
-This program requires Python 3.4.2.
-The user interface is based on PyQt 5.4.
+
+See requirements.txt for the required modules (pip install -r requirements.txt).
+(See the comments in requirements.txt for additional information.)
 
 Originally developed for Nevada County Sheriff's Search and Rescue.
 Copyright (c) 2015-2018 Tom Grundy
