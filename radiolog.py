@@ -66,6 +66,7 @@ import win32api
 import win32gui
 import win32print
 import win32con
+import shutil
 import math
 import textwrap
 from reportlab.lib import colors,utils
@@ -164,14 +165,17 @@ lastClueNumber=0
 ##	"separator",
 ##	["REQUESTING DEPUTY",Qt.Key_F11]]
 
-LOG = utility.loggingHelpers.getLogger()
-
+LOG = utility.logging_helpers.getLogger()
+ICON_ERROR = QMessageBox.Critical
+ICON_WARN = QMessageBox.Warning
 
 class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
 		
-		utility.file_management.ensureLocalDirectoryExists()
+		issue = utility.file_management.ensureLocalDirectoryExists()
+		if issue:
+			informUserAboutIssue(ICON_WARN,issue)
 			
 		self.setWindowFlags(self.windowFlags()|Qt.WindowMinMaxButtonsHint)
 		self.parent=parent
@@ -533,14 +537,18 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		configFile=QFile(self.configFileName)
 		if not configFile.open(QFile.ReadOnly|QFile.Text):
-			reportWarning("Cannot read configuration file {0}; using default settings. {1}".format(self.configFileName,configFile.errorString()))
+			issue = "Cannot read configuration file {0}; using default settings. {1}".format(self.configFileName,configFile.errorString())
+			LOG.warn(issue)
+			informUserAboutIssue(ICON_WARN,issue)
 			self.timeoutRedSec=int(self.timeoutMinutes)*60
 			self.updateOptionsDialog()
 			return
 		inStr=QTextStream(configFile)
 		line=inStr.readLine()
 		if line!="[RadioLog]":
-			reportWarning("Specified configuration file {0} is not a valid configuration file; using default settings.".format(self.configFileName))
+			issue = "Specified configuration file {0} is not a valid configuration file; using default settings.".format(self.configFileName)
+			LOG.warn(issue)
+			informUserAboutIssue(ICON_WARN,issue)
 			configFile.close()
 			self.timeoutRedSec=int(self.timeoutMinutes)*60
 			self.updateOptionsDialog()
@@ -644,12 +652,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		if switches.develMode:
 			self.sarsoftServerName="localhost" # DEVEL
 
-	def reportWarning(errorMsg)
-		opts=Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint
-		warn=QMessageBox(QMessageBox.Warning,"Error",errorMsg,QMessageBox.Ok,self,opts)
-		warn.show()
-		warn.raise_()
-		warn.exec_()
 
 	def rotateCsvBackups(self,filenames):
 		if self.rotateScript and self.rotateDelimiter:
@@ -5119,28 +5121,32 @@ class customEventFilter(QObject):
 			return True # block the default processing of Ctrl+Z
 		return super(customEventFilter,self).eventFilter(receiver,event)
 
-def informUserAboutError(errorMsg)
+def informUserAboutIssue(icon, errorMsg):
 	opts=Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint
-	box=QMessageBox(QMessageBox.Critical,"Error",errorMsg,QMessageBox.Ok,self,opts)
+	boxTitle = "Error"
+	if icon == QMessageBox.Warning:
+		boxTitle = "Warning"
+	box=QMessageBox(icon,boxTitle,errorMsg,QMessageBox.Ok,None,opts)
 	box.show()
 	box.raise_()
 	box.exec_()
+
 
 def main():
 	app = QApplication(sys.argv)
 	eFilter=customEventFilter()
 	app.installEventFilter(eFilter)
-	w = MyWindow(app)
 	try:
+		w = MyWindow(app)
 		w.show()
 	except FatalAppError as e:
 		msg = "ABORTING: {0}".format(e.message)
 		LOG.critical(msg)
-		informUserAboutError(msg)
+		informUserAboutIssue(ICON_ERROR,msg)
 		sys.exit(-1)
 
 	sys.exit(app.exec_())
 
 if __name__ == "__main__":
-	sys.excepthook = utility.loggingHelpers.handle_exception
+	sys.excepthook = utility.logging_helpers.handle_exception
 	main()
