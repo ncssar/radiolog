@@ -5,24 +5,27 @@ from utility.misc_functions import getFileNameBase
 MAIN_LOG_NAME = "RadioLog"
 
 class LoggingFilter(logging.Filter):
-	"""Do not pass ERRORs to stdout - they already show up on the screen from stderr"""
+	"""Do not pass ERRORs to stdout - they already show up in the console from stderr"""
 	def filter(self,record):
 		return record.levelno < logging.ERROR
 
-def newConsoleHandler(entryFormat):
+
+def newConsoleHandler(loggingLevel, entryFormat):
 	ch = logging.StreamHandler(stream=sys.stdout)
 	ch.setFormatter(entryFormat)
-	ch.setLevel(logging.INFO)
+	ch.setLevel(loggingLevel)  # CRITICAL, ERROR, WARNING, INFO, DEBUG
 	ch.addFilter(LoggingFilter())
 	return ch
 
-def newFileHandler(name,entryFormat):
+
+def newFileHandler(name, loggingLevel, entryFormat):
 	logFileName = getFileNameBase(name+"_log")+".txt"
 	fh = logging.FileHandler(logFileName)
 	fh.setFormatter(entryFormat)
+	fh.setLevel(loggingLevel)  # CRITICAL, ERROR, WARNING, INFO, DEBUG
 	return fh
 
-def newLogger(name=MAIN_LOG_NAME):
+def getLogger(name=MAIN_LOG_NAME):
 	"""
 	Fetch the named logger. 
 	If one of that name does not already exist, then initialize it according to our usage.
@@ -31,17 +34,17 @@ def newLogger(name=MAIN_LOG_NAME):
 	if len(LOG.handlers) > 0:
 		return LOG
 
-	# This should be the most chatty level we want (individual handlers can be set to less chatty)
+	# This should always be set to DEBUG -- the chattiest level (individual handlers can be set to be less chatty)
 	LOG.setLevel(logging.DEBUG)
 	LOG.propagate = False
 
-	# We are currently doing anything multi-threaded, so the verbose format doesn't need thread info at this time
-	# verbose = logging.Formatter("%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s")
+	# Currently, we are not doing anything multi-threaded, so the verbose format doesn't need thread info at this time
+	# VERBOSE = logging.Formatter("%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s")
 	VERBOSE = logging.Formatter("%(asctime)s [%(module)s] %(levelname)s %(message)s")
 	SIMPLE = logging.Formatter("%(levelname)s %(message)s")
 	
-	LOG.addHandler(newConsoleHandler(SIMPLE))
-	LOG.addHandler(newFileHandler(name, VERBOSE))
+	LOG.addHandler(newConsoleHandler(logging.INFO,SIMPLE))
+	LOG.addHandler(newFileHandler(name, logging.DEBUG, VERBOSE))
 	LOG.__format__
 	return LOG
 

@@ -66,7 +66,6 @@ import win32api
 import win32gui
 import win32print
 import win32con
-import shutil
 import math
 import textwrap
 from reportlab.lib import colors,utils
@@ -77,15 +76,18 @@ from reportlab.lib.units import inch
 from fdfgen import forge_fdf
 from FingerTabs import *
 import utility.command_line
-import utility.loggingHelpers
+import utility.logging_helpers
+import utility.file_management
 from utility.misc_functions import *
 from pyproj import Transformer
 from app_logic.teams import *
+from app_logic.exceptions import *
 
 # process command-line arguments
 switches = utility.command_line.CommandLineSwitches()
 switches.parse(sys.argv)
 
+# TODO Autodetect the screen resolution, but still allow a command line switch to override
 if switches.minMode:
 	from radiolog_min_ui import Ui_Dialog # built to look decent at 800x600
 else:
@@ -162,21 +164,14 @@ lastClueNumber=0
 ##	"separator",
 ##	["REQUESTING DEPUTY",Qt.Key_F11]]
 
-LOG = utility.loggingHelpers.newLogger()
+LOG = utility.loggingHelpers.getLogger()
 
 
 class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
 		
-		# create the local dir if it doesn't already exist, and populate it
-		#  with files from local_default
-		if not os.path.isdir("local"):
-			LOG.info("'local' directory not found; copying 'local_default' to 'local'; you may want to edit local/radiolog.cfg")
-			shutil.copytree("local_default","local")
-		if not os.path.isfile("local/radiolog.cfg"):
-			LOG.info("'local' directory was found but did not contain radiolog.cfg; copying from local_default")
-			shutil.copyfile("local_default/radiolog.cfg","local/radiolog.cfg")
+		utility.file_management.ensureLocalDirectoryExists()
 			
 		self.setWindowFlags(self.windowFlags()|Qt.WindowMinMaxButtonsHint)
 		self.parent=parent
@@ -482,13 +477,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		# make sure x/y/w/h from resource file will fit on the available display
 		d=QApplication.desktop()
 		if (self.x+self.w > d.width()) or (self.y+self.h > d.height()):
-			LOG.warn("\nThe resource file specifies a main window geometry that is\n  bigger than (or not on) the available desktop.\n  Using default sizes for this session.\n\n")
+			LOG.warn("The resource file specifies a main window geometry that is bigger than (or not on) the available desktop. Using default sizes for this session.")
 			self.x=50
 			self.y=50
 			self.w=d.availableGeometry(self).width()-100
 			self.h=d.availableGeometry(self).height()-100
 		if (self.clueLog_x+self.clueLog_w > d.width()) or (self.clueLog_y+self.clueLog_h > d.height()):
-			LOG.warn("\nThe resource file specifies a clue log window geometry that is\n  bigger than (or not on) the available desktop.\n  Using default sizes for this session.\n\n")
+			LOG.warn("The resource file specifies a clue log window geometry that is bigger than (or not on) the available desktop. Using default sizes for this session.")
 			self.clueLog_x=75
 			self.clueLog_y=75
 			self.clueLog_w=d.availableGeometry(self).width()-100
@@ -538,22 +533,14 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		configFile=QFile(self.configFileName)
 		if not configFile.open(QFile.ReadOnly|QFile.Text):
-			warn=QMessageBox(QMessageBox.Warning,"Error","Cannot read configuration file " + self.configFileName + "; using default settings. "+configFile.errorString(),
-							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			warn.show()
-			warn.raise_()
-			warn.exec_()
+			reportWarning("Cannot read configuration file {0}; using default settings. {1}".format(self.configFileName,configFile.errorString()))
 			self.timeoutRedSec=int(self.timeoutMinutes)*60
 			self.updateOptionsDialog()
 			return
 		inStr=QTextStream(configFile)
 		line=inStr.readLine()
 		if line!="[RadioLog]":
-			warn=QMessageBox(QMessageBox.Warning,"Error","Specified configuration file " + self.configFileName + " is not a valid configuration file; using default settings.",
-							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			warn.show()
-			warn.raise_()
-			warn.exec_()
+			reportWarning("Specified configuration file {0} is not a valid configuration file; using default settings.".format(self.configFileName))
 			configFile.close()
 			self.timeoutRedSec=int(self.timeoutMinutes)*60
 			self.updateOptionsDialog()
@@ -613,11 +600,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.secondWorkingDir=os.path.expanduser(self.secondWorkingDir)				
 
 		if not os.path.isdir(self.firstWorkingDir):
-			configErr="FATAL ERROR: first working directory '"+self.firstWorkingDir+"' does not exist.  ABORTING."
-			self.configErrMsgBox=QMessageBox(QMessageBox.Critical,"Fatal Configuration Error",configErr,
- 							QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			self.configErrMsgBox.exec_()
-			sys.exit(-1)
+			raise FatalAppError("Configuration error: The specified first working directory '{0}' does not exist.".format(self.firstWorkingDir))
 			
 		if self.use2WD and self.secondWorkingDir and not os.path.isdir(self.secondWorkingDir):
 			configErr+="ERROR: second working directory '"+self.secondWorkingDir+"' does not exist.  Maybe it is not mounted yet; radiolog will try to write to it after every entry.\n\n"
@@ -660,6 +643,13 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		if switches.develMode:
 			self.sarsoftServerName="localhost" # DEVEL
+
+	def reportWarning(errorMsg)
+		opts=Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint
+		warn=QMessageBox(QMessageBox.Warning,"Error",errorMsg,QMessageBox.Ok,self,opts)
+		warn.show()
+		warn.raise_()
+		warn.exec_()
 
 	def rotateCsvBackups(self,filenames):
 		if self.rotateScript and self.rotateDelimiter:
@@ -5129,13 +5119,26 @@ class customEventFilter(QObject):
 			return True # block the default processing of Ctrl+Z
 		return super(customEventFilter,self).eventFilter(receiver,event)
 
+def informUserAboutError(errorMsg)
+	opts=Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint
+	box=QMessageBox(QMessageBox.Critical,"Error",errorMsg,QMessageBox.Ok,self,opts)
+	box.show()
+	box.raise_()
+	box.exec_()
 
 def main():
 	app = QApplication(sys.argv)
 	eFilter=customEventFilter()
 	app.installEventFilter(eFilter)
 	w = MyWindow(app)
-	w.show()
+	try:
+		w.show()
+	except FatalAppError as e:
+		msg = "ABORTING: {0}".format(e.message)
+		LOG.critical(msg)
+		informUserAboutError(msg)
+		sys.exit(-1)
+
 	sys.exit(app.exec_())
 
 if __name__ == "__main__":
