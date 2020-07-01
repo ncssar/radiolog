@@ -1,5 +1,5 @@
 [RadioLog]
-lastFileName=New_Incident_2020_06_23_175343.csv
+lastFileName=NONE
 font-size=14pt
 x=74
 y=69
@@ -12,4 +12,3 @@ clueLog_h=500
 timeout=30 min
 datum=WGS84
 coordFormat=UTM 7x7
-cleanShutdown=True
