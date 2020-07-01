@@ -1,8 +1,8 @@
 import re
 import logging
-import utility.loggingHelpers
+import utility.logging_helpers
 
-LOG = utility.loggingHelpers.newLogger()
+LOG = utility.logging_helpers.getLogger()
 
 
 def getExtTeamName(teamName):

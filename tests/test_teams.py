@@ -1,4 +1,4 @@
-from app_logic.teams import *
+from app.logic.teams import getExtTeamName,getNiceTeamName,getShortNiceTeamName
 
 def test_getExtTeamName():
 	assert getExtTeamName("all") == "ALL TEAMS"
