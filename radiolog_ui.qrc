@@ -1,13 +1,13 @@
 <RCC>
   <qresource prefix="radiolog_ui">
-    <file>checkbox_checked_30x30_turquoise.png</file>
-    <file>checkbox_unchecked_30x30.png</file>
-    <file>blank-computer-key.png</file>
-    <file>fs_greencheckbox.png</file>
-    <file>fs_redcircleslash.png</file>
-    <file>empty_filter.png</file>
-    <file>help_icon.png</file>
-    <file>options_icon.png</file>
-    <file>print_icon.png</file>
+    <file alias="checkbox_checked_30x30_turquoise.png">glyphs/checkbox_checked_30x30_turquoise.png</file>
+    <file alias="checkbox_unchecked_30x30.png">glyphs/checkbox_unchecked_30x30.png</file>
+    <file alias="blank-computer-key.png">glyphs/blank-computer-key.png</file>
+    <file alias="fs_greencheckbox.png">glyphs/fs_greencheckbox.png</file>
+    <file alias="fs_redcircleslash.png">glyphs/fs_redcircleslash.png</file>
+    <file alias="empty_filter.png">glyphs/empty_filter.png</file>
+    <file alias="help_icon.png">glyphs/help_icon.png</file>
+    <file alias="options_icon.png">glyphs/options_icon.png</file>
+    <file alias="print_icon.png">glyphs/print_icon.png</file>
   </qresource>
 </RCC>
