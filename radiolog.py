@@ -81,8 +81,8 @@ import utility.logging_helpers
 import utility.file_management
 from utility.misc_functions import *
 from pyproj import Transformer
-from app_logic.teams import *
-from app_logic.exceptions import *
+from app.logic.teams import *
+from app.logic.exceptions import *
 
 # process command-line arguments
 switches = utility.command_line.CommandLineSwitches()
