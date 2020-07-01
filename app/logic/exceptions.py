@@ -11,6 +11,15 @@ class FatalAppError(RadioLogException):
     Attributes:
         message -- explanation of the error
     """
+    def __init__(self, message):
+        self.message = message
 
+class ConfigError(RadioLogException):
+    """
+    Exception raised because of bad data in a config file.
+
+    Attributes:
+        message -- explanation of the error
+    """
     def __init__(self, message):
         self.message = message
