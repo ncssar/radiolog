@@ -64,5 +64,5 @@ coordformat = XXX
         assert e.message == """The configuration setting of 'datum = XXX' is invalid.
 Possible values are: WGS84, NAD27
 The configuration setting of 'coordformat = XXX' is invalid.
-Possible values are: UTM7, UTM5, DEG, DEGMIN, DMS"""
+Possible values are: UTM7, UTM5, DEG, DEGMIN, DMS, DEGLIST"""
 
