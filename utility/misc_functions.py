@@ -2,7 +2,7 @@ import re, time
 
 def getFileNameBase(root):
 	"""Adds a timestamp to the given string (a root filename)."""
-	return root+"_"+timestamp()
+	return root ################################################################# +"_"+timestamp()
 
 def timestamp(theTime=time.localtime()):
 	return time.strftime("%Y_%m_%d_%H%M%S",theTime)
