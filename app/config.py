@@ -21,7 +21,6 @@ def asCoordFormat(input: str) -> CoordFormat:
 		return CoordFormat.__members__[input]
 
 CONVERTERS = {
-	#'dict': utility.config_helpers.asDict,
 	'path': utility.config_helpers.asPath,
 	'datum': asDatum,
 	'coordformat': asCoordFormat
@@ -42,7 +41,11 @@ def loadConfig(configfilecontents: str) -> Configuration:
 	if parser.has_section('display'):
 		config.ui.timeoutMinutes = parser['display'].getint(
 			'timeoutminutes', config.ui.timeoutMinutes)
-		#config.ui.tabGroups = parser['display'].getdict('tabgroups')
+
+	if parser.has_section('tabgroups'):
+		config.ui.tabGroups = []
+		for (tabName,tabRE) in parser['tabgroups'].items():
+			config.ui.tabGroups.append(tabRE)
 	
 	if parser.has_section('reports'):
 		config.ui.clueReport = parser['reports'].getpath(

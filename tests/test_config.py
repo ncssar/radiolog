@@ -2,15 +2,15 @@ import app.config
 from app.logic.mapping import Datum, CoordFormat
 from pathlib import WindowsPath
 from app.logic.exceptions import ConfigError
-
+from typing import List
 
 def test_config_all_defaults():
     config = app.config.loadConfig("")
 
-    assert config.ui.agencyName == 'SAR'
+    assert config.ui.agencyName == 'Search and Rescue'
     assert config.ui.logo == WindowsPath('radiolog_logo.jpg')
     assert config.ui.timeoutMinutes == 30
-    #assert config.ui.tabGroups == {"Numbers": "^Thunderbird [A-Z]+"}
+    assert len(config.ui.tabGroups) == 0
     assert config.ui.clueReport == WindowsPath('clueReportFillable.pdf')
     assert config.logic.datum == Datum.WGS84
     assert config.logic.coordFormat == CoordFormat.UTM7
@@ -29,7 +29,9 @@ coordformat = DMS
 
 [display]
 timeoutminutes = 20
-tabgroups = {"Numbers":"^Thunderbird [A-Z]+"}
+
+[tabgroups]
+Numbers = ^Thunderbird [A-Z]+
 
 [reports]
 cluereport = fabclue.pdf
@@ -43,7 +45,8 @@ secondworkingdir = E:\\fab
     assert config.ui.agencyName == 'International Rescue'
     assert config.ui.logo == WindowsPath('thunderbirds.png')
     assert config.ui.timeoutMinutes == 20
-    #assert config.ui.tabGroups == {"Numbers": "^Thunderbird [A-Z]+"}
+    assert len(config.ui.tabGroups) == 1
+    assert config.ui.tabGroups[0] == "^Thunderbird [A-Z]+"
     assert config.ui.clueReport == WindowsPath('fabclue.pdf')
     assert config.logic.datum == Datum.NAD27
     assert config.logic.coordFormat == CoordFormat.DMS
