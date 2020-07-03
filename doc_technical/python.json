@@ -1,0 +1,65 @@
+// Useful snippets of code for working on RadioLog. 
+// In VSCode, pull down Edit > Preferences > User Snippets, and select "python.json" 
+// Then, copy this data and paste it in.
+// To activate a snippet, type the corresponding prefix and hit tab.
+{
+	"LOG setup": {
+		"prefix": "log",
+		"body": [
+		"from utility.logging_helpers import getLogger",
+		"",
+		"LOG = getLogger()",
+		"$0"
+		],
+		"description": "get a logger"
+	},	
+	"Unit test": {
+		"prefix":"ut",
+		"body":[
+			"def test_${1:method}():",
+			"\tassert $1() == \"${2:expected}\"",
+			"$0"
+		],
+		"description": "A simple unit test"
+	},
+	"Try Except": {
+		"prefix":"te",
+		"body":[
+			"try:",
+			"\t$0",
+			"except Exception as e:",
+			"\t"
+		],
+		"description": "Try/Except"
+	},
+	"LOG.debug": {
+		"prefix":"ld",
+		"body":[
+			"LOG.debug(\"{}\".format($0))"
+		],
+		"description": "LOG.debug"
+	},
+	"LOG.info": {
+		"prefix":"li",
+		"body":[
+			"LOG.info(\"{}\".format($0))"
+		],
+		"description": "LOG.info"
+	},
+	"LOG.warn": {
+		"prefix":"lw",
+		"body":[
+			"LOG.warn(\"{}\".format($0))"
+		],
+		"description": "LOG.warn"
+	},
+	"LOG.error": {
+		"prefix":"le",
+		"body":[
+			"LOG.error(\"{}\".format($0))"
+		],
+		"description": "LOG.error"
+	}
+	
+
+}

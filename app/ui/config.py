@@ -1,19 +1,23 @@
 import configparser
 import pathlib
-from typing import Optional
+from typing import Optional, List
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict
 
-class TabGroups(Dict[str,str]):
-	pass
+DEFAULT_NAME = 'Search and Rescue'
+DEFAULT_LOGO = 'radiolog_logo.jpg'
+DEFAULT_CLUE_REPORT = 'clueReportFillable.pdf'
+DEFAULT_TIMEOUT = 30
 
 @dataclass
 class Configuration:
-	agencyName: str = 'SAR'
-	logo: pathlib.Path = pathlib.WindowsPath('radiolog_logo.jpg')
-	timeoutMinutes: int = 30 # initial timeout interval (valid: 10..120 step 10)
-	clueReport: pathlib.Path = pathlib.WindowsPath('clueReportFillable.pdf')
-	#tabGroups: TabGroups = {"Numbers": "^Team [A-Z]+"}
+	agencyName: str = DEFAULT_NAME
+	logo: pathlib.Path = pathlib.WindowsPath(DEFAULT_LOGO)
+	timeoutMinutes: int = DEFAULT_TIMEOUT # initial timeout interval (valid: 10..120 step 10)
+	clueReport: pathlib.Path = pathlib.WindowsPath(DEFAULT_CLUE_REPORT)
+	tabGroups: List[str] = None
+
+	def __init__(self):
+		self.tabGroups: List[str] = []
 
 
