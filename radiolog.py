@@ -3556,7 +3556,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.parent=parent
 		if amendFlag:
 			row=parent.radioLog[amendRow]
-			self.sec=row[0]
+			self.sec=row[6]
 			self.formattedLocString=row[4]
 ##		newEntryDialog.newEntryDialogUsedPositionList[self.position]=True
 		newEntryWidget.instances.append(self)
@@ -4329,7 +4329,10 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.parent.clueDialogOpen=True
 		clueDialog.openDialogCount+=1
 		self.values=self.parent.getValues()
-		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' button pressed; radio operator is gathering details"
+		amendText=""
+		if self.parent.amendFlag:
+			amendText=" during amendment of previous message"
+		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' button pressed"+amendText+"; radio operator is gathering details"
 ##		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' button pressed for '"+self.values[2]+"'; radio operator is gathering details"
 ##		self.values[2]='' # this message is not actually from a team
 		self.parent.parent.newEntry(self.values)
