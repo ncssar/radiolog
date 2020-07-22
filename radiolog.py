@@ -817,7 +817,12 @@ class MyWindow(QDialog,Ui_Dialog):
 					else:
 						if isWaiting:
 							LOG.debug("     DATA IS WAITING!!!")
-							tmpData=comPortTry.read(comPortTry.inWaiting()).decode("utf-8")
+							tmpData=""
+							try:
+								tmpData=comPortTry.read(comPortTry.inWaiting()).decode("utf-8")
+							except Exception as e:
+								# unicode decode errors may occur here also, apparently for glitch on hot plug
+								LOG.debug("      failure to decode COM port data:"+str(e))
 							if '\x02I' in tmpData:
 								LOG.debug("      VALID FLEETSYNC DATA!!!")
 								self.fsBuffer=self.fsBuffer+tmpData
