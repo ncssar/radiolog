@@ -1,7 +1,7 @@
 import app.config
 from app.logic.mapping import Datum, CoordFormat
 from pathlib import WindowsPath
-from app.logic.exceptions import ConfigError
+from app.logic.exceptions import  RadioLogConfigError
 from typing import List
 
 def test_config_all_defaults():
@@ -63,7 +63,7 @@ coordformat = XXX
     """
     try:
         config = app.config.loadConfig(ini)
-    except ConfigError as e:
+    except  RadioLogConfigError as e:
         assert e.message == """The configuration setting of 'datum = XXX' is invalid.
 Possible values are: WGS84, NAD27
 The configuration setting of 'coordformat = XXX' is invalid.

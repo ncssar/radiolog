@@ -6,7 +6,7 @@ from app.logic.mapping import Datum, CoordFormat
 import utility.config_helpers
 import pathlib
 import configparser
-from app.logic.exceptions import ConfigError
+from app.logic.exceptions import  RadioLogConfigError
 
 @dataclass
 class Configuration:
@@ -30,9 +30,9 @@ def loadConfig(configfilecontents: str) -> Configuration:
 	parser = configparser.ConfigParser(converters=CONVERTERS)
 	parser.read_string(configfilecontents)
 	issues = []
-	
+
 	config = Configuration(db = conf_db.Configuration(), ui = conf_ui.Configuration(), logic = conf_logic.Configuration())
-	
+
 	if parser.has_section('agency'):
 		config.ui.agencyName = parser.get(
 			'agency', 'name', fallback=config.ui.agencyName)
@@ -46,7 +46,7 @@ def loadConfig(configfilecontents: str) -> Configuration:
 		config.ui.tabGroups = []
 		for (tabName,tabRE) in parser['tabgroups'].items():
 			config.ui.tabGroups.append(tabRE)
-	
+
 	if parser.has_section('reports'):
 		config.ui.clueReport = parser['reports'].getpath(
 			'cluereport', config.ui.clueReport)
@@ -72,7 +72,7 @@ def loadConfig(configfilecontents: str) -> Configuration:
 			'secondworkingdir', config.db.secondWorkingDir)
 
 	if issues:
-		raise ConfigError("\n".join(issues))
+		raise  RadioLogConfigError("\n".join(issues))
 
 	return config
 
