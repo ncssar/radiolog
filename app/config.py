@@ -1,24 +1,24 @@
 from dataclasses import dataclass
-import app.db.config as conf_db
-import app.logic.config as conf_logic
-import app.ui.config as conf_ui
 from app.logic.mapping import Datum, CoordFormat
 import utility.config_helpers
-import pathlib
-import configparser
-from app.logic.exceptions import  RadioLogConfigError
+from pathlib import Path
+import argparse, configparser
+from app.logic.exceptions import  RadioLogConfigError, RadioLogConfigSettingWarning
+import logging
 
-@dataclass
-class Configuration:
-	db: conf_db.Configuration
-	ui: conf_ui.Configuration
-	logic: conf_logic.Configuration
+LOG = logging.getLogger("RadioLog")
+
+DEFAULT_NAME = 'Search and Rescue'
+DEFAULT_LOGO = 'radiolog_logo.jpg'
+DEFAULT_CLUE_REPORT = 'clueReportFillable.pdf'
+DEFAULT_TIMEOUT = 30
+DEFAULT_WORKINGDIR = 'testdata'
 
 def asDatum(input: str) -> Datum:
-		return Datum.__members__[input]
+	return Datum.__members__[input]
 
 def asCoordFormat(input: str) -> CoordFormat:
-		return CoordFormat.__members__[input]
+	return CoordFormat.__members__[input]
 
 CONVERTERS = {
 	'path': utility.config_helpers.asPath,
@@ -26,53 +26,80 @@ CONVERTERS = {
 	'coordformat': asCoordFormat
 }
 
-def loadConfig(configfilecontents: str) -> Configuration:
+def __agency_section(parser, config):
+	config.agencyName = DEFAULT_NAME
+	config.logo= Path(DEFAULT_LOGO)
+	if parser.has_section('agency'):
+		config.agencyName = parser.get('agency', 'name', fallback=config.agencyName)
+		config.logo = parser['agency'].getpath('logo', config.logo)
+
+def __storage_section(parser, config):
+	config.firstWorkingDir = Path(DEFAULT_WORKINGDIR)
+	config.secondWorkingDir = None
+	if parser.has_section('storage'):
+		config.firstWorkingDir = parser['storage'].getpath('firstworkingdir', config.firstWorkingDir)
+		config.secondWorkingDir = parser['storage'].getpath('secondworkingdir', config.secondWorkingDir)
+
+def __display_section(parser, config):
+	config.timeoutMinutes = DEFAULT_TIMEOUT  # initial timeout interval (valid: 10..120 step 10)
+	if parser.has_section('display'):
+		config.timeoutMinutes = parser['display'].getint('timeoutminutes', config.timeoutMinutes)
+
+def __tabgroups_section(parser, config):
+	config.tabGroups = []
+	if parser.has_section('tabgroups'):
+		config.tabGroups = []
+		for (tabName,tabRE) in parser['tabgroups'].items():
+			config.tabGroups.append(tabRE)
+
+def __reports_section(parser, config):
+	config.clueReport = Path(DEFAULT_CLUE_REPORT)
+	if parser.has_section('reports'):
+		config.clueReport = parser['reports'].getpath('cluereport', config.clueReport)
+
+def __mapping_section(parser, config, issues):
+	config.datum = Datum.WGS84
+	config.coordFormat = CoordFormat.UTM7
+	if parser.has_section('mapping'):
+		try:
+			config.datum = parser['mapping'].getdatum('datum', config.datum)
+		except KeyError as e:
+			issues.append(RadioLogConfigSettingWarning("[mapping]datum", e.args[0], Datum.possibleValues()))
+
+		try:
+			config.coordFormat = parser['mapping'].getcoordformat('coordformat', config.coordFormat)
+		except KeyError as e:
+			issues.append(RadioLogConfigSettingWarning("[mapping]coordformat", e.args[0], CoordFormat.possibleValues()))
+
+def loadConfig(configfilecontents: str, config: argparse.Namespace = None) -> argparse.Namespace:
+	"""Parse the contents of the config (INI) file
+
+	Args:
+	  configfilecontents -- The text to parse
+	  config (optional) -- An existing argparse.Namespace to be appended to
+
+	Returns:
+	  An object of type argparse.Namespace. Access the settings as object attributes (e.g. config.datum).
+	"""
 	parser = configparser.ConfigParser(converters=CONVERTERS)
 	parser.read_string(configfilecontents)
 	issues = []
 
-	config = Configuration(db = conf_db.Configuration(), ui = conf_ui.Configuration(), logic = conf_logic.Configuration())
+	if not config:
+		config = argparse.Namespace()
 
-	if parser.has_section('agency'):
-		config.ui.agencyName = parser.get(
-			'agency', 'name', fallback=config.ui.agencyName)
-		config.ui.logo = parser['agency'].getpath('logo', config.ui.logo)
+	__agency_section(parser, config)
+	__display_section(parser, config)
+	__tabgroups_section(parser, config)
+	__reports_section(parser, config)
+	__mapping_section(parser, config, issues)
+	__storage_section(parser, config)
 
-	if parser.has_section('display'):
-		config.ui.timeoutMinutes = parser['display'].getint(
-			'timeoutminutes', config.ui.timeoutMinutes)
-
-	if parser.has_section('tabgroups'):
-		config.ui.tabGroups = []
-		for (tabName,tabRE) in parser['tabgroups'].items():
-			config.ui.tabGroups.append(tabRE)
-
-	if parser.has_section('reports'):
-		config.ui.clueReport = parser['reports'].getpath(
-			'cluereport', config.ui.clueReport)
-
-	if parser.has_section('mapping'):
-		try:
-			config.logic.datum = parser['mapping'].getdatum('datum', config.logic.datum)
-		except KeyError as e:
-			issues.append("The configuration setting of '{0} = {1}' is invalid.".format('datum', e.args[0]))
-			issues.append("Possible values are: {0}".format(Datum.possibleValues()))
-
-		try:
-			config.logic.coordFormat = parser['mapping'].getcoordformat('coordformat', config.logic.coordFormat)
-		except KeyError as e:
-			issues.append("The configuration setting of '{0} = {1}' is invalid.".format('coordformat', e.args[0]))
-			issues.append("Possible values are: {0}".format(CoordFormat.possibleValues()))
-
-
-	if parser.has_section('storage'):
-		config.db.firstWorkingDir = parser['storage'].getpath(
-			'firstworkingdir', config.db.firstWorkingDir)
-		config.db.secondWorkingDir = parser['storage'].getpath(
-			'secondworkingdir', config.db.secondWorkingDir)
-
-	if issues:
-		raise  RadioLogConfigError("\n".join(issues))
+	for issue in issues:
+		LOG.exception(issue)
 
 	return config
+
+__all__ = ("loadConfig")
+
 

@@ -38,7 +38,7 @@ SIMPLE_COLORED = ColoredFormatter("[ %(log_color)s%(levelname)s%(reset)s ] %(blu
 
 
 @lru_cache(maxsize=32)
-def setup_logging(name: str, loglevel=logging.INFO, logfile: Optional[Path] = None, nocolor=False):
+def setup_logging(name: str, loglevel=logging.INFO, logfile: Optional[Path] = None, nocolor=False) -> logging.Logger:
     """
     Setup initial logging configuration.
     After calling this setup code, whevever you do a logging.getlogger(name), you'll get an enhanced logger that includes:
@@ -130,5 +130,6 @@ def setup_logging(name: str, loglevel=logging.INFO, logfile: Optional[Path] = No
         log_file.setFormatter(VERBOSE_FORMAT)
         logger.addHandler(log_file)
 
+    return logger
 
 __all__ = ("setup_logging", "CRITICAL", "ERROR", "WARNING", "INFO", "DIAGNOSTIC", "DEBUG", "TRACE")

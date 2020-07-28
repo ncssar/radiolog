@@ -10,10 +10,13 @@ def parse_args(args):
     """Parse any command line parameters.
 
     Args:
-      args ([str]): command line parameters as list of strings
+      args ([str]): command line parameters as a list of strings
 
     Returns:
-      An object of type argparse.Namespace (access it like a dict)
+      An object of type argparse.Namespace.  Access the settings as object attributes (e.g. switches.logfile).
+
+    Note: --version and --help are handled immediately as they are parsed.
+      In both cases, parse_args will raise a SystemExit exception
     """
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("--version", action="version", version=f"RadioLog version {__version__}")
@@ -28,6 +31,4 @@ def parse_args(args):
     parser.add_argument("--nologfile", dest="nologfile", help="suppresses using a log file, relying on just the console", action="store_true", default=False)
     parser.add_argument("-c", "--configfile", dest="configfile", help="specifies the name (and path) for the configuration file (instead of ./local/radiolog.cfg)", default="./local/radiolog.cfg")
 
-    # Note: --version and --help are handled immediately as they are parsed.
-    # In both cases, parse_args will return None
     return parser.parse_args(args)

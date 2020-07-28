@@ -30,10 +30,11 @@ class RadioLogError(Exception):
         message -- explanation of the error
         loglevel (optional) -- How this error should appear in the log (if no outer code catches it and handles it, that is). The default is logging.ERROR.
     """
-    exitcode = EX_ERROR
+    exitcode: int = EX_ERROR
     loglevel = ERROR
 
     def __init__(self, message, loglevel=ERROR):
+        self.exitcode = EX_ERROR
         self.message = message
         self.loglevel = loglevel
 
@@ -49,7 +50,11 @@ class RadioLogConfigError(RadioLogError):
         message -- explanation of the error(s)
         loglevel (optional) -- How this error should appear in the log (if no outer code catches it and handles it, that is). The default is logging.ERROR.
     """
-    exitcode = EX_CONFIG
+
+    def __init__(self, message, loglevel=ERROR):
+        self.exitcode = EX_CONFIG
+        self.message = message
+        self.loglevel = loglevel
 
 
 class RadioLogConfigSettingWarning(RadioLogError):
@@ -62,10 +67,10 @@ class RadioLogConfigSettingWarning(RadioLogError):
         possible_values -- (optional) a list of valid choices
         loglevel (optional) -- How this error should appear in the log (if no outer code catches it and handles it, that is). The default is logging.WARNING.
     """
-    exitcode = EX_OK  # Don't exit, carry on
 
     def __init__(self, key, attempted_value, possible_values=None, loglevel=WARNING):
-        self.message = f"Error: The configuration setting of {key} = {attempted_value} is invalid."
+        self.exitcode = EX_OK  # Don't exit, carry on
+        self.message = f"The configuration setting of {key} = {attempted_value} is invalid."
         if possible_values:
             self.message += f" Possible values are: {possible_values}"
         self.loglevel = loglevel
