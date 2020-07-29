@@ -6,7 +6,7 @@ You could consider these to be part of the installation procedure.
 
 == Prerequisites
 
-1. Python 3.4.2 or higher - install for All Users, which may require you to run the installer as Administrator, and also to check 'install for all users' in the Advanced Options, and change the installation directory to C:\Python-<version> to avoid spaces in the directory name, but this will require you to edit the properties of Lib\site-packages in the python install directory to remove the read-only flag (and apply to all subdirectories) in order to allow the following steps.
+1. Python 3.8 or higher - install for All Users, which may require you to run the installer as Administrator, and also to check 'install for all users' in the Advanced Options, and change the installation directory to C:\Python-<version> to avoid spaces in the directory name, but this will require you to edit the properties of Lib\site-packages in the python install directory to remove the read-only flag (and apply to all subdirectories) in order to allow the following steps.
 
 2. Python modules -- The required Python modules are listed in requirements.txt.
 To install them, use: 
