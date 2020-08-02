@@ -1,12 +1,11 @@
 from dataclasses import dataclass
 from app.logic.mapping import Datum, CoordFormat
-import utility.config_helpers
 from pathlib import Path
 import argparse, configparser
 from app.logic.exceptions import  RadioLogConfigError, RadioLogConfigSettingWarning
 import logging
 
-LOG = logging.getLogger("RadioLog")
+LOG = logging.getLogger("main")
 
 DEFAULT_NAME = 'Search and Rescue'
 DEFAULT_LOGO = 'radiolog_logo.jpg'
@@ -14,16 +13,20 @@ DEFAULT_CLUE_REPORT = 'clueReportFillable.pdf'
 DEFAULT_TIMEOUT = 30
 DEFAULT_WORKINGDIR = 'testdata'
 
-def asDatum(input: str) -> Datum:
+
+def _as_path(input: str) -> Path:
+	return Path(input)
+
+def _as_datum(input: str) -> Datum:
 	return Datum.__members__[input]
 
-def asCoordFormat(input: str) -> CoordFormat:
+def _as_coordFormat(input: str) -> CoordFormat:
 	return CoordFormat.__members__[input]
 
 CONVERTERS = {
-	'path': utility.config_helpers.asPath,
-	'datum': asDatum,
-	'coordformat': asCoordFormat
+	'path': _as_path,
+	'datum': _as_datum,
+	'coordformat': _as_coordFormat
 }
 
 def __agency_section(parser, config):
@@ -71,23 +74,29 @@ def __mapping_section(parser, config, issues):
 		except KeyError as e:
 			issues.append(RadioLogConfigSettingWarning("[mapping]coordformat", e.args[0], CoordFormat.possibleValues()))
 
-def loadConfig(configfilecontents: str, config: argparse.Namespace = None) -> argparse.Namespace:
-	"""Parse the contents of the config (INI) file
+def load_config(filename: str = "", ini: str = "", config: argparse.Namespace = None) -> argparse.Namespace:
+	"""
+	Parse the contents of the config (INI) file.
 
 	Args:
-	  configfilecontents -- The text to parse
+	  filename -- the name of the file to be parsed, or...
+	  ini -- the actual text to be parsed
 	  config (optional) -- An existing argparse.Namespace to be appended to
 
 	Returns:
 	  An object of type argparse.Namespace. Access the settings as object attributes (e.g. config.datum).
 	"""
+	LOG.trace("Loading config")
 	parser = configparser.ConfigParser(converters=CONVERTERS)
-	parser.read_string(configfilecontents)
-	issues = []
+	if filename:
+		parser.read_file(filename)
+	else:
+		parser.read_string(ini)
 
 	if not config:
 		config = argparse.Namespace()
 
+	issues = []
 	__agency_section(parser, config)
 	__display_section(parser, config)
 	__tabgroups_section(parser, config)
@@ -100,6 +109,6 @@ def loadConfig(configfilecontents: str, config: argparse.Namespace = None) -> ar
 
 	return config
 
-__all__ = ("loadConfig")
+__all__ = ("load_config")
 
 

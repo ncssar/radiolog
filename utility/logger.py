@@ -103,7 +103,7 @@ def setup_logging(name: str, loglevel=logging.INFO, logfile: Optional[Path] = No
         Same as exception(), except it first logs a note (at error level) that the error should have been caught earlier.
         """
         self.error(f"Uncaught error detected. There is no good reason why the following error wasn't handled earlier.")
-        self.per_exception(e)
+        self.exception(e)
 
     logging.Logger.uncaught = uncaught
 
