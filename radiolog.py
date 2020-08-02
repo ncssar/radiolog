@@ -175,7 +175,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		
 		issue = utility.file_management.ensureLocalDirectoryExists()
 		if issue:
-			informUserAboutIssue(ICON_WARN,issue)
+			inform_user_about_issue(issue,ICON_WARN,self)
 			
 		self.setWindowFlags(self.windowFlags()|Qt.WindowMinMaxButtonsHint)
 		self.parent=parent
@@ -539,7 +539,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		if not configFile.open(QFile.ReadOnly|QFile.Text):
 			issue = "Cannot read configuration file {0}; using default settings. {1}".format(self.configFileName,configFile.errorString())
 			LOG.warn(issue)
-			informUserAboutIssue(ICON_WARN,issue)
+			inform_user_about_issue(issue,ICON_WARN,self)
 			self.timeoutRedSec=int(self.timeoutMinutes)*60
 			self.updateOptionsDialog()
 			return
@@ -548,7 +548,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		if line!="[RadioLog]":
 			issue = "Specified configuration file {0} is not a valid configuration file; using default settings.".format(self.configFileName)
 			LOG.warn(issue)
-			informUserAboutIssue(ICON_WARN,issue)
+			inform_user_about_issue(issue,ICON_WARN,self)
 			configFile.close()
 			self.timeoutRedSec=int(self.timeoutMinutes)*60
 			self.updateOptionsDialog()
@@ -5121,15 +5121,26 @@ class customEventFilter(QObject):
 			return True # block the default processing of Ctrl+Z
 		return super(customEventFilter,self).eventFilter(receiver,event)
 
-def informUserAboutIssue(icon, errorMsg):
-	opts=Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint
-	boxTitle = "Error"
-	if icon == QMessageBox.Warning:
-		boxTitle = "Warning"
-	box=QMessageBox(icon,boxTitle,errorMsg,QMessageBox.Ok,None,opts)
+
+def inform_user_about_issue(message: str, icon: QMessageBox.Icon = QMessageBox.Critical, parent: QObject = None):
+	opts = Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.Dialog | Qt.MSWindowsFixedSizeDialogHint | Qt.WindowStaysOnTopHint
+	box_title = "Warning" if (icon == QMessageBox.Warning) else "Error"
+	buttons = QMessageBox.StandardButton(QMessageBox.Ok)
+	box = QMessageBox(icon, box_title, message, buttons, parent, opts)
 	box.show()
 	box.raise_()
 	box.exec_()
+
+
+def ask_user_to_confirm(question: str, icon: QMessageBox.Icon = QMessageBox.Warning, parent: QObject = None) -> bool:
+	opts = Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.Dialog | Qt.MSWindowsFixedSizeDialogHint | Qt.WindowStaysOnTopHint
+	box_title = "Please Confirm"
+	buttons = QMessageBox.StandardButton(QMessageBox.Yes | QMessageBox.No)
+	box = QMessageBox(icon, box_title, question, buttons, parent, opts)
+	box.setDefaultButton(QMessageBox.No)
+	box.show()
+	box.raise_()
+	return box.exec_() == QMessageBox.Yes
 
 
 def main():
@@ -5142,7 +5153,7 @@ def main():
 	except FatalAppError as e:
 		msg = "ABORTING: {0}".format(e.message)
 		LOG.critical(msg)
-		informUserAboutIssue(ICON_ERROR,msg)
+		inform_user_about_issue(msg,ICON_ERROR,self)
 		sys.exit(-1)
 
 	sys.exit(app.exec_())
