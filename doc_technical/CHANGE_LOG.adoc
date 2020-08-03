@@ -176,4 +176,7 @@ Here is the change log that was manually maintained through 6-24-2020:
                         address #413: multiple crashes - add more logging; 
                         improve relay features to be more intuitive
 |   6-24-20  | TMG    | fix #48: use pyproj instead of GISInternals for conversion
+|   7-21-20  | TMG    | fix #428: LOCATED A CLUE error during amended message
+|                        leaves 'zombie' clue dialog preventing entry closure
+|   7-21-20  | TMG    | fix #429: handle decode error after hot-plug
 |===
