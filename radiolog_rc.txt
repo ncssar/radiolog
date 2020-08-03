@@ -1,8 +1,8 @@
 [RadioLog]
-lastFileName=NONE
+lastFileName=New_Incident.csv
 font-size=14pt
-x=74
-y=69
+x=99
+y=70
 w=1820
 h=980
 clueLog_x=9
@@ -11,4 +11,5 @@ clueLog_w=1000
 clueLog_h=500
 timeout=30 min
 datum=WGS84
-coordFormat=UTM 7x7
+coordFormat=UTM 5x5
+cleanShutdown=True
