@@ -168,6 +168,7 @@ lastClueNumber=0
 LOG = utility.logging_helpers.getLogger()
 ICON_ERROR = QMessageBox.Critical
 ICON_WARN = QMessageBox.Warning
+ICON_INFO = QMessageBox.Information
 ICON_QUESTION = QMessageBox.Question
 STD_DIALOG_OPTS = Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.Dialog | Qt.MSWindowsFixedSizeDialogHint | Qt.WindowStaysOnTopHint
 
@@ -1159,11 +1160,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					if not row[0].startswith("#"):
 						self.fsLookup.append(row)
 				if not startupFlag: # suppress message box on startup
-					self.fsMsgBox=QMessageBox(QMessageBox.Information,"Information","FleetSync ID table has been re-loaded from file "+fsFileName+".",
-											QMessageBox.Ok,self,STD_DIALOG_OPTS)
-					self.fsMsgBox.show()
-					QCoreApplication.processEvents()
-					QTimer.singleShot(2000,self.fsMsgBox.close)
+					inform_user_about_issue(f"FleetSync ID table has been re-loaded from file {fsFileName}.",
+						icon = ICON_INFO, title = "Information", parent =self, timeout=2000)
 		except:
 			if fsEmptyFlag:
 				msg="Cannot read FleetSync ID table file '"+fsFileName+"' and no FleetSync ID table has yet been loaded.  Callsigns for incoming FleetSync calls will be of the format 'KW-<fleet>-<device>'.\n\nThis warning will automatically close in a few seconds."
@@ -3907,16 +3905,13 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		# whether OK or Cancel, ignore the event if child dialog(s) are open,
 		#  and raise the child window(s)
 		if self.clueDialogOpen or self.subjectLocatedDialogOpen:
-			warn=QMessageBox(ICON_WARN,"Cannot close","A Clue Report or Subject Located form is open that belongs to this entry.  Finish it first.",
-							QMessageBox.Ok,self,STD_DIALOG_OPTS)
 			# the 'child' dialogs are not technically children; use the NED's
 			#  childDialogs attribute instead, which was populated in the __init__
 			#  of each child dialog class
 			for child in self.childDialogs:
 				child.raise_()
-			warn.show()
-			warn.raise_()
-			warn.exec_() # make sure it's modal
+			inform_user_about_issue("A Clue Report or Subject Located form is open that belongs to this entry.  Finish it first.",
+				icon = ICON_WARN, title = "Cannot close", parent = self)
 			event.ignore()
 			return
 		else:
@@ -5045,6 +5040,7 @@ def inform_user_about_issue(message: str, icon: QMessageBox.Icon = ICON_ERROR, p
 	buttons = QMessageBox.StandardButton(QMessageBox.Ok)
 	box = QMessageBox(icon, title, message, buttons, parent, opts)
 	box.show()
+	QCoreApplication.processEvents()
 	box.raise_()
 	if timeout:
 		QTimer.singleShot(timeout,box.close)
@@ -5057,6 +5053,7 @@ def ask_user_to_confirm(question: str, icon: QMessageBox.Icon = ICON_QUESTION, p
 	box = QMessageBox(icon, title, question, buttons, parent, opts)
 	box.setDefaultButton(QMessageBox.No)
 	box.show()
+	QCoreApplication.processEvents()
 	box.raise_()
 	return box.exec_() == QMessageBox.Yes
 
