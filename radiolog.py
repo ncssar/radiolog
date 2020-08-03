@@ -171,6 +171,16 @@ ICON_WARN = QMessageBox.Warning
 ICON_QUESTION = QMessageBox.Question
 STD_DIALOG_OPTS = Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.Dialog | Qt.MSWindowsFixedSizeDialogHint | Qt.WindowStaysOnTopHint
 
+BG_GREEN = "background-color:#00bb00"
+BG_RED = "background-color:#bb0000"
+BG_DARK_GREEN = "background-color:#00ff00"
+BG_GRAY = "background-color:#aaaaaa"
+BG_BROWN= "background-color:#ff5050"
+BG_LIGHT_GRAY = "background-color:lightgray"
+BG_NONE = "background-color:none"
+BG_WHITE = "background-color:white"
+
+
 class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
@@ -680,21 +690,21 @@ class MyWindow(QDialog,Ui_Dialog):
 	def fsMuteBlink(self,state):
 		if state=="on":
 			self.ui.incidentNameLabel.setText("FleetSync Muted")
-			self.ui.incidentNameLabel.setStyleSheet("background-color:#ff5050;color:white;font-size:"+str(self.limitedFontSize)+"pt;")
+			self.ui.incidentNameLabel.setStyleSheet(BG_BROWN+";color:white;font-size:"+str(self.limitedFontSize)+"pt;")
 			self.ui.fsCheckBox.setStyleSheet("border:3px outset red")
 		else:
 			if state=="noSend":
 				self.ui.incidentNameLabel.setText("FS Locators Muted")
-				self.ui.incidentNameLabel.setStyleSheet("background-color:#ff5050;color:white;font-size:"+str(self.limitedFontSize)+"pt;")
+				self.ui.incidentNameLabel.setStyleSheet(BG_BROWN+";color:white;font-size:"+str(self.limitedFontSize)+"pt;")
 				self.ui.fsCheckBox.setStyleSheet("border:3px outset red")
 			else:
 				self.ui.incidentNameLabel.setText(self.incidentName)
-				self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black;font-size:"+str(self.limitedFontSize)+"pt;")
+				self.ui.incidentNameLabel.setStyleSheet(BG_NONE+";color:black;font-size:"+str(self.limitedFontSize)+"pt;")
 				self.ui.fsCheckBox.setStyleSheet("border:3px inset lightgray")
 
 	def fsFilterBlink(self,state):
 		if state=="on":
-			self.ui.fsFilterButton.setStyleSheet("QToolButton { background-color:#ff5050;border:2px outset lightgray; }")
+			self.ui.fsFilterButton.setStyleSheet("QToolButton { "+BG_BROWN+";border:2px outset lightgray; }")
 		else:
 			self.ui.fsFilterButton.setStyleSheet("QToolButton { }")
 
@@ -744,10 +754,10 @@ class MyWindow(QDialog,Ui_Dialog):
 	def fsFilteredCallDisplay(self,state="off",fleet=0,dev=0,callsign=''):
 		if state=="on":
 			self.ui.incidentNameLabel.setText("Incoming FS call filtered/ignored:\n"+callsign+"   ("+str(fleet)+":"+str(dev)+")")
-			self.ui.incidentNameLabel.setStyleSheet("background-color:#ff5050;color:white;font-size:"+str(self.limitedFontSize/2)+"pt")
+			self.ui.incidentNameLabel.setStyleSheet(BG_BROWN+";color:white;font-size:"+str(self.limitedFontSize/2)+"pt")
 		else:
 			self.ui.incidentNameLabel.setText(self.incidentName)
-			self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black;font-size:"+str(self.limitedFontSize)+"pt")
+			self.ui.incidentNameLabel.setStyleSheet(BG_NONE+";color:black;font-size:"+str(self.limitedFontSize)+"pt")
 
 	def fsCheckBoxCB(self):
 		# 0 = unchecked / empty: mute fleetsync completely
@@ -769,7 +779,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				LOG.info("Fleetsync is unmuted and locator requests will be sent")
 				self.fsMuteBlink("off")
 				self.ui.incidentNameLabel.setText(self.incidentName)
-				self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black;font-size:"+str(self.limitedFontSize)+"pt;")
+				self.ui.incidentNameLabel.setStyleSheet(BG_NONE+";color:black;font-size:"+str(self.limitedFontSize)+"pt;")
 
 	# FleetSync - check for pending data
 	# - check for pending data at regular interval (from timer)
@@ -848,19 +858,13 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		else: # com port already found; read data normally
 		# read data and process buffer even if both com ports aren't yet found, i.e. if only one is found
 
-		if self.firstComPortAlive:
-			self.ui.firstComPortField.setStyleSheet("background-color:#00bb00")
-		else:
-			self.ui.firstComPortField.setStyleSheet("background-color:#aaaaaa")
-		if self.secondComPortAlive:
-			self.ui.secondComPortField.setStyleSheet("background-color:#00bb00")
-		else:
-			self.ui.secondComPortField.setStyleSheet("background-color:#aaaaaa")
+		self.ui.firstComPortField.setStyleSheet(BG_GREEN if self.firstComPortAlive else BG_GRAY)
+		self.ui.secondComPortField.setStyleSheet(BG_GREEN if self.secondComPortAlive else BG_GRAY)
 
 		# fixed issue 41: handle USB hot-unplug case, in which port scanning resumes;
 		#  note that hot-plug takes 5 seconds or so to be recognized
 		if self.firstComPortFound:
-# 			self.ui.firstComPortField.setStyleSheet("background-color:#00bb00")
+# 			self.ui.firstComPortField.setStyleSheet(BG_GREEN)
 			waiting=0
 			try:
 				waiting=self.firstComPort.inWaiting()
@@ -869,12 +873,12 @@ class MyWindow(QDialog,Ui_Dialog):
 					LOG.debug("first com port unplugged")
 					self.firstComPortFound=False
 					self.firstComPortAlive=False
-					self.ui.firstComPortField.setStyleSheet("background-color:#bb0000")
+					self.ui.firstComPortField.setStyleSheet(BG_RED)
 			if waiting:
-				self.ui.firstComPortField.setStyleSheet("background-color:#00ff00")
+				self.ui.firstComPortField.setStyleSheet(BG_DARK_GREEN)
 				self.fsBuffer=self.fsBuffer+self.firstComPort.read(waiting).decode('utf-8')
 		if self.secondComPortFound:
-# 			self.ui.secondComPortField.setStyleSheet("background-color:#00bb00")
+# 			self.ui.secondComPortField.setStyleSheet(BG_GREEN)
 			waiting=0
 			try:
 				waiting=self.secondComPort.inWaiting()
@@ -883,9 +887,9 @@ class MyWindow(QDialog,Ui_Dialog):
 					LOG.debug("second com port unplugged")
 					self.secondComPortFound=False
 					self.secondComPortAlive=False
-					self.ui.secondComPortField.setStyleSheet("background-color:#bb0000")
+					self.ui.secondComPortField.setStyleSheet(BG_RED)
 			if waiting:
-				self.ui.secondComPortField.setStyleSheet("background-color:#00ff00")
+				self.ui.secondComPortField.setStyleSheet(BG_DARK_GREEN)
 				self.fsBuffer=self.fsBuffer+self.secondComPort.read(waiting).decode('utf-8')
 
 		# don't process fsMuted before this point: we need to read the com ports
