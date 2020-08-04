@@ -1,0 +1,315 @@
+= The Automation Tool
+
+In the devtools folder, there is a script called `radiolog_automation.py`.
+
+1. Start RadioLog running
+2. Open a separate CMD window.
+3. CD to the devtools folder
+4. Run radiolog_automation.py
+5. Choose between numeric teams (Team 2) or phonetic (Bravo)
+6. Click a button and watch a ghost type things into RadioLog for you.
+
+
+== Updating the Tool
+
+The code is divided into two classes: InspectorWindow(QWidget) and Automator().
+InspectorWindow is the tool's dialog box.
+Automator does the actual ghostly typing.
+
+
+=== How to Refer to the Controls in a Dialog
+
+To get a recursive dump of all of the controls within a window, use `<the window>.print_control_identifiers()`
+
+
+
+=== (Selected) Methods for Manipulating the Controls
+
+[width="100%",cols="2,4"]
+|===
+| All Controls  | .print_control_identifiers() -- see above
+|               | .type_keys(keystroke notation per below)
+|               | .click(), .double_click(), .right_click()
+|               | .close()
+|               | .minimize(), .maximize(), .restore()
+|               | .menu_select()
+|               | .move_mouse()
+|               | .move_window()
+|               | .set_focus()
+|               | .is_enabled()
+|               | .is_visible()
+| Edit (text)   | .set_edit_text(text)
+|               | .get_line()
+|               | .line_count()
+|               | .line_length()
+|               | .select()
+|               | .selection_indices()
+|               | .set_edit_text()
+|               | .set_window_text()
+|               | .text_block()
+| CheckBox      | .click() -- there is no .check/.uncheck
+| ComboBox      | .item_count()
+|               | .item_data()
+|               | .item_texts()
+|               | .select()
+|               | .selected_index()
+| Tabs          | .get_selected_tab()
+|               | .get_tab_state()
+|               | .get_tab_text()
+|               | .row_count()
+|               | .select()
+|               | .tab_count()
+|               | .tab_states()
+|===
+
+=== KeyStroke Codes (for use with .type_keys() )
+
+[width="100%",cols="2,4,4,2",options="header"]
+|===
+| Group
+| Normal Typing
+| Particular Keys
+| Notes
+
+| Shift Keys
+| {CAPSLOCK}/{CAP}, {VK_SHIFT}, {VK_CONTROL}, {VK_MENU}, {LWIN}, {RWIN}, {RMENU}
+| {VK_LSHIFT}, {VK_RSHIFT}, {VK_LMENU}, {VK_LCONTROL}, {VK_RCONTROL}, {VK_RWIN}, {VK_RMENU}
+| + == {VK_SHIFT}, ^ == {VK_CONTROL}, % == {VK_MENU} a.k.a. Alt key
+
+| Top Row
+| {ESC}, {SCROLLLOCK}, {BREAK}, {PRTSC}, {F1} thru {F24}
+| {VK_ESCAPE}, {VK_SCROLL}, {VK_PAUSE}, {VK_PRINT}, {VK_F1} thru {VK_F24}
+|
+
+| Number Pad
+|
+| {NUMLOCK}, {VK_NUMLOCK}, {VK_DIVIDE}, {VK_MULTIPLY}, {VK_SUBTRACT}, {VK_ADD}, {VK_DECIMAL}, {VK_NUMPAD0} thru {VK_NUMPAD9}
+|
+
+| Regular Text
+| A-Z, a-z, 0-9, (most punctuation)
+|
+| For a caret, use +6 (shift 6). For a tilde, use +`. For a plus sign, use +=, for a percent-sign use +5.
+
+| Editing
+| {SPACE}, {TAB}, {ENTER}, {INSERT}/{INS}, {BACKSPACE}/{BACK}/{BKSP}/{BS}, {DELETE}/{DEL}
+| {VK_SPACE}, {VK_TAB}, {VK_RETURN}, {VK_INSERT}, {VK_BACK}, {VK_DELETE}
+| ~ is a shortcut for {ENTER}
+
+| Cursor Movement
+| {UP}, {DOWN}, {LEFT}, {RIGHT}, {HOME}, {END}, {PGUP}, {PGDN}
+| {VK_UP}, {VK_DOWN}, {VK_LEFT}, {VK_RIGHT}, {VK_HOME}, {VK_END}, {VK_PGUP}, {VK_PGDN}
+|
+
+| Mouse
+|
+| {VK_LBUTTON}, {VK_RBUTTON}, {VK_MBUTTON}
+|
+
+| Media Controls
+|
+| {VK_PLAY}, {VK_NEXT}, {VK_PRIOR}
+|
+
+| Foreign Language (?)
+|
+| {VK_CRSEL}, {VK_EREOF}, {VK_EXSEL}, {VK_HANGEUL}, {VK_HANGUL}, {VK_HANJA}, {VK_JUNJA}, {VK_KANA}, {VK_KANJI}
+|
+
+| (Unknown)
+| {HELP}, {ZOOM}
+| {VK_ACCEPT}, {VK_APPS}, {VK_ATTN}, {VK_CANCEL}, {VK_CAPITAL}, {VK_CLEAR}, {VK_CONVERT}, {VK_EXECUTE}, {VK_FINAL}, {VK_HELP}, {VK_MODECHANGE}, {VK_NONAME}, {VK_NONCONVERT}, {VK_OEM_CLEAR}, {VK_PA1}, {VK_PROCESSKEY}, {VK_SELECT}, {VK_SEPARATOR}, {VK_SNAPSHOT}
+|
+
+|===
+
+
+== The RadioLog Dialogs
+
+
+[width="100%",cols="4,2",options="header"]
+|===
+| Window/Dialog                       | Class Name
+| Radio Log (main window)             | MyWindow
+| Radio Log - New Entry               | newEntryWindow
+| Clue Report                         | clueDialog
+| Clue Report                         | nonRadioClueDialog
+| Clue Log                            | clueLogDialog
+| Subject Located                     | subjectLocatedDialog
+| Print                               | printDialog
+| Radio Log - FleetSync Filter Setup  | fsFilterDialog
+| Change Operational Period           | opPeriodDialog
+| Options                             | optionsDialog
+| Help                                | helpWindow
+|===
+
+=== Radio Log (class = MyWindow)
+
+[source, Python]
+----
+
+r = pywinauto.application.Application(backend="uia").connect(title_re="Radio Log", class_name="MyWindow")
+
+r.RadioLog.type_keys("f") # Invoke the New Entry form (by way of the "From" shortcut key)
+self._target(r, "Dialog", "pushButton", "Button").click()  # Another way to invoke Add Entry
+
+r.RadioLog.NonRadioClue.click() # Invoke the non-radio clue form (by clicking on the non-radio clue button)
+self._target(r, "Dialog", "addNonRadioClueButton", "Button").click()  # Another way to invoke the non-radio clue form
+
+self._target(r, "Dialog", "comPortLayoutWidget.fsCheckBox", "CheckBox").click()  # Toggle FS usage
+self._target(r, "Dialog", "opPeriodButton", "Button").click()  # Invoke the form that bumps to a new operational period
+self._target(r, "Dialog", "clueLogButton", "Button").click()  #  Open the clue log window
+self._target(r, "Dialog", "helpButton", "Button").click() #  Open the help window
+self._target(r, "Dialog", "optionsButton", "Button").click()  #  Open the options window (e.g. Incident name)
+self._target(r, "Dialog", "fsFilterButton", "Button").click()  # Invoke filtering of the FS data
+self._target(r, "Dialog", "printButton", "Button").click() # Open the print dialog
+
+
+----
+
+
+
+=== Radio Log - New Entry (class = newEntryWindow)
+
+[source, Python]
+----
+WIDGET_NEW_ENTRY = "newEntryWindow.tabWidget.qt_tabwidget_stackedwidget.newEntryWidget"
+
+self._target(dlg, WIDGET_NEW_ENTRY, "to_fromField", "ComboBox")
+self._target(dlg, WIDGET_NEW_ENTRY, "teamField", "Edit")
+self._target(dlg, WIDGET_NEW_ENTRY, "messageField", "Edit")
+self._target(dlg, WIDGET_NEW_ENTRY, "teamComboBox", "ComboBox")
+self._target(dlg, WIDGET_NEW_ENTRY, "radioLocField", "Edit")
+self._target(dlg, WIDGET_NEW_ENTRY, "relayedCheckBox", "CheckBox")
+self._target(dlg, WIDGET_NEW_ENTRY, "relayedByComboBox", "ComboBox")
+self._target(dlg, WIDGET_NEW_ENTRY, "timeField", "Edit")
+
+dlg.type_keys("{F1}")  # [F1] DEPARTING IC
+dlg.type_keys("{F2}")  # [F2] STARTING ASSIGNMENT
+dlg.type_keys("{F3}")  # [F3] COMPLETED ASSIGNMENT
+dlg.type_keys("{F4}")  # [F4] ENROUTE TO IC
+dlg.type_keys("{F5}")  # [F5] REQUESTING TRANSPORT
+dlg.type_keys("{F6}")  # [F6] AT IC
+dlg.type_keys("{F7}")  # [F7] RADIO CHECK: OK
+dlg.type_keys("{F8}")  # [F8] WELFARE CHECK: OK
+dlg.type_keys("{F9}")  # [F9] STANDBY
+dlg.type_keys("{F10}")  # [F10] LOCATED A CLUE
+dlg.type_keys("{F11}")  # [F11] SUBJECT LOCATED
+dlg.type_keys("{F12}")  # [F12] REQUESTING DEPUTY
+
+
+self._target(dlg, WIDGET_NEW_ENTRY, "statusGroupBox.at_icField", "RadioButton")
+self._target(dlg, WIDGET_NEW_ENTRY, "statusGroupBox.availableField", "RadioButton")
+self._target(dlg, WIDGET_NEW_ENTRY, "statusGroupBox.availableField_2", "RadioButton")
+self._target(dlg, WIDGET_NEW_ENTRY, "statusGroupBox.in_transitField", "RadioButton")
+self._target(dlg, WIDGET_NEW_ENTRY, "statusGroupBox.standbyField", "RadioButton")
+self._target(dlg, WIDGET_NEW_ENTRY, "statusGroupBox.waitingForTransportField", "RadioButton")
+self._target(dlg, WIDGET_NEW_ENTRY, "statusGroupBox.workingField", "RadioButton")
+
+dlg.OK.click() # same as dlg.type_keys("{ENTER}")
+dlg.Cancel.click()
+dlg.Close.click()
+----
+
+
+
+=== Clue Report (class = clueDialog)
+
+[source, Python]
+----
+WIDGET_CLUE= "clueDialog"
+
+self._target(dlg, WIDGET_CLUE, "descriptionField", "Edit")
+self._target(dlg, WIDGET_CLUE, "groupBox.radioLocField", "Edit")
+self._target(dlg, WIDGET_CLUE, "instructionsField", "Edit")
+self._target(dlg, WIDGET_CLUE, "locationField", "Edit")
+self._target(dlg, WIDGET_CLUE, "groupBox.timeField", "Edit")
+self._target(dlg, WIDGET_CLUE, "groupBox.dateField", "Edit")
+self._target(dlg, WIDGET_CLUE, "clueNumberField", "Edit")
+self._target(dlg, WIDGET_CLUE, "groupBox.callsignField", "Edit")
+self._target(dlg, WIDGET_CLUE, "clueReportPrintCheckBox", "CheckBox")
+
+dlg.type_keys("{F1}")    # [F1] COLLECT
+dlg.type_keys("{F2}")    # [F2] MARK & LEAVE
+dlg.type_keys("{F3}")    # [F3] DISREGARD
+dlg.type_keys("{F4}")    # [F4] HOLD POSITION
+dlg.type_keys("{F5}")    # [F5] PROTECT THE CLUE
+dlg.type_keys("{F6}")    # [F6] STANDBY
+
+dlg.OK.click() # same as dlg.type_keys("{ENTER}")
+dlg.Cancel.click()
+dlg.Close.click()
+----
+
+
+
+
+
+
+=== Clue Report (class = nonRadioClueDialog)
+
+[source, Python]
+----
+WIDGET = ""
+----
+
+
+=== Clue Log (class = clueLogDialog)
+
+[source, Python]
+----
+WIDGET = ""
+----
+
+
+
+=== Subject Located (class = subjectLocatedDialog)
+
+[source, Python]
+----
+WIDGET = ""
+----
+
+=== Print (class = printDialog)
+
+[source, Python]
+----
+WIDGET = ""
+----
+
+
+
+=== Radio Log - FleetSync Filter Setup (class = fsFilterDialog)
+
+[source, Python]
+----
+WIDGET = ""
+----
+
+
+
+=== Change Operational Period (class = opPeriodDialog)
+
+[source, Python]
+----
+WIDGET = ""
+----
+
+
+=== Options (class = optionsDialog)
+
+[source, Python]
+----
+WIDGET = ""
+----
+
+
+
+=== Help (class = helpWindow)
+
+[source, Python]
+----
+WIDGET = ""
+----
+
+

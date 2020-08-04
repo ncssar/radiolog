@@ -7,175 +7,251 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
+PHONETIC_LIST = ["Alpha","Bravo","Charlie","Delta","Echo","Foxtrot","Golf","Hotel","India","Juliet","Kilo","Lima","Mike","November","Oscar","Papa","Quebec","Romeo","Sierra","Tango","Uniform","Victor","Whiskey","Xray","Yankee","Zulu"]
+PHONETIC_DICT = {"A": "Alpha","B": "Bravo","C": "Charlie","D": "Delta","E": "Echo","F": "Foxtrot","G": "Golf","H": "Hotel","I": "India","J": "Juliet","K": "Kilo","L": "Lima","M": "Mike","N": "November","O": "Oscar","P": "Papa","Q": "Quebec","R": "Romeo","S": "Sierra","T": "Tango","U": "Uniform","V": "Victor","W": "Whiskey","X": "Xray","Y": "Yankee","Z": "Zulu"}
+
+BUTTON_WIDTH = 250
+BUTTON_HEIGHT = 24
+VERTICAL_SPACING = BUTTON_HEIGHT+5
+HORIZONTAL_SPACING = BUTTON_WIDTH+10
 
 def main():
-    """
-    This script puts RadioLog through its paces.
-    1. Start Radiolog running, if not already.
-    2. Click a button to invoke the corresponding action
-    """
-    app = QApplication(sys.argv)
-    w = InspectorWindow()
-    w.show()
-    sys.exit(app.exec_())
+	"""
+	This script puts RadioLog through its paces.
+	1. Start Radiolog running, if not already.
+	2. Click a button to invoke the corresponding action
+	"""
+	app = QApplication(sys.argv)
+	w = InspectorWindow()
+	w.show()
+	sys.exit(app.exec_())
 
 
 class InspectorWindow(QWidget):
-    def __init__(self, *args):
-        QWidget.__init__(self, *args)
+	def __init__(self, *args):
+		QWidget.__init__(self, *args)
 
-        self.rlog = Automator()
+		self.paces = Automator(self)
 
-        self.setLocale(QLocale(QLocale.English, QLocale.UnitedStates))
-        self.setWindowTitle("RadioLog Automation")
-        self.setMinimumSize(350,500)
+		self.setLocale(QLocale(QLocale.English, QLocale.UnitedStates))
+		self.setWindowTitle("RadioLog Automation")
+		self.setMinimumSize(350,500)
 
-        self.central_widget = QWidget(self)
+		self.central_widget = QWidget(self)
 
-        self.btnDeployNumeric = self.add_action_button(
-            name="Deploy 3 Teams (Numeric)", parent=self.central_widget, x=10, y=10, callback=self.rlog.deployNumeric,
-            tip="Add several entries to the log (radio checks, and team departing) -- using Team 1, Team 2, ...")
+		col = 0
+		slot = 0
+		self.chkPhonetic = self.add_checkbox("Use phonetic team names", parent=self.central_widget, horiz=col, vert=slot,
+			tip="Use team names like Team Alpha, Team Bravo, ... (instead of Team 1, Team 2, ...)")
 
-        self.btnDeployAlpha = self.add_action_button(
-            name="Deploy 3 Teams (Phonetic)", parent=self.central_widget, x=10, y=30, callback=self.rlog.deployAlpha,
-            tip="Add several new simple entries to the log (radio checks, and team departing) -- using Team Alpha, Team Bravo, ...")
+		slot += 1
+		self.btnDeployTeams = self.add_action_button(
+			name="Deploy 3 Teams", parent=self.central_widget, horiz=col, vert=slot, callback=self.paces.deployTeams,
+			tip="Add several entries to the log (radio checks, and team departing) -- using Team 1, Team 2, ...")
 
-        self.btnTeamClue = self.add_action_button(
-            name="Add a Team-Found Clue", parent=self.central_widget, x=10, y=50, callback=self.rlog.teamClue,
-            tip="Add an entry that Team 1 found a clue")
+		slot += 1
+		self.btnTeamClue = self.add_action_button(
+			name="Add a Team-Found Clue", parent=self.central_widget, horiz=col, vert=slot, callback=self.paces.teamClue,
+			tip="Add an entry that Team 1 found a clue")
 
-        self.btnTeamClue = self.add_action_button(
-            name="Add a Non-Radio Clue", parent=self.central_widget, x=10, y=50, callback=self.rlog.nonRadioClue,
-            tip="Add an entry that a second source found a clue")
+		slot += 1
+		self.btnNonRadioClue = self.add_action_button(
+			name="Add a Non-Radio Clue", parent=self.central_widget, horiz=col, vert=slot, callback=self.paces.nonRadioClue,
+			tip="Add an entry that a second source found a clue")
+
+		slot += 1
+		self.btnOpPeriodAction = self.add_action_button(
+			name="", parent=self.central_widget, horiz=col, vert=slot, callback=self.paces.opPeriodAction,
+			tip="Invoke the form that bumps to a new operational period")
+
+		slot += 1
+		self.btnClueLogAction = self.add_action_button(
+			name="", parent=self.central_widget, horiz=col, vert=slot, callback=self.paces.clueLogAction,
+			tip="Open the clue log window")
+
+		slot += 1
+		self.btnHelpAction = self.add_action_button(
+			name="", parent=self.central_widget, horiz=col, vert=slot, callback=self.paces.helpAction,
+			tip="Open the help window")
+
+		slot += 1
+		self.btnOptionsAction = self.add_action_button(
+			name="", parent=self.central_widget, horiz=col, vert=slot, callback=self.paces.optionsAction,
+			tip="Open the options window (e.g. Incident name)")
+
+		slot += 1
+		self.btnFsFilterAction = self.add_action_button(
+			name="", parent=self.central_widget, horiz=col, vert=slot, callback=self.paces.fsFilterAction,
+			tip="Invoke filtering of the FS data")
+
+		slot += 1
+		self.btnPrintAction = self.add_action_button(
+			name="", parent=self.central_widget, horiz=col, vert=slot, callback=self.paces.printAction,
+			tip="Open the print dialog")
 
 
-    def add_action_button(self, name, parent, x, y, callback, tip):
-        normalized_name = re.sub(r"[^A-Za-z0-9]+","",name)
-        btn = QPushButton(parent)
-        btn.setText(name)
-        btn.setGeometry(QRect(x, y, 300, 22))
-        btn.setMouseTracking(False)
-        btn.setObjectName("btn" + normalized_name)
-        btn.pressed.connect(callback)
-        btn.setToolTip(tip)
-        return btn
+
+		slot += 2
+		self.btnExit = self.add_action_button(
+			name="Exit Wihtout Printing", parent=self.central_widget, horiz=col, vert=slot, callback=self.paces.exitWihtoutPrinting,
+			tip="Exit wihtout printing")
+
+
+	def add_checkbox(self, name, parent, horiz, vert, tip):
+		normalized_name = re.sub(r"[^A-Za-z0-9]+","",name)
+		chk = QCheckBox(parent)
+		chk.setText(name)
+		chk.setGeometry(QRect(horiz * HORIZONTAL_SPACING + 10, vert * VERTICAL_SPACING + 10, BUTTON_WIDTH, BUTTON_HEIGHT))
+		chk.setMouseTracking(False)
+		chk.setObjectName("chk" + normalized_name)
+		chk.setToolTip(tip)
+		return chk
+
+	def add_action_button(self, name, parent, horiz, vert, callback, tip):
+		normalized_name = re.sub(r"[^A-Za-z0-9]+","",name)
+		btn = QPushButton(parent)
+		btn.setText(name)
+		btn.setGeometry(QRect(horiz * HORIZONTAL_SPACING + 10, vert * VERTICAL_SPACING + 10, BUTTON_WIDTH, BUTTON_HEIGHT))
+		btn.setMouseTracking(False)
+		btn.setObjectName("btn" + normalized_name)
+		btn.pressed.connect(callback)
+		btn.setToolTip(tip)
+		return btn
+
+NEW_ENTRY = "newEntryWindow.tabWidget.qt_tabwidget_stackedwidget.newEntryWidget"
+CLUE_ENTRY = "clueDialog"
+NON_RADIO_CLUE = "nonRadioClueDialog"
+
+
 
 class Automator():
-    def __init__(self) -> None:
-        self.radiolog = pwaApp(backend="uia").connect(title_re="Radio Log", class_name="MyWindow")
-        """
-        {SCROLLLOCK}, {VK_SPACE}, {VK_LSHIFT}, {VK_PAUSE}, {VK_MODECHANGE},
-        {BACK}, {VK_HOME}, {F23}, {F22}, {F21}, {F20}, {VK_HANGEUL}, {VK_KANJI},
-        {VK_RIGHT}, {BS}, {HOME}, {VK_F4}, {VK_ACCEPT}, {VK_F18}, {VK_SNAPSHOT},
-        {VK_PA1}, {VK_NONAME}, {VK_LCONTROL}, {ZOOM}, {VK_ATTN}, {VK_F10}, {VK_F22},
-        {VK_F23}, {VK_F20}, {VK_F21}, {VK_SCROLL}, {TAB}, {VK_F11}, {VK_END},
-        {LEFT}, {VK_UP}, {NUMLOCK}, {VK_APPS}, {PGUP}, {VK_F8}, {VK_CONTROL},
-        {VK_LEFT}, {PRTSC}, {VK_NUMPAD4}, {CAPSLOCK}, {VK_CONVERT}, {VK_PROCESSKEY},
-        {ENTER}, {VK_SEPARATOR}, {VK_RWIN}, {VK_LMENU}, {VK_NEXT}, {F1}, {F2},
-        {F3}, {F4}, {F5}, {F6}, {F7}, {F8}, {F9}, {VK_ADD}, {VK_RCONTROL},
-        {VK_RETURN}, {BREAK}, {VK_NUMPAD9}, {VK_NUMPAD8}, {RWIN}, {VK_KANA},
-        {PGDN}, {VK_NUMPAD3}, {DEL}, {VK_NUMPAD1}, {VK_NUMPAD0}, {VK_NUMPAD7},
-        {VK_NUMPAD6}, {VK_NUMPAD5}, {DELETE}, {VK_PRIOR}, {VK_SUBTRACT}, {HELP},
-        {VK_PRINT}, {VK_BACK}, {CAP}, {VK_RBUTTON}, {VK_RSHIFT}, {VK_LWIN}, {DOWN},
-        {VK_HELP}, {VK_NONCONVERT}, {BACKSPACE}, {VK_SELECT}, {VK_TAB}, {VK_HANJA},
-        {VK_NUMPAD2}, {INSERT}, {VK_F9}, {VK_DECIMAL}, {VK_FINAL}, {VK_EXSEL},
-        {RMENU}, {VK_F3}, {VK_F2}, {VK_F1}, {VK_F7}, {VK_F6}, {VK_F5}, {VK_CRSEL},
-        {VK_SHIFT}, {VK_EREOF}, {VK_CANCEL}, {VK_DELETE}, {VK_HANGUL}, {VK_MBUTTON},
-        {VK_NUMLOCK}, {VK_CLEAR}, {END}, {VK_MENU}, {SPACE}, {BKSP}, {VK_INSERT},
-        {F18}, {F19}, {ESC}, {VK_MULTIPLY}, {F12}, {F13}, {F10}, {F11}, {F16},
-        {F17}, {F14}, {F15}, {F24}, {RIGHT}, {VK_F24}, {VK_CAPITAL}, {VK_LBUTTON},
-        {VK_OEM_CLEAR}, {VK_ESCAPE}, {UP}, {VK_DIVIDE}, {INS}, {VK_JUNJA},
-        {VK_F19}, {VK_EXECUTE}, {VK_PLAY}, {VK_RMENU}, {VK_F13}, {VK_F12}, {LWIN},
-        {VK_DOWN}, {VK_F17}, {VK_F16}, {VK_F15}, {VK_F14}
+	def __init__(self, parent) -> None:
+		self.parent = parent
+		try:
+			self.radiolog = pwaApp(backend="uia").connect(title_re="Radio Log", class_name="MyWindow")
+		except:
+			print("\nERROR: RadioLog must be running already.\n")
+			sys.exit(1)
 
-        Aliases:
-        ~: {ENTER}
-        +: {VK_SHIFT}
-        ^: {VK_CONTROL}
-        %: {VK_MENU} a.k.a. Alt key
+	def _target(self, dlg, prefix, control_id, control_type):
+		return dlg.child_window(auto_id=prefix + "." + control_id, control_type=control_type)
 
-        """
+	def _team_name(self,team_no):
+		if self.parent.chkPhonetic.isChecked():
+			return PHONETIC_LIST[team_no-1]
+		else:
+			return "Team "+str(team_no)
 
-    def deployNumeric(self):
-        print("Clicked deployNumeric")
-        rlog = self.radiolog
-        rlog.RadioLog.type_keys("1")
-        rlog.NewEntry.type_keys("{TAB}Radio check: OK~")
 
-        rlog.RadioLog.type_keys("2")
-        rlog.NewEntry.type_keys("{TAB}Radio check: OK~")
+	def deployTeams(self):
+		r = self.radiolog
+		r.RadioLog.type_keys("f")
+		dlg = r.NewEntry
+		self._target(dlg, NEW_ENTRY, "teamField", "Edit").set_edit_text(self._team_name(1))
+		self._target(dlg, NEW_ENTRY, "messageField", "Edit").set_edit_text("Radio check: OK")
+		dlg.type_keys("{ENTER}")
 
-        rlog.RadioLog.type_keys("1")
-        rlog.NewEntry.type_keys("{TAB}Departing IC~")
+		r.RadioLog.type_keys("f")
+		dlg = r.NewEntry
+		self._target(dlg, NEW_ENTRY, "teamField", "Edit").set_edit_text(self._team_name(2))
+		self._target(dlg, NEW_ENTRY, "messageField", "Edit").set_edit_text("Radio check: OK")
+		dlg.type_keys("{ENTER}")
 
-        rlog.RadioLog.type_keys("3")
-        rlog.NewEntry.type_keys("{TAB}Radio check: OK~")
+		r.RadioLog.type_keys("f")
+		dlg = r.NewEntry
+		self._target(dlg, NEW_ENTRY, "teamField", "Edit").set_edit_text(self._team_name(1))
+		self._target(dlg, NEW_ENTRY, "messageField", "Edit").set_edit_text("Departing IC")
+		dlg.type_keys("{ENTER}")
 
-        rlog.RadioLog.type_keys("3")
-        rlog.NewEntry.type_keys("{TAB}Departing IC~")
+		r.RadioLog.type_keys("f")
+		dlg = r.NewEntry
+		self._target(dlg, NEW_ENTRY, "teamField", "Edit").set_edit_text(self._team_name(3))
+		self._target(dlg, NEW_ENTRY, "messageField", "Edit").set_edit_text("Radio check: OK")
+		dlg.type_keys("{ENTER}")
 
-        return
+		r.RadioLog.type_keys("f")
+		dlg = r.NewEntry
+		self._target(dlg, NEW_ENTRY, "teamField", "Edit").set_edit_text(self._team_name(3))
+		self._target(dlg, NEW_ENTRY, "messageField", "Edit").set_edit_text("Departing IC")
+		dlg.type_keys("{ENTER}")
 
-    def deployAlpha(self):
-        print("Clicked deployAlpha")
-        rlog = self.radiolog
 
-    def teamClue(self):
-        print("Clicked teamClue")
-        rlog = self.radiolog
-        rlog.RadioLog.type_keys("1")
-        dlg = rlog.NewEntry
-        dlg.print_control_identifiers()
-        dlg.type_keys("{F10}")
-        dlg.type_keys("Candy wrapper{TAB}")
-        dlg.type_keys("12345 E 98765 N{TAB}")
-        dlg.type_keys("Mark & leave")
-        dlg.OK.click()
-        return
+	def teamClue(self):
+		r = self.radiolog
+		r.RadioLog.type_keys("f")
+		dlg1 = r.NewEntry
+		self._target(dlg1, NEW_ENTRY, "teamField", "Edit").set_edit_text(self._team_name(3))
+		dlg1.type_keys("{F10}")  # [F10] LOCATED A CLUE
 
-    def nonRadioClue(self):
-        print("Clicked nonRadioClue")
-        rlog = self.radiolog
-        rlog.RadioLog.NonRadioClue.click()
-        dlg = rlog.ClueReport
-        # dlg.print_control_identifiers()
-        dlg.child_window(auto_id="nonRadioClueDialog.groupBox.callsignField", control_type="Edit").type_keys("Ranger")
-        dlg.child_window(auto_id="nonRadioClueDialog.descriptionField", control_type="Edit").set_edit_text("Water bottle (Sparklets)")
-        dlg.child_window(title="Print a Clue Report Form as soon as this clue is saved", auto_id="nonRadioClueDialog.clueReportPrintCheckBox", control_type="CheckBox").click()
-        return
+		dlg = r.ClueReport
+		# dlg.print_control_identifiers()
+		self._target(dlg, CLUE_ENTRY, "descriptionField", "Edit").set_edit_text("Candy Wrapper")
+		self._target(dlg, CLUE_ENTRY, "locationField", "Edit").set_edit_text("12345 E 98765 N")
+		# self._target(dlg, CLUE_ENTRY, "instructionsField", "Edit").set_edit_text("Mark & leave")
+		dlg.type_keys("{F2}")    # [F2] MARK & LEAVE
+
+		# We DO NOT want to print a report! So, let's uncheck this.
+		self._target(dlg, CLUE_ENTRY, "clueReportPrintCheckBox", "CheckBox").click()
+		dlg.OK.click() # same as dlg.type_keys("{ENTER}")
+
+
+	def nonRadioClue(self):
+		r = self.radiolog
+		r.RadioLog.NonRadioClue.click()
+
+		dlg = r.ClueReport
+
+		self._target(dlg, NON_RADIO_CLUE, "groupBox.callsignField", "Edit").type_keys("Ranger")
+		self._target(dlg, NON_RADIO_CLUE, "descriptionField", "Edit").set_edit_text("Water bottle (Sparklets)")
+
+		# We DO NOT want to print a report! So, let's uncheck this.
+		self._target(dlg, NON_RADIO_CLUE, "clueReportPrintCheckBox", "CheckBox").click()
+		dlg.OK.click() # same as dlg.type_keys("{ENTER}")
+
+	def opPeriodAction(self):
+		r = self.radiolog
+		self._target(r, "Dialog", "opPeriodButton", "Button").click()  # Invoke the form that bumps to a new operational period
+		dlg = r.ClueReport
+		dlg.print_control_identifiers()
+
+	def clueLogAction(self):
+		r = self.radiolog
+		self._target(r, "Dialog", "clueLogButton", "Button").click()  # Open the clue log window
+		dlg = r.ClueLog
+		dlg.print_control_identifiers()
+
+	def helpAction(self):
+		r = self.radiolog
+		self._target(r, "Dialog", "helpButton", "Button").click()  # Open the help window
+		dlg = r.Help
+		dlg.print_control_identifiers()
+
+	def optionsAction(self):
+		r = self.radiolog
+		self._target(r, "Dialog", "optionsButton", "Button").click()  # Open the options window (e.g. Incident name)
+		dlg = r.Options
+		dlg.print_control_identifiers()
+
+	def fsFilterAction(self):
+		r = self.radiolog
+		self._target(r, "Dialog", "fsFilterButton", "Button").click()  # Invoke filtering of the FS data
+		dlg = r.Filter
+		dlg.print_control_identifiers()
+
+	def printAction(self):
+		r = self.radiolog
+		self._target(r, "Dialog", "printButton", "Button").click()  # Open the print dialog
+		dlg = r.Print
+		dlg.print_control_identifiers()
+
+
+
+
+	def exitWihtoutPrinting(self):
+		r = self.radiolog
+		r.RadioLog.print_control_identifiers()
 
 if __name__ == "__main__":
-    main()
+	main()
 
 
-"""
-
-
-rlog.RadioLog {
-	mainform = Radio Log ahk_class Qt5150QWindowIcon
-	WinWait, %mainform%
-	IfWinNotActive, %mainform%,, WinActivate, %mainform%
-	return
-}
-
-Wait4EntryForm() {
-	entryform = Radio Log - New Entry ahk_class Qt5150QWindowIcon
-	WinWait, %entryform%
-	IfWinNotActive, %entryform%,, WinActivate, %entryform%
-	return
-}
-
-rlog.ClueEntry {
-	clueform = Clue Report ahk_class Qt5150QWindowIcon
-	WinWait, %clueform%
-	IfWinNotActive, %clueform%,, WinActivate, %clueform%
-	return
-}
-
-
-
-
-
-
-
-"""
