@@ -1,4 +1,5 @@
 import argparse
+from utility.logger import INFO, DIAGNOSTIC, DEBUG, TRACE
 
 __version__ = "2.0.2"
 

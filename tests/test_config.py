@@ -1,14 +1,16 @@
 import logging
 import sys
 from utility.logger import setup_logging
-from app.config import loadConfig
+from app.config import load_config
 from app.logic.mapping import Datum, CoordFormat
 from pathlib import Path
 from app.logic.exceptions import  RadioLogConfigError
 from typing import List
 
 def test_config_all_defaults():
-	config = loadConfig("")
+	setup_logging.cache_clear()
+	log = setup_logging("RadioLog", logfile=None, nocolor=True)
+	config = load_config(ini="")
 
 	assert config.agencyName == 'Search and Rescue'
 	assert config.logo == Path('radiolog_logo.jpg')
@@ -43,7 +45,9 @@ cluereport = fabclue.pdf
 firstworkingdir = C:\\ir
 secondworkingdir = E:\\fab
 	"""
-	config = loadConfig(ini)
+	setup_logging.cache_clear()
+	log = setup_logging("RadioLog", logfile=None, nocolor=True)
+	config = load_config(ini=ini)
 
 	assert config.agencyName == 'International Rescue'
 	assert config.logo == Path('thunderbirds.png')
@@ -65,8 +69,9 @@ datum = XXX
 coordformat = XXX
 	"""
 	sys.stderr.write("==START==\n")
+	setup_logging.cache_clear()
 	log = setup_logging("RadioLog", logfile=None, nocolor=True)
-	config = loadConfig(ini)
+	config = load_config(ini=ini)
 	sys.stderr.write("==END==")
 	captured = capsys.readouterr()
 	assert captured.out == ""
