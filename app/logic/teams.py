@@ -1,8 +1,7 @@
 import re
 import logging
-import utility.logging_helpers
 
-LOG = utility.logging_helpers.getLogger()
+LOG = logging.getLogger("RadioLog")
 
 PHONETIC_DICT = {"A": "Alpha",
                  "B": "Bravo",

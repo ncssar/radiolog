@@ -1,7 +1,8 @@
 from app.logic.mapping import Datum, CoordFormat, DecimalDegrees, CRSCode
-import utility.logging_helpers
+import logging
 
-LOG = utility.logging_helpers.getLogger()
+LOG = logging.getLogger("RadioLog")
+
 
 def test_possibleValues():
 	assert Datum.possibleValues() == "WGS84, NAD27"

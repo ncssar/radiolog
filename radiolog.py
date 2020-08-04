@@ -69,6 +69,8 @@ import win32con
 import shutil
 import math
 import textwrap
+from typing import Optional
+from pathlib import Path
 from reportlab.lib import colors,utils
 from reportlab.lib.pagesizes import letter,landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
@@ -77,7 +79,7 @@ from reportlab.lib.units import inch
 from fdfgen import forge_fdf
 from FingerTabs import *
 import utility.command_line
-import utility.logging_helpers
+from utility.logger import setup_logging, INFO, DIAGNOSTIC, DEBUG, TRACE
 import utility.file_management
 from utility.misc_functions import *
 from pyproj import Transformer
@@ -85,11 +87,10 @@ from app.logic.teams import *
 from app.logic.exceptions import *
 
 # process command-line arguments
-switches = utility.command_line.CommandLineSwitches()
-switches.parse(sys.argv)
+SWITCHES = utility.command_line.parse_args(sys.argv[1:])
 
 # TODO Autodetect the screen resolution, but still allow a command line switch to override
-if switches.minMode:
+if SWITCHES.minmode:
 	from radiolog_min_ui import Ui_Dialog # built to look decent at 800x600
 else:
 	from radiolog_ui import Ui_Dialog # normal version, for higher resolution
@@ -165,7 +166,11 @@ lastClueNumber=0
 ##	"separator",
 ##	["REQUESTING DEPUTY",Qt.Key_F11]]
 
-LOG = utility.logging_helpers.getLogger()
+logfilepath:Optional[Path] = None
+if not SWITCHES.nologfile:
+	logfilepath = Path(SWITCHES.logfile)
+setup_logging("RadioLog", loglevel = SWITCHES.loglevel, logfile = logfilepath, nocolor = SWITCHES.nocolor)
+LOG = logging.getLogger("RadioLog")
 ICON_ERROR = QMessageBox.Critical
 ICON_WARN = QMessageBox.Warning
 
@@ -227,7 +232,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsLog=[]
 # 		self.fsLog.append(['','','','',''])
 		self.fsMuted=False
-		self.noSend=switches.noSend
+		self.noSend = SWITCHES.nosend
 		self.fsMutedBlink=False
 		self.fsFilterBlinkState=False
 		self.getString=""
@@ -274,7 +279,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# resource file / 'rc file' (e.g. ./radiolog_rc.txt) stores the search-specific
 		#  options settings; it is read at radiolog startup, and is written
 		#  whenever the options dialog is accepted
-		self.configFileName="./local/radiolog.cfg"
+		self.configFileName = SWITCHES.configfile
 		self.readConfigFile() # defaults are set inside readConfigFile
 
 		# set the default lookup name - this must be after readConfigFile
@@ -360,7 +365,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.secondComPortFound=False
 		self.comPortScanInProgress=False
 		self.comPortTryList=[]
-##		if switches.develMode:
+##		if SWITCHES.develMode:
 ##			self.comPortTryList=[serial.Serial("\\\\.\\CNCB0")] # DEVEL
 		self.fsBuffer=""
 		self.entryHold=False
@@ -608,7 +613,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.secondWorkingDir=os.path.expanduser(self.secondWorkingDir)
 
 		if not os.path.isdir(self.firstWorkingDir):
-			raise FatalAppError("Configuration error: The specified first working directory '{0}' does not exist.".format(self.firstWorkingDir))
+			raise RadioLogError("Configuration error: The specified first working directory '{0}' does not exist.".format(self.firstWorkingDir))
 
 		if self.use2WD and self.secondWorkingDir and not os.path.isdir(self.secondWorkingDir):
 			configErr+="ERROR: second working directory '"+self.secondWorkingDir+"' does not exist.  Maybe it is not mounted yet; radiolog will try to write to it after every entry.\n\n"
@@ -649,8 +654,8 @@ class MyWindow(QDialog,Ui_Dialog):
  							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			self.configErrMsgBox.exec_()
 
-		if switches.develMode:
-			self.sarsoftServerName="localhost" # DEVEL
+		if SWITCHES.devmode:
+			self.sarsoftServerName = "localhost" # DEVEL
 
 
 	def rotateCsvBackups(self,filenames):
@@ -1141,7 +1146,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		return False
 
 	def fsLoadLookup(self,startupFlag=False,fsFileName=None,hideWarnings=False):
-		LOG.debug("(trace) fsLoadLookup called: startupFlag="+str(startupFlag)+"  fsFileName="+str(fsFileName)+"  hideWarnings="+str(hideWarnings))
+		LOG.trace("fsLoadLookup called: startupFlag="+str(startupFlag)+"  fsFileName="+str(fsFileName)+"  hideWarnings="+str(hideWarnings))
 		if not startupFlag and not fsFileName: # don't ask for confirmation on startup or on restore
 			really=QMessageBox(QMessageBox.Warning,'Please Confirm','Are you sure you want to reload the default FleetSync lookup table?  This will overwrite any callsign changes you have made.',
 				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
@@ -1156,7 +1161,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		if not fsFileName:
 			fsFileName=self.fsFileName
 		try:
-			LOG.debug("(trace) trying "+fsFileName)
+			LOG.trace("trying "+fsFileName)
 			with open(fsFileName,'r') as fsFile:
 				LOG.info("Loading FleetSync Lookup Table from file "+fsFileName)
 				self.fsLookup=[]
@@ -1190,7 +1195,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		fsName=fsName.replace(".csv","_fleetsync.csv")
 		try:
 			with open(fsName,'w',newline='') as fsFile:
-				LOG.debug("(trace) Writing file "+fsName)
+				LOG.trace("Writing file "+fsName)
 				csvWriter=csv.writer(fsFile)
 				csvWriter.writerow(["## Radio Log FleetSync lookup table"])
 				csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
@@ -1468,9 +1473,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		LOG.debug("Pagesize:"+str(doc.pagesize))
 		t.drawOn(canvas,doc.leftMargin,doc.pagesize[1]-h-0.5*inch) # enforce a 0.5 inch top margin regardless of paper size
 ##		canvas.grid([x*inch for x in [0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10,10.5,11]],[y*inch for y in [0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5]])
-		LOG.debug("(trace) done drawing printLogHeaderFooter canvas")
+		LOG.trace("done drawing printLogHeaderFooter canvas")
 		canvas.restoreState()
-		LOG.debug("(trace) end of printLogHeaderFooter")
+		LOG.trace("end of printLogHeaderFooter")
 
 	# optonal argument 'teams': if True, generate one pdf of all individual team logs;
 	#  so, this function should be called once to generate the overall log pdf, and
@@ -1616,16 +1621,16 @@ class MyWindow(QDialog,Ui_Dialog):
 		LOG.debug("Height:"+str(h))
 		LOG.debug("Pagesize:"+str(doc.pagesize))
 		t.drawOn(canvas,doc.leftMargin,doc.pagesize[1]-h-0.5*inch) # enforce a 0.5 inch top margin regardless of paper size
-		LOG.debug("(trace) done drawing printClueLogHeaderFooter canvas")
+		LOG.trace("done drawing printClueLogHeaderFooter canvas")
 ##		canvas.grid([x*inch for x in [0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10,10.5,11]],[y*inch for y in [0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5]])
 		canvas.restoreState()
-		LOG.debug("(trace) end of printClueLogHeaderFooter")
+		LOG.trace("end of printClueLogHeaderFooter")
 
 	def printClueLog(self,opPeriod):
 ##      header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
 		opPeriod=int(opPeriod)
 		clueLogPdfFileName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clueLog_OP"+str(opPeriod)+".pdf")
-		LOG.debug("(trace) generating clue log pdf: "+clueLogPdfFileName)
+		LOG.trace("generating clue log pdf: "+clueLogPdfFileName)
 		try:
 			f=open(clueLogPdfFileName,"wb")
 		except:
@@ -1669,7 +1674,7 @@ class MyWindow(QDialog,Ui_Dialog):
 # 			self.clueLogMsgBox.setInformativeText("Finalizing and Printing...")
 			win32api.ShellExecute(0,"print",clueLogPdfFileName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
 			if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-				LOG.debug("(trace) copying clue log pdf to "+self.secondWorkingDir)
+				LOG.trace("copying clue log pdf to "+self.secondWorkingDir)
 				shutil.copy(clueLogPdfFileName,self.secondWorkingDir)
 # 		else:
 # 			self.clueLogMsgBox.setText("No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.")
@@ -1693,7 +1698,7 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
 		# do not use ui object here, since this could be called later, when the clueDialog is not open
 		cluePdfName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clue"+str(clueData[0]).zfill(2)+".pdf")
-		LOG.debug("(trace) generating clue report pdf: "+cluePdfName)
+		LOG.trace("generating clue report pdf: "+cluePdfName)
 		clueFdfName=cluePdfName.replace(".pdf",".fdf")
 
 # 		self.clueReportMsgBox=QMessageBox(QMessageBox.Information,"Printing Clue #"+clueData[0],"Generating PDF; will send to default printer automatically; please wait...",
@@ -1759,7 +1764,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		win32api.ShellExecute(0,"print",cluePdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
 		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-			LOG.debug("(trace) copying clue report pdf to "+self.secondWorkingDir)
+			LOG.trace("copying clue report pdf to "+self.secondWorkingDir)
 			shutil.copy(clueFdfName,self.secondWorkingDir)
 			shutil.copy(cluePdfName,self.secondWorkingDir)
 
@@ -1779,7 +1784,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		QTimer.singleShot(1800,self.optionsDialog.ui.incidentField.setFocus)
 
 	def fontsChanged(self):
-		LOG.debug("(trace) 1 - begin fontsChanged")
+		LOG.trace("1 - begin fontsChanged")
 		self.limitedFontSize=self.fontSize
 		if self.limitedFontSize>self.maxLimitedFontSize:
 			self.limitedFontSize=self.maxLimitedFontSize
@@ -1795,7 +1800,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# don't change tab font size unless you find a good way to dynamically
 		# change tab size and margins as well
 ##		self.ui.tabWidget.tabBar().setStyleSheet("font-size:"+str(self.fontSize)+"pt")
-		LOG.debug("(trace) 2")
+		LOG.trace("2")
 		self.redrawTables()
 		self.ui.tabWidget.setCurrentIndex(i)
 		self.ui.incidentNameLabel.setStyleSheet("font-size:"+str(self.limitedFontSize)+"pt;")
@@ -1818,7 +1823,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				font-size:"""+str(self.limitedFontSize*3/4)+"""pt;
 			}
 		""")
-		LOG.debug("(trace) 3 - end of fontsChanged")
+		LOG.trace("3 - end of fontsChanged")
 
 	def redrawTables(self):
 		# column sizing rules, in sequence:
@@ -1842,16 +1847,16 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		self.ui.tableView.model().layoutChanged.emit()
 ##		self.ui.tableView.scrollToBottom()
 		self.loadFlag=True
-		LOG.debug("(trace) 1: start of redrawTables")
+		LOG.trace("1: start of redrawTables")
 		for i in [2,4]: # hardcode results in significant speedup
 			self.ui.tableView.resizeColumnToContents(i) # zero is the first column
-		LOG.debug("(trace) 2")
+		LOG.trace("2")
 		self.ui.tableView.setColumnWidth(0,self.fontSize*5) # wide enough for '2345'
 		self.ui.tableView.setColumnWidth(1,self.fontSize*6) # wide enough for 'FROM'
 		self.ui.tableView.setColumnWidth(5,self.fontSize*10) # wide enough for 'STATUS'
-		LOG.debug("(trace) 3")
+		LOG.trace("3")
 ##		self.ui.tableView.resizeRowsToContents()
-		LOG.debug("(trace) 4")
+		LOG.trace("4")
 		for n in self.ui.tableViewList[1:]:
 			LOG.debug(" n="+str(n))
 			for i in [2,4]: # hardcode results in significant speedup, but lag still scales with filtered table length
@@ -1863,13 +1868,13 @@ class MyWindow(QDialog,Ui_Dialog):
 			n.setColumnWidth(5,self.fontSize*10)
 			LOG.debug("    resizing rows to contents")
 ##			n.resizeRowsToContents()
-		LOG.debug("(trace) 5")
+		LOG.trace("5")
 		self.ui.tableView.scrollToBottom()
-		LOG.debug("(trace) 6")
+		LOG.trace("6")
 		for i in range(1,self.ui.tabWidget.count()):
 			self.ui.tabWidget.setCurrentIndex(i)
 			self.ui.tableViewList[i].scrollToBottom()
-		LOG.debug("(trace) 7: end of redrawTables")
+		LOG.trace("7: end of redrawTables")
 ##		self.resizeRowsToContentsIfNeeded()
 		self.loadFlag=False
 
@@ -2180,7 +2185,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
 			csvFileNameList.append(self.secondWorkingDir+"\\"+self.csvFileName)
 		for fileName in csvFileNameList:
-			LOG.debug("(trace) Writing "+fileName)
+			LOG.trace("Writing "+fileName)
 			with open(fileName,'w',newline='') as csvFile:
 				csvWriter=csv.writer(csvFile)
 				csvWriter.writerow(["## Radio Log data file"])
@@ -2198,12 +2203,12 @@ class MyWindow(QDialog,Ui_Dialog):
 				if self.lastSavedFileName!=self.csvFileName: # this is the first save since startup, since restore, or since incident name change
 					self.lastSavedFileName=self.csvFileName
 					self.saveRcFile()
-			LOG.debug("(trace) Done writing "+fileName)
+			LOG.trace("Done writing "+fileName)
 		# now write the clue log to a separate csv file: same filename appended by '.clueLog'
 		if len(self.clueLog)>0:
 			for fileName in csvFileNameList:
 				fileName=fileName.replace(".csv","_clueLog.csv")
-				LOG.debug("(trace) Writing "+fileName)
+				LOG.trace("Writing "+fileName)
 				with open(fileName,'w',newline='') as csvFile:
 					csvWriter=csv.writer(csvFile)
 					csvWriter.writerow(["## Clue Log data file"])
@@ -2214,7 +2219,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						csvWriter.writerow(row)
 					if finalize:
 						csvWriter.writerow(["## end"])
-				LOG.debug("(trace) Done writing "+fileName)
+				LOG.trace("Done writing "+fileName)
 
 	def load(self,fileName=None):
 		# loading scheme:
@@ -4089,7 +4094,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		#  to blank, since it's likely that the radio operator may have typed the
 		#  originating team/unit callsign in to the callsign field first, and then
 		#  checked 'relayed' afterwards
-		LOG.debug("(trace) relayedCheckBoxStateChanged; fleet="+str(self.fleet)+"; dev="+str(self.dev))
+		LOG.trace("relayedCheckBoxStateChanged; fleet="+str(self.fleet)+"; dev="+str(self.dev))
 		self.relayed=self.ui.relayedCheckBox.isChecked()
 		self.ui.relayedByLabel.setEnabled(self.relayed)
 		self.ui.relayedByComboBox.setEnabled(self.relayed)
@@ -4149,7 +4154,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.setRelayedPrefix()
 
 	def relayedByComboBoxChanged(self):
-		LOG.debug("(trace) relayedByComboBoxChanged")
+		LOG.trace("relayedByComboBoxChanged")
 		self.relayedBy=self.ui.relayedByComboBox.currentText()
 		self.setRelayedPrefix(self.relayedBy)
 		self.ui.messageField.setFocus()
@@ -4408,7 +4413,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.parent.parent.clueLog.append(clueData)
 		if self.ui.clueReportPrintCheckBox.isChecked():
 			self.parent.parent.printClueReport(clueData)
-		LOG.debug("(trace) accepted - calling close")
+		LOG.trace("accepted - calling close")
 		self.parent.parent.clueLogDialog.ui.tableView.model().layoutChanged.emit()
 		self.closeEvent(QEvent(QEvent.Close),True)
 ##		pixmap=QPixmap(":/radiolog_ui/print_icon.png")
@@ -4709,7 +4714,7 @@ class printClueLogDialog(QDialog,Ui_printClueLogDialog):
 
 	def accept(self):
 		opPeriod=self.ui.opPeriodComboBox.currentText()
-		LOG.debug("(trace) Open printClueLogDialog.accept")
+		LOG.trace("Open printClueLogDialog.accept")
 		if opPeriod=='--':
 			crit=QMessageBox(QMessageBox.Critical,"No Clues to Print","There are no clues to print.",QMessageBox.Ok,self.parent,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			crit.show()
@@ -4718,9 +4723,9 @@ class printClueLogDialog(QDialog,Ui_printClueLogDialog):
 			self.reject()
 		else:
 			self.parent.printClueLog(opPeriod)
-			LOG.debug("(trace) Called parent printClueLogDialog.accept")
+			LOG.trace("Called parent printClueLogDialog.accept")
 			super(printClueLogDialog,self).accept()
-			LOG.debug("(trace) Called super printClueLogDialog.accept")
+			LOG.trace("Called super printClueLogDialog.accept")
 
 # actions to be performed when changing the operational period:
 # - bring up print dialog for current OP if checked (and wait until it is closed)
@@ -4808,7 +4813,7 @@ class fsFilterDialog(QDialog,Ui_fsFilterDialog):
 			self.parent.fsBuildTooltip()
 
 	def closeEvent(self,event):
-		LOG.debug("(trace) closing fsFilterDialog")
+		LOG.trace("closing fsFilterDialog")
 
 
 class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
@@ -5147,7 +5152,7 @@ def main():
 	try:
 		w = MyWindow(app)
 		w.show()
-	except FatalAppError as e:
+	except RadioLogError as e:
 		msg = "ABORTING: {0}".format(e.message)
 		LOG.critical(msg)
 		informUserAboutIssue(ICON_ERROR,msg)
@@ -5156,5 +5161,4 @@ def main():
 	sys.exit(app.exec_())
 
 if __name__ == "__main__":
-	sys.excepthook = utility.logging_helpers.handle_exception
 	main()
