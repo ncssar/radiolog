@@ -1,7 +1,6 @@
 import argparse
-from utility.logger import INFO, DIAGNOSTIC, DEBUG, TRACE
 
-__version__ = "2.0.0"
+__version__ = "2.0.2"
 
 # KEEP IN MIND: logging has not been set up yet. Don't try to make logging calls in here.
 
