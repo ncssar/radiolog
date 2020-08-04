@@ -1,10 +1,9 @@
-import re, math
+import re, math, logging
 from enum import Enum, IntEnum
 from pyproj import Transformer
 from typing import List
-from utility.logging_helpers import getLogger
 
-LOG = getLogger()
+LOG = logging.getLogger("RadioLog")
 
 NMEACoords = List[str]
 
@@ -33,7 +32,7 @@ class CoordFormat(IntEnum):
 	@classmethod
 	def displayNames(cls):
 		return {cls.UTM7: "UTM 7x7", cls.UTM5: "UTM 5x5", cls.DEG: "D.d°", cls.DEGMIN: "D° M.m'", cls.DMS: "D° M' S.s\"", cls.DEGLIST: "(Python list)"}
-	
+
 	def displayName(self) -> str:
 		return CoordFormat.displayNames()[self]
 
@@ -66,7 +65,7 @@ class CRSCode(Enum):
 
 class DecimalDegrees():
 	"""
-	Our internal representation of a point on the globe, along with various conversion methods. 
+	Our internal representation of a point on the globe, along with various conversion methods.
 
 	Fields:
 		datum -- the notation system for these coordinates
@@ -83,7 +82,7 @@ class DecimalDegrees():
 
 	"""
 	datum: Datum = Datum.WGS84
-	latDd: float 
+	latDd: float
 	lonDd: float
 	origDatum: Datum
 	origLatDd: float
@@ -168,7 +167,7 @@ class DecimalDegrees():
 		lonDeg = int(self.lonDd)  # might be negative
 		lonMin = round(float((abs(self.lonDd)-float(abs(lonDeg)))*60.0),8)
 		return (latDeg, latMin, lonDeg, lonMin)
-		
+
 	def toDMS(self) -> (int, int, float, int, int, float):
 		"""
 		Converts decimal degrees to a 6-element tuple of integer degrees, integer minutes and decimal seconds for lat and lon.
@@ -198,11 +197,11 @@ class DecimalDegrees():
 				[easting, northing] = map(int, t)
 			else:
 				# In the case of converting beteen Datums, the lat/lon will be (slightly) different
-				[latDd, lonDd] = t 
+				[latDd, lonDd] = t
 				self.datum = targetDatum
 				self.latDd = float(latDd)
 				self.lonDd = float(lonDd)
-		
+
 		LOG.debug("Converted from {} {} {} to {} {} {}".format(self.origDatum.name, self.origLatDd,self.origLonDd,self.datum.name,self.latDd,self.lonDd))
 
 		if targetFormat.isUTM():

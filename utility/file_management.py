@@ -1,7 +1,6 @@
 import os,shutil,logging
-import utility.logging_helpers
 
-LOG = utility.logging_helpers.getLogger()
+LOG = logging.getLogger("RadioLog")
 
 def ensureLocalDirectoryExists():
 	"""

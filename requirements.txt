@@ -7,3 +7,4 @@ requests # for forwarding locator information as a GET request for sarsoft
 fdfgen
 pypiwin32
 pyproj>=2.6.1 # for calculations involving coordinates ("projections")
+colorlog

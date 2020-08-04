@@ -11,7 +11,7 @@ def test_normName():
     assert normName("Percent%Sign") == "Percent_Sign"
     assert normName(" Leading and Middle Spaces") == "_Leading_and_Middle_Spaces"
     # TODO (more tests)
-    
+
 def test_rreplace():
     assert rreplace("foobarbar","bar","",1) == "foobar"
     assert rreplace("foobarbar","bar","",9) == "foo"
