@@ -78,7 +78,7 @@ from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.units import inch
 from fdfgen import forge_fdf
 from FingerTabs import *
-from utility.command_line import CommandLineSwitches
+import utility.command_line
 from utility.logger import setup_logging, INFO, DIAGNOSTIC, DEBUG, TRACE
 import utility.file_management
 from utility.misc_functions import *
