@@ -1,3 +1,7 @@
+import sys
+
+__version__ = "2.0.2"
+
 class CommandLineSwitches:
 
 	def parse(self, args):
@@ -7,6 +11,9 @@ class CommandLineSwitches:
 
 		if len(args)>1:
 			for arg in args[1:]:
+				if arg.lower()=="-version":
+					print(f"RadioLog version {__version__}")
+					sys.exit(0)
 				if arg.lower()=="-devel":
 					self.develMode=True
 					print("Development mode enabled.")
@@ -18,3 +25,5 @@ class CommandLineSwitches:
 					print("Will not send any GET requests for this session.")
 				else:
 					print("ERROR Unrecognized command line switch: "+arg)
+					print("USAGE: RadioLog [-version] [-devel] [-min] [-nosend]")
+					sys.exit(1)

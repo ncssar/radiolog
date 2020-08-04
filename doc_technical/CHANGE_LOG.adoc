@@ -1,12 +1,37 @@
 = RadioLog Change Log
 
-== Recent Changes
 
-TBD
+== Version 2.0.2 Release
+
+Tagging this code as a "release" prior to Craig merging in some heavy-duty
+pull requests -- just in case something goes horriby wrong and we need to
+revert to this point and start a new branch.
+
+[width="100%",cols="",options="header"]
+|===
+| DATE       | AUTHOR | NOTES
+|   7-21-20  | TMG    | fix #428: LOCATED A CLUE error during amended message
+                        leaves 'zombie' clue dialog preventing entry closure
+|   7-21-20  | TMG    | fix #429: handle decode error after hot-plug
+
+|===
+
+
+== Version 2.0.0 "release" (not actually tagged as such)
+
+This is the big switch from an external dependency of `GISInternals` to
+the Python module `pyproj`.
+
+[width="100%",cols="",options="header"]
+|===
+| DATE       | AUTHOR | NOTES
+|   6-24-20  | TMG    | fix #48: use pyproj instead of GISInternals for conversion
+|===
+
 
 == Prior Changes
 
-Here is the change log that was manually maintained through 6-24-2020:
+Here is the change log that was manually maintained through 6-15-2020:
 
 [width="100%",cols="",options="header"]
 |===
@@ -121,7 +146,7 @@ Here is the change log that was manually maintained through 6-24-2020:
 |   8-29-18  | TMG    | fix #375 (crash during new entry for new team)
 |    9-9-18  | TMG    | fix #379 (subject located form - field type error; confirmed
                         that all other calls to toPlainText are for valid fields)
-|    9-9-18  | TMG    | add a very short timeout to the requests.get locator update call to 
+|    9-9-18  | TMG    | add a very short timeout to the requests.get locator update call to
                         eliminate lag while completely ignoring the response
                         fire-and-forget'); would have to use a thread-based module
                         if the response were important; works well on home computer,
@@ -173,10 +198,6 @@ Here is the change log that was manually maintained through 6-24-2020:
 |   5-28-20  | TMG    | fix #412: relayed message features
 |   6-15-20  | TMG    | fix #415: restore timeout on auto-recover (in rc file);
                         fix #404: show http request response in log;
-                        address #413: multiple crashes - add more logging; 
+                        address #413: multiple crashes - add more logging;
                         improve relay features to be more intuitive
-|   6-24-20  | TMG    | fix #48: use pyproj instead of GISInternals for conversion
-|   7-21-20  | TMG    | fix #428: LOCATED A CLUE error during amended message
-|                        leaves 'zombie' clue dialog preventing entry closure
-|   7-21-20  | TMG    | fix #429: handle decode error after hot-plug
 |===
