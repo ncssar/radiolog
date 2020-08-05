@@ -10,37 +10,117 @@ from PyQt5.QtWidgets import *
 PHONETIC_LIST = ["Alpha","Bravo","Charlie","Delta","Echo","Foxtrot","Golf","Hotel","India","Juliet","Kilo","Lima","Mike","November","Oscar","Papa","Quebec","Romeo","Sierra","Tango","Uniform","Victor","Whiskey","Xray","Yankee","Zulu"]
 PHONETIC_DICT = {"A": "Alpha","B": "Bravo","C": "Charlie","D": "Delta","E": "Echo","F": "Foxtrot","G": "Golf","H": "Hotel","I": "India","J": "Juliet","K": "Kilo","L": "Lima","M": "Mike","N": "November","O": "Oscar","P": "Papa","Q": "Quebec","R": "Romeo","S": "Sierra","T": "Tango","U": "Uniform","V": "Victor","W": "Whiskey","X": "Xray","Y": "Yankee","Z": "Zulu"}
 
-GRID_HEIGHT = 15
-CELL_WIDTH = 250
-CELL_HEIGHT = 26
-VERTICAL_SPACING = CELL_HEIGHT+5
-HORIZONTAL_SPACING = CELL_WIDTH+10
 
 def main():
 	"""
 	This script puts RadioLog through its paces.
 	1. Start Radiolog running, if not already.
-	2. Click a button to invoke the corresponding action
+	2. Start this tool (in another terminal window)
+	3. Choose between numeric or phonetic team names
+	4. Click a button to invoke the corresponding action
 	"""
 	app = QApplication(sys.argv)
 	w = InspectorWindow()
 	w.show()
 	sys.exit(app.exec_())
 
+
 ##########################################################################
 
-class InspectorWindow(QWidget):
-	def __init__(self, *args):
-		QWidget.__init__(self, *args)
+class SimpleControlPanel(QWidget):
+	"""
+	Subclass this to make a quick and dirty dialog box with uniformly sized
+	controls that are automatically laid out in a grid (top to bottom,
+	left to right).
+	Currently defined for cells that are pushbuttons or checkboxes.
+	"""
 
-		self.paces = Automator(self)
+	def __init__(self, grid_width=1, grid_height=15, cell_width=250, cell_height=26, horizontal_margin=10, vertical_margin=5):
+		QWidget.__init__(self)
+		self.grid_width: int = grid_width
+		self.grid_height: int = grid_height
+		self.cell_width: int = cell_width
+		self.cell_height: int = cell_height
+		self.horizontal_margin = horizontal_margin
+		self.vertical_margin = vertical_margin
+
+		w = grid_width * cell_width + horizontal_margin * 2
+		h = grid_height * cell_height + vertical_margin * 3
+		self.setMinimumSize(w,h)
 
 		self.current_grid_col = 0
 		self.current_grid_row = 0
 
 		self.setLocale(QLocale(QLocale.English, QLocale.UnitedStates))
+
+	def add_checkbox(self, name, tip=""):
+		"""
+		Drop a checkbox control in the next cell down.
+		"""
+		normalized_name = re.sub(r"[^A-Za-z0-9]+", "", name)
+		# print(normalized_name)
+		chk = QCheckBox(self.central_widget)
+		chk.setText(name)
+		chk.setGeometry(QRect(
+			self.current_grid_col * (self.cell_width + self.horizontal_margin) + self.horizontal_margin,
+			self.current_grid_row * (self.cell_height + self.vertical_margin) + self.vertical_margin*2,
+			self.cell_width,
+			self.cell_height))
+		chk.setMouseTracking(False)
+		chk.setObjectName("chk" + normalized_name)
+		chk.setToolTip(tip if tip else name)
+		self.move_to_next_cell()
+		return chk
+
+	def add_action_button(self, name, callback, tip=""):
+		"""
+		Drop a pushbutton control in the next cell down.
+		"""
+		normalized_name = re.sub(r"[^A-Za-z0-9]+", "", name)
+		# print(normalized_name)
+		btn = QPushButton(self.central_widget)
+		btn.setText(name)
+		btn.setGeometry(QRect(
+			self.current_grid_col * (self.cell_width + self.horizontal_margin) + self.horizontal_margin,
+			self.current_grid_row * (self.cell_height + self.vertical_margin) + self.vertical_margin * 2,
+			self.cell_width,
+			self.cell_height))
+		btn.setMouseTracking(False)
+		btn.setObjectName("btn" + normalized_name)
+		btn.pressed.connect(callback)
+		btn.setToolTip(tip if tip else name)
+		self.move_to_next_cell()
+		return btn
+
+	def move_to_next_cell(self):
+		"""
+		Advance to the next cell down (wrapping to the top of the next column, if needed).
+		"""
+		self.current_grid_row += 1
+		if self.current_grid_row >= self.grid_height:
+			self.current_grid_col += 1
+			self.current_grid_row = 0
+			self.resize_to_grid()
+
+	def resize_to_grid(self):
+		"""
+		Resize the dialog box to accomodate the current size of the grid.
+		"""
+		self.grid_width = max(self.grid_width, (self.current_grid_col + 1))
+		self.resize(
+			self.grid_width * (self.cell_width + self.horizontal_margin) + self.horizontal_margin,
+			self.grid_height * (self.cell_height + self.vertical_margin) + self.vertical_margin * 2)
+
+
+##########################################################################
+
+class InspectorWindow(SimpleControlPanel):
+	def __init__(self):
+		SimpleControlPanel.__init__(self, grid_height=8)
+
+		self.paces = Automator(self)
+
 		self.setWindowTitle("RadioLog Automation")
-		self.setMinimumSize(HORIZONTAL_SPACING+10, GRID_HEIGHT * VERTICAL_SPACING + 10)
 		self.central_widget = QWidget(self)
 
 		self.chkPhonetic = self.add_checkbox("Use Phonetic Team Names",
@@ -72,45 +152,11 @@ class InspectorWindow(QWidget):
 
 		self.btnPrintAction = self.add_action_button("Open the Print Dialog", callback=self.paces.printAction)
 
-		self.move_to_next_cell()
+		self.move_to_next_cell() # add a spacer
 
 		self.btnExit = self.add_action_button("Exit Wihtout Printing", callback=self.paces.exitWihtoutPrinting)
 
 
-	def add_checkbox(self, name, tip=""):
-		normalized_name = re.sub(r"[^A-Za-z0-9]+","",name)
-		# print(normalized_name)
-		chk = QCheckBox(self.central_widget)
-		chk.setText(name)
-		chk.setGeometry(QRect(self.current_grid_col * HORIZONTAL_SPACING + 10, self.current_grid_row * VERTICAL_SPACING + 10, CELL_WIDTH, CELL_HEIGHT))
-		chk.setMouseTracking(False)
-		chk.setObjectName("chk" + normalized_name)
-		chk.setToolTip(tip if tip else name)
-		self.move_to_next_cell()
-		return chk
-
-	def add_action_button(self, name, callback, tip=""):
-		normalized_name = re.sub(r"[^A-Za-z0-9]+","",name)
-		# print(normalized_name)
-		btn = QPushButton(self.central_widget)
-		btn.setText(name)
-		btn.setGeometry(QRect(self.current_grid_col * HORIZONTAL_SPACING + 10, self.current_grid_row * VERTICAL_SPACING + 10, CELL_WIDTH, CELL_HEIGHT))
-		btn.setMouseTracking(False)
-		btn.setObjectName("btn" + normalized_name)
-		btn.pressed.connect(callback)
-		btn.setToolTip(tip if tip else name)
-		self.move_to_next_cell()
-		return btn
-
-	def move_to_next_cell(self):
-		self.current_grid_row += 1
-		if self.current_grid_row >= GRID_HEIGHT:
-			self.current_grid_col += 1
-			self.current_grid_row = 0
-			self.resize_to_grid()
-
-	def resize_to_grid(self):
-		self.resize((self.current_grid_col+1)*HORIZONTAL_SPACING + 10, GRID_HEIGHT * VERTICAL_SPACING + 10)
 
 
 
@@ -286,7 +332,7 @@ class Automator():
 		r = self.radiolog
 		r.RadioLog.close()
 		dlg = r.Exit
-		self._discover_elements(dlg)
+		sys.exit(0)
 
 if __name__ == "__main__":
 	main()
