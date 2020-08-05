@@ -64,7 +64,7 @@ Nevada County Sheriff's Search and Rescue (https://www.mynevadacounty.com/258/Se
 
 June 2020: Red Rock Search and Rescue (https://redrocksar.org) is in the process of adapting it for their use (and making it easier for other groups to adopt, as well).
 
-See also link:doc_technical/CHANGE_LOG.adoc.
+See also link:doc_technical/CHANGE_LOG.adoc[].
 
 == Known Limitations
 
@@ -73,19 +73,21 @@ See also link:doc_technical/CHANGE_LOG.adoc.
 
 == Installation and Getting Started
 
-Unfortunately, this software is not yet in an easily installable state, but creating a clean installer is on the to-do list.  
+Unfortunately, this software is not yet in an easily installable state, but creating a clean installer is on the to-do list.
 Until then, please contact us if your team is interested in using this software.
 
-The current installation procedure is link:doc/INSTALL.adoc[here].
+The current installation procedure is in link:doc/INSTALL.adoc[].
 
 == Our Design Philosophy
 
-This software is intended to be user-friendly and intuitive, with no training necessary to make use of key features
+This software is intended to be user-friendly and intuitive, with no training necessary to make use of key features.
 
 - Most features are automated
 - Less overhead = reduced fiddling
 - Fewer options = reduced fiddling
 - Reduced fiddling = a more effective radio operator
+
+Read more in link:doc_technical/DESIGN_NOTES.adoc[].
 
 == Contributing
 
@@ -93,7 +95,9 @@ Volunteer contributors are welcome to join in.
 You do NOT need to be software developer to contribute.
 We can always use help with documentation, testing, etc.
 
-The guidelines for contributing to this project are link:doc_technical/CONTRIBUTING.adoc[here].
+The guidelines for contributing to this project are in link:doc_technical/CONTRIBUTING.adoc[].
+
+See also link:doc_technical/DEVELOPMENT_SETUP.adoc[] and link:doc_technical/AUTOMATION.adoc[].
 
 == Credits
 
