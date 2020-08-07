@@ -43,3 +43,4 @@ That should do it!
 Just run 'python radiolog.py' to run the program.  
 You may want to create a desktop shortcut and use the included icon.
 
+Next Topic: link:/doc_technical/CONTRIBUTING.adoc[Contributing]

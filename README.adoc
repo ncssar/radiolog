@@ -1,4 +1,4 @@
-= radiolog
+= Radiolog
 
 Software that tracks Search and Rescue missions.
 Used by the radio operator in the command post.
