@@ -53,8 +53,10 @@ test: clean-pyc | .venv # Runs all of the unit tests
 activate: | .venv # Force activate the virtual environment
 		${BIN}\activate.bat
 
-gwpycore: .venv # Clones the gwpycore source code and installs it (symlink-ish)
+..\gwpycore\README.adoc: .venv # Clones the gwpycore source code and installs it (symlink-ish)
 	git clone git@github.com:gruntwurk/gwpycore.git "..\gwpycore"
+
+gwpycore: ..\gwpycore\README.adoc
 	${BIN}\pip install -e ..\gwpycore`
 
 qt-designer: # Install the QT-designer tool
@@ -68,7 +70,7 @@ requirements: | .venv # Ensures that all of the modules required by this project
 
 dev-env: gwpycore requirements linters # Prepares the development environment -- use only once.
 
-# doc: activate | .venv 
+# doc: activate | .venv
 #     $(VENV_ACTIVATE) && cd docs; make html
 
 prep: standardize # Prepares for a possible release

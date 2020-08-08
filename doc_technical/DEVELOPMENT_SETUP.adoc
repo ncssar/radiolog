@@ -1,5 +1,26 @@
 = Notes on Setting Up a Development Environment
 
+
+== NEW! Radiolog Now Has a Makefile
+
+With it, several tasks are automated:
+
+* Setting up a virtual environment (.venv)
+* Installing all required modules (into that .venv)
+* Installing qt-designer to work with the UI files
+* Running all of the unit tests
+* Standardizing all of the .py code (format, import order, and de-linting)
+* Prteparing for a new release
+
+== Installing Make
+
+The `make` command is standard with linux, but it must be manually installed in Windows.
+
+. Download the "Complete package, except sources" (Setup) from http://gnuwin32.sourceforge.net/packages/make.htm.
+(Yes, it hasn't needed any updates since 25 November 2006 -- version 3.81 . That's the one.)
+. Run the installer using all of the default settings.
+. Open a command terminal and type `make --version` to ensure that it's in the path.
+
 == Installing the Radiolog Source Code
 
 See link:/doc/INSTALL.adoc[INSTALL]
