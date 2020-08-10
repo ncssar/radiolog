@@ -1,4 +1,4 @@
-= Notes on how RadioLog was designed and coded
+= Notes on How RadioLog was Designed and Coded
 
 == Key Sequence Behavior
 

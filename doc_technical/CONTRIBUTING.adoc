@@ -1,6 +1,21 @@
 = Contributing
 
+== Ways to Contribute
+
+Whether or not you are a programmer, there are plenty of ways to get involved in this project.
+
+* First of all, *support your local Search-and-Rescue*. The COVID19 lockdowns have severely limited those organizations' ability to raise funds. Every little contribution helps. https://www.redrocksar.org/donate/
+
+* As a *beta-test user*, you can report issues by visiting https://github.com/ncssar/radiolog/issues.
+
+* As a *documenter/proofreader*, you can start with the README file at https://github.com/ncssar/radiolog. Again, if you have any suggestions, you can submit them at https://github.com/ncssar/radiolog/issues.
+
+* If you know of any Search-and-Rescue organizations that might want to take advantage of Radiolog, your help in *marketing/spreading the word* would be greatly appreciated.
+
+
 == The GitHub Repository
+
+https://github.com/ncssar/radiolog
 
 1. While this code has been in use for a few years, and was intended to be open source from the start, it wasn't placed on GitHub until late 2016. 
 
@@ -24,3 +39,5 @@ Some issue search and sort shortcuts -- from any of these, you can further refin
 Thanks for all your help; happy coding. 
 Let us know if you have any questions!
 
+
+Next Topic: link:/doc_technical/DEVELOPMENT_SETUP.adoc[Development Environment Setup]

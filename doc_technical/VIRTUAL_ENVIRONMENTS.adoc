@@ -1,0 +1,73 @@
+= Using Python Virtual Environments on Windows
+
+Python has a feature that allows you to set up multiple virtual environments on a single computer.
+Each environment has its own copy of Python (e.g. Python 3.6.5 64-bit in one, Python 2.7 32-bit in another).
+Each environment has its own site-packages folder containing only the modules needed for that environment.
+Each environment has its own Scripts folder containing any executables that are installed by pip that go along with a module that is installed.
+And so on.
+
+(Don't worry, each virtual environment that you create only uses up 20-50MB of disk space, depending on the number of modules needed.)
+
+== Creating a Virtual Environment for RadioLog
+
+. First, install the version of Python that you'll want to use with that environment (e.g. C:\Python38\python.exe), if not already.
+Radiolog currently works with 3.6 and up, but there's no reason not to use the latest.
+. Open a terminal window (CMD or PowerShell).
+. Make sure the latest version of pip is installed (`python -m pip install --upgrade pip`).
+. Navigate to the root folder for Radiolog (c:\work\radiolog or whatever -- the one that has radiolog.py, .git, app, tests, doc, etc.).
+. Invoke the `venv` command to create a new virtual environment, as follows:
+
+[source,bash]
+----
+CD c:\work\radiolog
+C:\Python38\python -m venv .venv
+----
+
+What this does, specifically:
+
+* It creates the target directory (naming it `.venv` is the common convention). If an existing directory is specified, it will be re-used. Within that new directory, it then...
+* Creates `pyvenv.cfg`, which points to the Python installation from which the command was run (among other things).
+* Copies the Python executable into the virtual environment. (Whichever version of Python you used to run the `venv` command.)
+* Installs `pip` into the environment.
+* Creates an (initially empty) `Lib\site-packages` for `pip` to use.
+* Creates a `Scripts` subdirectory containing a copy of the Python binaries.
+* When pip installs a module that includes command-line executables, it places them in the environment's `Scripts` folder. If that executable is a Python script, then the she-bang line is automatically tweaked to point to the Python executable for that virtual environment.
+
+== Activating the Environment
+
+When `venv` creates the `.venv\Scripts folder`, it places an `activate` batch file in there.
+(Two actually, `activate.bat` and `activate.ps1` for PowerShell.)
+Running the activate script ensures that the virtual environment controls how Python operates from then on (until you close the terminal window or run `deactivate.bat`).
+
+TIP: If you are using the VSCode IDE, you can select an environment using the `Python: Select Interpreter` command in the command palette.
+Now, when you open the terminal pane (ctrl-`), you'll see that the command prompt starts with "(.venv)".
+That selection is then saved in the VSCode workspace settings (in the `.vscode` folder in the root of your workspace).
+So, any time thereafter, when you open that project folder, VSCode will know to use the corresponding virtual environment.
+Again, when you open the terminal pane (ctrl-`), you should see that the command prompt starts with "(.venv)".
+
+Execute the following commands to activate the virtual enviroment and install (just) the modules that Radiolog requires into that environment.
+
+[source,batch]
+----
+.\.venv\Scripts\activate
+python --version
+pip install -r requirements.txt
+----
+
+(Calling `python --version` is just to verify that the correct version of Python is tied to the environment.)
+
+
+== Notes
+
+* Ity is not necessary to run the `activate` command every time you start a new terminal window. In most cases, Python does the right thing.
+For example, if you run a .py script from the command line, Python will look for a `pyvenv.cfg` (and one in the `.venv` folder). That will tell it to implicitly activate that virtual environment.
+* `venv` used to be called `pyvenv` until Python 3.6.
+* On Windows, it may be required to enable the Activate.ps1 script by setting the execution policy for the user. You can do this by issuing the following PowerShell command: PS C:> `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
+
+== References
+
+* See https://docs.python.org/3/library/venv.html
+* Python virtual environments were defined in PEP 405 (https://www.python.org/dev/peps/pep-0405/)
+
+
+Next Topic: link:/doc_technical/AUTOMATION.adoc[Automation to Help with Testing]

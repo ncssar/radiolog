@@ -44,7 +44,6 @@ To get a recursive dump of all of the controls within a window, use `<the window
 |               | .line_length()
 |               | .select()
 |               | .selection_indices()
-|               | .set_edit_text()
 |               | .set_window_text()
 |               | .text_block()
 | CheckBox      | .click() -- there is no .check/.uncheck
@@ -364,3 +363,4 @@ dlg.child_window(title="Close", control_type="Button")
 ----
 
 
+Next Topic: link:/doc_technical/DESIGN_NOTES.adoc[Design Notes]

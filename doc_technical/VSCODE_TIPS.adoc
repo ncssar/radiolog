@@ -1,4 +1,4 @@
-= Tips for Using Visual Studio Code
+= Tips for Using Visual Studio Code (VSCode)
 
 == Keyboard Bindings
 
@@ -28,6 +28,4 @@ VSCode has an internal system for working with snippets that is very much the sa
 There is also built-in support for Emmet, a unique snippet processor for generating HTML and CSS code based on CSS syntax. See http://emmet.io for an explanation.
 
 
-
-
-
+Next Topic: link:/doc_technical/VIRTUAL_ENVIRONMENTS.adoc[Using Python Virtual Environments]
