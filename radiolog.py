@@ -31,10 +31,9 @@ Attribution, feedback, bug reports and feature requests are appreciated
 # REVISION HISTORY: See doc_technical\CHANGE_LOG.adoc
 
 
-from app.db.file_management import determine_rotate_method, getFileNameBase
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
+from PyQt5.QtCore import QCoreApplication, QLocale, QObject, QRect, QTimer, Qt
+from PyQt5.QtWidgets import QCheckBox, QMessageBox, QPushButton, QTextEdit, QWidget
+
 
 from help_ui import Ui_Help
 from options_ui import Ui_optionsDialog
@@ -58,6 +57,7 @@ import re
 import serial
 import serial.tools.list_ports
 import csv
+import os
 import os.path
 import requests
 import subprocess
@@ -68,7 +68,7 @@ import win32con
 import shutil
 import math
 import textwrap
-from typing import Optional, Tuple
+from typing import Optional
 from pathlib import Path
 from reportlab.lib import colors,utils
 from reportlab.lib.pagesizes import letter,landscape
@@ -77,18 +77,19 @@ from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.units import inch
 from fdfgen import forge_fdf
 from FingerTabs import *
-import app.command_line
 from gwpycore.gw_logging import setup_logging, INFO, DIAGNOSTIC, DEBUG, TRACE
 from gwpycore.gw_gui import inform_user_about_issue, ask_user_to_confirm, ICON_ERROR, ICON_WARN, ICON_INFO
 from gwpycore.gw_strings import normalizeName
 
-import app.db.file_management
 from pyproj import Transformer
+
+from app.command_line import parse_args
 from app.logic.teams import *
 from app.logic.exceptions import *
+from app.db.file_management import determine_rotate_method, ensureLocalDirectoryExists, getFileNameBase
 
 # process command-line arguments
-SWITCHES = app.command_line.parse_args(sys.argv[1:])
+SWITCHES = parse_args(sys.argv[1:])
 
 # TODO Autodetect the screen resolution, but still allow a command line switch to override
 if SWITCHES.minmode:
@@ -186,7 +187,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
 
-		issue = app.db.file_management.ensureLocalDirectoryExists()
+		issue = ensureLocalDirectoryExists()
 		if issue:
 			inform_user_about_issue(issue,icon=ICON_WARN,parent=self)
 
@@ -5064,11 +5065,18 @@ class customEventFilter(QObject):
 
 
 def main():
-	app = QApplication(sys.argv)
+	# This is supposed to be a quick fix for the scaling problem (https://github.com/ncssar/radiolog/issues/435)
+	# but it acually makes things worse.
+	# if hasattr(Qt, 'AA_EnableHighDpiScaling'):
+	# 	QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+	# if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
+	# 	QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+	qt_app = QApplication(sys.argv)
+	LOG.diagnostic(f"Qt root directory (where qt.conf resides): {qt_app.applicationDirPath()}")
 	eFilter=customEventFilter()
-	app.installEventFilter(eFilter)
+	qt_app.installEventFilter(eFilter)
 	try:
-		w = MyWindow(app)
+		w = MyWindow(qt_app)
 		w.show()
 	except RadioLogError as e:
 		msg = "ABORTING: {0}".format(e.message)
@@ -5076,7 +5084,7 @@ def main():
 		inform_user_about_issue(msg, ICON_ERROR)
 		sys.exit(-1)
 
-	sys.exit(app.exec_())
+	sys.exit(qt_app.exec_())
 
 if __name__ == "__main__":
 	main()
