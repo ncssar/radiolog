@@ -1,26 +1,27 @@
 # On Windows, make uses the shell specified by the SHELL environment variable if it exists (otherwise the ComSpec envvar)
-VENV_NAME?=.venv  # ?= means only assign if it doesn't already have a value
+# ?= means only assign if it doesn't already have a value
+VENV_NAME?=.venv
 BIN=$(VENV_NAME)\Scripts
 LIB=${VENV_NAME}\Lib\site-packages
-PYTHON=${VENV_NAME}\Scripts\python3
-NON_VIRTUAL_PYTHON?=C:\Python38\python
-HOST=127.0.0.1
+PYTHON=${VENV_NAME}\Scripts\python
+NON_VIRTUAL_PYTHON?=${PY_HOME}\python
+# HOST=127.0.0.1
 TEST_PATH=.\tests
 
 .PHONY: help clean clean-pyc test examples activate linters requirements gwpycore dev-env format isort lint
 .ONESHELL:
-	
+
 help: # If you just say `make`, then this first target is assumed as the goal
 	@type doc_technical\makefile_help.txt
 
 clean: clean-pyc # Deletes all temporary files
-	del /F /S build\
-	del /F /S dist\
-	del /F /S *.pyo
-	del /F /S *.egg-info
+	del /Q /F /S build\
+	del /Q /F /S dist\
+	del /Q /F /S *.pyo
+	del /Q /F /S *.egg-info
 
 clean-pyc:
-	del /F /S *.pyc
+	del /Q /F /S *.pyc > nul
 
 test: clean-pyc | .venv # Runs all of the unit tests
 	${PYTHON} -m pytest --verbose --color=yes $(TEST_PATH)
@@ -37,7 +38,7 @@ activate: | .venv # Force activate the virtual environment
 	git clone git@github.com:gruntwurk/gwpycore.git "..\gwpycore"
 
 gwpycore: ..\gwpycore\README.adoc
-	${BIN}\pip install -e ..\gwpycore`
+	${BIN}\pip install -e ..\gwpycore
 
 qt-designer: # Install the QT-designer tool
 	${NON_VIRTUAL_PYTHON} -m pip install pyqt5_tools
@@ -60,11 +61,11 @@ prep: standardize # Prepares for a possible release
 standardize: format isort lint # Apply of the linting tools to all of the .py files
 
 format: | .venv # Re-formats all of the Python code (with black)
-	${BIN}\black *.py
+	${BIN}\black -l 256 .
 
 isort: | .venv # Cleans up all of the imports (using isort)
-	${BIN}\isort *.py
+	${BIN}\isort .
 
 lint: | .venv  # Lints code (using flake8)
-	${BIN}\flake8 *.py
+	${BIN}\flake8 --max-line-length=256 --extend-ignore=W191,W391 --extend-exclude=.venv,.pytest_cache,.vscode,doc,doc_technical,*.egg-info .
 

@@ -31,9 +31,9 @@ Attribution, feedback, bug reports and feature requests are appreciated
 # REVISION HISTORY: See doc_technical\CHANGE_LOG.adoc
 
 
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
+from PyQt5.QtCore import QCoreApplication, QLocale, QObject, QRect, QTimer, Qt
+from PyQt5.QtWidgets import QCheckBox, QMessageBox, QPushButton, QTextEdit, QWidget
+
 
 from help_ui import Ui_Help
 from options_ui import Ui_optionsDialog
@@ -52,15 +52,14 @@ from subjectLocatedDialog_ui import Ui_subjectLocatedDialog
 
 import functools
 import sys
-import logging
 import time
 import re
 import serial
 import serial.tools.list_ports
 import csv
+import os
 import os.path
 import requests
-import random
 import subprocess
 import win32api
 import win32gui
@@ -78,16 +77,19 @@ from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.units import inch
 from fdfgen import forge_fdf
 from FingerTabs import *
-import utility.command_line
-from utility.logger import setup_logging, INFO, DIAGNOSTIC, DEBUG, TRACE
-import utility.file_management
-from utility.misc_functions import *
+from gwpycore.gw_logging import setup_logging, INFO, DIAGNOSTIC, DEBUG, TRACE
+from gwpycore.gw_gui import inform_user_about_issue, ask_user_to_confirm, ICON_ERROR, ICON_WARN, ICON_INFO
+from gwpycore.gw_strings import normalizeName
+
 from pyproj import Transformer
+
+from app.command_line import parse_args
 from app.logic.teams import *
 from app.logic.exceptions import *
+from app.db.file_management import determine_rotate_method, ensureLocalDirectoryExists, getFileNameBase
 
 # process command-line arguments
-SWITCHES = utility.command_line.parse_args(sys.argv[1:])
+SWITCHES = parse_args(sys.argv[1:])
 
 # TODO Autodetect the screen resolution, but still allow a command line switch to override
 if SWITCHES.minmode:
@@ -170,11 +172,6 @@ logfilepath:Optional[Path] = None
 if not SWITCHES.nologfile:
 	logfilepath = Path(SWITCHES.logfile)
 LOG =setup_logging("main", loglevel = SWITCHES.loglevel, logfile = logfilepath, nocolor = SWITCHES.nocolor)
-ICON_ERROR = QMessageBox.Critical
-ICON_WARN = QMessageBox.Warning
-ICON_INFO = QMessageBox.Information
-ICON_QUESTION = QMessageBox.Question
-STD_DIALOG_OPTS = Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.Dialog | Qt.MSWindowsFixedSizeDialogHint | Qt.WindowStaysOnTopHint
 
 BG_GREEN = "background-color:#00bb00"
 BG_RED = "background-color:#bb0000"
@@ -190,7 +187,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
 
-		issue = utility.file_management.ensureLocalDirectoryExists()
+		issue = ensureLocalDirectoryExists()
 		if issue:
 			inform_user_about_issue(issue,icon=ICON_WARN,parent=self)
 
@@ -221,7 +218,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			win32gui.SystemParametersInfo(win32con.SPI_SETACTIVEWINDOWTRACKING,False)
 
 		self.incidentName="New Incident"
-		self.incidentNameNormalized=normName(self.incidentName)
+		self.incidentNameNormalized=normalizeName(self.incidentName)
 		self.opPeriod=1
 		self.incidentStartDate=time.strftime("%a %b %d, %Y")
 
@@ -530,24 +527,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.firstWorkingDir=self.homeDir+"\\Documents"
 		self.secondWorkingDir=None
 		self.sarsoftServerName="localhost"
-		self.rotateScript=None
-		self.rotateDelimiter=None
+		(self.rotateScript, self.rotateDelimiter) = determine_rotate_method()
+
 		# 		self.tabGroups=[["NCSO","^1[tpsdel][0-9]+"],["CHP","^22s[0-9]+"],["Numbers","^Team [0-9]+"]]
 		# the only default tab group should be number-only callsigns; everything
 		#  else goes in a separate catch-all group; override this in radiolog.cfg
 		defaultTabGroups=[["Numbers","^Team [0-9]+"]]
 		self.tabGroups=defaultTabGroups
-
-		if os.name=="nt":
-			LOG.info("Operating system is Windows.")
-			if shutil.which("powershell.exe"):
-				LOG.info("PowerShell.exe is in the path.")
-				self.rotateScript="powershell.exe -ExecutionPolicy Bypass .\\rotateCsvBackups.ps1 -filenames "
-				self.rotateDelimiter=","
-			else:
-				LOG.warn("PowerShell.exe is not in the path; poweshell-based backup rotation script cannot be used.")
-		else:
-			LOG.warn("Operating system is not Windows.  Powershell-based backup rotation script cannot be used.")
 
 		configFile=QFile(self.configFileName)
 		if not configFile.open(QFile.ReadOnly|QFile.Text):
@@ -2217,7 +2203,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.incidentName=row[0][18:]
 					self.optionsDialog.ui.incidentField.setText(self.incidentName)
 					LOG.debug("loaded incident name: '"+self.incidentName+"'")
-					self.incidentNameNormalized=normName(self.incidentName)
+					self.incidentNameNormalized=normalizeName(self.incidentName)
 					LOG.debug("normalized loaded incident name: '"+self.incidentNameNormalized+"'")
 					self.ui.incidentNameLabel.setText(self.incidentName)
 				if not row[0].startswith('#'): # prune comment lines
@@ -2305,7 +2291,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# normalize the name for purposes of filenames
 		#  - get rid of all spaces -  no need to be able to reproduce the
 		#    incident name's spaces from the filename
-		self.incidentNameNormalized=normName(self.incidentName)
+		self.incidentNameNormalized=normalizeName(self.incidentName)
 		self.csvFileName=getFileNameBase(self.incidentNameNormalized)+".csv"
 		self.pdfFileName=getFileNameBase(self.incidentNameNormalized)+".pdf"
 		self.fsFileName=self.csvFileName.replace('.csv','_fleetsync.csv')
@@ -3614,7 +3600,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.ui.relayedByComboBox.lineEdit().editingFinished.connect(self.relayedByComboBoxChanged)
 
 		self.updateButtonsEnabled()
-		
+
 ##		# unless an entry is currently being edited, activate the newly added tab
 ##		if newEntryWidgetHold:
 ##			blink 1
@@ -3701,7 +3687,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			self.ui.quickTextButton1_2.setEnabled(self.buttonsEnabled)
 			self.ui.quickTextUndoButton.setEnabled(self.buttonsEnabled)
 			self.ui.statusGroupBox.setEnabled(self.buttonsEnabled)
-				
+
 	def throb(self,n=0):
 		# this function calls itself recursivly 25 times to throb the background blue->white
 # 		LOG.debug("throb:n="+str(n))
@@ -5077,36 +5063,20 @@ class customEventFilter(QObject):
 		return super().eventFilter(receiver, event)
 
 
-def inform_user_about_issue(message: str, icon: QMessageBox.Icon = ICON_ERROR, parent: QObject = None, title="", timeout=0):
-	opts = Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.Dialog | Qt.MSWindowsFixedSizeDialogHint | Qt.WindowStaysOnTopHint
-	if title == "":
-		title = "Warning" if (icon == ICON_WARN) else "Error"
-	buttons = QMessageBox.StandardButton(QMessageBox.Ok)
-	box = QMessageBox(icon, title, message, buttons, parent, opts)
-	box.show()
-	QCoreApplication.processEvents()
-	box.raise_()
-	if timeout:
-		QTimer.singleShot(timeout,box.close)
-	box.exec_()
-
-
-def ask_user_to_confirm(question: str, icon: QMessageBox.Icon = ICON_QUESTION, parent: QObject = None, title = "Please Confirm") -> bool:
-	opts = Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.Dialog | Qt.MSWindowsFixedSizeDialogHint | Qt.WindowStaysOnTopHint
-	buttons = QMessageBox.StandardButton(QMessageBox.Yes | QMessageBox.No)
-	box = QMessageBox(icon, title, question, buttons, parent, opts)
-	box.setDefaultButton(QMessageBox.No)
-	box.show()
-	QCoreApplication.processEvents()
-	box.raise_()
-	return box.exec_() == QMessageBox.Yes
 
 def main():
-	app = QApplication(sys.argv)
+	# This is supposed to be a quick fix for the scaling problem (https://github.com/ncssar/radiolog/issues/435)
+	# but it acually makes things worse.
+	# if hasattr(Qt, 'AA_EnableHighDpiScaling'):
+	# 	QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+	# if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
+	# 	QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+	qt_app = QApplication(sys.argv)
+	LOG.diagnostic(f"Qt root directory (where qt.conf resides): {qt_app.applicationDirPath()}")
 	eFilter=customEventFilter()
-	app.installEventFilter(eFilter)
+	qt_app.installEventFilter(eFilter)
 	try:
-		w = MyWindow(app)
+		w = MyWindow(qt_app)
 		w.show()
 	except RadioLogError as e:
 		msg = "ABORTING: {0}".format(e.message)
@@ -5114,7 +5084,7 @@ def main():
 		inform_user_about_issue(msg, ICON_ERROR)
 		sys.exit(-1)
 
-	sys.exit(app.exec_())
+	sys.exit(qt_app.exec_())
 
 if __name__ == "__main__":
 	main()
