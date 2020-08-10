@@ -5,7 +5,7 @@ import argparse, configparser
 from app.logic.exceptions import  RadioLogConfigError, RadioLogConfigSettingWarning
 import logging
 
-LOG = logging.getLogger("RadioLog")
+LOG = logging.getLogger("main")
 
 DEFAULT_NAME = 'Search and Rescue'
 DEFAULT_LOGO = 'radiolog_logo.jpg'

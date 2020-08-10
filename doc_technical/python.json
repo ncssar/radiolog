@@ -8,7 +8,7 @@
 		"body": [
 		"import logging",
 		"",
-		"LOG = logging.getLogger('RadioLog')",
+		"LOG = logging.getLogger('main')",
 		"$0"
 		],
 		"description": "get a logger"

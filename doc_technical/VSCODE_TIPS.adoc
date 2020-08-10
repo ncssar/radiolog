@@ -1,4 +1,4 @@
-= Tips for Using Visual Studio Code
+= Tips for Using Visual Studio Code (VSCode)
 
 == Keyboard Bindings
 
@@ -29,4 +29,3 @@ There is also built-in support for Emmet, a unique snippet processor for generat
 
 
 Next Topic: link:/doc_technical/VIRTUAL_ENVIRONMENTS.adoc[Using Python Virtual Environments]
-

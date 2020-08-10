@@ -169,8 +169,7 @@ lastClueNumber=0
 logfilepath:Optional[Path] = None
 if not SWITCHES.nologfile:
 	logfilepath = Path(SWITCHES.logfile)
-setup_logging("RadioLog", loglevel = SWITCHES.loglevel, logfile = logfilepath, nocolor = SWITCHES.nocolor)
-LOG = logging.getLogger("RadioLog")
+LOG =setup_logging("main", loglevel = SWITCHES.loglevel, logfile = logfilepath, nocolor = SWITCHES.nocolor)
 ICON_ERROR = QMessageBox.Critical
 ICON_WARN = QMessageBox.Warning
 ICON_INFO = QMessageBox.Information

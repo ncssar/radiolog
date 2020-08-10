@@ -8,30 +8,10 @@ HOST=127.0.0.1
 TEST_PATH=.\tests
 
 .PHONY: help clean clean-pyc test examples activate linters requirements gwpycore dev-env format isort lint
-
+.ONESHELL:
+	
 help: # If you just say `make`, then this first target is assumed as the goal
-	@echo "== One-Time Setup Goals =="
-	@echo
-	@echo "dev-env -- Prepares for development, including setting up a virtual environment"
-	@echo "    (implies: gwpycore and requirements)."
-	@echo "qt-designer -- Installs the QT-designer tool."
-	@echo
-	@echo "== Regular Goals =="
-	@echo
-	@echo "test -- Runs all of the unit tests."
-	@echo "prep -- Prepares for a possible release."
-	@echo "standardize -- Apply of the linting tools (format, isort, and lint) to all of the .py files."
-	@echo "clean -- Deletes all temporary files."
-	@echo "help -- This list."
-	@echo
-	@echo "== Sub-Goals (can be executed explicitly, if desired) =="
-	@echo
-	@echo "activate -- 'Activate' the virtual environment."
-	@echo "gwpycore -- Clones the gwpycore source code and installs it (symlink-ish)."
-	@echo "requirements -- Ensures that all of the modules required by this project are installed (in the virtual env)."
-	@echo "format -- Re-formats all of the Python code (with black)."
-	@echo "isort -- Cleans up all of the imports (using isort)."
-	@echo "lint -- Lints code (using flake8)."
+	@type doc_technical\makefile_help.txt
 
 clean: clean-pyc # Deletes all temporary files
 	del /F /S build\

@@ -3,7 +3,7 @@ from enum import Enum, IntEnum
 from pyproj import Transformer
 from typing import List
 
-LOG = logging.getLogger("RadioLog")
+LOG = logging.getLogger("main")
 
 NMEACoords = List[str]
 

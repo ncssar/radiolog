@@ -1,7 +1,7 @@
 from app.logic.mapping import Datum, CoordFormat, DecimalDegrees, CRSCode
 import logging
 
-LOG = logging.getLogger("RadioLog")
+LOG = logging.getLogger("main")
 
 
 def test_possibleValues():
