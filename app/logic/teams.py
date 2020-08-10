@@ -1,34 +1,9 @@
 import re
 import logging
+from gwpycore.gw_strings import PHONETIC_DICT
 
 LOG = logging.getLogger("main")
 
-PHONETIC_DICT = {"A": "Alpha",
-                 "B": "Bravo",
-                 "C": "Charlie",
-                 "D": "Delta",
-                 "E": "Echo",
-                 "F": "Foxtrot",
-                 "G": "Golf",
-                 "H": "Hotel",
-                 "I": "India",
-                 "J": "Juliet",
-                 "K": "Kilo",
-                 "L": "Lima",
-                 "M": "Mike",
-                 "N": "November",
-                 "O": "Oscar",
-                 "P": "Papa",
-                 "Q": "Quebec",
-                 "R": "Romeo",
-                 "S": "Sierra",
-                 "T": "Tango",
-                 "U": "Uniform",
-                 "V": "Victor",
-                 "W": "Whiskey",
-                 "X": "Xray",
-                 "Y": "Yankee",
-                 "Z": "Zulu"}
 PHONETIC_RE_GROUP = r"(alpha|bravo|charlie|delta|echo|foxtrot|golf|hotel|india|juliet|kilo|lima|mike|november|oscar|papa|quebec|romeo|sierra|tango|uniform|victor|whiskey|xray|yankee|zulu)"
 
 flags = re.IGNORECASE

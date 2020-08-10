@@ -1,6 +1,6 @@
 from app.logic.exceptions import *
 import sys, pytest
-from utility.command_line import parse_args
+from app.command_line import parse_args
 
 def test_parse():
 
