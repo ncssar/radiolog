@@ -80,6 +80,8 @@ from fdfgen import forge_fdf
 from FingerTabs import *
 import utility.command_line
 from gwpycore.gw_logging import setup_logging, INFO, DIAGNOSTIC, DEBUG, TRACE
+from gwpycore.gw_gui import inform_user_about_issue, ask_user_to_confirm, ICON_ERROR, ICON_WARN, ICON_INFO
+
 import utility.file_management
 from utility.misc_functions import *
 from pyproj import Transformer
@@ -170,11 +172,6 @@ logfilepath:Optional[Path] = None
 if not SWITCHES.nologfile:
 	logfilepath = Path(SWITCHES.logfile)
 LOG =setup_logging("main", loglevel = SWITCHES.loglevel, logfile = logfilepath, nocolor = SWITCHES.nocolor)
-ICON_ERROR = QMessageBox.Critical
-ICON_WARN = QMessageBox.Warning
-ICON_INFO = QMessageBox.Information
-ICON_QUESTION = QMessageBox.Question
-STD_DIALOG_OPTS = Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.Dialog | Qt.MSWindowsFixedSizeDialogHint | Qt.WindowStaysOnTopHint
 
 BG_GREEN = "background-color:#00bb00"
 BG_RED = "background-color:#bb0000"
@@ -5077,29 +5074,6 @@ class customEventFilter(QObject):
 		return super().eventFilter(receiver, event)
 
 
-def inform_user_about_issue(message: str, icon: QMessageBox.Icon = ICON_ERROR, parent: QObject = None, title="", timeout=0):
-	opts = Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.Dialog | Qt.MSWindowsFixedSizeDialogHint | Qt.WindowStaysOnTopHint
-	if title == "":
-		title = "Warning" if (icon == ICON_WARN) else "Error"
-	buttons = QMessageBox.StandardButton(QMessageBox.Ok)
-	box = QMessageBox(icon, title, message, buttons, parent, opts)
-	box.show()
-	QCoreApplication.processEvents()
-	box.raise_()
-	if timeout:
-		QTimer.singleShot(timeout,box.close)
-	box.exec_()
-
-
-def ask_user_to_confirm(question: str, icon: QMessageBox.Icon = ICON_QUESTION, parent: QObject = None, title = "Please Confirm") -> bool:
-	opts = Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.Dialog | Qt.MSWindowsFixedSizeDialogHint | Qt.WindowStaysOnTopHint
-	buttons = QMessageBox.StandardButton(QMessageBox.Yes | QMessageBox.No)
-	box = QMessageBox(icon, title, question, buttons, parent, opts)
-	box.setDefaultButton(QMessageBox.No)
-	box.show()
-	QCoreApplication.processEvents()
-	box.raise_()
-	return box.exec_() == QMessageBox.Yes
 
 def main():
 	app = QApplication(sys.argv)
