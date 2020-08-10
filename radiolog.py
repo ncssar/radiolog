@@ -3500,6 +3500,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 	def __init__(self,parent,sec=0,formattedLocString='',fleet='',dev='',origLocString='',amendFlag=False,amendRow=None):
 		QDialog.__init__(self)
 
+		self.buttonsEnabled=True
 		self.ui=Ui_newEntryWidget()
 
 		self.throbTimer=None
@@ -3613,6 +3614,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 
 		self.ui.relayedByComboBox.lineEdit().editingFinished.connect(self.relayedByComboBoxChanged)
 
+		self.updateButtonsEnabled()
+		
 ##		# unless an entry is currently being edited, activate the newly added tab
 ##		if newEntryWidgetHold:
 ##			blink 1
@@ -3672,6 +3675,34 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##	def changeEvent(self,event):
 ##		self.throb(0)
 
+	def updateButtonsEnabled(self):
+		setButtons=False
+		if self.buttonsEnabled==False:
+			if self.ui.teamField.text()!="":
+				# enable all buttons
+				setButtons=True
+				self.buttonsEnabled=True
+		else:
+			if self.ui.teamField.text()=="":
+				# disable all buttons
+				setButtons=True
+				self.buttonsEnabled=False
+		if setButtons:
+			self.ui.quickTextButton1.setEnabled(self.buttonsEnabled)
+			self.ui.quickTextButton2.setEnabled(self.buttonsEnabled)
+			self.ui.quickTextButton3.setEnabled(self.buttonsEnabled)
+			self.ui.quickTextButton4.setEnabled(self.buttonsEnabled)
+			self.ui.quickTextButton5.setEnabled(self.buttonsEnabled)
+			self.ui.quickTextButton6.setEnabled(self.buttonsEnabled)
+			self.ui.quickTextButton7.setEnabled(self.buttonsEnabled)
+			self.ui.quickTextButton8.setEnabled(self.buttonsEnabled)
+			self.ui.quickTextButton9.setEnabled(self.buttonsEnabled)
+			self.ui.quickTextButton10.setEnabled(self.buttonsEnabled)
+			self.ui.quickTextButton11.setEnabled(self.buttonsEnabled)
+			self.ui.quickTextButton1_2.setEnabled(self.buttonsEnabled)
+			self.ui.quickTextUndoButton.setEnabled(self.buttonsEnabled)
+			self.ui.statusGroupBox.setEnabled(self.buttonsEnabled)
+				
 	def throb(self,n=0):
 		# this function calls itself recursivly 25 times to throb the background blue->white
 # 		LOG.debug("throb:n="+str(n))
@@ -3966,6 +3997,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##		self.setWindowTitle("Radio Log - "+tmpTxt+" - "+self.ui.to_fromField.currentText()+" "+self.ui.teamField.text())
 
 	def teamFieldTextChanged(self):
+		self.updateButtonsEnabled()
 		# if typed callsign is only a three-or-fewer-digit number, prefix it with 'Team '
 		#  otherwise do not prefix it
 		cs=self.ui.teamField.text()
