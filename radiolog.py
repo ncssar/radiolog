@@ -81,6 +81,7 @@ from FingerTabs import *
 import utility.command_line
 from gwpycore.gw_logging import setup_logging, INFO, DIAGNOSTIC, DEBUG, TRACE
 from gwpycore.gw_gui import inform_user_about_issue, ask_user_to_confirm, ICON_ERROR, ICON_WARN, ICON_INFO
+from gwpycore.gw_strings import normalizeName
 
 import utility.file_management
 from utility.misc_functions import *
@@ -218,7 +219,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			win32gui.SystemParametersInfo(win32con.SPI_SETACTIVEWINDOWTRACKING,False)
 
 		self.incidentName="New Incident"
-		self.incidentNameNormalized=normName(self.incidentName)
+		self.incidentNameNormalized=normalizeName(self.incidentName)
 		self.opPeriod=1
 		self.incidentStartDate=time.strftime("%a %b %d, %Y")
 
@@ -2214,7 +2215,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.incidentName=row[0][18:]
 					self.optionsDialog.ui.incidentField.setText(self.incidentName)
 					LOG.debug("loaded incident name: '"+self.incidentName+"'")
-					self.incidentNameNormalized=normName(self.incidentName)
+					self.incidentNameNormalized=normalizeName(self.incidentName)
 					LOG.debug("normalized loaded incident name: '"+self.incidentNameNormalized+"'")
 					self.ui.incidentNameLabel.setText(self.incidentName)
 				if not row[0].startswith('#'): # prune comment lines
@@ -2302,7 +2303,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# normalize the name for purposes of filenames
 		#  - get rid of all spaces -  no need to be able to reproduce the
 		#    incident name's spaces from the filename
-		self.incidentNameNormalized=normName(self.incidentName)
+		self.incidentNameNormalized=normalizeName(self.incidentName)
 		self.csvFileName=getFileNameBase(self.incidentNameNormalized)+".csv"
 		self.pdfFileName=getFileNameBase(self.incidentNameNormalized)+".pdf"
 		self.fsFileName=self.csvFileName.replace('.csv','_fleetsync.csv')
