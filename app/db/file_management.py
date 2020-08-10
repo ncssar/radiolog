@@ -2,6 +2,10 @@ import os,shutil,logging
 
 LOG = logging.getLogger("main")
 
+def getFileNameBase(root):
+	"""Adds a timestamp to the given string (a root filename)."""
+	return root  # +"_"+timestamp()
+
 def ensureLocalDirectoryExists():
 	"""
 	create the local dir if it doesn't already exist, and populate it
@@ -17,3 +21,5 @@ def ensureLocalDirectoryExists():
 		LOG.warn(issue)
 		shutil.copyfile("local_default/radiolog.cfg", "local/radiolog.cfg")
 	return issue
+
+__ALL__ = ("getFileNameBase", "ensureLocalDirectoryExists")

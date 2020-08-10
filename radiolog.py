@@ -31,6 +31,7 @@ Attribution, feedback, bug reports and feature requests are appreciated
 # REVISION HISTORY: See doc_technical\CHANGE_LOG.adoc
 
 
+from app.db.file_management import getFileNameBase
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
@@ -78,19 +79,18 @@ from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.units import inch
 from fdfgen import forge_fdf
 from FingerTabs import *
-import utility.command_line
+import app.command_line
 from gwpycore.gw_logging import setup_logging, INFO, DIAGNOSTIC, DEBUG, TRACE
 from gwpycore.gw_gui import inform_user_about_issue, ask_user_to_confirm, ICON_ERROR, ICON_WARN, ICON_INFO
 from gwpycore.gw_strings import normalizeName
 
-import utility.file_management
-from utility.misc_functions import *
+import app.db.file_management
 from pyproj import Transformer
 from app.logic.teams import *
 from app.logic.exceptions import *
 
 # process command-line arguments
-SWITCHES = utility.command_line.parse_args(sys.argv[1:])
+SWITCHES = app.command_line.parse_args(sys.argv[1:])
 
 # TODO Autodetect the screen resolution, but still allow a command line switch to override
 if SWITCHES.minmode:
@@ -188,7 +188,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
 
-		issue = utility.file_management.ensureLocalDirectoryExists()
+		issue = app.db.file_management.ensureLocalDirectoryExists()
 		if issue:
 			inform_user_about_issue(issue,icon=ICON_WARN,parent=self)
 
