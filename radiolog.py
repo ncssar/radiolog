@@ -79,7 +79,7 @@ from reportlab.lib.units import inch
 from fdfgen import forge_fdf
 from FingerTabs import *
 import utility.command_line
-from utility.logger import setup_logging, INFO, DIAGNOSTIC, DEBUG, TRACE
+from gwpycore.gw_logging import setup_logging, INFO, DIAGNOSTIC, DEBUG, TRACE
 import utility.file_management
 from utility.misc_functions import *
 from pyproj import Transformer
@@ -3614,7 +3614,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.ui.relayedByComboBox.lineEdit().editingFinished.connect(self.relayedByComboBoxChanged)
 
 		self.updateButtonsEnabled()
-		
+
 ##		# unless an entry is currently being edited, activate the newly added tab
 ##		if newEntryWidgetHold:
 ##			blink 1
@@ -3701,7 +3701,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			self.ui.quickTextButton1_2.setEnabled(self.buttonsEnabled)
 			self.ui.quickTextUndoButton.setEnabled(self.buttonsEnabled)
 			self.ui.statusGroupBox.setEnabled(self.buttonsEnabled)
-				
+
 	def throb(self,n=0):
 		# this function calls itself recursivly 25 times to throb the background blue->white
 # 		LOG.debug("throb:n="+str(n))
