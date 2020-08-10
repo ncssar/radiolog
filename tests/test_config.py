@@ -9,7 +9,7 @@ from typing import List
 
 def test_config_all_defaults():
 	setup_logging.cache_clear()
-	log = setup_logging("RadioLog", logfile=None, nocolor=True)
+	log = setup_logging("main", logfile=None, nocolor=True)
 	config = load_config(ini="")
 
 	assert config.agencyName == 'Search and Rescue'
@@ -46,7 +46,7 @@ firstworkingdir = C:\\ir
 secondworkingdir = E:\\fab
 	"""
 	setup_logging.cache_clear()
-	log = setup_logging("RadioLog", logfile=None, nocolor=True)
+	log = setup_logging("main", logfile=None, nocolor=True)
 	config = load_config(ini=ini)
 
 	assert config.agencyName == 'International Rescue'
@@ -70,7 +70,7 @@ coordformat = XXX
 	"""
 	sys.stderr.write("==START==\n")
 	setup_logging.cache_clear()
-	log = setup_logging("RadioLog", logfile=None, nocolor=True)
+	log = setup_logging("main", logfile=None, nocolor=True)
 	config = load_config(ini=ini)
 	sys.stderr.write("==END==")
 	captured = capsys.readouterr()
