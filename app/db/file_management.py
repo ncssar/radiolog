@@ -1,4 +1,5 @@
 import os,shutil,logging
+from typing import Optional, Tuple
 
 LOG = logging.getLogger("main")
 
@@ -21,5 +22,20 @@ def ensureLocalDirectoryExists():
 		LOG.warn(issue)
 		shutil.copyfile("local_default/radiolog.cfg", "local/radiolog.cfg")
 	return issue
+
+def determine_rotate_method() -> Tuple[Optional[str], Optional[str]]:
+	rotateScript = None
+	rotateDelimiter = None
+	if os.name == "nt":
+		LOG.info("Operating system is Windows.")
+		if shutil.which("powershell.exe"):
+			LOG.info("PowerShell.exe is in the path.")
+			rotateScript = "powershell.exe -ExecutionPolicy Bypass .\\rotateCsvBackups.ps1 -filenames "
+			rotateDelimiter = ","
+		else:
+			LOG.warn("PowerShell.exe is not in the path; poweshell-based backup rotation script cannot be used.")
+	else:
+		LOG.warn("Operating system is not Windows.  Powershell-based backup rotation script cannot be used.")
+	return (rotateScript, rotateDelimiter)
 
 __ALL__ = ("getFileNameBase", "ensureLocalDirectoryExists")

@@ -31,7 +31,7 @@ Attribution, feedback, bug reports and feature requests are appreciated
 # REVISION HISTORY: See doc_technical\CHANGE_LOG.adoc
 
 
-from app.db.file_management import getFileNameBase
+from app.db.file_management import determine_rotate_method, getFileNameBase
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
@@ -53,7 +53,6 @@ from subjectLocatedDialog_ui import Ui_subjectLocatedDialog
 
 import functools
 import sys
-import logging
 import time
 import re
 import serial
@@ -61,7 +60,6 @@ import serial.tools.list_ports
 import csv
 import os.path
 import requests
-import random
 import subprocess
 import win32api
 import win32gui
@@ -70,7 +68,7 @@ import win32con
 import shutil
 import math
 import textwrap
-from typing import Optional
+from typing import Optional, Tuple
 from pathlib import Path
 from reportlab.lib import colors,utils
 from reportlab.lib.pagesizes import letter,landscape
@@ -528,24 +526,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.firstWorkingDir=self.homeDir+"\\Documents"
 		self.secondWorkingDir=None
 		self.sarsoftServerName="localhost"
-		self.rotateScript=None
-		self.rotateDelimiter=None
+		(self.rotateScript, self.rotateDelimiter) = determine_rotate_method()
+
 		# 		self.tabGroups=[["NCSO","^1[tpsdel][0-9]+"],["CHP","^22s[0-9]+"],["Numbers","^Team [0-9]+"]]
 		# the only default tab group should be number-only callsigns; everything
 		#  else goes in a separate catch-all group; override this in radiolog.cfg
 		defaultTabGroups=[["Numbers","^Team [0-9]+"]]
 		self.tabGroups=defaultTabGroups
-
-		if os.name=="nt":
-			LOG.info("Operating system is Windows.")
-			if shutil.which("powershell.exe"):
-				LOG.info("PowerShell.exe is in the path.")
-				self.rotateScript="powershell.exe -ExecutionPolicy Bypass .\\rotateCsvBackups.ps1 -filenames "
-				self.rotateDelimiter=","
-			else:
-				LOG.warn("PowerShell.exe is not in the path; poweshell-based backup rotation script cannot be used.")
-		else:
-			LOG.warn("Operating system is not Windows.  Powershell-based backup rotation script cannot be used.")
 
 		configFile=QFile(self.configFileName)
 		if not configFile.open(QFile.ReadOnly|QFile.Text):
