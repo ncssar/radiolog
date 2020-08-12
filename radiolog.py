@@ -83,24 +83,24 @@ SWITCHES = parse_args(sys.argv[1:])
 # TODO Autodetect the screen resolution, but still allow a command line switch to override
 if SWITCHES.minmode:
 	# built to look decent at 800x600
-	UiDialog = uic.loadUiType("radiolog_min.ui")[0]
+	UiDialog = uic.loadUiType("app/ui/radiolog_min.ui")[0]
 else:
 	# normal version, for higher resolution
-	UiDialog = uic.loadUiType("radiolog.ui")[0]
-HelpDialog = uic.loadUiType("help.ui")[0]
-OptionsDialog = uic.loadUiType("options.ui")[0]
-NewEntryWindow = uic.loadUiType("newEntryWindow.ui")[0]
-NewEntryWidget = uic.loadUiType("newEntryWidget.ui")[0]
-ClueDialog = uic.loadUiType("clueDialog.ui")[0]
-ClueLogDialog = uic.loadUiType("clueLogDialog.ui")[0]
-PrintDialog = uic.loadUiType("printDialog.ui")[0]
-ChangeCallsignDialog = uic.loadUiType("changeCallsignDialog.ui")[0]
-FsFilterDialog = uic.loadUiType("fsFilterDialog.ui")[0]
-OpPeriodDialog = uic.loadUiType("opPeriodDialog.ui")[0]
-PrintClueLogDialog = uic.loadUiType("printClueLogDialog.ui")[0]
-NonRadioClueDialog = uic.loadUiType("nonRadioClueDialog.ui")[0]
-ConvertDialog = uic.loadUiType("convertDialog.ui")[0]
-SubjectLocatedDialog = uic.loadUiType("subjectLocatedDialog.ui")[0]
+	UiDialog = uic.loadUiType("app/ui/radiolog.ui")[0]
+HelpDialog = uic.loadUiType("app/ui/help.ui")[0]
+OptionsDialog = uic.loadUiType("app/ui/options.ui")[0]
+NewEntryWindow = uic.loadUiType("app/ui/newEntryWindow.ui")[0]
+NewEntryWidget = uic.loadUiType("app/ui/newEntryWidget.ui")[0]
+ClueDialog = uic.loadUiType("app/ui/clueDialog.ui")[0]
+ClueLogDialog = uic.loadUiType("app/ui/clueLogDialog.ui")[0]
+PrintDialog = uic.loadUiType("app/ui/printDialog.ui")[0]
+ChangeCallsignDialog = uic.loadUiType("app/ui/changeCallsignDialog.ui")[0]
+FsFilterDialog = uic.loadUiType("app/ui/fsFilterDialog.ui")[0]
+OpPeriodDialog = uic.loadUiType("app/ui/opPeriodDialog.ui")[0]
+PrintClueLogDialog = uic.loadUiType("app/ui/printClueLogDialog.ui")[0]
+NonRadioClueDialog = uic.loadUiType("app/ui/nonRadioClueDialog.ui")[0]
+ConvertDialog = uic.loadUiType("app/ui/convertDialog.ui")[0]
+SubjectLocatedDialog = uic.loadUiType("app/ui/subjectLocatedDialog.ui")[0]
 
 statusStyleDict={}
 # even though tab labels are created with font-size:20px and the tab sizes and margins are created accordingly,
