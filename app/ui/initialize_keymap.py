@@ -1,9 +1,6 @@
-
 import os
-from app.logic.exceptions import RadioLogConfigError
-from gwpycore import AppActions
-
 import logging
+from gwpycore import AppActions
 
 LOG = logging.getLogger('main')
 
@@ -41,4 +38,6 @@ def initializeMainWindowActions(parent):
     if os.path.isfile(KEYMAP_FILENAME):
         LOG.info(f"Using shortcut key assignments per: {KEYMAP_FILENAME}")
         parent.act.loadKeyMapFile(KEYMAP_FILENAME)
-    parent.act.attachActions()
+    # parent.act.attachActions()
+    parent.act.attachAction("increaseFont")
+    parent.act.attachAction("decreaseFont")
