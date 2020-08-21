@@ -31,6 +31,7 @@ Attribution, feedback, bug reports and feature requests are appreciated
 # REVISION HISTORY: See doc_technical\CHANGE_LOG.adoc
 
 
+from app.ui.hotkey_pool import TeamHotKeys
 from gwpycore import WindowsBehaviorAdjuster
 from app.ui.initialize_keymap import initializeMainWindowActions
 from gwpycore import normalizeName
@@ -202,9 +203,7 @@ class MyWindow(QDialog,UiDialog):
         self.totalEntryCount=0 # rotate backups after every 5 entries; see newEntryWidget.accept
 
         self.teamHotkeysWidget.setVisible(False) # disabled by default
-        self.hotkeyDict={}
-        self.nextAvailHotkeyIndex=0
-        self.hotkeyPool=["1","2","3","4","5","6","7","8","9","0","q","w","e","r","t","y","u","i","o","p","a","s","d","f","g","h","j","k","l","z","x","c","v","b","n","m"]
+        self.team_hot_keys = TeamHotKeys()
         self.homeDir=os.path.expanduser("~")
 
         # fix #342 (focus-follows-mouse causes freezes) - disable FFM here;
@@ -487,12 +486,6 @@ class MyWindow(QDialog,UiDialog):
         self.fastTimer=QTimer(self)
         self.fastTimer.timeout.connect(self.resizeRowsToContentsIfNeeded)
         self.fastTimer.start(100)
-
-# 		self.tabWidget.insertTab(0,QWidget(),'TEAMS:')
-# ##		self.tabWidget.setStyleSheet("font-size:12px")
-# 		self.tabWidget.setTabEnabled(0,False)
-
-# 		self.teamHotkeysHLayout.insertWidget(0,QLabel("HOTKEYS:"))
 
         self.tabWidget.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tabWidget.customContextMenuRequested.connect(self.tabContextMenu)
@@ -1883,7 +1876,7 @@ class MyWindow(QDialog,UiDialog):
 # 				LOG.debug("  key:"+QKeySequence(event.key()).toString()+"  mod:"+str(mod))
                 if self.teamHotkeysWidget.isVisible():
                     # these key handlers apply only if hotkeys are enabled:
-                    if key in self.hotkeyDict.keys():
+                    if self.team_hot_keys.getTeam(key):
                         self.openNewEntry(key)
                 else:
                     # these key handlers apply only if hotkeys are disabled:
@@ -2280,7 +2273,7 @@ class MyWindow(QDialog,UiDialog):
         if key:
             if self.teamHotkeysWidget.isVisible() and len(key)==1:
                 self.newEntryWidget.to_fromField.setCurrentIndex(0)
-                self.newEntryWidget.teamField.setText(self.hotkeyDict[key])
+                self.newEntryWidget.teamField.setText(self.team_hot_keys.getTeam(key))
                 self.newEntryWidget.messageField.setFocus()
             else:
                 if key=='fs': # spawned by fleetsync: let addTab determine focus
@@ -2539,35 +2532,15 @@ class MyWindow(QDialog,UiDialog):
         amendDialog=self.openNewEntry(amendFlag=True,amendRow=row)
 
     def rebuildTabs(self):
-# 		groupDict=self.rebuildGroupedTabDict()
-# 		tabs=[]
-# 		for group in groupDict:
-# 			tabs.extend(groupDict[group])
-# 			tabs.append("")
-# 		LOG.debug("Final tabs list:"+str(tabs))
-# 		bar=self.tabWidget.tabBar()
-# 		for i in range(len(tabs)):
-# 			bar.insertTab(i,tabs[i])
-# 			if tabs[i]=="":
-# 				bar.setTabEnabled(i,False)
-# 		LOG.debug("extTeamNameList before sort:"+str(self.extTeamNameList))
-# # 		self.extTeamNameList.sort()
-# 		self.rebuildGroupedTabDict()
-# 		LOG.debug("extTeamNameList after sort:"+str(self.extTeamNameList))
         self.tabList=[]
         self.tabGridLayoutList=[]
         self.tableViewList=[]
-# 		self.proxyModelList=["dummy"]
-# 		self.teamNameList=["dummy"]
-# 		self.allTeamsList=[] # same as teamNameList but hidden tabs are not deleted from this list
 
         bar=self.tabWidget.tabBar()
         while bar.count()>0:
-# 			print("count:"+str(bar.count()))
             bar.removeTab(0)
         for extTeamName in self.extTeamNameList:
             self.addTab(extTeamName)
-# 		self.rebuildTeamHotkeys()
 
     def newTeam(self,newTeamName):
         # not sure why newTeamName is False (bool) when called as a slot;
@@ -2604,103 +2577,10 @@ class MyWindow(QDialog,UiDialog):
 # 				LOG.debug("   allTeamsList after:"+str(self.allTeamsList))
             teamTimersDict[extTeamName]=0
             teamCreatedTimeDict[extTeamName]=time.time()
-            # assign team hotkey
-            hotkey=self.getNextAvailHotkey()
-            LOG.debug("next available hotkey:"+str(hotkey))
-            if hotkey:
-                self.hotkeyDict[hotkey]=niceTeamName
-            else:
-                LOG.debug("Team hotkey pool has been used up.  Not setting any hotkeyDict entry for "+niceTeamName)
+            self.team_hot_keys.assignTeamHotkey(niceTeamName)
 
-        self.rebuildTeamHotkeys()
+        self.team_hot_keys.rebuildTeamHotkeys(self.teamHotkeysHLayout, self.tabWidget)
 
-        """
-        i=self.extTeamNameList.index(extTeamName) # i is zero-based
-        if len(self.extTeamNameList)>>i+1:
-            if self.extTeamNameList[i+1]=="":
-                LOG.debug("  spacer needed after this new team")
-        if i>>0:
-            if self.extTeamNameList[i-1]=="":
-                LOG.debug("  spacer needed before this new team")
-        self.teamNameList.insert(i,niceTeamName)
-        if self.allTeamsList.count(niceTeamName)==0:
-            self.allTeamsList.insert(i,niceTeamName)
-            self.allTeamsList.sort()
-        teamTimersDict[extTeamName]=0
-        teamCreatedTimeDict[extTeamName]=time.time()
-
-        self.tabList.insert(i,QWidget())
-        self.tabGridLayoutList.insert(i,QGridLayout(self.tabList[i]))
-        self.tableViewList.insert(i,QTableView(self.tabList[i]))
-        self.tableViewList[i].verticalHeader().setVisible(False)
-        self.tableViewList[i].setTextElideMode(Qt.ElideNone)
-        self.tableViewList[i].setFocusPolicy(Qt.NoFocus)
-        self.tableViewList[i].setSelectionMode(QAbstractItemView.NoSelection)
-        self.tableViewList[i].setStyleSheet("font-size:"+str(self.fontSize)+"pt")
-        self.tabGridLayoutList[i].addWidget(self.tableViewList[i],0,0,1,1)
-        self.tabWidget.insertTab(i,self.tabList[i],'')
-        label=QLabel(" "+shortNiceTeamName+" ")
-        label.setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
-        LOG.debug("setting tab button #"+str(i)+" to "+label.text())
-        bar=self.tabWidget.tabBar()
-        bar.setTabButton(i,QTabBar.LeftSide,label)
-        # during rebuildTeamHotkeys, we need to read the name of currently displayed tabs.
-        #  An apparent bug causes the tabButton (a label) to not have a text attrubite;
-        #  so, use the whatsThis attribute instead.
-        bar.setTabWhatsThis(i,niceTeamName)
-        bar.tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignHCenter")
-        # spacers should be disabled
-        if extTeamName=="":
-            bar.setTabEnabled(i,False)
-        # hotkeyDict: key=hotkey  val=niceTeamName
-        # hotkeyRDict: key=niceTeamName  val=hotkey
-
-        hotkey=self.getNextAvailHotkey()
-        if hotkey:
-            self.hotkeyDict[hotkey]=niceTeamName
-        else:
-            LOG.debug("Team hotkey pool has been used up.  Not setting any hotkeyDict entry for "+niceTeamName)
-
-        self.rebuildTeamHotkeys()
-##		deleteTeamTabAction=QAction("Delete Tab",None)
-##		deleteTeamTabAction.triggered.connect(self.deletePrint)
-##		self.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setContextMenuPolicy(Qt.ActionsContextMenu)
-##		self.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).addAction(deleteTeamTabAction)
-##		deleteTeamTabAction.triggered.connect(lambda:self.deleteTeamTab(newTeamName))
-
-
-
-        # better to NOT modify the entered team name value, for data integrity;
-        # instead, set the filter to only display rows where the human readable form
-        # of the value in column 2 matches the human readable form of the tab name
-        self.proxyModelList.insert(i,CustomSortFilterProxyModel(self))
-        self.proxyModelList[i].setSourceModel(self.tableModel)
-        self.proxyModelList[i].setFilterFixedString(extTeamName)
-        self.tableViewList[i].setModel(self.proxyModelList[i])
-        self.tableViewList[i].hideColumn(6) # hide epoch seconds
-        self.tableViewList[i].hideColumn(7) # hide epoch seconds
-        self.tableViewList[i].hideColumn(8) # hide epoch seconds
-        self.tableViewList[i].hideColumn(9) # hide epoch seconds
-        self.tableViewList[i].resizeRowsToContents()
-
-        #NOTE if you do this section before the model is assigned to the tableView,
-        # python will crash every time!
-        # see the QHeaderView.ResizeMode docs for descriptions of each resize mode value
-        # note QHeaderView.setResizeMode is deprecated in 5.4, replaced with
-        # .setSectionResizeMode but also has both global and column-index forms
-        self.tableViewList[i].horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        # automatically expand the 'message' column width to fill available space
-        self.tableViewList[i].horizontalHeader().setSectionResizeMode(3,QHeaderView.Stretch)
-##		self.redrawTables()
-##		self.fontsChanged()
-
-
-# 		self.rebuildTabs()
-
-##	def deletePrint(self):
-##		LOG.debug("deleting")
-
-        """
 
     def addTab(self,extTeamName):
         niceTeamName=getNiceTeamName(extTeamName)
@@ -2734,22 +2614,10 @@ class MyWindow(QDialog,UiDialog):
         #  so, use the whatsThis attribute instead.
         bar.setTabWhatsThis(i,niceTeamName)
 # 		LOG.debug("setting style for tab#"+str(i))
-# 		bar.tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:18px;qproperty-alignment:AlignHCenter")
         bar.tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[""])
-# 		if not extTeamName.startswith("spacer"):
-# 			label.setStyleSheet("font-size:40px;border:1px outset green;qproperty-alignment:AlignHCenter")
         # spacers should be disabled
         if extTeamName.startswith("spacer"):
             bar.setTabEnabled(i,False)
-
-# 		if not extTeamName.startswith("spacer"):
-# 			hotkey=self.getNextAvailHotkey()
-# 			LOG.debug("next available hotkey:"+str(hotkey))
-# 			if hotkey:
-# 				self.hotkeyDict[hotkey]=niceTeamName
-# 			else:
-# 				LOG.debug("Team hotkey pool has been used up.  Not setting any hotkeyDict entry for "+niceTeamName)
-# 		self.rebuildTeamHotkeys()
 
         # better to NOT modify the entered team name value, for data integrity;
         # instead, set the filter to only display rows where the human readable form
@@ -2924,23 +2792,9 @@ class MyWindow(QDialog,UiDialog):
                 LOG.debug("  ** sync error: proxyModelList current length = "+str(len(self.proxyModelList))+"; requested to delete index "+str(i)+"; continuing...")
             else:
                 LOG.debug("  deleted proxyModelList index "+str(i))
-            # free the hotkey, and reassign it to the first (if any) displayed callsign that has no hotkey
-            hotkeyRDict={v:k for k,v in self.hotkeyDict.items()}
-            if niceTeamName in hotkeyRDict:
-                hotkey=hotkeyRDict[niceTeamName]
-                LOG.debug("Freeing hotkey '"+hotkey+"' which was used for callsign '"+niceTeamName+"'")
-                del self.hotkeyDict[hotkey]
-                bar=self.tabWidget.tabBar()
-                taken=False
-                for i in range(1,bar.count()):
-                    if not taken:
-                        callsign=bar.tabWhatsThis(i)
-                        LOG.debug("checking tab#"+str(i)+":"+callsign)
-                        if callsign not in hotkeyRDict and not callsign.lower().startswith("spacer"):
-                            LOG.debug("  does not have a hotkey; using the freed hotkey '"+hotkey+"'")
-                            self.hotkeyDict[hotkey]=callsign
-                            taken=True
-        self.rebuildTeamHotkeys()
+
+            self.team_hot_keys.freeHotkey(niceTeamName, self.tabWidget)
+        self.team_hot_keys.rebuildTeamHotkeys(self.teamHotkeysHLayout, self.tabWidget)
         LOG.debug("  extTeamNameList after delete: "+str(self.extTeamNameList))
         # if there are two adjacent spacers, delete the second one
         for n in range(len(self.extTeamNameList)-1):
@@ -2949,50 +2803,10 @@ class MyWindow(QDialog,UiDialog):
                     LOG.debug("  found back-to-back spacers at indices "+str(n)+" and "+str(n+1))
                     self.deleteTeamTab(self.extTeamNameList[n+1],True)
 
-    def getNextAvailHotkey(self):
-        # iterate through hotkey pool until finding one that is not taken
-        for hotkey in self.hotkeyPool:
-            if hotkey not in self.hotkeyDict:
-                return hotkey
-        return None # no available hotkeys
-
-    def rebuildTeamHotkeys(self):
-        # delete all child widgets
-        while self.teamHotkeysHLayout.count():
-            child=self.teamHotkeysHLayout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
-
-        bar=self.tabWidget.tabBar()
-# 		label=QLabel("HOTKEYS:")
-# 		label.setFixedWidth(bar.tabRect(0).width())
-# 		self.teamHotkeysHLayout.addWidget(label)
-# 		icon = QIcon()
-# 		icon.addPixmap(QPixmap(":/radiolog_ui/blank-computer-key.png"), QIcon.Normal, QIcon.Off)
-# 		p=QPalette();
-# 		p.setBrush(self.backgroundRole(),QBrush(QPixmap(":/radiolog_ui/blank-computer-key.png").scaled(30,30)))
-        hotkeyRDict={v:k for k,v in self.hotkeyDict.items()}
-# 		LOG.debug("tab count="+str(bar.count()))
-        for i in range(0,bar.count()):
-            #  An apparent bug causes the tabButton (a label) to not have a text attrubite;
-            #  so, use the whatsThis attribute instead.
-            callsign=bar.tabWhatsThis(i)
-            hotkey=hotkeyRDict.get(callsign,"")
-            l=QLabel(hotkey)
-            l.setFixedWidth(bar.tabRect(i).width())
-# 			l.setStyleSheet("border:0px solid black;margin:0px;font-style:italic;font-size:14px;border-image:url(:/radiolog_ui/blank-computer-key.png) 0 0 30 30;")
-            l.setStyleSheet("border:0px solid black;margin:0px;font-style:italic;font-size:14px;background-image:url(:/radiolog_ui/blank-computer-key.png) 0 0 30 30;")
-            l.setAlignment(Qt.AlignCenter)
-# 			l.setPalette(p)
-# 			w.setPixmap(QPixmap(":/radiolog_ui/blank-computer-key.png").scaled(30,30))
-# 			l.setIconSize(QSize(30, 30))
-            self.teamHotkeysHLayout.addWidget(l)
-        self.teamHotkeysHLayout.addStretch()
-
     def toggleTeamHotkeys(self):
         vis=self.teamHotkeysWidget.isVisible()
         if not vis:
-            self.rebuildTeamHotkeys()
+            self.team_hot_keys.rebuildTeamHotkeys(self.teamHotkeysHLayout, self.tabWidget)
         self.teamHotkeysWidget.setVisible(not vis)
 
     def openOpPeriodDialog(self):
