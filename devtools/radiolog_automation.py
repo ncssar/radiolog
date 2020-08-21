@@ -3,7 +3,7 @@ import sys, re, time
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from gwpycore.gw_gui import SimpleControlPanel
+from gwpycore import SimpleControlPanel
 from pywinauto import backend
 
 sys.coinit_flags = 2

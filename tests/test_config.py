@@ -1,6 +1,6 @@
 import logging
 import sys
-from gwpycore.gw_logging import setup_logging
+from gwpycore import setup_logging
 from app.config import load_config
 from app.logic.mapping import Datum, CoordFormat
 from pathlib import Path

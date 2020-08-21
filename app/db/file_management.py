@@ -38,4 +38,4 @@ def determine_rotate_method() -> Tuple[Optional[str], Optional[str]]:
 		LOG.warn("Operating system is not Windows.  Powershell-based backup rotation script cannot be used.")
 	return (rotateScript, rotateDelimiter)
 
-__ALL__ = ("getFileNameBase", "ensureLocalDirectoryExists")
+__all__ = ("getFileNameBase", "ensureLocalDirectoryExists")

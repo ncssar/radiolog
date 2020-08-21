@@ -31,10 +31,12 @@ Attribution, feedback, bug reports and feature requests are appreciated
 # REVISION HISTORY: See doc_technical\CHANGE_LOG.adoc
 
 
-from PyQt5.QtCore import QCoreApplication, QLocale, QObject, QRect, QTimer, Qt
-from PyQt5.QtWidgets import QCheckBox, QMessageBox, QPushButton, QTextEdit, QWidget
-
-
+from app.ui.initialize_keymap import initializeMainWindowActions
+from gwpycore import normalizeName
+from app.logic.entries import rreplace
+from PyQt5.QtCore import QAbstractTableModel, QCoreApplication, QEvent, QFile, QLocale, QModelIndex, QObject, QRect, QSortFilterProxyModel, QTextStream, QTimer, QVariant, Qt
+from PyQt5.QtGui import QColor, QFont, QIcon, QKeyEvent, QKeySequence, QPalette, QPixmap
+from PyQt5.QtWidgets import QAbstractItemView, QApplication, QCheckBox, QDialog, QDialogButtonBox, QGridLayout, QHBoxLayout, QHeaderView, QLabel, QMenu, QMessageBox, QPushButton, QSizePolicy, QTabBar, QTabWidget, QTableView, QTextEdit, QWidget
 
 import functools
 import sys
@@ -62,10 +64,9 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.units import inch
 from fdfgen import forge_fdf
-from FingerTabs import *
-from gwpycore.gw_logging import setup_logging, INFO, DIAGNOSTIC, DEBUG, TRACE
-from gwpycore.gw_gui import inform_user_about_issue, ask_user_to_confirm, ICON_ERROR, ICON_WARN, ICON_INFO
-from gwpycore.gw_strings import normalizeName
+from gwpycore import setup_logging, INFO, DIAGNOSTIC, DEBUG, TRACE
+from gwpycore import inform_user_about_issue, ask_user_to_confirm, ICON_ERROR, ICON_WARN, ICON_INFO, FingerTabBarWidget
+from gwpycore import AppActions
 
 from pyproj import Transformer
 
@@ -348,6 +349,32 @@ class MyWindow(QDialog,UiDialog):
 		self.fsFilterButton.clicked.connect(self.fsFilterDialog.show)
 		self.printButton.clicked.connect(self.printDialog.show)
 ##		self.printButton.clicked.connect(self.testConvertCoords)
+
+		initializeMainWindowActions(self)
+		# TODO self.act.helpInfo.triggered.connect(self.helpInfo)
+		# TODO self.act.optionsDialog.triggered.connect(self.optionsDialog)
+		# TODO self.act.printDialog.triggered.connect(self.printDialog)
+		# TODO self.act.openLog.triggered.connect(self.openLog)
+		# TODO self.act.reloadFleetsync.triggered.connect(self.reloadFleetsync)
+		# TODO self.act.restoreLastSaved.triggered.connect(self.restoreLastSaved)
+		# TODO self.act.muteFleetsync.triggered.connect(self.muteFleetsync)
+		# TODO self.act.toggleHotkeys.triggered.connect(self.toggleHotkeys)
+		self.act.increaseFont.triggered.connect(self.increaseFont)
+		self.act.decreaseFont.triggered.connect(self.decreaseFont)
+		# TODO self.act.toTeam.triggered.connect(self.toTeam)
+		# TODO self.act.toTeamsAll.triggered.connect(self.toTeamsAll)
+		# TODO self.act.fromTeam.triggered.connect(self.fromTeam)
+		# TODO self.act.fromTeam1.triggered.connect(self.fromTeam1)
+		# TODO self.act.fromTeam2.triggered.connect(self.fromTeam2)
+		# TODO self.act.fromTeam3.triggered.connect(self.fromTeam3)
+		# TODO self.act.fromTeam4.triggered.connect(self.fromTeam4)
+		# TODO self.act.fromTeam5.triggered.connect(self.fromTeam5)
+		# TODO self.act.fromTeam6.triggered.connect(self.fromTeam6)
+		# TODO self.act.fromTeam7.triggered.connect(self.fromTeam7)
+		# TODO self.act.fromTeam8.triggered.connect(self.fromTeam8)
+		# TODO self.act.fromTeam9.triggered.connect(self.fromTeam9)
+		# TODO self.act.fromTeam10.triggered.connect(self.fromTeam10)
+
 
 		self.tabList=["dummy"]
 		self.tabGridLayoutList=["dummy"]
@@ -654,6 +681,16 @@ class MyWindow(QDialog,UiDialog):
 
 		if SWITCHES.devmode:
 			self.sarsoftServerName = "localhost" # DEVEL
+
+	def increaseFont(self):
+		self.fontSize = self.fontSize + 2
+		self.fontsChanged()
+
+
+	def decreaseFont(self):
+		if self.fontSize > 4:
+			self.fontSize = self.fontSize - 2
+			self.fontsChanged()
 
 
 	def rotateCsvBackups(self,filenames):
@@ -1202,96 +1239,6 @@ class MyWindow(QDialog,UiDialog):
 			return False
 		else:
 			return [entry[0][0],entry[0][1]]
-
-	def testConvertCoords(self):
-		coordsTestList=[
-			['3918.9200','N','11955.2100','W'],
-			['3918.9200','N','12055.2100','W'],
-			['3918.9200','N','12155.2100','W'],
-			['3918.9200','N','11959.9900','W'],
-			['3918.9200','N','12000.0000','W'],
-			['3918.9200','N','12000.0100','W'],
-			['3830.0000','N','12130.0000','W'],
-			['3830.0000','N','12115.0000','W'],
-			['3830.0000','N','12100.0000','W'],
-			['3830.0000','N','12045.0000','W'],
-			['3830.0000','N','12030.0000','W'],
-			['3830.0000','N','12015.0000','W'],
-			['3830.0000','N','12000.0000','W'],
-			['3830.0000','N','11945.0000','W'],
-			['3830.0000','N','11930.0000','W'],
-			['3830.0000','N','11915.0000','W'],
-			['3830.0000','N','11900.0000','W'],
-			['3845.0000','N','12130.0000','W'],
-			['3845.0000','N','12115.0000','W'],
-			['3845.0000','N','12100.0000','W'],
-			['3845.0000','N','12045.0000','W'],
-			['3845.0000','N','12030.0000','W'],
-			['3845.0000','N','12015.0000','W'],
-			['3845.0000','N','12000.0000','W'],
-			['3845.0000','N','11945.0000','W'],
-			['3845.0000','N','11930.0000','W'],
-			['3845.0000','N','11915.0000','W'],
-			['3845.0000','N','11900.0000','W'],
-			['3900.0000','N','12130.0000','W'],
-			['3900.0000','N','12115.0000','W'],
-			['3900.0000','N','12100.0000','W'],
-			['3900.0000','N','12045.0000','W'],
-			['3900.0000','N','12030.0000','W'],
-			['3900.0000','N','12015.0000','W'],
-			['3900.0000','N','12000.0000','W'],
-			['3900.0000','N','11945.0000','W'],
-			['3900.0000','N','11930.0000','W'],
-			['3900.0000','N','11915.0000','W'],
-			['3900.0000','N','11900.0000','W'],
-			['3915.0000','N','12130.0000','W'],
-			['3915.0000','N','12115.0000','W'],
-			['3915.0000','N','12100.0000','W'],
-			['3915.0000','N','12045.0000','W'],
-			['3915.0000','N','12030.0000','W'],
-			['3915.0000','N','12015.0000','W'],
-			['3915.0000','N','12000.0000','W'],
-			['3915.0000','N','11945.0000','W'],
-			['3915.0000','N','11930.0000','W'],
-			['3915.0000','N','11915.0000','W'],
-			['3915.0000','N','11900.0000','W'],
-			['3930.0000','N','12130.0000','W'],
-			['3930.0000','N','12115.0000','W'],
-			['3930.0000','N','12100.0000','W'],
-			['3930.0000','N','12045.0000','W'],
-			['3930.0000','N','12030.0000','W'],
-			['3930.0000','N','12015.0000','W'],
-			['3930.0000','N','12000.0000','W'],
-			['3930.0000','N','11945.0000','W'],
-			['3930.0000','N','11930.0000','W'],
-			['3930.0000','N','11915.0000','W'],
-			['3930.0000','N','11900.0000','W'],
-			['3945.0000','N','12130.0000','W'],
-			['3945.0000','N','12115.0000','W'],
-			['3945.0000','N','12100.0000','W'],
-			['3945.0000','N','12045.0000','W'],
-			['3945.0000','N','12030.0000','W'],
-			['3945.0000','N','12015.0000','W'],
-			['3945.0000','N','12000.0000','W'],
-			['3945.0000','N','11945.0000','W'],
-			['3945.0000','N','11930.0000','W'],
-			['3945.0000','N','11915.0000','W'],
-			['3945.0000','N','11900.0000','W'],
-			['4000.0000','N','12130.0000','W'],
-			['4000.0000','N','12115.0000','W'],
-			['4000.0000','N','12100.0000','W'],
-			['4000.0000','N','12045.0000','W'],
-			['4000.0000','N','12030.0000','W'],
-			['4000.0000','N','12015.0000','W'],
-			['4000.0000','N','12000.0000','W'],
-			['4000.0000','N','11945.0000','W'],
-			['4000.0000','N','11930.0000','W'],
-			['4000.0000','N','11915.0000','W'],
-			['4000.0000','N','11900.0000','W']]
-
-		for coords in coordsTestList:
-			rval=self.convertCoords(coords,self.datum,self.coordFormat)
-			LOG.debug("testConvertCoords:"+str(coords)+" --> "+rval)
 
 	def convertCoords(self,coords,targetDatum,targetFormat):
 		easting="0000000"
@@ -1951,7 +1898,7 @@ class MyWindow(QDialog,UiDialog):
 						self.openNewEntry(key)
 				else:
 					# these key handlers apply only if hotkeys are disabled:
-					if re.match("\d",key):
+					if re.match(r"\d",key):
 						self.openNewEntry(key)
 					elif key=='t' or event.key()==Qt.Key_Right:
 						self.openNewEntry('t')
@@ -1962,14 +1909,7 @@ class MyWindow(QDialog,UiDialog):
 					elif key=='s':
 						self.openNewEntry('s')
 				# these key handlers apply regardless of hotkeys enabled state:
-				if key=='=' or key=='+':
-					self.fontSize=self.fontSize+2
-					self.fontsChanged()
-				elif key=='-' or key=='_':
-					if self.fontSize>4:
-						self.fontSize=self.fontSize-2
-						self.fontsChanged()
-				elif event.key()==Qt.Key_F3:
+				if event.key()==Qt.Key_F3:
 					self.printDialog.show()
 				elif event.key()==Qt.Key_F4:
 					self.load()
@@ -2026,7 +1966,7 @@ class MyWindow(QDialog,UiDialog):
 			LOG.debug("restoring initial window tracking behavior ("+str(self.initialWindowTracking)+")")
 			win32gui.SystemParametersInfo(win32con.SPI_SETACTIVEWINDOWTRACKING,self.initialWindowTracking)
 
-		qApp.quit() # needed to make sure all windows area closed
+		qt_app.quit() # needed to make sure all windows area closed
 
 	def saveRcFile(self,cleanShutdownFlag=False):
 		(x,y,w,h)=self.geometry().getRect()
@@ -3514,7 +3454,7 @@ class newEntryWidget(QWidget,NewEntryWidget):
 			self.label_2.setText("")
 
 		self.setAttribute(Qt.WA_DeleteOnClose) # so that closeEvent gets called when closed by GUI
-		self.palette=QPalette()
+		self.app_palette=QPalette()
 		self.setAutoFillBackground(True)
 		self.clueDialogOpen=False # only allow one clue dialog at a time per newEntryWidget
 		self.subjectLocatedDialogOpen=False
@@ -3691,8 +3631,8 @@ class newEntryWidget(QWidget,NewEntryWidget):
 	def throb(self,n=0):
 		# this function calls itself recursivly 25 times to throb the background blue->white
 # 		LOG.debug("throb:n="+str(n))
-		self.palette.setColor(QPalette.Background,QColor(n*10,n*10,255))
-		self.setPalette(self.palette)
+		self.app_palette.setColor(QPalette.Background,QColor(n*10,n*10,255))
+		self.setPalette(self.app_palette)
 		if n<25:
 			#fix #333: make throbTimer a normal timer and then call throbTimer.setSingleShot,
 			# so we can just stop it using .stop() when the widget is closed
@@ -3705,8 +3645,8 @@ class newEntryWidget(QWidget,NewEntryWidget):
 		else:
 # 			LOG.debug("throb complete")
 			self.throbTimer=None
-			self.palette.setColor(QPalette.Background,QColor(255,255,255))
-			self.setPalette(self.palette)
+			self.app_palette.setColor(QPalette.Background,QColor(255,255,255))
+			self.setPalette(self.app_palette)
 
 	def updateTimer(self):
 		# pause all timers if there are any clue or subject or changeCallsign dialogs open
@@ -4472,9 +4412,6 @@ class nonRadioClueDialog(QDialog,NonRadioClueDialog):
 		super(nonRadioClueDialog,self).accept()
 
 	def closeEvent(self,event,accepted=False):
-		# note, this type of messagebox is needed to show above all other dialogs for this application,
-		#  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
-		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
 		if not accepted:
 			if not ask_user_to_confirm("Close this Clue Report Form?\nIt cannot be recovered.", icon=ICON_WARN, parent = self):
 				event.ignore()
@@ -5055,6 +4992,7 @@ class customEventFilter(QObject):
 		return super().eventFilter(receiver, event)
 
 
+qt_app = QApplication(sys.argv)
 
 def main():
 	# This is supposed to be a quick fix for the scaling problem (https://github.com/ncssar/radiolog/issues/435)
@@ -5063,7 +5001,6 @@ def main():
 	# 	QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
 	# if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
 	# 	QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
-	qt_app = QApplication(sys.argv)
 	LOG.diagnostic(f"Qt root directory (where qt.conf resides): {qt_app.applicationDirPath()}")
 	eFilter=customEventFilter()
 	qt_app.installEventFilter(eFilter)

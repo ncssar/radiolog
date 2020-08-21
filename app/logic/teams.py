@@ -1,6 +1,6 @@
 import re
 import logging
-from gwpycore.gw_strings import PHONETIC_DICT
+from gwpycore import PHONETIC_DICT
 
 LOG = logging.getLogger("main")
 
