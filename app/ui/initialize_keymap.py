@@ -14,7 +14,8 @@ DEFAULT_KEYMAP = [
 "reloadFleetsync,Reload FleetSync,F5,,,,Reload the FleetSync table",
 "restoreLastSaved,Restore Last Saved,F6,,,,Restore the last saved files",
 "muteFleetsync,Mute FleetSync,F7,,,,Toggle muting FleetSync",
-"toggleHotkeys,Toggle Legacy Hotkeys,F12,,,,Toggle legacy hotkeys",
+"filterFleetsync,Filter FleetSync,F8,,,,Filter FleetSync",
+"toggleTeamHotkeys,Toggle Team Hotkeys,F12,,,,Toggle team hotkeys",
 "increaseFont,&Increase Font,=,,,,Increase the font size of the log text by 2 points.",
 "decreaseFont,&Decrease Font,-,,,,Decrease the font size of the log text by 2 points.",
 "toTeam,To a team,Right,t,,,New entry: To a team",
@@ -29,7 +30,8 @@ DEFAULT_KEYMAP = [
 "fromTeam7,From team &7,7,,,,New entry: From team 7",
 "fromTeam8,From team &8,8,,,,New entry: From team 8",
 "fromTeam9,From team &9,9,,,,New entry: From team 9",
-"fromTeam10,From team 1&0,0,,,,New entry: From team 10"
+"fromTeam10,From team 1&0,0,,,,New entry: From team 10",
+"fromSar,From $SAR,0,,,,New entry: From SAR"
 ]
 
 def initializeMainWindowActions(parent):
@@ -37,7 +39,8 @@ def initializeMainWindowActions(parent):
     parent.act.loadKeyMapData(DEFAULT_KEYMAP, init_mode=True)
     if os.path.isfile(KEYMAP_FILENAME):
         LOG.info(f"Using shortcut key assignments per: {KEYMAP_FILENAME}")
-        parent.act.loadKeyMapFile(KEYMAP_FILENAME)
-    # parent.act.attachActions()
-    parent.act.attachAction("increaseFont")
-    parent.act.attachAction("decreaseFont")
+        try:
+            parent.act.loadKeyMapFile(KEYMAP_FILENAME)
+        except Exception as e:
+            LOG.exception(e)
+    parent.act.attachActions()

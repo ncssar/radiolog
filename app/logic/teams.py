@@ -57,7 +57,7 @@ def getExtTeamName(teamName):
 		(prefix, ident, suffix) = m.group(1, 2, 3)
 		ident = ident.zfill(5)
 	else:
-		LOG.warning(f"Conversion from a typed-in team name ({teamName}) to a formal/extended name failed. Leaving as is.")
+		# LOG.warning(f"Conversion from a typed-in team name ({teamName}) to a formal/extended name failed. Leaving as is.")
 		return teamName
 
 	LOG.debug(f"As parsed: prefix = {prefix}, team identifier = {ident}, suffix = {suffix}")
@@ -93,7 +93,7 @@ def getNiceTeamName(extTeamName):
 		(prefix, ident, suffix) = m.group(1, 2, 3)
 		ident = ident.lstrip('0')
 	else:
-		LOG.warning(f"Conversion from a formal/extended name ({extTeamName}) to a nice name failed. Leaving as is.")
+		# LOG.warning(f"Conversion from a formal/extended name ({extTeamName}) to a nice name failed. Leaving as is.")
 		return name
 
 	return prefix.capitalize() + " " + ident + suffix

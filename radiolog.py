@@ -38,7 +38,7 @@ from gwpycore import normalizeName
 from app.logic.entries import rreplace
 from PyQt5.QtCore import QAbstractTableModel, QCoreApplication, QEvent, QFile, QLocale, QModelIndex, QObject, QRect, QSortFilterProxyModel, QTextStream, QTimer, QVariant, Qt
 from PyQt5.QtGui import QColor, QFont, QIcon, QKeyEvent, QKeySequence, QPalette, QPixmap
-from PyQt5.QtWidgets import QAbstractItemView, QApplication, QCheckBox, QDialog, QDialogButtonBox, QGridLayout, QHBoxLayout, QHeaderView, QLabel, QMenu, QMessageBox, QPushButton, QSizePolicy, QTabBar, QTabWidget, QTableView, QTextEdit, QWidget
+from PyQt5.QtWidgets import QAbstractItemView, QApplication, QCheckBox, QDialog, QDialogButtonBox, QFileDialog, QGridLayout, QHBoxLayout, QHeaderView, QLabel, QMenu, QMessageBox, QProgressDialog, QPushButton, QSizePolicy, QTabBar, QTabWidget, QTableView, QTextEdit, QWidget
 
 import functools
 import sys
@@ -195,6 +195,7 @@ class MyWindow(QDialog,UiDialog):
         if issue:
             inform_user_about_issue(issue,icon=ICON_WARN,parent=self)
 
+        self.use_phonetic = True
         self.setWindowFlags(self.windowFlags()|Qt.WindowMinMaxButtonsHint)
         self.parent=parent
         self.setupUi(self)
@@ -339,29 +340,30 @@ class MyWindow(QDialog,UiDialog):
 ##		self.printButton.clicked.connect(self.testConvertCoords)
 
         initializeMainWindowActions(self)
-        # TODO self.act.helpInfo.triggered.connect(self.helpInfo)
-        # TODO self.act.optionsDialog.triggered.connect(self.optionsDialog)
-        # TODO self.act.printDialog.triggered.connect(self.printDialog)
-        # TODO self.act.openLog.triggered.connect(self.openLog)
-        # TODO self.act.reloadFleetsync.triggered.connect(self.reloadFleetsync)
-        # TODO self.act.restoreLastSaved.triggered.connect(self.restoreLastSaved)
-        # TODO self.act.muteFleetsync.triggered.connect(self.muteFleetsync)
-        # TODO self.act.toggleHotkeys.triggered.connect(self.toggleHotkeys)
+        self.act.helpInfo.triggered.connect(self.helpWindow.show)
+        self.act.optionsDialog.triggered.connect(self.optionsDialog.show)
+        self.act.printDialog.triggered.connect(self.printDialog.show)
+        self.act.openLog.triggered.connect(self.load)
+        self.act.reloadFleetsync.triggered.connect(self.reloadFleetsync)
+        self.act.restoreLastSaved.triggered.connect(self.restoreLastSaved)
+        self.act.muteFleetsync.triggered.connect(self.fsCheckBox.toggle)
+        self.act.filterFleetsync.triggered.connect(self.fsFilterDialog.show)
+        self.act.toggleTeamHotkeys.triggered.connect(self.toggleTeamHotkeys)
         self.act.increaseFont.triggered.connect(self.increaseFont)
         self.act.decreaseFont.triggered.connect(self.decreaseFont)
-        # TODO self.act.toTeam.triggered.connect(self.toTeam)
-        # TODO self.act.toTeamsAll.triggered.connect(self.toTeamsAll)
-        # TODO self.act.fromTeam.triggered.connect(self.fromTeam)
-        # TODO self.act.fromTeam1.triggered.connect(self.fromTeam1)
-        # TODO self.act.fromTeam2.triggered.connect(self.fromTeam2)
-        # TODO self.act.fromTeam3.triggered.connect(self.fromTeam3)
-        # TODO self.act.fromTeam4.triggered.connect(self.fromTeam4)
-        # TODO self.act.fromTeam5.triggered.connect(self.fromTeam5)
-        # TODO self.act.fromTeam6.triggered.connect(self.fromTeam6)
-        # TODO self.act.fromTeam7.triggered.connect(self.fromTeam7)
-        # TODO self.act.fromTeam8.triggered.connect(self.fromTeam8)
-        # TODO self.act.fromTeam9.triggered.connect(self.fromTeam9)
-        # TODO self.act.fromTeam10.triggered.connect(self.fromTeam10)
+        self.act.toTeam.triggered.connect(self.toTeam)
+        self.act.toTeamsAll.triggered.connect(self.toTeamsAll)
+        self.act.fromTeam.triggered.connect(self.fromTeam)
+        self.act.fromTeam1.triggered.connect(self.fromTeam1)
+        self.act.fromTeam2.triggered.connect(self.fromTeam2)
+        self.act.fromTeam3.triggered.connect(self.fromTeam3)
+        self.act.fromTeam4.triggered.connect(self.fromTeam4)
+        self.act.fromTeam5.triggered.connect(self.fromTeam5)
+        self.act.fromTeam6.triggered.connect(self.fromTeam6)
+        self.act.fromTeam7.triggered.connect(self.fromTeam7)
+        self.act.fromTeam8.triggered.connect(self.fromTeam8)
+        self.act.fromTeam9.triggered.connect(self.fromTeam9)
+        self.act.fromTeam10.triggered.connect(self.fromTeam10)
 
 
         self.tabList=["dummy"]
@@ -668,11 +670,60 @@ class MyWindow(QDialog,UiDialog):
         self.fontSize = self.fontSize + 2
         self.fontsChanged()
 
-
     def decreaseFont(self):
         if self.fontSize > 4:
             self.fontSize = self.fontSize - 2
             self.fontsChanged()
+
+    def reloadFleetsync(self):
+        self.fsLoadLookup()
+        self.teamHotkeysWidget.setVisible(not self.teamHotkeysWidget.isVisible())
+
+    def restoreLastSaved(self):
+        if ask_user_to_confirm("Restore the last saved files (Radio Log, Clue Log, and FleetSync table)?", parent=self):
+            self.restore()
+
+    def toTeam(self):
+        self.openNewEntry("t")
+
+    def toTeamsAll(self):
+        self.openNewEntry("a")
+
+    def fromTeam(self):
+        self.openNewEntry("f")
+
+    def fromTeam1(self):
+        self.openNewEntry("Alpha" if self.use_phonetic else "1")
+
+    def fromTeam2(self):
+        self.openNewEntry("Bravo" if self.use_phonetic else "2")
+
+    def fromTeam3(self):
+        self.openNewEntry("Charlie" if self.use_phonetic else "3")
+
+    def fromTeam4(self):
+        self.openNewEntry("Delta" if self.use_phonetic else "4")
+
+    def fromTeam5(self):
+        self.openNewEntry("Echo" if self.use_phonetic else "5")
+
+    def fromTeam6(self):
+        self.openNewEntry("Foxtrot" if self.use_phonetic else "6")
+
+    def fromTeam7(self):
+        self.openNewEntry("Golf" if self.use_phonetic else "7")
+
+    def fromTeam8(self):
+        self.openNewEntry("Hotel" if self.use_phonetic else "8")
+
+    def fromTeam9(self):
+        self.openNewEntry("India" if self.use_phonetic else "9")
+
+    def fromTeam10(self):
+        self.openNewEntry("Juliet" if self.use_phonetic else "10")
+
+    def fromSar(self):
+        self.openNewEntry("s")
 
 
     def rotateCsvBackups(self,filenames):
@@ -1876,39 +1927,9 @@ class MyWindow(QDialog,UiDialog):
 # 				LOG.debug("  key:"+QKeySequence(event.key()).toString()+"  mod:"+str(mod))
                 if self.teamHotkeysWidget.isVisible():
                     # these key handlers apply only if hotkeys are enabled:
-                    if self.team_hot_keys.getTeam(key):
-                        self.openNewEntry(key)
-                else:
-                    # these key handlers apply only if hotkeys are disabled:
-                    if re.match(r"\d",key):
-                        self.openNewEntry(key)
-                    elif key=='t' or event.key()==Qt.Key_Right:
-                        self.openNewEntry('t')
-                    elif key=='f' or event.key()==Qt.Key_Left:
-                        self.openNewEntry('f')
-                    elif key=='a':
-                        self.openNewEntry('a')
-                    elif key=='s':
-                        self.openNewEntry('s')
-                # these key handlers apply regardless of hotkeys enabled state:
-                if event.key()==Qt.Key_F3:
-                    self.printDialog.show()
-                elif event.key()==Qt.Key_F4:
-                    self.load()
-                elif event.key()==Qt.Key_F5:
-                    self.fsLoadLookup()
-                    self.teamHotkeysWidget.setVisible(not self.teamHotkeysWidget.isVisible())
-                elif event.key()==Qt.Key_F6:
-                    if ask_user_to_confirm("Restore the last saved files (Radio Log, Clue Log, and FleetSync table)?",parent=self):
-                        self.restore()
-                elif event.key()==Qt.Key_F7:
-                    self.fsCheckBox.toggle()
-                elif event.key()==Qt.Key_F8:
-                    self.fsFilterDialog.show()
-                elif event.key()==Qt.Key_F12:
-                    self.toggleTeamHotkeys()
-                elif event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
-                    self.openNewEntry('pop')
+                    teamForKey = self.team_hot_keys.getTeam(key)
+                    if teamForKey:
+                        self.openNewEntry(teamForKey)
                 event.accept()
         else:
             event.ignore()

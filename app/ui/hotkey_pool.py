@@ -1,3 +1,4 @@
+from app.logic.teams import getShortNiceTeamName
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QBoxLayout, QLabel, QTabWidget
 import logging
@@ -25,9 +26,12 @@ class TeamHotKeys():
                 return hotkey
         return None  # no available hotkeys
 
-    def assignTeamHotkey(self, niceTeamName):
-        hotkey = self.getNextAvailHotkey()
-        LOG.debug("next available hotkey:" + str(hotkey))
+    def assignTeamHotkey(self, niceTeamName: str):
+        # if the first initial of the team name is availabe, use it; otherwise assign the next available key
+        hotkey = getShortNiceTeamName(niceTeamName)[0].lower()
+        if hotkey in self.hotkeyDict:
+            hotkey = self.getNextAvailHotkey()
+        LOG.debug(f"Assigning hotkey '{hotkey}' to {niceTeamName}")
         if hotkey:
             self.hotkeyDict[hotkey] = niceTeamName
         else:
