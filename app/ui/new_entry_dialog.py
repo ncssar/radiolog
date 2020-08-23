@@ -7,12 +7,11 @@ from app.logic.teams import getExtTeamName, getNiceTeamName
 from app.logic.entries import rreplace
 import time
 from gwpycore.gw_gui.gw_gui_finger_tabs import FingerTabBarWidget
-from app.logic.app_state import TIMEOUT_DISPLAY_LIST, holdSec, lastClueNumber, teamStatusDict
+from app.logic.app_state import holdSec, lastClueNumber, teamStatusDict
 from PyQt5 import uic
 from PyQt5.QtCore import QEvent, QRect, QTimer, Qt
 from PyQt5.QtGui import QColor, QFont, QKeySequence, QPalette
-from PyQt5.QtWidgets import QDialog, QDialogButtonBox, QHBoxLayout, QHeaderView, QLabel, QSizePolicy, QTabBar, QTabWidget, QWidget
-from gwpycore import AppActions
+from PyQt5.QtWidgets import QDialog, QHBoxLayout, QLabel, QSizePolicy, QTabBar, QTabWidget, QWidget
 import logging
 
 LOG = logging.getLogger('main')

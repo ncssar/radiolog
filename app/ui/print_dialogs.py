@@ -1,10 +1,7 @@
 from gwpycore.gw_gui.gw_gui_dialogs import inform_user_about_issue
-from app.logic.app_state import TIMEOUT_DISPLAY_LIST
 from PyQt5 import uic
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QDialog, QDialogButtonBox, QHeaderView
-from gwpycore import AppActions
+from PyQt5.QtWidgets import QDialog, QDialogButtonBox
 import logging
 
 LOG = logging.getLogger('main')

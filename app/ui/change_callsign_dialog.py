@@ -1,15 +1,7 @@
-import re
-from gwpycore.gw_gui.gw_gui_dialogs import ICON_WARN, ask_user_to_confirm, inform_user_about_issue
-from app.logic.teams import getExtTeamName, getNiceTeamName
-from app.logic.entries import rreplace
-import time
-from gwpycore.gw_gui.gw_gui_finger_tabs import FingerTabBarWidget
-from app.logic.app_state import TIMEOUT_DISPLAY_LIST, holdSec
+from gwpycore.gw_gui.gw_gui_dialogs import ICON_WARN, ask_user_to_confirm
 from PyQt5 import uic
-from PyQt5.QtCore import QAbstractTableModel, QEvent, QRect, QTimer, QVariant, Qt
-from PyQt5.QtGui import QColor, QFont, QKeySequence, QPalette, QPixmap
-from PyQt5.QtWidgets import QAbstractItemView, QDialog, QDialogButtonBox, QHBoxLayout, QHeaderView, QLabel, QSizePolicy, QTabBar, QTabWidget, QWidget
-from gwpycore import AppActions
+from PyQt5.QtCore import QEvent, Qt
+from PyQt5.QtWidgets import QDialog
 import logging
 
 LOG = logging.getLogger('main')

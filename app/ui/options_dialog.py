@@ -1,9 +1,7 @@
 from app.logic.app_state import TIMEOUT_DISPLAY_LIST
 from PyQt5 import uic
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QDialog, QHeaderView
-from gwpycore import AppActions
+from PyQt5.QtWidgets import QDialog
 import logging
 
 LOG = logging.getLogger('main')
