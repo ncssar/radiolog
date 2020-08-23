@@ -31,6 +31,8 @@ Attribution, feedback, bug reports and feature requests are appreciated
 # REVISION HISTORY: See doc_technical\CHANGE_LOG.adoc
 
 
+from app.ui.all_ui import TIMEOUT_DISPLAY_LIST
+from app.ui.options_dialog import OptionsDialog
 from app.ui.help_dialog import HelpWindow
 from app.ui.hotkey_pool import TeamHotKeys
 from gwpycore import WindowsBehaviorAdjuster
@@ -87,7 +89,6 @@ if SWITCHES.minmode:
 else:
     # normal version, for higher resolution
     UiDialog = uic.loadUiType("app/ui/radiolog.ui")[0]
-OptionsDialog = uic.loadUiType("app/ui/options.ui")[0]
 NewEntryWindow = uic.loadUiType("app/ui/newEntryWindow.ui")[0]
 NewEntryWidget = uic.loadUiType("app/ui/newEntryWidget.ui")[0]
 ClueDialog = uic.loadUiType("app/ui/clueDialog.ui")[0]
@@ -121,9 +122,6 @@ statusStyleDict[""]="font-size:"+tabFontSize+";background:none;padding-left:1px;
 statusStyleDict["TIMED_OUT_ORANGE"]="font-size:"+tabFontSize+";background:orange;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
 statusStyleDict["TIMED_OUT_RED"]="font-size:"+tabFontSize+";background:red;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
 
-timeoutDisplayList=[["10 sec",10]]
-for n in range (1,13):
-    timeoutDisplayList.append([str(n*10)+" min",n*600])
 
 teamStatusDict={}
 teamFSFilterDict={}
@@ -195,7 +193,6 @@ class MyWindow(QDialog,UiDialog):
         if issue:
             inform_user_about_issue(issue,icon=ICON_WARN,parent=self)
 
-        self.use_phonetic = True
         self.setWindowFlags(self.windowFlags()|Qt.WindowMinMaxButtonsHint)
         self.parent=parent
         self.setupUi(self)
@@ -256,11 +253,11 @@ class MyWindow(QDialog,UiDialog):
 ##		os.chdir(self.cwd)
 ##		LOG.debug("t3")
 
-        self.optionsDialog=optionsDialog(self)
+        self.optionsDialog = OptionsDialog(self)
         self.optionsDialog.accepted.connect(self.optionsAccepted)
 
         self.validDatumList=["WGS84","NAD27","NAD27 CONUS"]
-        self.timeoutDisplaySecList=[i[1] for i in timeoutDisplayList]
+        self.timeoutDisplaySecList=[i[1] for i in TIMEOUT_DISPLAY_LIST]
         self.timeoutDisplayMinList=[int(i/60) for i in self.timeoutDisplaySecList if i>=60]
 
         # coordinate system name translation dictionary:
@@ -314,6 +311,7 @@ class MyWindow(QDialog,UiDialog):
 
         initializeMainWindowActions(self)
         self.helpWindow.set_hotkeys(self.act)
+        self.use_phonetic = "Alpha" in self.act.fromTeam1.text()
         self.act.helpInfo.triggered.connect(self.helpWindow.show)
         self.act.optionsDialog.triggered.connect(self.optionsDialog.show)
         self.act.printDialog.triggered.connect(self.printDialog.show)
@@ -495,7 +493,7 @@ class MyWindow(QDialog,UiDialog):
         self.clueLogDialog.setGeometry(int(self.clueLog_x),int(self.clueLog_y),int(self.clueLog_w),int(self.clueLog_h))
         self.fontsChanged()
 
-        self.timeoutLabel.setText("TIMEOUT:\n"+timeoutDisplayList[self.optionsDialog.timeoutField.value()][0])
+        self.timeoutLabel.setText("TIMEOUT:\n"+TIMEOUT_DISPLAY_LIST[self.optionsDialog.timeoutField.value()][0])
         # pop up the options dialog to enter the incident name right away
         if showStartupOptions:
             QTimer.singleShot(1000,self.startupOptions)
@@ -1929,7 +1927,7 @@ class MyWindow(QDialog,UiDialog):
     def saveRcFile(self,cleanShutdownFlag=False):
         (x,y,w,h)=self.geometry().getRect()
         (cx,cy,cw,ch)=self.clueLogDialog.geometry().getRect()
-        timeout=timeoutDisplayList[self.optionsDialog.timeoutField.value()][0]
+        timeout=TIMEOUT_DISPLAY_LIST[self.optionsDialog.timeoutField.value()][0]
         rcFile=QFile(self.rcFileName)
         if not rcFile.open(QFile.WriteOnly|QFile.Text):
             inform_user_about_issue("Cannot write resource file " + self.rcFileName + "; proceeding, but, current settings will be lost. "+rcFile.errorString(),
@@ -2017,8 +2015,8 @@ class MyWindow(QDialog,UiDialog):
                 self.datum=datum
             if coordFormat:
                 self.coordFormat=coordFormat
-            for n in range(len(timeoutDisplayList)):
-                pair=timeoutDisplayList[n]
+            for n in range(len(TIMEOUT_DISPLAY_LIST)):
+                pair=TIMEOUT_DISPLAY_LIST[n]
                 if pair[0]==timeoutDisplay:
                     self.timeoutRedSec=pair[1]
                     break
@@ -2211,11 +2209,11 @@ class MyWindow(QDialog,UiDialog):
 ##				row[4]=self.convertCoords(row[9].split('|'),self.datum,self.coordFormat)
 ##		self.redrawTables()
         self.datumFormatLabel.setText(self.datum+"\n"+self.coordFormat)
-        self.timeoutRedSec=timeoutDisplayList[self.optionsDialog.timeoutField.value()][1]
+        self.timeoutRedSec=TIMEOUT_DISPLAY_LIST[self.optionsDialog.timeoutField.value()][1]
         self.timeoutOrangeSec=self.timeoutRedSec-300 # always go orange 5 minutes before red
         if self.timeoutOrangeSec<0:
             self.timeoutOrangeSec=self.timeoutRedSec-3 # or 3 seconds before for tiny values
-        self.timeoutLabel.setText("TIMEOUT:\n"+timeoutDisplayList[self.optionsDialog.timeoutField.value()][0])
+        self.timeoutLabel.setText("TIMEOUT:\n"+TIMEOUT_DISPLAY_LIST[self.optionsDialog.timeoutField.value()][0])
 
     def openNewEntry(self,key=None,callsign=None,formattedLocString=None,fleet=None,dev=None,origLocString=None,amendFlag=False,amendRow=None):
         LOG.debug("openNewEntry called:key="+str(key)+" callsign="+str(callsign)+" formattedLocString="+str(formattedLocString)+" fleet="+str(fleet)+" dev="+str(dev)+" origLocString="+str(origLocString)+" amendFlag="+str(amendFlag)+" amendRow="+str(amendRow))
@@ -2818,43 +2816,6 @@ class MyWindow(QDialog,UiDialog):
         self.saveRcFile()
 
 
-
-class optionsDialog(QDialog, OptionsDialog):
-    def __init__(self,parent):
-        QDialog.__init__(self)
-        self.parent=parent
-        self.setupUi(self)
-        self.timeoutField.valueChanged.connect(self.displayTimeout)
-        self.displayTimeout()
-        self.setWindowFlags(Qt.WindowStaysOnTopHint)
-        self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
-##		self.setAttribute(Qt.WA_DeleteOnClose)
-        self.datumField.setEnabled(False) # since convert menu is not working yet, TMG 4-8-15
-        self.formatField.setEnabled(False) # since convert menu is not working yet, TMG 4-8-15
-        self.setFixedSize(self.size())
-        self.secondWorkingDirCB()
-
-    def showEvent(self,event):
-        # clear focus from all fields, otherwise previously edited field gets focus on next show,
-        # which could lead to accidental editing
-        self.incidentField.clearFocus()
-        self.datumField.clearFocus()
-        self.formatField.clearFocus()
-        self.timeoutField.clearFocus()
-        self.secondWorkingDirCheckBox.clearFocus()
-
-    def displayTimeout(self):
-        self.timeoutLabel.setText("Timeout: "+timeoutDisplayList[self.timeoutField.value()][0])
-
-    def secondWorkingDirCB(self):
-        self.parent.use2WD=self.secondWorkingDirCheckBox.isChecked()
-
-    def accept(self):
-        # only save the rc file when the options dialog is accepted interactively;
-        #  saving from self.optionsAccepted causes errors because that function
-        #  is called during init, before the values are ready to save
-        self.parent.saveRcFile()
-        super(optionsDialog,self).accept()
 
 
 class printDialog(QDialog, PrintDialog):
