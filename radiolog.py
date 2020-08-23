@@ -31,6 +31,7 @@ Attribution, feedback, bug reports and feature requests are appreciated
 # REVISION HISTORY: See doc_technical\CHANGE_LOG.adoc
 
 
+from app.ui.help_dialog import HelpWindow
 from app.ui.hotkey_pool import TeamHotKeys
 from gwpycore import WindowsBehaviorAdjuster
 from app.ui.initialize_keymap import initializeMainWindowActions
@@ -86,7 +87,6 @@ if SWITCHES.minmode:
 else:
     # normal version, for higher resolution
     UiDialog = uic.loadUiType("app/ui/radiolog.ui")[0]
-HelpDialog = uic.loadUiType("app/ui/help.ui")[0]
 OptionsDialog = uic.loadUiType("app/ui/options.ui")[0]
 NewEntryWindow = uic.loadUiType("app/ui/newEntryWindow.ui")[0]
 NewEntryWidget = uic.loadUiType("app/ui/newEntryWidget.ui")[0]
@@ -290,35 +290,8 @@ class MyWindow(QDialog,UiDialog):
         #  lookup filename based on the current incedent name and time
         self.fsFileName="radiolog_fleetsync.csv"
 
-        self.helpFont1=QFont()
-        self.helpFont1.setFamily("Segoe UI")
-        self.helpFont1.setPointSize(9)
-        self.helpFont1.setStrikeOut(False)
-
-        self.helpFont2=QFont()
-        self.helpFont2.setFamily("Segoe UI")
-        self.helpFont2.setPointSize(9)
-        self.helpFont2.setStrikeOut(True)
-
-        self.helpWindow=helpWindow()
-        self.helpWindow.hotkeysTableWidget.setColumnWidth(1,10)
-        self.helpWindow.hotkeysTableWidget.setColumnWidth(0,145)
-        # note QHeaderView.setResizeMode is deprecated in 5.4, replaced with
-        # .setSectionResizeMode but also has both global and column-index forms
-        self.helpWindow.hotkeysTableWidget.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.helpWindow.hotkeysTableWidget.resizeRowsToContents()
-
-        self.helpWindow.colorLabel1.setStyleSheet(statusStyleDict["At IC"])
-        self.helpWindow.colorLabel2.setStyleSheet(statusStyleDict["In Transit"])
-        self.helpWindow.colorLabel3.setStyleSheet(statusStyleDict["Working"])
-        self.helpWindow.colorLabel4.setStyleSheet(statusStyleDict["Waiting for Transport"])
-        self.helpWindow.colorLabel5.setStyleSheet(statusStyleDict["TIMED_OUT_ORANGE"])
-        self.helpWindow.colorLabel6.setStyleSheet(statusStyleDict["TIMED_OUT_RED"])
-
-        self.helpWindow.fsSomeFilteredLabel.setFont(self.helpFont1)
-        self.helpWindow.fsAllFilteredLabel.setFont(self.helpFont2)
-        self.helpWindow.fsSomeFilteredLabel.setStyleSheet(statusStyleDict["Working"])
-        self.helpWindow.fsAllFilteredLabel.setStyleSheet(statusStyleDict["Working"])
+        self.helpWindow = HelpWindow()
+        self.helpWindow.stylize(statusStyleDict)
 
         self.printDialog=printDialog(self)
         self.printClueLogDialog=printClueLogDialog(self)
@@ -646,7 +619,7 @@ class MyWindow(QDialog,UiDialog):
         #  if not, textwrap with max line length that looks best on pdf reports
         self.agencyNameForPrint=self.agencyName
         if not "\n" in self.agencyName:
-            self.agencyNameForPrint="\n".join(textwrap.wrap(self.agencyName.upper(),width=len(self.agencyName)/2+6))
+            self.agencyNameForPrint="\n".join(textwrap.wrap(self.agencyName.upper(),width=int(len(self.agencyName)/2+6)))
 
         if not os.path.isfile(self.fillableClueReportPdfFileName):
             configErr+="ERROR: specified fillable clue report pdf file '"+self.fillableClueReportPdfFileName+"' does not exist.  Clue report forms will NOT be generated for this session.\n\n"
@@ -1835,22 +1808,8 @@ class MyWindow(QDialog,UiDialog):
         # 2. if any of them are more than the timeout setting, they have timed out: start flashing
         # 3. use this same timer to toggle the blink state of each style
 
-        if self.blinkToggle==0:
-            self.blinkToggle=1
-            # now make sure the help window color code bars blink too
-            self.helpWindow.colorLabel4.setStyleSheet(statusStyleDict[""])
-            self.helpWindow.colorLabel5.setStyleSheet(statusStyleDict["TIMED_OUT_ORANGE"])
-            self.helpWindow.colorLabel6.setStyleSheet(statusStyleDict["TIMED_OUT_RED"])
-            self.helpWindow.colorLabel7.setStyleSheet(statusStyleDict[""])
-            self.helpWindow.fsSomeFilteredLabel.setFont(self.helpFont2)
-        else:
-            self.blinkToggle=0
-            # now make sure the help window color code bars blink too
-            self.helpWindow.colorLabel4.setStyleSheet(statusStyleDict["Waiting for Transport"])
-            self.helpWindow.colorLabel5.setStyleSheet(statusStyleDict[""])
-            self.helpWindow.colorLabel6.setStyleSheet(statusStyleDict[""])
-            self.helpWindow.colorLabel7.setStyleSheet(statusStyleDict["STANDBY"])
-            self.helpWindow.fsSomeFilteredLabel.setFont(self.helpFont1)
+        self.blinkToggle = 1 if self.blinkToggle == 0 else 0
+        self.helpWindow.update_blinking(self.blinkToggle, statusStyleDict)
 
         for extTeamName in teamTimersDict:
             # if there is a newEntryWidget currently open for this team, don't blink,
@@ -2858,14 +2817,6 @@ class MyWindow(QDialog,UiDialog):
         self.save()
         self.saveRcFile()
 
-
-class helpWindow(QDialog, HelpDialog):
-    def __init__(self, *args):
-        QDialog.__init__(self)
-        self.setupUi(self)
-        self.setWindowFlags(Qt.WindowStaysOnTopHint)
-        self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
-        self.setFixedSize(self.size())
 
 
 class optionsDialog(QDialog, OptionsDialog):
