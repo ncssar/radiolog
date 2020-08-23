@@ -8,13 +8,13 @@ import logging
 LOG = logging.getLogger('main')
 
 
-HelpDialog = uic.loadUiType("app/ui/help.ui")[0]
+HelpDialogSpec = uic.loadUiType("app/ui/help.ui")[0]
 
 HELP_FONT = QFont("Segoe UI", 9)
 HELP_FONT_STRIKEOUT = QFont("Segoe UI",9)
 HELP_FONT_STRIKEOUT.setStrikeOut(True)
 
-class HelpWindow(QDialog, HelpDialog):
+class HelpDialog(QDialog, HelpDialogSpec):
     def __init__(self, *args):
         QDialog.__init__(self)
         self.setupUi(self)

@@ -1,4 +1,4 @@
-from app.ui.all_ui import TIMEOUT_DISPLAY_LIST
+from app.logic.app_state import TIMEOUT_DISPLAY_LIST
 from PyQt5 import uic
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont

@@ -31,9 +31,13 @@ Attribution, feedback, bug reports and feature requests are appreciated
 # REVISION HISTORY: See doc_technical\CHANGE_LOG.adoc
 
 
-from app.ui.all_ui import TIMEOUT_DISPLAY_LIST
+from app.ui.op_period_dialog import opPeriodDialog
+from app.ui.clue_dialogs import clueDialog, clueLogDialog, nonRadioClueDialog
+from app.ui.new_entry_dialog import NewEntryWidget, NewEntryWindow
+from app.ui.print_dialogs import PrintDialog, printClueLogDialog
+from app.logic.app_state import TIMEOUT_DISPLAY_LIST, continueSec, lastClueNumber, teamStatusDict
 from app.ui.options_dialog import OptionsDialog
-from app.ui.help_dialog import HelpWindow
+from app.ui.help_dialog import HelpDialog
 from app.ui.hotkey_pool import TeamHotKeys
 from gwpycore import WindowsBehaviorAdjuster
 from app.ui.initialize_keymap import initializeMainWindowActions
@@ -89,18 +93,8 @@ if SWITCHES.minmode:
 else:
     # normal version, for higher resolution
     UiDialog = uic.loadUiType("app/ui/radiolog.ui")[0]
-NewEntryWindow = uic.loadUiType("app/ui/newEntryWindow.ui")[0]
-NewEntryWidget = uic.loadUiType("app/ui/newEntryWidget.ui")[0]
-ClueDialog = uic.loadUiType("app/ui/clueDialog.ui")[0]
-ClueLogDialog = uic.loadUiType("app/ui/clueLogDialog.ui")[0]
-PrintDialog = uic.loadUiType("app/ui/printDialog.ui")[0]
-ChangeCallsignDialog = uic.loadUiType("app/ui/changeCallsignDialog.ui")[0]
 FsFilterDialog = uic.loadUiType("app/ui/fsFilterDialog.ui")[0]
-OpPeriodDialog = uic.loadUiType("app/ui/opPeriodDialog.ui")[0]
-PrintClueLogDialog = uic.loadUiType("app/ui/printClueLogDialog.ui")[0]
-NonRadioClueDialog = uic.loadUiType("app/ui/nonRadioClueDialog.ui")[0]
 ConvertDialog = uic.loadUiType("app/ui/convertDialog.ui")[0]
-SubjectLocatedDialog = uic.loadUiType("app/ui/subjectLocatedDialog.ui")[0]
 
 statusStyleDict={}
 # even though tab labels are created with font-size:20px and the tab sizes and margins are created accordingly,
@@ -123,7 +117,6 @@ statusStyleDict["TIMED_OUT_ORANGE"]="font-size:"+tabFontSize+";background:orange
 statusStyleDict["TIMED_OUT_RED"]="font-size:"+tabFontSize+";background:red;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
 
 
-teamStatusDict={}
 teamFSFilterDict={}
 teamTimersDict={}
 teamCreatedTimeDict={}
@@ -131,8 +124,6 @@ teamCreatedTimeDict={}
 # TODO Move these settings to the config file
 versionDepth=5 # how many backup versions to keep; see rotateBackups
 
-continueSec=20
-holdSec=20
 
 # log com port messages?
 comLog=False
@@ -150,7 +141,6 @@ comLog=False
 ##newEntryDialog_dx=30
 ##newEntryDialog_dy=30
 
-lastClueNumber=0
 
 ##quickTextList=[
 ##	["DEPARTING IC",Qt.Key_F1],
@@ -193,12 +183,13 @@ class MyWindow(QDialog,UiDialog):
         if issue:
             inform_user_about_issue(issue,icon=ICON_WARN,parent=self)
 
+
         self.setWindowFlags(self.windowFlags()|Qt.WindowMinMaxButtonsHint)
         self.parent=parent
         self.setupUi(self)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.loadFlag=False # set this to true during load, to prevent save on each newEntry
-        self.totalEntryCount=0 # rotate backups after every 5 entries; see newEntryWidget.accept
+        self.totalEntryCount=0 # rotate backups after every 5 entries; see NewEntryWidget.accept
 
         self.teamHotkeysWidget.setVisible(False) # disabled by default
         self.team_hot_keys = TeamHotKeys()
@@ -287,11 +278,11 @@ class MyWindow(QDialog,UiDialog):
         #  lookup filename based on the current incedent name and time
         self.fsFileName="radiolog_fleetsync.csv"
 
-        self.helpWindow = HelpWindow()
+        self.helpWindow = HelpDialog()
         self.helpWindow.stylize(statusStyleDict)
 
-        self.printDialog=printDialog(self)
-        self.printClueLogDialog=printClueLogDialog(self)
+        self.printDialog = PrintDialog(self)
+        self.printClueLogDialog = printClueLogDialog(self)
 
         self.radioLogNeedsPrint=False # set to True with each new log entry; set to False when printed
         self.clueLogNeedsPrint=False
@@ -372,8 +363,8 @@ class MyWindow(QDialog,UiDialog):
         self.entryHold=False
         self.currentEntryLastModAge=0
 
-        self.opPeriodDialog=opPeriodDialog(self)
-        self.clueLogDialog=clueLogDialog(self)
+        self.opPeriodDialog = opPeriodDialog(self)
+        self.clueLogDialog = clueLogDialog(self)
 
         self.pushButton.clicked.connect(self.openNewEntry)
         self.opPeriodButton.clicked.connect(self.openOpPeriodDialog)
@@ -463,7 +454,7 @@ class MyWindow(QDialog,UiDialog):
         self.tabWidget.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tabWidget.customContextMenuRequested.connect(self.tabContextMenu)
 
-        self.newEntryWindow=newEntryWindow(self) # create the window but don't show it until needed
+        self.newEntryWindow = NewEntryWindow(self) # create the window but don't show it until needed
 
         # load resource file; process default values and resource file values
         self.rcFileName="radiolog_rc.txt"
@@ -1024,7 +1015,7 @@ class MyWindow(QDialog,UiDialog):
                                 devTxt=callsign
                             self.getString="http://"+self.sarsoftServerName+":8080/rest/location/update/position?lat="+str(lat)+"&lng="+str(lon)+"&id=FLEET:"+fleet+"-"
                             # if callsign = "Radio ..." then leave the getString ending with hyphen for now, as a sign to defer
-                            #  sending until accept of change callsign dialog, or closeEvent of newEntryWidget, whichever comes first;
+                            #  sending until accept of change callsign dialog, or closeEvent of NewEntryWidget, whichever comes first;
                             #  otherwise, append the callsign now, as a sign to send immediately
                             if not devTxt.startswith("Radio "):
                                 self.getString=self.getString+devTxt
@@ -1064,7 +1055,7 @@ class MyWindow(QDialog,UiDialog):
         #  update it with the current location if available;
         # otherwise, spawn a new entry dialog
         found=False
-        for widget in newEntryWidget.instances:
+        for widget in NewEntryWidget.instances:
 ##			LOG.debug("checking against existing widget: to_from="+widget.to_fromField.currentText()" team="+widget.teamField.text()
             if widget.to_fromField.currentText()=="FROM" and widget.teamField.text()==callsign and widget.lastModAge<continueSec:
 ##				widget.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
@@ -1810,14 +1801,14 @@ class MyWindow(QDialog,UiDialog):
         self.helpWindow.update_blinking(self.blinkToggle, statusStyleDict)
 
         for extTeamName in teamTimersDict:
-            # if there is a newEntryWidget currently open for this team, don't blink,
+            # if there is a NewEntryWidget currently open for this team, don't blink,
             #  but don't reset the timer.  Only reset the timer when the dialog is accepted.
             hold=False
-            for widget in newEntryWidget.instances:
+            for widget in NewEntryWidget.instances:
                 if widget.to_fromField.currentText()=="FROM" and getExtTeamName(widget.teamField.text())==extTeamName:
                     hold=True
             i=self.extTeamNameList.index(extTeamName)
-            status=teamStatusDict.get(extTeamName,"")
+            status = teamStatusDict.get(extTeamName,"")
             fsFilter=teamFSFilterDict.get(extTeamName,0)
 ##			LOG.debug("blinking "+extTeamName+": status="+status)
 # 			LOG.debug("fsFilter "+extTeamName+": "+str(fsFilter))
@@ -1866,11 +1857,11 @@ class MyWindow(QDialog,UiDialog):
     def keyPressEvent(self,event):
         if type(event)==QKeyEvent:
         # fix #336 (freeze / loss of focus when MyWindow grabs the keyPressEvent
-        #  that was intended for newEntryWidget but happened before newEntryWidget
+        #  that was intended for NewEntryWidget but happened before NewEntryWidget
         #  was able to respond to it)
         # use the following fix for now: if the newEntryWindow is visible,
         #  ignore the envent completely; it would be nice to queue it until the
-        #  newEntryWidget can respond to it; but, what should the receiver of the
+        #  NewEntryWidget can respond to it; but, what should the receiver of the
         #  queued event be, and, how should the timing of the queued event interact
         #  with other events and processes?
         #  See https://stackoverflow.com/questions/44148992; need to develop a full
@@ -2160,7 +2151,6 @@ class MyWindow(QDialog,UiDialog):
 
         # now load the clue log (same filename appended by .clueLog) if it exists
         clueLogFileName=fileName.replace(".csv","_clueLog.csv")
-        global lastClueNumber
         if os.path.isfile(clueLogFileName):
             with open(clueLogFileName,'r') as csvFile:
                 csvReader=csv.reader(csvFile)
@@ -2222,7 +2212,7 @@ class MyWindow(QDialog,UiDialog):
         else:
             self.newEntryWindow.setWindowFlags(Qt.WindowTitleHint)
         sec=time.time() # epoch seconds, for sorting purposes; not displayed
-        self.newEntryWidget=newEntryWidget(self,sec,formattedLocString,fleet,dev,origLocString,amendFlag,amendRow)
+        self.newEntryWidget = NewEntryWidget(self,sec,formattedLocString,fleet,dev,origLocString,amendFlag,amendRow)
         # focus rules and timeline:
         #  openNewEntry
         #    |-> newEntryWidget.__init__
@@ -2376,7 +2366,7 @@ class MyWindow(QDialog,UiDialog):
         #  so, use i+1 for the actual insertion
         i=i+1
         if not self.loadFlag:
-            model=self.tableView.model()
+            model = self.tableView.model()
             model.beginInsertRows(QModelIndex(),i,i) # this is one-based
 # 		self.radioLog.append(values) # leave a blank entry at the end for aesthetics
         # myList.insert(i,val) means val will become myList[i] using a zero-based index
@@ -2403,7 +2393,7 @@ class MyWindow(QDialog,UiDialog):
             if extTeamName not in self.extTeamNameList:
                 self.newTeam(niceTeamName)
             i=self.extTeamNameList.index(extTeamName)
-            teamStatusDict[extTeamName]=status
+            teamStatusDict[extTeamName] = status
             if not extTeamName in teamFSFilterDict:
                 teamFSFilterDict[extTeamName]=0
             # credit to Berryblue031 for pointing out this way to style the tab widgets
@@ -2792,7 +2782,7 @@ class MyWindow(QDialog,UiDialog):
         self.opPeriodDialog.show()
 
     def addNonRadioClue(self):
-        self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
+        self.newNonRadioClueDialog = nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
         self.newNonRadioClueDialog.show()
 
     def restore(self):
@@ -2818,1572 +2808,29 @@ class MyWindow(QDialog,UiDialog):
 
 
 
-class printDialog(QDialog, PrintDialog):
-    def __init__(self,parent):
-        QDialog.__init__(self)
-        self.parent=parent
-        self.setupUi(self)
-        self.opPeriodComboBox.addItem("1")
-        self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
-        self.setFixedSize(self.size())
 
-    def showEvent(self,event):
-        LOG.debug("show event called")
-        LOG.debug("teamNameList:"+str(self.parent.teamNameList))
-        LOG.debug("allTeamsList:"+str(self.parent.allTeamsList))
-        if self.parent.exitClicked:
-            self.buttonBox.button(QDialogButtonBox.Ok).setText("Print")
-            self.buttonBox.button(QDialogButtonBox.Cancel).setText("Exit without printing")
-        else:
-            self.buttonBox.button(QDialogButtonBox.Ok).setText("Ok")
-            self.buttonBox.button(QDialogButtonBox.Cancel).setText("Cancel")
-        if len(self.parent.clueLog)>0:
-            self.clueLogField.setChecked(True)
-            self.clueLogField.setEnabled(True)
-        else:
-            self.clueLogField.setChecked(False)
-            self.clueLogField.setEnabled(False)
-        self.opPeriodComboBox.setCurrentIndex(self.opPeriodComboBox.count()-1)
 
-    def accept(self):
-        opPeriod=self.opPeriodComboBox.currentText()
-        if self.radioLogField.isChecked():
-            LOG.debug("PRINT radio log")
-            self.parent.printLog(opPeriod)
-        if self.teamRadioLogsField.isChecked():
-            LOG.debug("PRINT team radio logs")
-            self.parent.printTeamLogs(opPeriod)
-        if self.clueLogField.isChecked():
-            LOG.debug("PRINT clue log")
-# 			LOG.debug("  printDialog.accept.clueLog.trace1")
-            self.parent.printClueLog(opPeriod)
-# 			LOG.debug("  printDialog.accept.clueLog.trace2")
-# 		LOG.debug("  printDialog.accept.end.trace1")
-        super(printDialog,self).accept()
-# 		LOG.debug("  printDialog.accept.end.trace2")
 
-# newEntryWindow is the window that has a QTabWidget;
-#  each tab's widget (except the first and last which are just labels) is a newEntryWidget
-# the name newEntryWindow is to distinguish it from the previous newEntryDialog
-#  which had one instance (one dialog box) created per new entry
 
 
-class newEntryWindow(QDialog, NewEntryWindow):
-##	def __init__(self,parent,sec,formattedLocString='',fleet='',dev='',origLocString='',amendFlag=False,amendRow=None):
-    def __init__(self,parent):
-        QDialog.__init__(self)
-##		self.amendFlag=amendFlag
-##		self.amendRow=amendRow
-##		self.sec=sec
-##		self.formattedLocString=formattedLocString
-##		self.origLocString=origLocString
-##		self.fleet=fleet
-##		self.dev=dev
-##		self.parent=parent
-##		if amendFlag:
-##			row=parent.radioLog[amendRow]
-##			self.sec=row[0]
-##			self.formattedLocString=row[4]
-        self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint)
-        self.parent=parent
-        self.tabWidth=175
-        self.tabHeight=25
-        self.setupUi(self)
-        self.tabWidget.setTabBar(FingerTabBarWidget(width=self.tabWidth,height=self.tabHeight))
-        self.tabWidget.setTabPosition(QTabWidget.West)
-##		self.i=0 # unique persistent tab index; increments with each newly added tab; values are never re-used
-
-        self.tabWidget.insertTab(0,QWidget(),'NEWEST')
-        self.tabWidget.setTabEnabled(0,False)
-        self.tabWidget.insertTab(1,QWidget(),'OLDEST')
-        self.tabWidget.setTabEnabled(1,False)
-
-        self.tabWidget.currentChanged.connect(self.tabChanged)
-##		self.tabWidget.currentChanged.connect(self.throb)
-##		self.tabWidget.currentChanged.connect(self.activeTabMessageFieldFocus)
-
-        # 'hold' time: number of seconds that a given tab is 'held' / keeps focus after any mouse or keyboard
-        #   input; if a new entry is spawned inside the 'hold' time then it will appear at the top of the
-        #   stack, but will not be selected.  The 'hold' means that the most recently
-        #   edited tab will stay selected, to prevent any user input from being interrupted and unexpectedly
-        #   diverted to a different entry in the middle of typing.
-        #
-        #  at the end of the hold time, release the hold: do not automatically change the selected tab, but,
-        #   new entries will automatically be seleted / get focus if there is no hold.
-        #
-        # 'continue' time: when an incoming entry is detected for a given callsign, check to see if there
-        #   is any already open tab for that same callsign.  If there is, and it has been edited or was spawned
-        #   within the 'continue' time, then, do not create a new entry widget or tab, i.e. assume it is part
-        #   of the same continued conversation.  If the continue time has expired, then go ahead and open a new tab.
-
-##		self.holdSeconds=10
-##		self.continueSeconds=20
-
-
-        # display the tabs at the bottom of the west side, to look like a stack;
-        #  their order will still be top-down, so, remember to account for that
-        # also, must assign something to QTabBar::tab:enabled otherwise the button
-        #  will be offset vertically by half of the tab height; see
-        # http://stackoverflow.com/questions/29024686
-        self.tabWidget.setStyleSheet("""
-            QTabWidget::tab-bar {
-                alignment:right;
-            }
-            QTabBar::tab {
-                padding-left:0px;
-                margin-left:0px;
-                padding-bottom:0px;
-                margin-bottom:0px;
-                background-color:lightgray;
-                border:1px solid gray;
-                border-top-left-radius:4px;
-                border-bottom-left-radius:4px;
-            }
-            QTabBar::tab:selected {
-                background-color:white;
-                border:3px outset gray;
-                border-right:0px;
-            }
-            QTabBar::tab:!selected {
-                margin-left:3px;
-            }
-            QTabBar::tab:disabled {
-                width:80px;
-                color:black;
-                font-weight:bold;
-                background:transparent;
-                border:transparent;
-                padding-bottom:3px;
-            }
-        """)
-
-        self.timer=QTimer(self)
-        self.timer.start(1000)
-        self.timer.timeout.connect(self.autoCleanup)
-
-    # prevent 'esc' from closing the newEntryWindow
-    def keyPressEvent(self,event):
-        if event.key()!=Qt.Key_Escape:
-            QDialog.keyPressEvent(self,event)
-
-    def tabChanged(self,throb=True):
-##	def throb(self):
-        tabCount=self.tabWidget.count()
-        currentIndex=self.tabWidget.currentIndex()
-# 		LOG.debug("tabCount="+str(tabCount)+" currentIndex="+str(currentIndex))
-        if tabCount>2: # skip all this if 'NEWEST' and 'OLDEST' are the only tabs remaining
-            if (tabCount-currentIndex)>1: # don't try to throb the 'OLDEST' label - it has no throb method
-                currentWidget=self.tabWidget.widget(currentIndex)
-                if currentWidget.needsChangeCallsign:
-                    QTimer.singleShot(500,lambda:currentWidget.openChangeCallsignDialog())
-                if throb:
-                    currentWidget.throb()
-
-##	def activeTabMessageFieldFocus(self):
-##		currentIndex=self.tabWidget.currentIndex()
-                self.tabWidget.widget(currentIndex).messageField.setFocus()
-
-##	def updateTabColors(self):
-
-##		if tabCount<4:
-##			self.tabWidget.tabBar().setHidden(True)
-##			self.tabWidget.resize(initialTabWidgetWidth+20,initialTabWidgetHeight+20)
-##		else:
-##			self.tabWidget.tabBar().setHidden(False)
-##			self.tabWidget.resize(initialTabWidgetWidth+self.tabWidth+20,initialTabWidgetHeight+20)
-##		self.adjustSize()
-##		currentIndex=self.tabWidget.currentIndex()
-
-##			# code to set tab colors based on sequence
-##			for i in range(1,currentIndex):
-##				self.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).layout().itemAt(1).widget().setStyleSheet(statusStyleDict["TIMED_OUT_RED"])
-##			for i in range(currentIndex+1,tabCount-1):
-##				self.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).layout().itemAt(1).widget().setStyleSheet(statusStyleDict["TIMED_OUT_ORANGE"])
-##			try:
-##				self.tabWidget.tabBar().tabButton(currentIndex,QTabBar.LeftSide).layout().itemAt(1).widget().setStyleSheet("")
-##			except: # the line above has no meaning if the currentIndex is gone and there are no items left
-##				pass
-
-    def addTab(self,labelText,widget=None): # always adds at index=1 (index 0 = "NEWEST") i.e. the top of the stack
-##		self.i+=1
-##		self.tabWidget.insertTab(1,newEntryTabWidget(self,self.i),tabText)
-        if widget:
-##			widget=newEntryWidget(self.parent) # newEntryWidget constructor calls this function
-##			widget=QWidget()
-##			self.tabWidget.insertTab(1,widget,labelText)
-
-
-            self.tabWidget.insertTab(1,widget,"")
-
-            label=QLabel(labelText)
-            font = QFont()
-            font.setFamily("Segoe UI")
-            font.setPointSize(9)
-            label.setFont(font)
-            spacer=QWidget()
-            topWidget=QWidget()
-##			label.setStyleSheet("border:1px outset black")
-##			spacer.setStyleSheet("border:1px outset black")
-
-##			label.setAlignment(Qt.AlignVCenter)
-##			label.setIndent(20)
-##			label.setMidLineWidth(20)
-##			label.frameRect().moveBottom(20)
-
-##			subWidget=QWidget()
-            layout=QHBoxLayout()
-            layout.addWidget(spacer)
-            layout.addWidget(label)
-            layout.setSpacing(0) # to make the rest of the sizing more predictable
-
-            label.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
-            label.setGeometry(QRect(0,0,self.tabWidth-8,self.tabHeight-8))
-            spacer.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.Expanding)
-            spacer.setMinimumSize(8,4)
-            layout.setContentsMargins(0,0,0,0)
-            topWidget.setLayout(layout)
-            topWidget.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.Expanding)
-            topWidget.setGeometry(QRect(4,0,self.tabWidth,self.tabHeight-8))
-##			label.setGeometry(QRect(16,4,self.tabWidth-3,self.tabHeight-8))
-
-##			self.tabWidget.tabBar().setTabButton(1,QTabBar.LeftSide,label)
-##			self.tabWidget.tabBar().tabButton(1,QTabBar.LeftSide).move(1,1)
-
-            self.tabWidget.tabBar().setTabButton(1,QTabBar.LeftSide,topWidget)
-
-##			self.tabWidget.tabBar().tabButton(1,QTabBar.LeftSide).setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
-##			# if any existing entry widget is still within the hold time, don't change the active tab
-##			hold=False
-##			for entry in newEntryWidget.instances:
-##				if entry.lastModAge<holdSec:
-##					hold=True
-            # if the current active widget has had no activity within the hold time, then
-            #  make this new entry the active tab; otherwise leave it alone
-##			currentIndex=self.tabWidget.currentIndex()
-##			if self.tabWidget.widget(currentIndex).lastModAge>holdSec or self.tabWidget.count()==3:
-            if self.parent.currentEntryLastModAge>holdSec or self.tabWidget.count()==3:
-                self.tabWidget.setCurrentIndex(1)
-                widget.messageField.setFocus()
-##			if not self.parent.entryHold:
-##			if not hold:
-##				self.tabWidget.setCurrentIndex(1)
-##				self.parent.entryHold=True
-
-##			self.tabWidget.setStyleSheet("QTabWidget::tab {background-color:lightgray;}")
-        else: # this should be fallback dead code since addTab is always called with a widget:
-            self.parent.openNewEntry()
-
-##	def clearHold(self):
-##		self.entryHold=False
-##
-##	def clearContinue(self):
-##		self.entryContinue=False
-
-    def removeTab(self,caller):
-        # determine the current index of the tab that owns the widget that called this function
-        i=self.tabWidget.indexOf(caller)
-        # determine the number of tabs BEFORE removal of the tab in question
-        count=self.tabWidget.count()
-# 		LOG.debug("removeTab: count="+str(count)+" i="+str(i))
-        # remove that tab
-        self.tabWidget.removeTab(i)
-        # activate the next tab upwards in the stack, if there is one
-        if i>1:
-            self.tabWidget.setCurrentIndex(i-1)
-        # otherwise, activate the tab at the bottom of the stack, if there is one
-        elif i<count-3: # count-1 no longer exists; count-2="OLDEST"; count-3=bottom item of the stack
-            self.tabWidget.setCurrentIndex(count-3)
-
-        if count<4: # lower the window if the stack is empty
-# 			LOG.debug("lowering: count="+str(count))
-            self.setWindowFlags(self.windowFlags() & ~Qt.WindowStaysOnTopHint) # disable always on top
-            self.lower()
-
-##	def autoCleanupStateChanged(self):
-##		if self.autoCleanupCheckBox.isChecked():
-##			self.cleanupNowButton.setEnabled(False)
-##		else:
-##			self.cleanupNowButton.setEnabled(True)
-
-    # cleanup rules:
-    # if subject dialog or clue dialog is open, do not increment the tab's idle timer
-    # if there is any text in the tab's message field, or if the cleanup checkbox is False, ignore the idle timer or set it to zero on every timer count (never auto-close the tab)
-    def autoCleanup(self): # this function is called every second by the timer
-        if self.autoCleanupCheckBox.isChecked():
-            for tab in newEntryWidget.instances:
-# 				LOG.debug("lastModAge:"+str(tab.lastModAge))
-                # note the pause happens in newEntryWidget.updateTimer()
-                if tab.messageField.text()=="" and tab.lastModAge>60:
-                    tab.closeEvent(QEvent(QEvent.Close),accepted=False,force=True)
-##			if not tab.clueDialogOpen and not tab.subjectLocatedDialogOpen and tab.messageField.text()=="" and time.time()-tab.sec>60:
-
-
-##class newEntryWidget(QWidget,Ui_newEntryWidget):
-####	def __init__(self,parent,i):
-##	def __init__(self,parent):
-##		QWidget.__init__(self)
-##		self.parent=parent
-####		self.i=i # unique permanent index of this tab
-##		self.Ui_newEntryWidget()
-##		self.setupUi(self)
-##
-##	def accept(self):
-##		# 1. process the new entry
-##		# 2. remove this tab from the stack
-##		# 3. determine what tab to move to next
-##		#   - move up if there was anything above this tab
-##		#   - otherwise, move down (to bottom?) if there was anything below this tab
-##		#   - otherwise (if this was the only tab), close (or minimize?) this dialog
-##		print(self.messageField.text())
-##		self.parent.removeTab(self)
-##
-####		super(newEntryTabWidget,self).accept()
-##
-##	def reject(self):
-##		pass
-####		super(newEntryTabWidget,self).reject()
-
-
-
-
-
-
-##class newEntryWidget(QDialog,Ui_newEntryDialog):
-class newEntryWidget(QWidget,NewEntryWidget):
-    instances=[]
-##	newEntryDialogPositionList=[]
-##	newEntryDialogUsedPositionList=[]
-##	for n in range(50):
-##		newEntryDialogPositionList.append([newEntryDialog_x0+n*newEntryDialog_dx,newEntryDialog_y0+n*newEntryDialog_dy])
-##		newEntryDialogUsedPositionList.append(False)
-##	def __init__(self,parent,position,sec,formattedLocString='',fleet='',dev='',origLocString='',amendFlag=False,amendRow=None):
-    def __init__(self,parent,sec=0,formattedLocString='',fleet='',dev='',origLocString='',amendFlag=False,amendRow=None):
-        QDialog.__init__(self)
-        self.buttonsEnabled=True
-        self.throbTimer=None
-        self.amendFlag=amendFlag
-        self.amendRow=amendRow
-        self.attachedCallsignList=[]
-##		self.position=position # dialog x,y to show at
-        self.sec=sec
-        self.formattedLocString=formattedLocString
-        self.origLocString=origLocString
-        self.fleet=fleet
-        self.needsChangeCallsign=False # can be set to True by openNewEntry
-        self.dev=dev
-        self.parent=parent
-        if amendFlag:
-            row=parent.radioLog[amendRow]
-            self.sec=row[6]
-            self.formattedLocString=row[4]
-##		newEntryDialog.newEntryDialogUsedPositionList[self.position]=True
-        newEntryWidget.instances.append(self)
-        self.setupUi(self)
-
-        # blank-out the label under the callsign field if this was a manually / hotkey
-        #  generated newEntryWidget; the label only applies to fleetsync-spawned entries
-        if not fleet:
-            self.label_2.setText("")
-
-        self.setAttribute(Qt.WA_DeleteOnClose) # so that closeEvent gets called when closed by GUI
-        self.app_palette=QPalette()
-        self.setAutoFillBackground(True)
-        self.clueDialogOpen=False # only allow one clue dialog at a time per newEntryWidget
-        self.subjectLocatedDialogOpen=False
-
-# 		LOG.debug(" new entry widget opened.  allteamslist:"+str(self.parent.allTeamsList))
-        if len(self.parent.allTeamsList)<2:
-            self.teamComboBox.setEnabled(False)
-        else:
-            self.teamComboBox.clear()
-            for team in self.parent.allTeamsList:
-                if team!='dummy':
-                    self.teamComboBox.addItem(team)
-
-##		# close and accept the dialog as a new entry if message is no user input for 30 seconds
-
-##		QTimer.singleShot(100,lambda:self.changeBackgroundColor(0))
-
-# 		LOG.debug("newEntryWidget created")
-        self.quickTextAddedStack=[]
-
-        self.childDialogs=[] # keep track of exactly which clueDialog or
-          # subjectLocatedDialogs are 'owned' by this NED, for use in closeEvent
-
-##		self.messageField.setToolTip("<table><tr><td>a<td>b<tr><td>c<td>d</table>")
-        if amendFlag:
-            self.timeField.setText(row[0])
-            self.teamField.setText(row[2])
-            if row[0]=="TO":
-                self.to_fromField.setCurrentIndex(1)
-            oldMsg=row[3]
-            amendIndex=oldMsg.find('\n[AMENDED')
-            if amendIndex>-1:
-                self.messageField.setText(row[3][:amendIndex])
-            else:
-                self.messageField.setText(row[3])
-            self.label.setText("AMENDED Message:")
-        else:
-            self.timeField.setText(time.strftime("%H%M"))
-        self.teamField.textChanged.connect(self.setStatusFromTeam)
-        self.teamField.textChanged.connect(self.updateTabLabel)
-        self.to_fromField.currentIndexChanged.connect(self.updateTabLabel)
-        self.messageField.textChanged.connect(self.messageTextChanged)
-        self.statusButtonGroup.buttonClicked.connect(self.setStatusFromButton)
-
-        self.teamField.textChanged.connect(self.resetLastModAge)
-        self.messageField.textChanged.connect(self.resetLastModAge)
-        self.radioLocField.textChanged.connect(self.resetLastModAge)
-        self.statusButtonGroup.buttonClicked.connect(self.resetLastModAge)
-
-        self.lastModAge=0
-
-        # add this newEntryWidget as a new tab in the newEntryWindow.tabWidget
-        self.parent.newEntryWindow.addTab(time.strftime("%H%M"),self)
-        # do not raise the window if there is an active clue report form
-      # or an active changeCallsignDialog
-# 		LOG.debug("clueLog.openDialogCount="+str(clueDialog.openDialogCount))
-# 		LOG.debug("changeCallsignDialog.openDialogCount="+str(changeCallsignDialog.openDialogCount))
-# 		LOG.debug("subjectLocatedDialog.openDialogCount="+str(subjectLocatedDialog.openDialogCount))
-# 		LOG.debug("showing")
-        if not self.parent.newEntryWindow.isVisible():
-            self.parent.newEntryWindow.show()
-# 		self.parent.newEntryWindow.setFocus()
-        if clueDialog.openDialogCount==0 and subjectLocatedDialog.openDialogCount==0 and changeCallsignDialog.openDialogCount==0:
-# 			LOG.debug("raising")
-            self.parent.newEntryWindow.raise_()
-        # the following line is needed to get fix the apparent Qt bug (?) that causes
-        #  the messageField text to all be selected when a new message comes in
-        #  during the continue period.
-        self.parent.newEntryWindow.tabWidget.currentWidget().messageField.deselect()
-
-        self.timer=QTimer(self)
-        self.timer.start(1000)
-        self.timer.timeout.connect(self.updateTimer)
-
-        self.relayed=None
-        # store field values in case relayed checkbox is toggled accidentally
-        self.relayedByTypedTemp=None
-        self.relayedByTemp=None
-        self.callsignTemp=None
-        self.radioLocTemp=None
-        self.datumFormatTemp=None
-
-        self.relayedByComboBox.lineEdit().editingFinished.connect(self.relayedByComboBoxChanged)
-
-        self.updateButtonsEnabled()
-
-##		# unless an entry is currently being edited, activate the newly added tab
-##		if newEntryWidgetHold:
-##			blink 1
-##		else:
-##			self.parent.newEntryWindow.tabWidget.setCurrentIndex(1)
-
-        # update the tab label to include callsign
-##		self.teamField.textC
-##		LOG.debug("ctrl+z keyBindings:"+str(QKeySequence("Ctrl+Z")))
-
-##		# install actions for messageField
-##		for entry in quickTextList:
-##			if entry != "separator":
-##				LOG.debug("adding:"+entry[0]+" "+str(entry[1]))
-##				# calling the slot with arguments: lambda evaluates at the time the action is called, so, won't work here;
-##				#  functools.partial evaluates at addAction time so will do what we want.a
-##				action=QAction(entry[0],None)
-##				action.setShortcutContext(Qt.WidgetShortcut)
-##				action.setShortcut(entry[1])
-##				self.messageField.addAction(action)
-##				action.triggered.connect(functools.partial(self.quickTextAction,entry[0]))
-##
-##		self.messageField.setContextMenuPolicy(Qt.CustomContextMenu)
-##		self.messageField.customContextMenuRequested.connect(self.messageContextMenu)
-##
-##		self.updateBannerText()
-##		self.setStatusFromTeam()
-##		# all new entry dialogs should stay on top of everything, even other programs
-##		self.setWindowFlags(Qt.WindowStaysOnTopHint)
-##
-##	def messageContextMenu(self,pos):
-##		menu=QMenu()
-##		for entry in quickTextList:
-##			if entry=="separator":
-##				menu.addSeparator()
-##			else:
-##				# calling the slot with arguments: lambda evaluates at the time the action is called, so, won't work here;
-##				#  functools.partial evaluates at addAction time so will do what we want.a
-##				menu.addAction(entry[0],functools.partial(self.quickTextAction,entry[0]),entry[1])
-####				action=menu.addAction(entry[0],functools.partial(self.quickTextAction,entry[0]),entry[1])
-####				self.messageField.addAction(action)
-##
-####		act2=menu.addAction("STUFF",functools.partial(self.quickTextAction,"STUFF"),"Ctrl+F")
-####		self.addAction(act2)
-####		f1Action=menu.addAction("DEPARTING IC",self.dummySlot,Qt.Key_F1)
-####		f2Action=menu.addAction("BEGINNING ASSIGNMENT")
-####		f3Action=menu.addAction("COMPLETED ASSIGNMENT")
-####		f4Action=menu.addAction("ARRIVING AT IC")
-####		action=menu.exec_(self.messageField.mapToGlobal(pos))
-##		menu.exec_(self.messageField.mapToGlobal(pos))
-####		if action:
-####			self.messageField.setText(action.text())
-
-##	def quickTextAction(self,quickText):
-##		LOG.debug("quickText:"+quickText)
-
-##	def changeEvent(self,event):
-##		self.throb(0)
-
-    def updateButtonsEnabled(self):
-        setButtons=False
-        if self.buttonsEnabled==False:
-            if self.teamField.text()!="":
-                # enable all buttons
-                setButtons=True
-                self.buttonsEnabled=True
-        else:
-            if self.teamField.text()=="":
-                # disable all buttons
-                setButtons=True
-                self.buttonsEnabled=False
-        if setButtons:
-            self.quickTextButton1.setEnabled(self.buttonsEnabled)
-            self.quickTextButton2.setEnabled(self.buttonsEnabled)
-            self.quickTextButton3.setEnabled(self.buttonsEnabled)
-            self.quickTextButton4.setEnabled(self.buttonsEnabled)
-            self.quickTextButton5.setEnabled(self.buttonsEnabled)
-            self.quickTextButton6.setEnabled(self.buttonsEnabled)
-            self.quickTextButton7.setEnabled(self.buttonsEnabled)
-            self.quickTextButton8.setEnabled(self.buttonsEnabled)
-            self.quickTextButton9.setEnabled(self.buttonsEnabled)
-            self.quickTextButton10.setEnabled(self.buttonsEnabled)
-            self.quickTextButton11.setEnabled(self.buttonsEnabled)
-            self.quickTextButton1_2.setEnabled(self.buttonsEnabled)
-            self.quickTextUndoButton.setEnabled(self.buttonsEnabled)
-            self.statusGroupBox.setEnabled(self.buttonsEnabled)
-
-    def throb(self,n=0):
-        # this function calls itself recursivly 25 times to throb the background blue->white
-# 		LOG.debug("throb:n="+str(n))
-        self.app_palette.setColor(QPalette.Background,QColor(n*10,n*10,255))
-        self.setPalette(self.app_palette)
-        if n<25:
-            #fix #333: make throbTimer a normal timer and then call throbTimer.setSingleShot,
-            # so we can just stop it using .stop() when the widget is closed
-            # to avert 'wrapped C/C++ object .. has been deleted'
-# 			self.throbTimer=QTimer.singleShot(15,lambda:self.throb(n+1))
-            self.throbTimer=QTimer()
-            self.throbTimer.timeout.connect(lambda:self.throb(n+1))
-            self.throbTimer.setSingleShot(True)
-            self.throbTimer.start(15)
-        else:
-# 			LOG.debug("throb complete")
-            self.throbTimer=None
-            self.app_palette.setColor(QPalette.Background,QColor(255,255,255))
-            self.setPalette(self.app_palette)
-
-    def updateTimer(self):
-        # pause all timers if there are any clue or subject or changeCallsign dialogs open
-        if clueDialog.openDialogCount==0 and subjectLocatedDialog.openDialogCount==0 and changeCallsignDialog.openDialogCount==0:
-            self.lastModAge+=1
-        self.parent.currentEntryLastModAge=self.lastModAge
-##		if self.lastModAge>holdSec:
-##			if self.entryHold: # each entry widget has its own lastModAge and its last entryHold
-##				LOG.debug("releasing entry hold for self")
-##				self.parent.entryHold=False
-
-    def resetLastModAge(self):
-# 		LOG.debug("resetting last mod age for "+self.teamField.text())
-        self.lastModAge=-1
-        self.parent.currentEntryLastModAge=self.lastModAge
-
-    def quickTextAction(self):
-        quickText=self.sender().text()
-# 		LOG.debug("  quickTextAction called: text="+str(quickText))
-        quickText=re.sub(r' +\[.*$','',quickText) # prune one or more spaces followed by open bracket, thru end
-        existingText=self.messageField.text()
-        if existingText=="":
-            textToAdd=quickText
-        elif existingText.endswith("]"):
-            textToAdd=" "+quickText
-        elif existingText.endswith("] "):
-            textToAdd=quickText
-        else:
-            textToAdd="; "+quickText
-        self.quickTextAddedStack.append(textToAdd)
-        self.messageField.setText(existingText+textToAdd)
-        self.messageField.setFocus()
-
-    def quickTextUndo(self):
-        LOG.debug("ctrl+z keyBindings:"+str(QKeySequence("Ctrl+Z")))
-        if len(self.quickTextAddedStack):
-            textToRemove=self.quickTextAddedStack.pop()
-            existingText=self.messageField.text()
-            self.messageField.setText(rreplace(existingText,textToRemove,'',1))
-            self.messageField.setFocus()
-
-    def quickTextClueAction(self): # do not push clues on the quick text stack, to make sure they can't be undone
-        LOG.debug(str(self.clueDialogOpen))
-        if not self.clueDialogOpen: # only allow one open clue diolog at a time per radio log entry; see init and clueDialog init and closeEvent
-            self.newClueDialog=clueDialog(self,self.timeField.text(),self.teamField.text(),self.radioLocField.toPlainText(),lastClueNumber+1)
-            self.newClueDialog.show()
-
-    def quickTextSubjectLocatedAction(self):
-        self.subjectLocatedDialog=subjectLocatedDialog(self,self.timeField.text(),self.teamField.text(),self.radioLocField.toPlainText())
-        self.subjectLocatedDialog.show()
-
-    # if Enter or Return is pressed while in the teamField, jump to messageField
-    #  as if the user pressed the tab key
-    def keyPressEvent(self,event):
-        key=event.key()
-        if key==Qt.Key_Enter or key==Qt.Key_Return:
-            if self.teamField.hasFocus():
-                self.messageField.setFocus()
-            elif self.messageField.hasFocus():
-                self.accept()
-            else:
-                super().keyPressEvent(event) # pass the event as normal
-        elif key==Qt.Key_Escape:
-            # need to force focus away from callsignField so that
-            #  callsignLostFocus gets called, to keep callsign and tab name in sync,
-            #  otherwise this will cause a crash (hitting the cancel button does
-            #  not cause a crash because the button takes focus before closing)
-            self.messageField.setFocus()
-            self.close()
-        else:
-            super().keyPressEvent(event) # pass the event as normal
-
-    def openChangeCallsignDialog(self):
-        # problem: changeCallsignDialog does not stay on top of newEntryWindow!
-        # only open the dialog if the newEntryWidget was created from an incoming fleetSync ID
-        #  (it has no meaning for hotkey-opened newEntryWidgets)
-        self.needsChangeCallsign=False
-        if self.fleet:
-            self.changeCallsignDialog=changeCallsignDialog(self,self.teamField.text(),self.fleet,self.dev)
-            self.changeCallsignDialog.exec_() # required to make it stay on top
-
-    def accept(self):
-        if not self.clueDialogOpen and not self.subjectLocatedDialogOpen:
-            # getValues return value: [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
-            LOG.debug("Accepted")
-            val=self.getValues()
-
-            # validation: callsign field must be non-blank
-            vText=""
-            if val[2]=="":
-                vText+="\nCallsign cannot be blank."
-            LOG.debug("vText:"+vText)
-            if vText:
-                inform_user_about_issue("Please complete the form and try again:\n"+vText,parent=self)
-                return
-
-            if self.amendFlag:
-                prevToFrom=self.parent.radioLog[self.amendRow][1]
-                newToFrom=self.to_fromField.currentText()
-                prevTeam=self.parent.radioLog[self.amendRow][2]
-                newTeam=self.teamField.text()
-    ##			if self.parent.radioLog[self.amendRow][1]!=self.to_fromField.currentText() or self.parent.radioLog[self.amendRow][2]!=self.teamField.text():
-                if prevToFrom!=newToFrom or prevTeam!=newTeam:
-                    tmpTxt=" "+self.parent.radioLog[self.amendRow][1]+" "+self.parent.radioLog[self.amendRow][2]
-                    # if the old team tab is now empty, remove it
-                    if prevTeam!=newTeam:
-                        prevEntryCount=len([entry for entry in self.parent.radioLog if entry[2]==prevTeam])
-                        LOG.debug("number of entries for the previous team:"+str(prevEntryCount))
-                        if prevEntryCount==1:
-                            prevExtTeamName=getExtTeamName(prevTeam)
-                            self.parent.deleteTeamTab(prevExtTeamName)
-                else:
-                    tmpTxt=""
-                # oldMsg = entire message value before the amendment is accepted; may have previous amendments
-                # lastMsg = only the last message, i.e. oldMsg minus any previous amendments
-                oldMsg=self.parent.radioLog[self.amendRow][3]
-                amendIndex=oldMsg.find('\n[AMENDED')
-                if amendIndex>-1:
-                    lastMsg=oldMsg[:amendIndex]
-                    olderMsgs=oldMsg[amendIndex:]
-                else:
-                    lastMsg=oldMsg
-                    olderMsgs=''
-                niceTeamName=val[2]
-                status=val[5]
-
-                # update radioLog items that may have been amended
-                self.parent.radioLog[self.amendRow][1]=val[1]
-                self.parent.radioLog[self.amendRow][2]=niceTeamName
-                self.parent.radioLog[self.amendRow][3]=self.messageField.text()+"\n[AMENDED "+time.strftime('%H%M')+"; WAS"+tmpTxt+": '"+lastMsg+"']"+olderMsgs
-                self.parent.radioLog[self.amendRow][5]=status
-
-                # use to_from value "AMEND" and blank msg text to make sure team timer does not reset
-                self.parent.newEntryProcessTeam(niceTeamName,status,"AMEND","")
-
-                # reapply the filter on team tables, in case callsign was changed
-                for t in self.parent.tableViewList[1:]:
-                    t.model().invalidateFilter()
-            else:
-                self.parent.newEntry(self.getValues())
-
-            # make entries for attached callsigns
-            # values array format: [time,to_from,team,message,locString,status,sec,fleet,dev]
-# 			LOG.debug("attached callsigns: "+str(self.attachedCallsignList))
-            for attachedCallsign in self.attachedCallsignList:
-                v=val[:] # v is a fresh, independent copy of val for each iteration
-                v[2]=getNiceTeamName(attachedCallsign)
-                v[3]="[ATTACHED FROM "+self.teamField.text().strip()+"] "+val[3]
-                self.parent.newEntry(v)
-
-            self.parent.totalEntryCount+=1
-            if self.parent.totalEntryCount%5==0:
-                # rotate backup files after every 5 entries, but note the actual
-                #  entry interval could be off during fast entries since the
-                #  rotate script is called asynchronously (i.e. backgrounded)
-                filesToBackup=[
-                        self.parent.firstWorkingDir+"\\"+self.parent.csvFileName,
-                        self.parent.firstWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"),
-                        self.parent.firstWorkingDir+"\\"+self.parent.fsFileName]
-                if self.parent.use2WD and self.parent.secondWorkingDir:
-                    filesToBackup=filesToBackup+[
-                            self.parent.secondWorkingDir+"\\"+self.parent.csvFileName,
-                            self.parent.secondWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"),
-                            self.parent.secondWorkingDir+"\\"+self.parent.fsFileName]
-                self.parent.rotateCsvBackups(filesToBackup)
-            LOG.debug("Accepted2")
-        self.closeEvent(QEvent(QEvent.Close),True)
-##		self.close()
-
-# 	def reject(self):
-# 		really=ICON_WARN(self,"Please Confirm","Cancel this entry?\nIt cannot be recovered.",
-# 			QMessageBox.Yes|QMessageBox.No,QMessageBox.No)
-# 		if really==QMessageBox.Yes:
-# 			self.closeEvent(None)
-
-##		self.timer.stop()
-##
-####	def closeEvent(self):
-##		self.parent.newEntryWindow.tabWidget.removeTab(self.parent.newEntryWindow.tabWidget.indexOf(self))
-##		newEntryWidget.instances.remove(self)
-##		self.close()
-
-##	def closeEvent(self,event):
-##		newEntryDialog.newEntryDialogUsedPositionList[self.position]=False
-##		newEntryDialog.instances.remove(self)
-##		self.timer.stop() # otherwise it keeps accepting even after closed!
-
-
-
-
-# 	def closeEvent(self,event,accepted=False):
-# 		# note, this type of messagebox is needed to show above all other dialogs for this application,
-# 		#  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
-# 		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
-# 		LOG.debug("closeEvent called: accepted="+str(accepted))
-# 		if not accepted:
-# 			really=QMessageBox(ICON_WARN,"Please Confirm","Close this Clue Report Form?\nIt cannot be recovered.",
-# 				QMessageBox.Yes|QMessageBox.Cancel,self,Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-# 			if really.exec()==QMessageBox.Cancel:
-# 				event.ignore()
-# 				return
-#
-# 		clueDialog.indices[self.i]=False # free up the dialog box location for the next one
-# 		self.parent.clueDialogOpen=False
-# 		clueDialog.openDialogCount-=1
-# ##		newEntryWidget.instances.remove(self)
-
-    def closeEvent(self,event,accepted=False,force=False):
-        # if the user hit cancel, make sure the user really wanted to cancel
-        # fix #325: repeated cancel-confirm cycles are annoying; bypass the
-        #  confirmation if the message is blank; note that any GPS data gets sent
-        #  as soon as the dialog is opened (or as soon as the change callsign dialog
-        #  is accepted), so, bypassing the confirmation in this manner will
-        #  still preserve and process any incoming GPS coordinates
-        if not accepted and not force and self.messageField.text()!="":
-            msg="Cancel this entry?\nIt cannot be recovered."
-            if self.amendFlag:
-                msg="Cancel this amendment?\nOriginal message will be preserved."
-            if not ask_user_to_confirm(msg, icon=ICON_WARN, parent = self):
-                event.ignore()
-                return
-        # whether OK or Cancel, ignore the event if child dialog(s) are open,
-        #  and raise the child window(s)
-        if self.clueDialogOpen or self.subjectLocatedDialogOpen:
-            # the 'child' dialogs are not technically children; use the NED's
-            #  childDialogs attribute instead, which was populated in the __init__
-            #  of each child dialog class
-            for child in self.childDialogs:
-                child.raise_()
-            inform_user_about_issue("A Clue Report or Subject Located form is open that belongs to this entry.  Finish it first.",
-                icon = ICON_WARN, title = "Cannot close", parent = self)
-            event.ignore()
-            return
-        else:
-            self.timer.stop()
-            # fix #333: stop mid-throb to avert runtime error
-            #  but only if the throbTimer was actually started
-            if self.throbTimer:
-                self.throbTimer.stop()
-            # if there is a pending GET request (locator), send it now with the
-            #  specified callsign
-            self.parent.sendPendingGet(self.teamField.text())
-    ##		self.parent.newEntryWindow.tabWidget.removeTab(self.parent.newEntryWindow.tabWidget.indexOf(self))
-    ##		self.parent.newEntryWindow.removeTab(self.parent.newEntryWindow.tabWidget.indexOf(self))
-            self.parent.newEntryWindow.removeTab(self)
-            newEntryWidget.instances.remove(self)
-##		else:
-##			event.ignore()
-
-    def setStatusFromTeam(self):
-##		self.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
-        extTeamName=getExtTeamName(self.teamField.text())
-        if (extTeamName in teamStatusDict) and (teamStatusDict[extTeamName]!=''):
-            prevStatus=teamStatusDict[extTeamName]
-#			print("Team "+extTeamName+": previous status='"+prevStatus+"'")
-            for button in self.statusButtonGroup.buttons():
-                if button.text()==prevStatus:
-                    button.setChecked(True)
-        else:
-#			print("unknown team, or existing team with no existing status")
-            # must setExclusive(False) to allow unselecting all buttons,
-            # then set it back to True afterwards
-            self.statusButtonGroup.setExclusive(False)
-            for button in self.statusButtonGroup.buttons():
-                button.setChecked(False)
-            self.statusButtonGroup.setExclusive(True)
-
-##	def updateBannerText(self):
-##		if self.amendFlag:
-##			tmpTxt="AMENDED ENTRY"
-##		else:
-##			tmpTxt="New Entry"
-##		self.setWindowTitle("Radio Log - "+tmpTxt+" - "+self.to_fromField.currentText()+" "+self.teamField.text())
-
-    def teamFieldTextChanged(self):
-        self.updateButtonsEnabled()
-        # if typed callsign is only a three-or-fewer-digit number, prefix it with 'Team '
-        #  otherwise do not prefix it
-        cs=self.teamField.text()
-        csraw=cs.replace("Team ","")
-# 		LOG.debug("csraw: '"+csraw+"'")
-        if re.match(".*\D.*",csraw) or len(csraw)>3:
-            csout=csraw
-        else:
-            csout="Team "+csraw
-# 		LOG.debug("csout: '"+csout+"'")
-        self.teamField.setText(csout)
-
-    def teamFieldEditingFinished(self):
-# 		LOG.debug("teamFieldEditingFinished")
-        cs=self.teamField.text()
-        if re.match(".*\D.*",cs):
-            # change it to any case-insensitive-matching existing callsign
-            for t in self.parent.allTeamsList:
-                if t.upper()==cs.upper():
-                    self.teamField.setText(t)
-                    break
-        if re.match(".*relay.*",cs,re.IGNORECASE):
-            LOG.debug("relay callsign detected")
-            # if the relay callsign is already in the callsign list, i.e. if
-            #  they have previously called in, then assume they are relaying
-            #  a message; if not, assume they are not yet relaying a message
-            for t in self.parent.allTeamsList:
-                if t.upper()==cs.upper():
-                    self.relayedCheckBox.setChecked(True)
-                    self.relayedByComboBox.setCurrentText(t)
-                    break
-
-    def setRelayedPrefix(self,relayedBy=None):
-        if relayedBy is None:
-            relayedBy=self.relayedByComboBox.currentText()
-# 		LOG.debug("setRelayedPrefix:"+relayedBy)
-        if relayedBy=="":
-            if self.relayed:
-                prefix="[RELAYED] "
-            else:
-                prefix=""
-        else:
-            prefix="[RELAYED by "+relayedBy+"] "
-        mt=self.messageField.text()
-        if mt.startswith("[RELAYED"):
-            relayedEndIndex=mt.find("]")
-# 			LOG.debug("before relayed prefix removal:"+mt)
-            mt=mt.replace(mt[:relayedEndIndex+2],"")
-# 			LOG.debug("after relayed prefix removal:"+mt)
-        mt=prefix+mt
-        self.messageField.setText(mt)
-
-    def getRelayedByItems(self):
-        items=[]
-        for n in range(self.relayedByComboBox.count()):
-            items.append(self.relayedByComboBox.itemText(n))
-        return items
-
-    def relayedCheckBoxStateChanged(self):
-        # if this was a fleetsync call, move the incoming callsign to 'relayed by'
-        #  and set focus to the callsign field to prompt for the callsign of the
-        #  originating team/unit
-        # if it was not a fleetsync call, leave the callsign alone and set 'relayed by'
-        #  to blank, since it's likely that the radio operator may have typed the
-        #  originating team/unit callsign in to the callsign field first, and then
-        #  checked 'relayed' afterwards
-        LOG.trace("relayedCheckBoxStateChanged; fleet="+str(self.fleet)+"; dev="+str(self.dev))
-        self.relayed=self.relayedCheckBox.isChecked()
-        self.relayedByLabel.setEnabled(self.relayed)
-        self.relayedByComboBox.setEnabled(self.relayed)
-        self.relayedByComboBox.clear() # rebuild the list from scratch to avoid duplicates
-        if self.relayed: # do these steps regardless of whether it was a fleetsync call
-            for team in self.parent.allTeamsList:
-                if team!='dummy':
-                    self.relayedByComboBox.addItem(team)
-            # remove the current callsign from the list of 'relayed by' choices
-            for n in range(self.relayedByComboBox.count()):
-                if self.relayedByComboBox.itemText(n).lower()==self.teamField.text().lower():
-                    self.relayedByComboBox.removeItem(n)
-                    break
-            self.relayedCheckBox.setText("Relayed")
-            if self.relayedByTypedTemp is not None:
-                self.relayedByComboBox.setCurrentText(self.relayedByTypedTemp)
-        else: # just unchecked the box, regadless of fleetsync
-            text=self.relayedByComboBox.currentText()
-            if text!="" and text not in self.getRelayedByItems():
-                self.relayedByTypedTemp=text
-            self.relayedByComboBox.setCurrentText("")
-        if self.dev is not None: # only do these steps if it was a fleetsync call
-            if self.relayed:
-                # store field values in case this was inadvertently checked
-                self.callsignTemp=self.teamField.text()
-                self.radioLocTemp=self.radioLocField.toPlainText()
-                self.datumFormatTemp=self.datumFormatLabel.text()
-                self.radioLocField.setText("")
-                self.datumFormatLabel.setText("")
-    # 			LOG.debug("relayed")
-                self.relayedByComboBox.clear()
-                cs=self.teamField.text()
-                if self.relayedByTemp is not None:
-                    self.relayedByComboBox.setCurrentText(self.relayedByTemp)
-                elif cs!="":
-                    self.relayedByComboBox.setCurrentText(cs)
-                self.teamField.setText("")
-                # need to 'burp' the focus to prevent two blinking cursors
-                #  see http://stackoverflow.com/questions/42475602
-                self.messageField.setFocus()
-                self.teamField.setFocus()
-            else:
-    # 			LOG.debug("not relayed")
-                # store field values in case this was inadvertently checked
-                self.relayedByTemp=self.relayedByComboBox.currentText()
-                self.relayedCheckBox.setText("Relayed?")
-                if self.callsignTemp is not None:
-                    self.teamField.setText(self.callsignTemp)
-                else:
-                    self.teamField.setText(self.relayedByComboBox.currentText())
-                if self.radioLocTemp is not None:
-                    self.radioLocField.setText(self.radioLocTemp)
-                if self.datumFormatTemp is not None:
-                    self.datumFormatLabel.setText(self.datumFormatTemp)
-                self.relayedByComboBox.clear()
-                self.messageField.setFocus()
-        self.setRelayedPrefix()
-
-    def relayedByComboBoxChanged(self):
-        LOG.trace("relayedByComboBoxChanged")
-        self.relayedBy=self.relayedByComboBox.currentText()
-        self.setRelayedPrefix(self.relayedBy)
-        self.messageField.setFocus()
-
-    def messageTextChanged(self): # gets called after every keystroke or button press, so, should be fast
-##		self.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
-        message=self.messageField.text().lower()
-        extTeamName=getExtTeamName(self.teamField.text())
-        prevStatus=""
-        if extTeamName in teamStatusDict:
-            prevStatus=teamStatusDict[extTeamName]
-        newStatus="" #  need to actively set it back to blank if neeeded, since this function is called on every text change
-        # use an if/elif/else clause, which requires a search order; use the more final messages first
-        # note, these hints can be trumped by clicking the status button AFTER typing
-
-        # multiple things have to be in place to have a new status text here actually
-        #  change the status of the new entry:
-        # 1. button with matching text() must exist in newEntryWidget and must
-        #     be a member of statusButtonGroup (it can be behind another button
-        #     so that it never gets clicked and is not visible, but, it must exist)
-        # 2. the clicked() signal from that button must have a reciever of
-        #     newEntryWidget.quickTextAction()
-        if "at ic" in message:
-            newStatus="At IC"
-        elif "requesting transport" in message:
-            newStatus="Waiting for Transport"
-        elif "enroute to ic" in message:
-            newStatus="In Transit"
-        elif "starting assignment" in message:
-            newStatus="Working"
-        elif "departing ic" in message:
-            newStatus="In Transit"
-        elif "standby" in message:
-            newStatus="STANDBY"
-        elif "hold position" in message:
-            newStatus="STANDBY"
-        elif "requesting deputy" in message:
-            newStatus="STANDBY"
-        elif "10-8" in message:
-            newStatus="Available"
-        elif "10-97" in message:
-            newStatus="Working"
-        elif "10-10" in message:
-            newStatus="Off Duty"
-        elif prevStatus=="Available" and "evac" in message:
-            newStatus="In Transit"
-        else:
-            newStatus=prevStatus
-
-# 		LOG.debug("message:"+str(message))
-# 		LOG.debug("  previous status:"+str(prevStatus)+"  newStatus:"+str(newStatus))
-        # attached callsigns (issue 306):
-        # this takes place in two phases:
-        # 1. determine the list of attached callsigns during message entry
-        # 2. when the message is submitted, also create identical messages
-        #     for each of the attached callsigns (and make sure their status
-        #     changes to the same as the originating callsign)
-        # also look for "with" or "w/" and if found, attach this message to the
-        #  callsigns in the following token(s)
-        # example: from transport 1: "enroute to IC with team4 and team5"
-        #  means that this message and status should be copied to teams 4 and 5
-        # if the attachment token is found ("with" or "w/") then treat all
-        #  subsequent words as attached callsigns, with various possible delimiters (space, comma, 'and')
-        #  and also provide for callsign shorthand; handle these cases:
-        # team<number>
-        # team<space><number>
-        # <number>
-        # t<number>
-        # t<space><number>
-        #  note that the cases with spaces require that we get rid of spaces
-        #   before numbers if those spaces are preceded by a letter
-        #  also replace 'team' or 't' with 'Team'
-
-        self.attachedCallsignList=[]
-    # the following lines are commented out TMG 4-7-17 to prevent crashes when
-    # amending attached-team messages; see issue#310; hopefully a better solution
-    # can be found in the future
-
-# 		lowerMessage=message.lower()
-# 		if "with" in lowerMessage or "w/" in lowerMessage:
-# 			tailIndex=lowerMessage.find("with")+4
-# 			if tailIndex<4:
-# 				tailIndex=lowerMessage.find("w/")+2
-# 			if tailIndex>1:
-# 				tail=message[tailIndex:].strip()
-# 				#massage the tail to get it into a good format here
-# 				tail=re.sub(r'(\w)\s+(\d+)',r'\1\2',tail) # remove space after letters before numbers
-# 				tail=re.sub(r't(\d+)',r'team\1',tail) # change t# to team#
-# 				tail=re.sub(r'([\s,]+)(\d+)',r'\1team\2',tail) # insert 'team' before just-numbers
-# 				tail=re.sub(r'^(\d+)',r'team\1',tail) # and also at the start of the tail
-# 				tail=re.sub(r'team',r'Team',tail) # capitalize 'team'
-# 	# 			LOG.debug(" 'with' tail found:"+tail)
-# 				tailParse=re.split("[, ]+",tail)
-# 				# rebuild the attachedCallsignList from scratch on every keystroke;
-# 				#  trying to append to the list is problematic (i.e. when do we append?)
-# 				for token in tailParse:
-# 					if token!="and": # all parsed tokens other than "and" are callsigns to be attached
-# 						# keep the list as a local variable rather than object attribute,
-# 						#  since we want to rebuild the entire list on every keystroke
-# 						self.attachedCallsignList.append(token)
-# 		self.attachedField.setText(" ".join(self.attachedCallsignList))
-#
-        # allow it to be set back to blank; must set exclusive to false and iterate over each button
-        self.statusButtonGroup.setExclusive(False)
-        for button in self.statusButtonGroup.buttons():
-# 			LOG.debug("checking button: "+button.text())
-            if button.text()==newStatus:
-                button.setChecked(True)
-            else:
-                button.setChecked(False)
-        self.statusButtonGroup.setExclusive(True)
-        self.messageField.deselect()
-
-    def setCallsignFromComboBox(self,str):
-        self.teamField.setText(str)
-        self.teamField.setFocus()
-
-    def setStatusFromButton(self):
-##		self.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
-        clickedStatus=self.statusButtonGroup.checkedButton().text()
-        extTeamName=getExtTeamName(self.teamField.text())
-        teamStatusDict[extTeamName]=clickedStatus
-
-    def updateTabLabel(self):
-        i=self.parent.newEntryWindow.tabWidget.indexOf(self)
-        self.parent.newEntryWindow.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).layout().itemAt(1).widget().setText(time.strftime("%H%M")+" "+self.to_fromField.currentText()+" "+self.teamField.text())
-##		self.parent.newEntryWindow.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setText(self.teamField.text())
-##		self.parent.newEntryWindow.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).adjustSize()
-
-    def getValues(self):
-        time=self.timeField.text()
-        to_from=self.to_fromField.currentText()
-        team=self.teamField.text().strip() # remove leading and trailing spaces
-        message=self.messageField.text()
-        if self.relayed:
-            locString=""
-        else:
-            locString=self.formattedLocString
-#		location=self.radioLocField.text()
-        status=''
-        if self.statusButtonGroup.checkedButton()!=None:
-            status=self.statusButtonGroup.checkedButton().text()
-        return [time,to_from,team,message,locString,status,self.sec,self.fleet,self.dev,self.origLocString]
-
-
-class clueDialog(QDialog,ClueDialog):
-##	instances=[]
-    openDialogCount=0
-    indices=[False]*20 # allow up to 20 clue dialogs open at the same time
-    dx=20
-    dy=20
-    x0=200
-    y0=200
-    def __init__(self,parent,t,callsign,radioLoc,newClueNumber):
-        QDialog.__init__(self)
-        self.setupUi(self)
-        self.timeField.setText(t)
-        self.dateField.setText(time.strftime("%x"))
-        self.callsignField.setText(callsign)
-        self.radioLocField.setText(re.sub('  +','\n',radioLoc))
-        self.clueNumberField.setText(str(newClueNumber))
-        self.clueQuickTextAddedStack=[]
-        self.parent=parent
-        self.parent.childDialogs.append(self)
-##		self.parent.timer.stop() # do not timeout the new entry dialog if it has a child clueDialog open!
-        self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
-##		self.setWindowFlags(Qt.FramelessWindowHint)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        self.descriptionField.setFocus()
-##		self.i=0 # dialog box location index; set at runtime, so we know which index to free on close
-##		clueDialog.instances.append(self)
-        [x,y,i]=self.pickXYI()
-        self.move(x,y)
-        self.i=i # save the index so we can clear it on close
-        # save the clue number at init time, so that any new clueDialog opened before this one
-        #  is saved will have an incremented clue number.  May need to get fancier in terms
-        #  of releasing clue numbers on reject, but, don't worry about it for now - that's why
-        #  the clue number field is editable.
-        global lastClueNumber
-        lastClueNumber=newClueNumber
-        self.parent.clueDialogOpen=True
-        clueDialog.openDialogCount+=1
-        self.values=self.parent.getValues()
-        amendText=""
-        if self.parent.amendFlag:
-            amendText=" during amendment of previous message"
-        self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' button pressed"+amendText+"; radio operator is gathering details"
-##		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' button pressed for '"+self.values[2]+"'; radio operator is gathering details"
-##		self.values[2]='' # this message is not actually from a team
-        self.parent.parent.newEntry(self.values)
-        self.setFixedSize(self.size())
-
-    def pickXYI(self):
-        for index in range(len(clueDialog.indices)):
-            if clueDialog.indices[index]==False:
-                clueDialog.indices[index]=True
-                return [index*clueDialog.dx+clueDialog.x0,index*clueDialog.dy+clueDialog.y0,index]
-
-    # treat Enter or Return like Tab: cycle through fields similar to tab sequence, and accept after last field
-    def keyPressEvent(self,event):
-        key=event.key()
-        if key==Qt.Key_Enter or key==Qt.Key_Return:
-            if self.descriptionField.hasFocus():
-                self.locationField.setFocus()
-            elif self.locationField.hasFocus(): # make sure this is elif, not if - otherwise it just cascades!
-                self.instructionsField.setFocus()
-            elif self.instructionsField.hasFocus():
-                self.accept()
-            else:
-                super().keyPressEvent(event) # pass the event as normal
-        else:
-            # fix issue #338: prevent 'esc' from closing the newEntryWindow
-            if event.key()!=Qt.Key_Escape:
-                super().keyPressEvent(event) # pass the event as normal
-
-    def accept(self):
-##		self.parent.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
-        number=self.clueNumberField.text()
-        description=self.descriptionField.toPlainText()
-        location=self.locationField.text()
-        instructions=self.instructionsField.text()
-        team=self.callsignField.text()
-        clueDate=self.dateField.text()
-        clueTime=self.timeField.text()
-        radioLoc=self.radioLocField.toPlainText()
-
-        # validation: description, location, instructions fields must all be non-blank
-        vText=""
-        if description=="":
-            vText+="\n'Description' cannot be blank."
-        if location=="":
-            vText+="\n'Location' cannot be blank."
-        if instructions=="":
-            vText+="\n'Instructions' cannot be blank."
-        LOG.debug("vText:"+vText)
-        if vText:
-            inform_user_about_issue("Please complete the form and try again:\n"+vText,parent=self)
-            return
-
-        self.parent.clueLogNeedsPrint=True
-        textToAdd=''
-        existingText=self.parent.messageField.text()
-        if existingText!='':
-            textToAdd='; '
-        textToAdd+="CLUE#"+number+": "+description+"; LOCATION: "+location+"; INSTRUCTIONS: "+instructions
-        self.parent.messageField.setText(existingText+textToAdd)
-        # previously, lastClueNumber was saved here - on accept; we need to save it on init instead, so that
-        #  multiple concurrent clueDialogs will not have the same clue number!
-        # header_labels=['CLUE#','DESCRIPTION','TEAM','TIME','DATE','OP','LOCATION','INSTRUCTIONS','RADIO LOC.']
-        clueData=[number,description,team,clueTime,clueDate,self.parent.parent.opPeriod,location,instructions,radioLoc]
-        self.parent.parent.clueLog.append(clueData)
-        if self.clueReportPrintCheckBox.isChecked():
-            self.parent.parent.printClueReport(clueData)
-        LOG.trace("accepted - calling close")
-        self.parent.parent.clueLogDialog.tableView.model().layoutChanged.emit()
-        self.closeEvent(QEvent(QEvent.Close),True)
-##		pixmap=QPixmap(":/radiolog_ui/print_icon.png")
-##		self.parent.parent.clueLogDialog.tableView.model().setHeaderData(0,Qt.Vertical,pixmap,Qt.DecorationRole)
-##		self.parent.parent.clueLogDialog.tableView.model().setHeaderData(1,Qt.Vertical,pixmap,Qt.DecorationRole)
-##		self.parent.parent.clueLogDialog.tableView.model().headerDataChanged.emit(Qt.Vertical,0,1)
-##		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().accept()
-        super(clueDialog,self).accept()
-
-    def closeEvent(self,event,accepted=False):
-        # note, this type of messagebox is needed to show above all other dialogs for this application,
-        #  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
-        #  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
-        if not accepted:
-            if not ask_user_to_confirm("Close this Clue Report Form?\nIt cannot be recovered.", icon=ICON_WARN, parent = self):
-                event.ignore()
-                return
-            if clueDialog.openDialogCount==1:
-                global lastClueNumber
-                lastClueNumber=lastClueNumber-1 # only release the clue# if no other clue forms are open
-            self.values=self.parent.getValues()
-            self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'LOCATED A CLUE' form"
-            self.parent.parent.newEntry(self.values)
-
-        clueDialog.indices[self.i]=False # free up the dialog box location for the next one
-        self.parent.clueDialogOpen=False
-        clueDialog.openDialogCount-=1
-        self.parent.childDialogs.remove(self)
-        event.accept()
-        if accepted:
-            self.parent.accept()
-##		newEntryWidget.instances.remove(self)
-
-    def clueQuickTextAction(self):
-        quickText=self.sender().text()
-        quickText=re.sub(r' +\[.*$','',quickText) # prune one or more spaces followed by open bracket, thru end
-        quickText=re.sub(r'&&','&',quickText) # double-ampersand is needed in Qt designer for a literal ampersand
-        existingText=self.instructionsField.text()
-        if existingText=="":
-            self.clueQuickTextAddedStack.append(quickText)
-            self.instructionsField.setText(quickText)
-        else:
-            textToAdd="; "+quickText
-            self.clueQuickTextAddedStack.append(textToAdd)
-            self.instructionsField.setText(existingText+textToAdd)
-        self.instructionsField.setFocus()
-
-    def clueQuickTextUndo(self):
-        LOG.debug("ctrl+z keyBindings:"+str(QKeySequence("Ctrl+Z")))
-        if len(self.clueQuickTextAddedStack):
-            textToRemove=self.clueQuickTextAddedStack.pop()
-            existingText=self.instructionsField.text()
-            self.instructionsField.setText(rreplace(existingText,textToRemove,'',1))
-            self.instructionsField.setFocus()
-
-
-class nonRadioClueDialog(QDialog,NonRadioClueDialog):
-    def __init__(self,parent,t,newClueNumber):
-        QDialog.__init__(self)
-        self.setupUi(self)
-        self.timeField.setText(t)
-        self.dateField.setText(time.strftime("%x"))
-        self.clueNumberField.setText(str(newClueNumber))
-        self.parent=parent
-        self.setWindowFlags(Qt.WindowStaysOnTopHint)
-        self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        # values format for adding a new entry:
-        #  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
-        self.values=["" for n in range(10)]
-        self.values[0]=t
-        self.values[3]="RADIO LOG SOFTWARE: 'ADD NON-RADIO CLUE' button pressed; radio operator is gathering details"
-        self.values[6]=time.time()
-        self.parent.newEntry(self.values)
-        self.setFixedSize(self.size())
-
-    def accept(self):
-        self.parent.clueLogNeedsPrint=True
-        number=self.clueNumberField.text()
-        description=self.descriptionField.toPlainText()
-        location=self.locationField.text()
-        instructions=self.instructionsField.text()
-        team=self.callsignField.text()
-        clueDate=self.dateField.text()
-        clueTime=self.timeField.text()
-        radioLoc=''
-        textToAdd=''
-        global lastClueNumber
-        lastClueNumber=int(self.clueNumberField.text())
-        # header_labels=['CLUE#','DESCRIPTION','TEAM','TIME','DATE','OP','LOCATION','INSTRUCTIONS','RADIO LOC.']
-        clueData=[number,description,team,clueTime,clueDate,self.parent.opPeriod,location,instructions,radioLoc]
-        self.parent.clueLog.append(clueData)
-
-        # add a radio log entry too
-        self.values=["" for n in range(10)]
-        self.values[0]=self.timeField.text()
-        self.values[3]="CLUE#"+number+"(NON-RADIO): "+description+"; REPORTED BY: "+team+"; see clue report and clue log for details"
-        self.values[6]=time.time()
-        self.parent.newEntry(self.values)
-
-        if self.clueReportPrintCheckBox.isChecked():
-            self.parent.printClueReport(clueData)
-        LOG.debug("accepted - calling close")
-##		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().accept()
-        self.parent.clueLogDialog.tableView.model().layoutChanged.emit()
-        super(nonRadioClueDialog,self).accept()
-
-    def closeEvent(self,event,accepted=False):
-        if not accepted:
-            if not ask_user_to_confirm("Close this Clue Report Form?\nIt cannot be recovered.", icon=ICON_WARN, parent = self):
-                event.ignore()
-                return
-            self.values=["" for n in range(10)]
-            self.values[0]=self.timeField.text()
-            self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'NON-RADIO CLUE' form"
-            self.values[6]=time.time()
-            self.parent.newEntry(self.values)
-# 	def reject(self):
-# ##		self.parent.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
-# 		LOG.debug("rejected - calling close")
-# 		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().reject()
-# 		self.closeEvent(None)
-# 		super(nonRadioClueDialog,self).reject()
-
-
-class clueLogDialog(QDialog,ClueLogDialog):
-    def __init__(self,parent):
-        QDialog.__init__(self)
-        self.setupUi(self)
-        self.parent=parent
-        self.tableModel = clueTableModel(parent.clueLog, self)
-        self.tableView.setModel(self.tableModel)
-
-        self.tableView.verticalHeader().setVisible(True)
-        self.tableView.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.tableView.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-
-        # automatically expand the 'description' and 'instructions' column widths to fill available space and wrap if needed
-        self.tableView.horizontalHeader().setSectionResizeMode(1,QHeaderView.Stretch)
-        self.tableView.horizontalHeader().setSectionResizeMode(7,QHeaderView.Stretch)
-
-        self.tableView.verticalHeader().sectionClicked.connect(self.headerClicked)
-        self.addNonRadioClueButton.clicked.connect(self.parent.addNonRadioClue)
-        self.printButton.clicked.connect(self.printClueLogCB)
-
-        self.tableView.setSelectionMode(QAbstractItemView.NoSelection)
-        self.tableView.setFocusPolicy(Qt.NoFocus)
-
-    def showEvent(self,event):
-        self.tableView.resizeRowsToContents()
-        self.tableView.scrollToBottom()
-        self.tableView.setStyleSheet("font-size:"+str(self.parent.limitedFontSize)+"pt")
-
-    def resizeEvent(self,event):
-        self.tableView.resizeRowsToContents()
-        self.tableView.scrollToBottom()
-
-    def headerClicked(self,section):
-        clueData=self.parent.clueLog[section]
-        clueNum=clueData[0]
-        if clueNum!="": # pass through if clicking a non-clue row
-            if ask_user_to_confirm("Print Clue Report for Clue #"+str(clueNum)+"?",title="Confirm - Print Clue Report",parent=self):
-                self.parent.printClueReport(clueData)
-
-    def printClueLogCB(self):
-        self.parent.opsWithClues=sorted(list(set([str(clue[5]) for clue in self.parent.clueLog if str(clue[5])!=""])))
-        if len(self.parent.opsWithClues)==0:
-            inform_user_about_issue("There are no clues to print.",title="No Clues to Print",parent=self)
-        else:
-            self.parent.printClueLogDialog.show()
-
-
-class subjectLocatedDialog(QDialog,SubjectLocatedDialog):
-    openDialogCount=0
-    def __init__(self,parent,t,callsign,radioLoc):
-        QDialog.__init__(self)
-        self.setupUi(self)
-        self.timeField.setText(t)
-        self.dateField.setText(time.strftime("%x"))
-        self.callsignField.setText(callsign)
-        self.radioLocField.setText(re.sub('  +','\n',radioLoc))
-        self.parent=parent
-        self.parent.subjectLocatedDialogOpen=True
-        self.parent.childDialogs.append(self)
-        self.setWindowFlags(Qt.WindowStaysOnTopHint)
-        self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        self.locationField.setFocus()
-        self.values=self.parent.getValues()
-        self.values[3]="RADIO LOG SOFTWARE: 'SUBJECT LOCATED' button pressed; radio operator is gathering details"
-        self.parent.parent.newEntry(self.values)
-        subjectLocatedDialog.openDialogCount+=1
-        self.setFixedSize(self.size())
-
-    def accept(self):
-        location=self.locationField.text()
-        condition=self.conditionField.toPlainText()
-        resources=self.resourcesField.toPlainText()
-        other=self.otherField.toPlainText()
-        team=self.callsignField.text()
-        subjDate=self.dateField.text()
-        subjTime=self.timeField.text()
-        radioLoc=self.radioLocField.toPlainText()
-
-        # validation: description, location, instructions fields must all be non-blank
-        vText=""
-        if location=="":
-            vText+="\n'Location' cannot be blank."
-        if condition=="":
-            vText+="\n'Condition' cannot be blank."
-        if resources=="":
-            vText+="\n'Resources Needed' cannot be blank."
-        LOG.debug("vText:"+vText)
-        if vText:
-            inform_user_about_issue("Please complete the form and try again:\n"+vText,parent=self)
-            return
-
-        textToAdd=''
-        existingText=self.parent.messageField.text()
-        if existingText!='':
-            textToAdd='; '
-        textToAdd+="SUBJECT LOCATED: LOCATION: "+location+"; CONDITION: "+condition+"; RESOURCES NEEDED: "+resources
-        if other!='':
-            textToAdd+="; "+other
-        self.parent.messageField.setText(existingText+textToAdd)
-        self.closeEvent(QEvent(QEvent.Close),True)
-        super(subjectLocatedDialog,self).accept()
-
-# 	def reject(self):
-# 		LOG.debug("rejected - calling close")
-# 		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().reject()
-# 		self.closeEvent(None)
-# 		self.values=self.parent.getValues()
-# 		self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'SUBJECT LOCATED' form"
-# 		self.parent.parent.newEntry(self.values)
-# 		super(subjectLocatedDialog,self).reject()
-
-    def closeEvent(self,event,accepted=False):
-        # note, this type of messagebox is needed to show above all other dialogs for this application,
-        #  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
-        #  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
-        if not accepted:
-            if not ask_user_to_confirm("Close this Subject Located form?\nIt cannot be recovered.", icon=ICON_WARN, parent = self):
-                event.ignore()
-                return
-            self.values=self.parent.getValues()
-            self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'SUBJECT LOCATED' form"
-            self.parent.parent.newEntry(self.values)
-        self.parent.subjectLocatedDialogOpen=False
-        subjectLocatedDialog.openDialogCount-=1
-        self.parent.childDialogs.remove(self)
-        if accepted:
-            self.parent.accept()
-
-    # fix issue #338: prevent 'esc' from closing the newEntryWindow
-    def keyPressEvent(self,event):
-        if event.key()!=Qt.Key_Escape:
-            super().keyPressEvent(event) # pass the event as normal
-
-class printClueLogDialog(QDialog,PrintClueLogDialog):
-    def __init__(self,parent):
-        QDialog.__init__(self)
-        self.setupUi(self)
-        self.parent=parent
-        self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
-
-    def showEvent(self,event):
-        itemsToAdd=self.parent.opsWithClues
-        if len(itemsToAdd)==0:
-            itemsToAdd=['--']
-        self.opPeriodComboBox.clear()
-        self.opPeriodComboBox.addItems(itemsToAdd)
-
-    def accept(self):
-        opPeriod=self.opPeriodComboBox.currentText()
-        LOG.trace("Open printClueLogDialog.accept")
-        if opPeriod=='--':
-            inform_user_about_issue("There are no clues to print.",title="No Clues to Print",parent=self)
-            self.reject()
-        else:
-            self.parent.printClueLog(opPeriod)
-            LOG.trace("Called parent printClueLogDialog.accept")
-            super(printClueLogDialog,self).accept()
-            LOG.trace("Called super printClueLogDialog.accept")
-
-# actions to be performed when changing the operational period:
-# - bring up print dialog for current OP if checked (and wait until it is closed)
-# - delete team tabs for 'At IC' teams if checked
-# - change the OP variable
-# - change the OP button text
-# - add radio log entry (and clue log entry) 'Operational Period # Begins: <date>'
-# - add new op period to list of available op periods in print dialog
-
-# other parts of the flow that are dependent on operational period:
-# - print tools use the 'Operational Period # Begins:' entry to filter rows to print
-# - clue dialog and clue log
-# - filenames:
-#  - radio log .csv, clue log .csv - do NOT include op period in filename, since
-#        one file per incident includes all op periods
-#  - generated radio log and clue log pdf - DO include op period in filename,
-#        since each pdf only covers one op period
-
-class opPeriodDialog(QDialog,OpPeriodDialog):
-    def __init__(self,parent):
-        QDialog.__init__(self)
-        self.setupUi(self)
-        self.parent=parent
-        self.currentOpPeriodField.setText(str(parent.opPeriod))
-        self.newOpPeriodField.setText(str(parent.opPeriod+1))
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
-        self.setFixedSize(self.size())
-
-    def accept(self):
-        if self.printCheckBox.isChecked():
-            self.parent.printDialog.exec_() # instead of show(), to pause execution until the print dialog is closed
-
-        if self.deleteTabsCheckBox.isChecked():
-            for extTeamName in teamStatusDict:
-                status=teamStatusDict[extTeamName]
-                if status == "At IC":
-                    self.parent.deleteTeamTab(getNiceTeamName(extTeamName))
-
-        self.parent.opPeriod=int(self.newOpPeriodField.text())
-        self.parent.opPeriodButton.setText("OP "+str(self.parent.opPeriod))
-        opText="Operational Period "+str(self.parent.opPeriod)+" Begins: "+time.strftime("%a %b %d, %Y")
-        self.parent.newEntry([time.strftime("%H%M"),"","",opText,"","",time.time(),"",""])
-##      clueData=[number,description,team,clueTime,clueDate,self.parent.parent.opPeriod,location,instructions,radioLoc]
-        self.parent.clueLog.append(['',opText,'',time.strftime("%H%M"),'','','','',''])
-        self.parent.printDialog.opPeriodComboBox.addItem(self.newOpPeriodField.text())
-        super(opPeriodDialog,self).accept()
-
-# fleetsync filtering scheme:
-# - maintain a table of all known (received) fleetsync device IDs.  This table is empty at startup.
-#   columns: fleet, id, callsign, last time, filtered
-#      callsign may be blank
-#      filtered is true/false
-# - for each incoming FS transmission, add/update the entry for that device, regardless of whether it is filtered.
-# - allow the filtered value to be changed from various places
-#   - fitler dialog - allow click in table cell to toggle
-#   - team tab right-click menu - should this affect all callsigns belonging to that team?
-#   - change callsign dialog - show filtered status and allow click to toggle
-# - show filtered status in various places
-#   - team tab - one symbology for all devices filtered, another for some devices filtered
-#   - main UI filter button - flash a color if anything is filtered (or if FS is muted??)
-#   - table cell in filter dialog - maybe show rows in groups - filtered first?  or sort by filtered?
 
 class fsFilterDialog(QDialog,FsFilterDialog):
+    """
+    fleetsync filtering scheme:
+    - maintain a table of all known (received) fleetsync device IDs.  This table is empty at startup.
+      columns: fleet, id, callsign, last time, filtered
+         callsign may be blank
+         filtered is true/false
+    - for each incoming FS transmission, add/update the entry for that device, regardless of whether it is filtered.
+    - allow the filtered value to be changed from various places
+      - fitler dialog - allow click in table cell to toggle
+      - team tab right-click menu - should this affect all callsigns belonging to that team?
+      - change callsign dialog - show filtered status and allow click to toggle
+    - show filtered status in various places
+      - team tab - one symbology for all devices filtered, another for some devices filtered
+      - main UI filter button - flash a color if anything is filtered (or if FS is muted??)
+      - table cell in filter dialog - maybe show rows in groups - filtered first?  or sort by filtered?
+    """
     def __init__(self,parent):
         QDialog.__init__(self)
         self.setupUi(self)
@@ -4408,67 +2855,6 @@ class fsFilterDialog(QDialog,FsFilterDialog):
         LOG.trace("closing fsFilterDialog")
 
 
-class changeCallsignDialog(QDialog,ChangeCallsignDialog):
-    openDialogCount=0
-    def __init__(self,parent,callsign,fleet,device):
-        QDialog.__init__(self)
-        self.setupUi(self)
-        self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        self.parent=parent
-        self.currentCallsign=callsign
-        self.fleet=int(fleet)
-        self.device=int(device)
-
-        LOG.debug("openChangeCallsignDialog called.  fleet="+str(self.fleet)+"  dev="+str(self.device))
-
-        self.fleetField.setText(fleet)
-        self.deviceField.setText(device)
-        self.currentCallsignField.setText(callsign)
-        self.newCallsignField.setFocus()
-        self.newCallsignField.setText("Team  ")
-        self.newCallsignField.setSelection(5,1)
-        self.fsFilterButton.clicked.connect(self.fsFilterConfirm)
-        changeCallsignDialog.openDialogCount+=1
-        self.setFixedSize(self.size())
-
-    def fsFilterConfirm(self):
-        if not ask_user_to_confirm("Filter (ignore) future incoming messages\n  from this FleetSync device?", icon=ICON_WARN, parent = self):
-            self.close()
-            return
-        self.parent.parent.fsFilterEdit(self.fleet,self.device,True)
-        self.close()
-        # also close the related new entry dialog if its message field is blank, in the same manner as autoCleanup
-        if self.parent.messageField.text()=="":
-            self.parent.closeEvent(QEvent(QEvent.Close),accepted=False,force=True)
-
-    def accept(self):
-        found=False
-        fleet=self.fleetField.text()
-        dev=self.deviceField.text()
-        newCallsign=self.newCallsignField.text()
-        # change existing device entry if found, otherwise add a new entry
-        for n in range(len(self.parent.parent.fsLookup)):
-            entry=self.parent.parent.fsLookup[n]
-            if entry[0]==fleet and entry[1]==dev:
-                found=True
-                self.parent.parent.fsLookup[n][2]=newCallsign
-        if not found:
-            self.parent.parent.fsLookup.append([fleet,dev,newCallsign])
-        # set the current radio log entry teamField also
-        self.parent.teamField.setText(newCallsign)
-        # save the updated table (filename is set at the same times that csvFilename is set)
-        self.parent.parent.fsSaveLookup()
-        # change the callsign in fsLog
-        self.parent.parent.fsLogUpdate(int(fleet),int(dev),newCallsign)
-        # finally, pass the 'accept' signal on up the tree as usual
-        changeCallsignDialog.openDialogCount-=1
-        self.parent.parent.sendPendingGet(newCallsign)
-        # set the focus to the messageField of the active stack item - not always
-        #  the same as the new entry, as determined by addTab
-        self.parent.parent.newEntryWindow.tabWidget.currentWidget().messageField.setFocus()
-        super(changeCallsignDialog,self).accept()
-        LOG.debug("New callsign pairing created: fleet="+fleet+"  dev="+dev+"  callsign="+newCallsign)
 
 
 ##class convertDialog(QDialog,Ui_convertDialog):
@@ -4514,54 +2900,6 @@ class changeCallsignDialog(QDialog,ChangeCallsignDialog):
 ##		LOG.debug("CONVERTING")
 
 
-class clueTableModel(QAbstractTableModel):
-    header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
-    def __init__(self,datain,parent=None,*args):
-        QAbstractTableModel.__init__(self,parent,*args)
-        self.arraydata=datain
-        self.printIconPixmap=QPixmap(20,20)
-        self.printIconPixmap.load(":/radiolog_ui/print_icon.png")
-##		self.setEditTriggers(QAbstractItemView.NoEditTriggers)
-
-
-    def headerData(self,section,orientation,role=Qt.DisplayRole):
-        if orientation==Qt.Vertical:
-            if role==Qt.DecorationRole and self.arraydata[section][0]!="":
-                #icon and button won't display correctly in this use case; just make the entire header item clickable
-                return self.printIconPixmap
-            if role==Qt.DisplayRole:
-                return ""
-        if role==Qt.DisplayRole and orientation==Qt.Horizontal:
-            return self.header_labels[section]
-        return QAbstractTableModel.headerData(self,section,orientation,role)
-
-    def rowCount(self, parent):
-        return len(self.arraydata)
-
-    def columnCount(self, parent):
-        if len(self.arraydata)>0:
-            return len(self.arraydata[0])
-        else:
-            return len(clueTableModel.header_labels)
-
-    def data(self, index, role):
-        if not index.isValid():
-            return QVariant()
-        elif role != Qt.DisplayRole:
-            return QVariant()
-        try:
-            rval=QVariant(self.arraydata[index.row()][index.column()])
-        except:
-            row=index.row()
-            col=index.column()
-            LOG.debug("Row="+str(row)+" Col="+str(col))
-            LOG.debug("arraydata:")
-            LOG.debug(self.arraydata)
-        else:
-            return rval
-
-    def dataChangedAll(self):
-        self.dataChanged.emit(self.createIndex(0,0),self.createIndex(self.rowCount(self)-1,self.columnCount(self)-1))
 
 
 class MyTableModel(QAbstractTableModel):
