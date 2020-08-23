@@ -313,6 +313,7 @@ class MyWindow(QDialog,UiDialog):
 ##		self.printButton.clicked.connect(self.testConvertCoords)
 
         initializeMainWindowActions(self)
+        self.helpWindow.set_hotkeys(self.act)
         self.act.helpInfo.triggered.connect(self.helpWindow.show)
         self.act.optionsDialog.triggered.connect(self.optionsDialog.show)
         self.act.printDialog.triggered.connect(self.printDialog.show)
@@ -337,7 +338,6 @@ class MyWindow(QDialog,UiDialog):
         self.act.fromTeam8.triggered.connect(self.fromTeam8)
         self.act.fromTeam9.triggered.connect(self.fromTeam9)
         self.act.fromTeam10.triggered.connect(self.fromTeam10)
-
 
         self.tabList=["dummy"]
         self.tabGridLayoutList=["dummy"]

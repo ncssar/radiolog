@@ -2,6 +2,11 @@ from PyQt5 import uic
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QDialog, QHeaderView
+from gwpycore import AppActions
+import logging
+
+LOG = logging.getLogger('main')
+
 
 HelpDialog = uic.loadUiType("app/ui/help.ui")[0]
 
@@ -52,4 +57,30 @@ class HelpWindow(QDialog, HelpDialog):
             self.colorLabel7.setStyleSheet(statusStyleDict["STANDBY"])
             self.fsSomeFilteredLabel.setFont(HELP_FONT)
 
-
+    def set_hotkeys(self, act: AppActions):
+        # FIXME Still need to actually place these hotkey description in the help window
+        # FIXME These all currently only fetch the primary shortcut
+        LOG.debug(f"helpInfo = {act.getActionInfo('helpInfo')}")
+        LOG.debug(f"optionsDialog = {act.getActionInfo('optionsDialog')}")
+        LOG.debug(f"printDialog = {act.getActionInfo('printDialog')}")
+        LOG.debug(f"openLog = {act.getActionInfo('openLog')}")
+        LOG.debug(f"reloadFleetsync = {act.getActionInfo('reloadFleetsync')}")
+        LOG.debug(f"restoreLastSaved = {act.getActionInfo('restoreLastSaved')}")
+        LOG.debug(f"muteFleetsync = {act.getActionInfo('muteFleetsync')}")
+        LOG.debug(f"filterFleetsync = {act.getActionInfo('filterFleetsync')}")
+        LOG.debug(f"toggleTeamHotkeys = {act.getActionInfo('toggleTeamHotkeys')}")
+        LOG.debug(f"increaseFont = {act.getActionInfo('increaseFont')}")
+        LOG.debug(f"decreaseFont = {act.getActionInfo('decreaseFont')}")
+        LOG.debug(f"toTeam = {act.getActionInfo('toTeam')}")
+        LOG.debug(f"toTeamsAll = {act.getActionInfo('toTeamsAll')}")
+        LOG.debug(f"fromTeam = {act.getActionInfo('fromTeam')}")
+        LOG.debug(f"fromTeam1 = {act.getActionInfo('fromTeam1')}")
+        LOG.debug(f"fromTeam2 = {act.getActionInfo('fromTeam2')}")
+        LOG.debug(f"fromTeam3 = {act.getActionInfo('fromTeam3')}")
+        LOG.debug(f"fromTeam4 = {act.getActionInfo('fromTeam4')}")
+        LOG.debug(f"fromTeam5 = {act.getActionInfo('fromTeam5')}")
+        LOG.debug(f"fromTeam6 = {act.getActionInfo('fromTeam6')}")
+        LOG.debug(f"fromTeam7 = {act.getActionInfo('fromTeam7')}")
+        LOG.debug(f"fromTeam8 = {act.getActionInfo('fromTeam8')}")
+        LOG.debug(f"fromTeam9 = {act.getActionInfo('fromTeam9')}")
+        LOG.debug(f"fromTeam10 = {act.getActionInfo('fromTeam10')}")
