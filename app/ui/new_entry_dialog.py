@@ -11,7 +11,7 @@ from app.logic.app_state import holdSec, lastClueNumber, teamStatusDict
 from PyQt5 import uic
 from PyQt5.QtCore import QEvent, QRect, QTimer, Qt
 from PyQt5.QtGui import QColor, QFont, QKeySequence, QPalette
-from PyQt5.QtWidgets import QDialog, QHBoxLayout, QLabel, QSizePolicy, QTabBar, QTabWidget, QWidget
+from PyQt5.QtWidgets import QApplication, QDialog, QHBoxLayout, QLabel, QSizePolicy, QTabBar, QTabWidget, QWidget
 import logging
 
 LOG = logging.getLogger('main')
@@ -29,6 +29,7 @@ class NewEntryWindow(QDialog, NewEntryWindowSpec):
 ##	def __init__(self,parent,sec,formattedLocString='',fleet='',dev='',origLocString='',amendFlag=False,amendRow=None):
     def __init__(self,parent):
         QDialog.__init__(self)
+
 ##		self.amendFlag=amendFlag
 ##		self.amendRow=amendRow
 ##		self.sec=sec
@@ -352,7 +353,9 @@ class NewEntryWidget(QWidget,NewEntryWidgetSpec):
             self.label.setText("AMENDED Message:")
         else:
             self.timeField.setText(time.strftime("%H%M"))
-        self.teamField.textChanged.connect(self.setStatusFromTeam)
+        # self.teamField.textChanged.connect(self.setStatusFromTeam)
+        QApplication.instance().focusChanged.connect(self.focusChanged)
+
         self.teamField.textChanged.connect(self.updateTabLabel)
         self.to_fromField.currentIndexChanged.connect(self.updateTabLabel)
         self.messageField.textChanged.connect(self.messageTextChanged)
@@ -755,6 +758,13 @@ class NewEntryWidget(QWidget,NewEntryWidgetSpec):
 ##		else:
 ##			event.ignore()
 
+
+    def focusChanged(self, oldFocus, newFocus):
+        LOG.debug(f"oldFocus = {type(oldFocus)}")
+        if (oldFocus is self.teamField):
+            LOG.debug(f"Team Field losing focus. Calling setStatusFromTeam()")
+            self.setStatusFromTeam()
+
     def setStatusFromTeam(self):
 ##		self.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
         extTeamName=getExtTeamName(self.teamField.text())
@@ -781,6 +791,7 @@ class NewEntryWidget(QWidget,NewEntryWidgetSpec):
 ##		self.setWindowTitle("Radio Log - "+tmpTxt+" - "+self.to_fromField.currentText()+" "+self.teamField.text())
 
     def teamFieldTextChanged(self):
+        LOG.trace("teamFieldTextChanged")
         self.updateButtonsEnabled()
         # if typed callsign is only a three-or-fewer-digit number, prefix it with 'Team '
         #  otherwise do not prefix it
@@ -795,8 +806,8 @@ class NewEntryWidget(QWidget,NewEntryWidgetSpec):
         self.teamField.setText(csout)
 
     def teamFieldEditingFinished(self):
-# 		LOG.debug("teamFieldEditingFinished")
-        cs=self.teamField.text()
+        LOG.trace("teamFieldEditingFinished")
+        cs = self.teamField.text()
         if re.match(r".*\D.*",cs):
             # change it to any case-insensitive-matching existing callsign
             for t in self.parent.allTeamsList:
@@ -1052,3 +1063,17 @@ class NewEntryWidget(QWidget,NewEntryWidgetSpec):
         if self.statusButtonGroup.checkedButton()!=None:
             status=self.statusButtonGroup.checkedButton().text()
         return [time,to_from,team,message,locString,status,self.sec,self.fleet,self.dev,self.origLocString]
+
+    def set_partial_team_name(self, from_to: int, text: str):
+        LOG.debug(f"set_partial_team_name called with text = {text}")
+        self.to_fromField.setCurrentIndex(from_to)
+        # need to 'burp' the focus to prevent two blinking cursors
+        #  see http://stackoverflow.com/questions/42475602
+        self.messageField.setFocus()
+        # all three of these lines are needed to override the default 'pseudo-selected'
+        # behavior; see http://stackoverflow.com/questions/27856032
+        self.teamField.setFocus()
+        if text:
+            self.teamField.setText(text + "  ")
+            # self.teamField.setSelection(len(text),1)
+

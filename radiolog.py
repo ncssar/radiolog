@@ -304,6 +304,11 @@ class MyWindow(QDialog,UiDialog):
         initializeMainWindowActions(self)
         self.helpWindow.set_hotkeys(self.act)
         self.use_phonetic = "Alpha" in self.act.fromTeam1.text()
+
+        # FIXME The F1 and F2 keys are broken because the shortcuts defined directly in the
+        # help and config buttons conflict with the ones in these actions.
+        # We need to swap out the HBoxLayout for a QToolBar (which is an action based
+        # container) so that we can use the actions rather than buttons.
         self.act.helpInfo.triggered.connect(self.helpWindow.show)
         self.act.optionsDialog.triggered.connect(self.optionsDialog.show)
         self.act.printDialog.triggered.connect(self.printDialog.show)
@@ -328,6 +333,7 @@ class MyWindow(QDialog,UiDialog):
         self.act.fromTeam8.triggered.connect(self.fromTeam8)
         self.act.fromTeam9.triggered.connect(self.fromTeam9)
         self.act.fromTeam10.triggered.connect(self.fromTeam10)
+        self.act.fromSar.triggered.connect(self.fromSar)
 
         self.tabList=["dummy"]
         self.tabGridLayoutList=["dummy"]
@@ -1873,7 +1879,7 @@ class MyWindow(QDialog,UiDialog):
             else:
                 key=event.text().lower() # hotkeys are case insensitive
                 mod=event.modifiers()
-# 				LOG.debug("  key:"+QKeySequence(event.key()).toString()+"  mod:"+str(mod))
+                LOG.debug("  key:"+QKeySequence(event.key()).toString()+"  mod:"+str(mod))
                 if self.teamHotkeysWidget.isVisible():
                     # these key handlers apply only if hotkeys are enabled:
                     teamForKey = self.team_hot_keys.getTeam(key)
@@ -2248,57 +2254,20 @@ class MyWindow(QDialog,UiDialog):
                 if key=='fs': # spawned by fleetsync: let addTab determine focus
                     pass
                 elif key=='a':
-                    self.newEntryWidget.to_fromField.setCurrentIndex(1)
-                    # all three of these lines are needed to override the default 'pseudo-selected'
-                    # behavior; see http://stackoverflow.com/questions/27856032
-                    self.newEntryWidget.teamField.setFocus()
-                    self.newEntryWidget.teamField.setText("All Teams ")
+                    self.newEntryWidget.set_partial_team_name(1,"All Teams")
                     self.newEntryWidget.messageField.setFocus()
                 elif key=='t':
-                    self.newEntryWidget.to_fromField.setCurrentIndex(1)
-                    # need to 'burp' the focus to prevent two blinking cursors
-                    #  see http://stackoverflow.com/questions/42475602
-                    self.newEntryWidget.messageField.setFocus()
-                    # all three of these lines are needed to override the default 'pseudo-selected'
-                    # behavior; see http://stackoverflow.com/questions/27856032
-                    self.newEntryWidget.teamField.setFocus()
-                    self.newEntryWidget.teamField.setText("Team  ")
-                    self.newEntryWidget.teamField.setSelection(5,1)
+                    self.newEntryWidget.set_partial_team_name(1,"Team")
                 elif key=='f' or key=='pop':
-                    self.newEntryWidget.to_fromField.setCurrentIndex(0)
-                    # need to 'burp' the focus to prevent two blinking cursors
-                    #  see http://stackoverflow.com/questions/42475602
-                    self.newEntryWidget.messageField.setFocus()
-                    self.newEntryWidget.teamField.setFocus()
-                    if key=='f':
-                        self.newEntryWidget.teamField.setText("Team  ")
-                        self.newEntryWidget.teamField.setSelection(5,1)
+                    self.newEntryWidget.set_partial_team_name(0,"Team" if key=='f' else "")
                 elif key=='s':
-                    self.newEntryWidget.to_fromField.setCurrentIndex(0)
-                    # need to 'burp' the focus to prevent two blinking cursors
-                    #  see http://stackoverflow.com/questions/42475602
-                    self.newEntryWidget.messageField.setFocus()
-                    self.newEntryWidget.teamField.setFocus()
-                    self.newEntryWidget.teamField.setText("SAR  ")
-                    self.newEntryWidget.teamField.setSelection(4,1)
+                    self.newEntryWidget.set_partial_team_name(0,"SAR")
                 elif key=='tab': # team tab context menu - activate right away
-                    self.newEntryWindow.tabWidget.setCurrentIndex(1)
-                    self.newEntryWidget.to_fromField.setCurrentIndex(0)
-                    self.newEntryWidget.messageField.setFocus()
+                    self.newEntryWidget.set_partial_team_name(1,"")
                 else: # some other keyboard key - assume it's the start of the team name
-                    self.newEntryWidget.to_fromField.setCurrentIndex(0)
-                    # need to 'burp' the focus to prevent two blinking cursors
-                    #  see http://stackoverflow.com/questions/42475602
-                    self.newEntryWidget.messageField.setFocus()
-                    self.newEntryWidget.teamField.setFocus()
-                    self.newEntryWidget.teamField.setText("Team "+key)
-                    self.newEntryWidget.teamField.setSelection(6,1)
+                    self.newEntryWidget.set_partial_team_name(0,"Team "+key)
         else: # no key pressed; opened from the 'add entry' GUI button; activate right away
-            # need to 'burp' the focus to prevent two blinking cursors
-            #  see http://stackoverflow.com/questions/42475602
-            self.newEntryWindow.tabWidget.setCurrentIndex(1)
-            self.newEntryWidget.messageField.setFocus()
-            self.newEntryWidget.teamField.setFocus()
+            self.newEntryWidget.set_partial_team_name(0,"")
 
         if callsign:
             extTeamName=getExtTeamName(callsign)
