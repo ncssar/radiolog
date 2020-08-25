@@ -398,7 +398,7 @@ FORMAT</string>
         <string/>
        </property>
        <property name="icon">
-        <iconset resource="radiolog_ui.qrc">
+        <iconset resource="app/ui/radiolog_ui.qrc">
          <normaloff>:/radiolog_ui/help_icon.png</normaloff>:/radiolog_ui/help_icon.png</iconset>
        </property>
        <property name="iconSize">

@@ -1473,22 +1473,6 @@
   </connection>
   <connection>
    <sender>teamField</sender>
-   <signal>textChanged(QString)</signal>
-   <receiver>newEntryWidget</receiver>
-   <slot>teamFieldTextChanged()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>251</x>
-     <y>45</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>163</x>
-     <y>81</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>teamField</sender>
    <signal>editingFinished()</signal>
    <receiver>newEntryWidget</receiver>
    <slot>teamFieldEditingFinished()</slot>
@@ -1547,7 +1531,6 @@
   <slot>quickTextRequestingDeputyAction()</slot>
   <slot>callsignLostFocus()</slot>
   <slot>setCallsignFromComboBox()</slot>
-  <slot>teamFieldTextChanged()</slot>
   <slot>teamFieldEditingFinished()</slot>
   <slot>relayedButtonReleased()</slot>
   <slot>relayedByComboBoxChanged()</slot>

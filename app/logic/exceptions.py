@@ -1,4 +1,4 @@
-from gwpycore.gw_exceptions import GruntWurkError, GruntWurkConfigError, GruntWurkConfigSettingWarning, GruntWurkArgumentError
+from gwpycore import GruntWurkError, GruntWurkConfigError, GruntWurkConfigSettingWarning, GruntWurkArgumentError
 
 class RadioLogError(GruntWurkError):
     pass

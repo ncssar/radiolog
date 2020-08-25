@@ -1,0 +1,26 @@
+Action Identifier,Action Label,Key Seq 1,Key Seq 2,Key Seq 3,Key Seq 4,Tip
+helpInfo,Help Info,F1,,,,Display the help info box
+optionsDialog,Options Dialog,F2,,,,Open the options dialog
+printDialog,Print Dialog,F3,,,,Print reports
+openLog,Open Log,F4,,,,Open a previous log 
+reloadFleetsync,Reload FleetSync,F5,,,,Reload the FleetSync table
+restoreLastSaved,Restore Last Saved,F6,,,,Restore the last saved files
+muteFleetsync,Mute FleetSync,F7,,,,Toggle muting FleetSync
+filterFleetsync,Filter FleetSync,F8,,,,Filter FleetSync
+toggleTeamHotkeys,Toggle Team Hotkeys,F12,,,,Toggle team hotkeys
+increaseFont,&Increase Font,Ctrl+=,,,,Increase the font size of the log text by 2 points.
+decreaseFont,&Decrease Font,Ctrl+-,,,,Decrease the font size of the log text by 2 points.
+toTeam,To a team,Right,t,,,New entry: To a team
+toTeamsAll,To all teams,&,,,,New entry: To all teams
+fromTeam,From a team,Left,,,,New entry: From a team
+fromTeam1,From &Alpha,a,,,,New entry: From Alpha
+fromTeam2,From &Bravo,b,,,,New entry: From Bravo
+fromTeam3,From &Charlie,c,,,,New entry: From Charlie
+fromTeam4,From &Delta,d,,,,New entry: From Delta
+fromTeam5,From &Echo,e,,,,New entry: From Echo
+fromTeam6,From &Foxtrot,f,,,,New entry: From Foxtrot
+fromTeam7,From &Golf,g,,,,New entry: From Golf
+fromTeam8,From &Hotel,h,,,,New entry: From Hotel
+fromTeam9,From &India,i,,,,New entry: From India
+fromTeam10,From &Juliet,j,,,,New entry: From Juliet
+fromSar,From $SAR,0,,,,New entry: From SAR
