@@ -31,6 +31,9 @@ Attribution, feedback, bug reports and feature requests are appreciated
 # REVISION HISTORY: See doc_technical\CHANGE_LOG.adoc
 
 
+import argparse
+from app.printing.print_log import printLog
+from gwpycore.gw_windows_specific.gw_windows_printing import fill_in_pdf
 from app.ui.fs_filter_dialog import fsFilterDialog
 from app.ui.op_period_dialog import opPeriodDialog
 from app.ui.clue_dialogs import clueDialog, clueLogDialog, nonRadioClueDialog
@@ -72,7 +75,6 @@ from reportlab.lib.units import inch
 from fdfgen import forge_fdf
 from gwpycore import setup_logging, INFO, DIAGNOSTIC, DEBUG, TRACE
 from gwpycore import inform_user_about_issue, ask_user_to_confirm, ICON_ERROR, ICON_WARN, ICON_INFO, FingerTabBarWidget
-from gwpycore import printPdf
 
 from pyproj import Transformer
 
@@ -634,6 +636,23 @@ class MyWindow(QDialog,UiDialog):
 
         if SWITCHES.devmode:
             self.sarsoftServerName = "localhost" # DEVEL
+
+    def getPrintParams(self) -> argparse.Namespace:
+        printParams = argparse.Namespace()
+        printParams.agencyNameForPrint = self.agencyNameForPrint
+        printParams.allTeamsList = self.allTeamsList
+        printParams.datum = self.datum
+        printParams.firstWorkingDir = self.firstWorkingDir
+        printParams.incidentName = self.incidentName
+        printParams.pdfFileName = self.pdfFileName
+        printParams.printLogoFileName = self.printLogoFileName
+        printParams.radioLog = self.radioLog
+        printParams.radioLogNeedsPrint = self.radioLogNeedsPrint
+        printParams.secondWorkingDir = self.secondWorkingDir
+        printParams.use2WD = self.use2WD
+        printParams.header_labels = MyTableModel.header_labels[0:6]
+        return printParams
+
 
     def increaseFont(self):
         self.fontSize = self.fontSize + 2
@@ -1343,159 +1362,6 @@ class MyWindow(QDialog,UiDialog):
             return "{}  {}".format(eStr[2:],nStr[2:])
         return "INVALID - UNKNOWN OUTPUT FORMAT REQUESTED"
 
-    def printLogHeaderFooter(self,canvas,doc,opPeriod="",teams=False):
-        formNameText="Radio Log"
-        if teams:
-            if isinstance(teams,str):
-                formNameText="Team: "+teams
-            else:
-                formNameText="Team Radio Logs"
-        canvas.saveState()
-        styles = getSampleStyleSheet()
-        self.img=None
-        if os.path.isfile(self.printLogoFileName):
-            LOG.debug("valid logo file "+self.printLogoFileName)
-            imgReader=utils.ImageReader(self.printLogoFileName)
-            imgW,imgH=imgReader.getSize()
-            imgAspect=imgH/float(imgW)
-            self.img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
-            headerTable=[
-                    [self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,formNameText+" - Page "+str(canvas.getPageNumber())],
-                    ["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
-            t=Table(headerTable,colWidths=[x*inch for x in [0.8,4.2,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
-            t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
-                                          ('FONT',(2,0),(3,0),'Helvetica-Bold'),
-                                   ('FONTSIZE',(1,0),(1,1),18),
-                                          ('SPAN',(0,0),(0,1)),
-                                          ('SPAN',(1,0),(1,1)),
-                                          ('LEADING',(1,0),(1,1),20),
-                                          ('TOPADDING',(1,0),(1,0),0),
-                                          ('BOTTOMPADDING',(1,1),(1,1),4),
-                                 ('VALIGN',(0,0),(-1,-1),"MIDDLE"),
-                                 ('ALIGN',(1,0),(1,-1),"CENTER"),
-                                          ('ALIGN',(0,0),(0,1),"CENTER"),
-                                          ('BOX',(0,0),(-1,-1),2,colors.black),
-                                          ('BOX',(2,0),(-1,-1),2,colors.black),
-                                          ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
-        else:
-            headerTable=[
-                    [self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,formNameText+" - Page "+str(canvas.getPageNumber())],
-                    ["","","Operational Period: ","Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
-            t=Table(headerTable,colWidths=[x*inch for x in [0.0,5,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
-            t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
-                                   ('FONT',(2,0),(3,0),'Helvetica-Bold'),
-                                   ('FONTSIZE',(1,0),(1,1),18),
-                                          ('SPAN',(0,0),(0,1)),
-                                          ('SPAN',(1,0),(1,1)),
-                                          ('LEADING',(1,0),(1,1),20),
-                                 ('VALIGN',(1,0),(-1,-1),"MIDDLE"),
-                                 ('ALIGN',(1,0),(1,-1),"CENTER"),
-                                          ('BOX',(0,0),(-1,-1),2,colors.black),
-                                          ('BOX',(2,0),(-1,-1),2,colors.black),
-                                          ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
-        w,h=t.wrapOn(canvas,doc.width,doc.height)
-# 		self.logMsgBox.setInformativeText("Generating page "+str(canvas.getPageNumber()))
-        QCoreApplication.processEvents()
-        LOG.debug("Page number:"+str(canvas.getPageNumber()))
-        LOG.debug("Height:"+str(h))
-        LOG.debug("Pagesize:"+str(doc.pagesize))
-        t.drawOn(canvas,doc.leftMargin,doc.pagesize[1]-h-0.5*inch) # enforce a 0.5 inch top margin regardless of paper size
-##		canvas.grid([x*inch for x in [0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10,10.5,11]],[y*inch for y in [0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5]])
-        LOG.trace("done drawing printLogHeaderFooter canvas")
-        canvas.restoreState()
-        LOG.trace("end of printLogHeaderFooter")
-
-    # optonal argument 'teams': if True, generate one pdf of all individual team logs;
-    #  so, this function should be called once to generate the overall log pdf, and
-    #  again with teams=True to generate team logs pdf
-    # if 'teams' is an array of team names, just print those team log(s)
-    def printLog(self,opPeriod,teams=False):
-        opPeriod=int(opPeriod)
-        pdfName=self.firstWorkingDir+"\\"+self.pdfFileName
-        teamFilterList=[""] # by default, print print all entries; if teams=True, add a filter for each team
-        msgAdder=""
-        if teams:
-            if isinstance(teams,list):
-                # recursively call this function for each team in list of teams
-                for team in teams:
-                    self.printLog(opPeriod,team)
-            elif isinstance(teams,str):
-                pdfName=pdfName.replace('.pdf','_'+teams.replace(' ','_').replace('.','_')+'.pdf')
-                msgAdder=" for "+teams
-                teamFilterList=[teams]
-            else:
-                pdfName=pdfName.replace('.pdf','_teams.pdf')
-                msgAdder=" for individual teams"
-                teamFilterList=[]
-                for team in self.allTeamsList:
-                    if team!="dummy":
-                        teamFilterList.append(team)
-        LOG.debug("teamFilterList="+str(teamFilterList))
-        pdfName=pdfName.replace('.pdf','_OP'+str(opPeriod)+'.pdf')
-        LOG.debug("generating radio log pdf: "+pdfName)
-        try:
-            f=open(pdfName,"wb")
-        except:
-            inform_user_about_issue("PDF could not be generated:\n\n"+pdfName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.",parent=self)
-            return
-        else:
-            f.close()
-# 		self.logMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF"+msgAdder+"; will send to default printer automatically; please wait...",
-# 							QMessageBox.Abort,self,STD_DIALOG_OPTS)
-# 		self.logMsgBox.setInformativeText("Initializing...")
-        # note the topMargin is based on what looks good; you would think that a 0.6 table plus a 0.5 hard
-        # margin (see t.drawOn above) would require a 1.1 margin here, but, not so.
-        doc = SimpleDocTemplate(pdfName, pagesize=landscape(letter),leftMargin=0.5*inch,rightMargin=0.5*inch,topMargin=1.03*inch,bottomMargin=0.5*inch) # or pagesize=letter
-# 		self.logMsgBox.show()
-# 		QTimer.singleShot(5000,self.logMsgBox.close)
-        QCoreApplication.processEvents()
-        elements=[]
-        for team in teamFilterList:
-            extTeamNameLower=getExtTeamName(team).lower()
-            radioLogPrint=[]
-            styles = getSampleStyleSheet()
-            radioLogPrint.append(MyTableModel.header_labels[0:6])
-##			if teams and opPeriod==1: # if request op period = 1, include 'Radio Log Begins' in all team tables
-##				radioLogPrint.append(self.radioLog[0])
-            entryOpPeriod=1 # update this number when 'Operational Period <x> Begins' lines are found
-##			hits=False # flag to indicate whether this team has any entries in the requested op period; if not, don't make a table for this team
-            for row in self.radioLog:
-                opStartRow=False
-##				LOG.debug("message:"+row[3]+":"+str(row[3].split()))
-                if row[3].startswith("Radio Log Begins:"):
-                    opStartRow=True
-                if row[3].startswith("Operational Period") and row[3].split()[3] == "Begins:":
-                    opStartRow=True
-                    entryOpPeriod=int(row[3].split()[2])
-##				LOG.debug("desired op period="+str(opPeriod)+"; this entry op period="+str(entryOpPeriod))
-                if entryOpPeriod == opPeriod:
-                    if team=="" or extTeamNameLower==getExtTeamName(row[2]).lower() or opStartRow: # filter by team name if argument was specified
-                        radioLogPrint.append([row[0],row[1],row[2],Paragraph(row[3],styles['Normal']),Paragraph(row[4],styles['Normal']),Paragraph(row[5],styles['Normal'])])
-##						hits=True
-            if not teams:
-                radioLogPrint[1][4]=self.datum
-            LOG.debug("length:"+str(len(radioLogPrint)))
-            if not teams or len(radioLogPrint)>2: # don't make a table for teams that have no entries during the requested op period
-                t=Table(radioLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.5,0.6,1.25,5.5,1.25,0.9]])
-                t.setStyle(TableStyle([('FONT',(0,0),(-1,-1),'Helvetica'),
-                                        ('FONT',(0,0),(-1,1),'Helvetica-Bold'),
-                                        ('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
-                                       ('BOX', (0,0), (-1,-1), 2, colors.black),
-                                       ('BOX', (0,0), (5,0), 2, colors.black)]))
-                elements.append(t)
-                if teams and team!=teamFilterList[-1]: # don't add a spacer after the last team - it could cause another page!
-                    elements.append(Spacer(0,0.25*inch))
-        doc.build(elements,onFirstPage=functools.partial(self.printLogHeaderFooter,opPeriod=opPeriod,teams=teams),onLaterPages=functools.partial(self.printLogHeaderFooter,opPeriod=opPeriod,teams=teams))
-# 		self.logMsgBox.setInformativeText("Finalizing and Printing...")
-        printPdf(pdfName)
-        self.radioLogNeedsPrint=False
-
-        if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-            LOG.debug("copying radio log pdf"+msgAdder+" to "+self.secondWorkingDir)
-            shutil.copy(pdfName,self.secondWorkingDir)
-
-    def printTeamLogs(self,opPeriod):
-        self.printLog(opPeriod,teams=True)
 
     def printClueLogHeaderFooter(self,canvas,doc,opPeriod=""):
         canvas.saveState()
@@ -1668,20 +1534,10 @@ class MyWindow(QDialog,UiDialog):
                 ('instructionsMarkAndLeaveField',instructionsMarkAndLeave),
                 ('instructionsOtherField',instructionsOther),
                 ('instructionsOtherTextField',instructionsOtherText)]
-        fdf=forge_fdf("",fields,[],[],[])
-        fdf_file=open(clueFdfName,"wb")
-        fdf_file.write(fdf)
-        fdf_file.close()
-
-        pdftk_cmd='pdftk "'+self.fillableClueReportPdfFileName+'" fill_form "'+clueFdfName+'" output "'+cluePdfName+'" flatten'
-        LOG.debug("Calling pdftk with the following command:")
-        LOG.debug(pdftk_cmd)
-        os.system(pdftk_cmd)
-
+        fill_in_pdf(self.fillableClueReportPdfFileName, fields, cluePdfName)
         printPdf(cluePdfName)
         if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
             LOG.trace("copying clue report pdf to "+self.secondWorkingDir)
-            shutil.copy(clueFdfName,self.secondWorkingDir)
             shutil.copy(cluePdfName,self.secondWorkingDir)
 
 
@@ -2679,7 +2535,7 @@ class MyWindow(QDialog,UiDialog):
                 self.newEntryWidget.to_fromField.setCurrentIndex(1)
             if action==printTeamLogAction:
                 LOG.debug("printing team log for "+str(niceTeamName))
-                self.printLog(self.opPeriod,str(niceTeamName))
+                printLog(self.opPeriod,self.getPrintParams(),str(niceTeamName))
                 self.radioLogNeedsPrint=True # since only one log has been printed; need to enhance this
             if action==deleteTeamTabAction:
                 self.deleteTeamTab(niceTeamName)

@@ -1,3 +1,4 @@
+from app.printing.print_log import printLog
 from gwpycore.gw_gui.gw_gui_dialogs import inform_user_about_issue
 from PyQt5 import uic
 from PyQt5.QtCore import Qt
@@ -40,10 +41,10 @@ class PrintDialog(QDialog, PrintDialogSpec):
         opPeriod = self.opPeriodComboBox.currentText()
         if self.radioLogField.isChecked():
             LOG.debug("PRINT radio log")
-            self.parent.printLog(opPeriod)
+            printLog(opPeriod, self.parent.getPrintParams())
         if self.teamRadioLogsField.isChecked():
             LOG.debug("PRINT team radio logs")
-            self.parent.printTeamLogs(opPeriod)
+            printLog(opPeriod, self.parent.getPrintParams(), teams=True)
         if self.clueLogField.isChecked():
             LOG.debug("PRINT clue log")
 # 			LOG.debug("  printDialog.accept.clueLog.trace1")
