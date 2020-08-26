@@ -1,6 +1,6 @@
+from app.db.file_management import make_backup_copy
 import logging
 import functools
-import shutil
 import argparse
 import os
 from time import time
@@ -111,7 +111,5 @@ def printClueLog(opPeriod, printParams: argparse.Namespace):
             view_pdf(clueLogPdfFileName)
         else:
             print_pdf(clueLogPdfFileName)
-        if printParams.use2WD and printParams.secondWorkingDir and os.path.isdir(printParams.secondWorkingDir):
-            LOG.trace("copying clue log pdf to " + printParams.secondWorkingDir)
-            shutil.copy(clueLogPdfFileName, printParams.secondWorkingDir)
+        make_backup_copy(clueLogPdfFileName)
 

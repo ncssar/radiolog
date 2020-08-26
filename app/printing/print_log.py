@@ -1,6 +1,6 @@
+from app.db.file_management import make_backup_copy
 import logging
 import functools
-import shutil
 import argparse
 import os
 import time
@@ -12,7 +12,7 @@ from gwpycore import inform_user_about_issue, print_pdf, view_pdf
 from reportlab.lib import colors, utils
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 
 LOG = logging.getLogger('main')
@@ -165,9 +165,6 @@ def printLog(opPeriod, printParams: argparse.Namespace, teams=False):
     else:
         print_pdf(pdfName)
     printParams.radioLogNeedsPrint = False
-
-    if printParams.use2WD and printParams.secondWorkingDir and os.path.isdir(printParams.secondWorkingDir):
-        LOG.debug("copying radio log pdf" + msgAdder + " to " + printParams.secondWorkingDir)
-        shutil.copy(pdfName, printParams.secondWorkingDir)
+    make_backup_copy(pdfName)
 
 

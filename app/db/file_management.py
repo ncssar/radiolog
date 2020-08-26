@@ -1,5 +1,6 @@
 import os,shutil,logging
 from typing import Optional, Tuple
+from app.logic.app_state import CONFIG
 
 LOG = logging.getLogger("main")
 
@@ -38,4 +39,10 @@ def determine_rotate_method() -> Tuple[Optional[str], Optional[str]]:
 		LOG.warn("Operating system is not Windows.  Powershell-based backup rotation script cannot be used.")
 	return (rotateScript, rotateDelimiter)
 
-__all__ = ("getFileNameBase", "ensureLocalDirectoryExists")
+def make_backup_copy(filename):
+    if CONFIG.use2WD and CONFIG.secondWorkingDir and os.path.isdir(CONFIG.secondWorkingDir):
+        LOG.debug(f"Copying {filename} to {CONFIG.secondWorkingDir}")
+        shutil.copy(filename, CONFIG.secondWorkingDir)
+
+
+__all__ = ("getFileNameBase", "ensureLocalDirectoryExists", "determine_rotate_method", "make_backup_copy")

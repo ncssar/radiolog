@@ -1,19 +1,12 @@
+from app.db.file_management import make_backup_copy
 import logging
-import functools
-import shutil
 import argparse
-import os
 import time
 import re
 
 from PyQt5.QtCore import QCoreApplication
 from gwpycore.gw_gui.gw_gui_dialogs import ICON_WARN, inform_user_about_issue
 from gwpycore.gw_windows_specific.gw_windows_printing import fill_in_pdf, print_pdf, view_pdf
-from reportlab.lib import colors, utils
-from reportlab.lib.pagesizes import letter, landscape
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import inch
 from app.logic.app_state import SWITCHES
 
 LOG = logging.getLogger('main')
@@ -68,6 +61,4 @@ def printClueReport(clueData, printParams: argparse.Namespace):
         view_pdf(cluePdfName)
     else:
         print_pdf(cluePdfName)
-    if printParams.use2WD and printParams.secondWorkingDir and os.path.isdir(printParams.secondWorkingDir):
-        LOG.trace("copying clue report pdf to " + printParams.secondWorkingDir)
-        shutil.copy(cluePdfName, printParams.secondWorkingDir)
+    make_backup_copy(cluePdfName)

@@ -31,6 +31,7 @@ Attribution, feedback, bug reports and feature requests are appreciated
 # REVISION HISTORY: See doc_technical\CHANGE_LOG.adoc
 
 
+from app.config import load_config
 import argparse
 from app.printing.print_log import printLog
 from gwpycore.gw_windows_specific.gw_windows_printing import fill_in_pdf
@@ -39,7 +40,7 @@ from app.ui.op_period_dialog import opPeriodDialog
 from app.ui.clue_dialogs import clueDialog, clueLogDialog, clueTableModel, nonRadioClueDialog
 from app.ui.new_entry_dialog import NewEntryWidget, NewEntryWindow
 from app.ui.print_dialogs import PrintDialog, printClueLogDialog
-from app.logic.app_state import SWITCHES, TIMEOUT_DISPLAY_LIST, continueSec, lastClueNumber, teamStatusDict
+from app.logic.app_state import CONFIG, SWITCHES, TIMEOUT_DISPLAY_LIST, continueSec, lastClueNumber, teamStatusDict
 from app.ui.options_dialog import OptionsDialog
 from app.ui.help_dialog import HelpDialog
 from app.ui.hotkey_pool import TeamHotKeys
@@ -78,7 +79,6 @@ from gwpycore import inform_user_about_issue, ask_user_to_confirm, ICON_ERROR, I
 
 from pyproj import Transformer
 
-from app.command_line import parse_args
 from app.logic.teams import *
 from app.logic.exceptions import *
 from app.db.file_management import determine_rotate_method, ensureLocalDirectoryExists, getFileNameBase
@@ -271,8 +271,20 @@ class MyWindow(QDialog,UiDialog):
         # resource file / 'rc file' (e.g. ./radiolog_rc.txt) stores the search-specific
         #  options settings; it is read at radiolog startup, and is written
         #  whenever the options dialog is accepted
-        self.configFileName = SWITCHES.configfile
+
+
+        # FIXME -- We are still calling the old method (readConfigFile) that loads the config settings (radiolog.cfg) into fields of MyWindow (self), because much of the existing code still looks there.
+        # FIXME -- We are ALSO calling the new method (load_config) that loads similar config settings (radiolog.ini) into the CONFIG namespace (in app.logic.app_state).
+        # FIXME -- (If radiolog.ini does not exist, then we call self.copy_oldstyle_config_to_new().)
+        # FIXME -- Eventually, all of the code will look to the new INI file, and we can stop calling readConfigFile.
+        # FIXME -- And then we won't need copy_oldstyle_config_to_new() anymore, either.
+        self.configFileName = "local/radiolog.cfg"
         self.readConfigFile() # defaults are set inside readConfigFile
+        LOG.debug(f"SWITCHES.configfile = {SWITCHES.configfile}")
+        if os.path.isfile(SWITCHES.configfile):
+            load_config(filename=SWITCHES.configfile, config=CONFIG)
+        else:
+            self.copy_oldstyle_config_to_new()
 
         # set the default lookup name - this must be after readConfigFile
         #  since that function accepts the options form which updates the
@@ -476,13 +488,13 @@ class MyWindow(QDialog,UiDialog):
         # make sure x/y/w/h from resource file will fit on the available display
         d=QApplication.desktop()
         if (self.x+self.w > d.width()) or (self.y+self.h > d.height()):
-            LOG.warn("The resource file specifies a main window geometry that is bigger than (or not on) the available desktop. Using default sizes for this session.")
+            LOG.warning("The resource file specifies a main window geometry that is bigger than (or not on) the available desktop. Using default sizes for this session.")
             self.x=50
             self.y=50
             self.w=d.availableGeometry(self).width()-100
             self.h=d.availableGeometry(self).height()-100
         if (self.clueLog_x+self.clueLog_w > d.width()) or (self.clueLog_y+self.clueLog_h > d.height()):
-            LOG.warn("The resource file specifies a clue log window geometry that is bigger than (or not on) the available desktop. Using default sizes for this session.")
+            LOG.warning("The resource file specifies a clue log window geometry that is bigger than (or not on) the available desktop. Using default sizes for this session.")
             self.clueLog_x=75
             self.clueLog_y=75
             self.clueLog_w=d.availableGeometry(self).width()-100
@@ -522,7 +534,7 @@ class MyWindow(QDialog,UiDialog):
         configFile=QFile(self.configFileName)
         if not configFile.open(QFile.ReadOnly|QFile.Text):
             issue = "Cannot read configuration file {0}; using default settings. {1}".format(self.configFileName,configFile.errorString())
-            LOG.warn(issue)
+            LOG.warning(issue)
             inform_user_about_issue(issue, icon=ICON_WARN, parent=self)
             self.timeoutRedSec=int(self.timeoutMinutes)*60
             self.updateOptionsDialog()
@@ -531,7 +543,7 @@ class MyWindow(QDialog,UiDialog):
         line=inStr.readLine()
         if line!="[RadioLog]":
             issue = "Specified configuration file {0} is not a valid configuration file; using default settings.".format(self.configFileName)
-            LOG.warn(issue)
+            LOG.warning(issue)
             inform_user_about_issue(issue, icon=ICON_WARN, parent=self)
             configFile.close()
             self.timeoutRedSec=int(self.timeoutMinutes)*60
@@ -566,6 +578,8 @@ class MyWindow(QDialog,UiDialog):
             elif tokens[0]=="tabGroups":
                 self.tabGroups=eval(tokens[1])
         configFile.close()
+
+
 
         # validation and post-processing of each item
         configErr=""
@@ -634,6 +648,23 @@ class MyWindow(QDialog,UiDialog):
 
         if SWITCHES.devmode:
             self.sarsoftServerName = "localhost" # DEVEL
+
+    def copy_oldstyle_config_to_new(self):
+        CONFIG.agencyName = self.agencyName
+        CONFIG.logo = Path(self.printLogoFileName)
+        if self.fillableClueReportPdfFileName:
+            CONFIG.clueReport = Path(self.fillableClueReportPdfFileName)
+        CONFIG.firstWorkingDir = Path(self.firstWorkingDir)
+        if self.secondWorkingDir:
+            CONFIG.secondWorkingDir = Path(self.secondWorkingDir)
+        CONFIG.tabGroups = self.tabGroups
+        # CONFIG.coordFormat = self.coordFormat
+        # CONFIG.datum = self.datum
+        CONFIG.rotateDelimiter = self.rotateDelimiter
+        CONFIG.rotateScript = self.rotateScript
+        CONFIG.sarsoftServerName = self.sarsoftServerName
+        CONFIG.timeoutMinutes = self.timeoutMinutes
+
 
     def getPrintParams(self) -> argparse.Namespace:
         """
@@ -724,7 +755,7 @@ class MyWindow(QDialog,UiDialog):
             LOG.info("Invoking backup rotation script: "+cmd)
             subprocess.Popen(cmd)
         else:
-            LOG.warn("No backup rotation script and/or delimiter was specified; no rotation is being performed.")
+            LOG.warning("No backup rotation script and/or delimiter was specified; no rotation is being performed.")
 
     def updateOptionsDialog(self):
         LOG.debug("updating options dialog: datum="+self.datum)
@@ -1057,7 +1088,7 @@ class MyWindow(QDialog,UiDialog):
                         origLocString='NO FIX'
                         formattedLocString='NO FIX'
                     elif valid=='V':
-                        LOG.warn("WARNING status character parsed from $PKLSH; check the GPS mic attached to that radio")
+                        LOG.warning("WARNING status character parsed from $PKLSH; check the GPS mic attached to that radio")
                         origLocString='WARNING'
                         formattedLocString='WARNING'
                     else:
@@ -1559,7 +1590,7 @@ class MyWindow(QDialog,UiDialog):
         #  See https://stackoverflow.com/questions/44148992; need to develop a full
         #  test case to proceed with that question
             if self.newEntryWindow.isVisible():
-                LOG.warn("** keyPressEvent ambiguous timing; key press ignored: key="+str(hex(event.key())))
+                LOG.warning("** keyPressEvent ambiguous timing; key press ignored: key="+str(hex(event.key())))
                 event.ignore()
             else:
                 key=event.text().lower() # hotkeys are case insensitive
