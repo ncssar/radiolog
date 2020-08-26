@@ -6,7 +6,7 @@ __version__ = "2.0.2"
 
 # KEEP IN MIND: logging has not been set up yet. Don't try to make logging calls in here.
 
-def parse_args(args):
+def parse_args(args) -> argparse.Namespace:
     """Parse any command line parameters.
 
     Args:

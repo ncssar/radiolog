@@ -1,3 +1,4 @@
+from app.printing.print_clue_log import printClueLog
 from app.printing.print_log import printLog
 from gwpycore.gw_gui.gw_gui_dialogs import inform_user_about_issue
 from PyQt5 import uic
@@ -76,7 +77,8 @@ class printClueLogDialog(QDialog, PrintClueLogDialogSpec):
             inform_user_about_issue("There are no clues to print.", title="No Clues to Print", parent=self)
             self.reject()
         else:
-            self.parent.printClueLog(opPeriod)
+            printClueLog(opPeriod, self.parent.getPrintParams())
+            self.parent.clueLogNeedsPrint = False
             LOG.trace("Called parent printClueLogDialog.accept")
             super(printClueLogDialog, self).accept()
             LOG.trace("Called super printClueLogDialog.accept")

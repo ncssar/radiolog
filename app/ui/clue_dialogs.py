@@ -1,3 +1,4 @@
+from app.printing.print_clue_report import printClueReport
 import re
 from gwpycore.gw_gui.gw_gui_dialogs import ICON_WARN, ask_user_to_confirm, inform_user_about_issue
 from app.logic.entries import rreplace
@@ -223,7 +224,7 @@ class nonRadioClueDialog(QDialog, NonRadioClueDialogSpec):
         self.parent.newEntry(self.values)
 
         if self.clueReportPrintCheckBox.isChecked():
-            self.parent.printClueReport(clueData)
+            printClueReport(clueData, self.parent.getPrintParams())
         LOG.debug("accepted - calling close")
 ##		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().accept()
         self.parent.clueLogDialog.tableView.model().layoutChanged.emit()
