@@ -1,4 +1,4 @@
-from app.logic.app_state import TIMEOUT_DISPLAY_LIST
+from app.logic.app_state import CONFIG, TIMEOUT_DISPLAY_LIST
 from PyQt5 import uic
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QDialog
@@ -38,6 +38,7 @@ class OptionsDialog(QDialog, OptionsDialogSpec):
 
     def secondWorkingDirCB(self):
         self.parent.use2WD = self.secondWorkingDirCheckBox.isChecked()
+        CONFIG.use2WD = self.secondWorkingDirCheckBox.isChecked()
 
     def accept(self):
         # only save the rc file when the options dialog is accepted interactively;

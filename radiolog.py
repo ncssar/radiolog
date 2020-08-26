@@ -31,12 +31,16 @@ Attribution, feedback, bug reports and feature requests are appreciated
 # REVISION HISTORY: See doc_technical\CHANGE_LOG.adoc
 
 
+from app.config import load_config
+import argparse
+from app.printing.print_log import printLog
+from gwpycore.gw_windows_specific.gw_windows_printing import fill_in_pdf
 from app.ui.fs_filter_dialog import fsFilterDialog
 from app.ui.op_period_dialog import opPeriodDialog
-from app.ui.clue_dialogs import clueDialog, clueLogDialog, nonRadioClueDialog
+from app.ui.clue_dialogs import clueDialog, clueLogDialog, clueTableModel, nonRadioClueDialog
 from app.ui.new_entry_dialog import NewEntryWidget, NewEntryWindow
 from app.ui.print_dialogs import PrintDialog, printClueLogDialog
-from app.logic.app_state import TIMEOUT_DISPLAY_LIST, continueSec, lastClueNumber, teamStatusDict
+from app.logic.app_state import CONFIG, SWITCHES, TIMEOUT_DISPLAY_LIST, continueSec, lastClueNumber, teamStatusDict
 from app.ui.options_dialog import OptionsDialog
 from app.ui.help_dialog import HelpDialog
 from app.ui.hotkey_pool import TeamHotKeys
@@ -72,21 +76,17 @@ from reportlab.lib.units import inch
 from fdfgen import forge_fdf
 from gwpycore import setup_logging, INFO, DIAGNOSTIC, DEBUG, TRACE
 from gwpycore import inform_user_about_issue, ask_user_to_confirm, ICON_ERROR, ICON_WARN, ICON_INFO, FingerTabBarWidget
-from gwpycore import printPdf
 
 from pyproj import Transformer
 
-from app.command_line import parse_args
 from app.logic.teams import *
 from app.logic.exceptions import *
-from app.db.file_management import determine_rotate_method, ensureLocalDirectoryExists, getFileNameBase
+from app.db.file_management import determine_rotate_method, ensureLocalDirectoryExists, getFileNameBase, viable_2wd
 
 from PyQt5 import uic, QtGui, QtCore
 
 
-# process command-line arguments
-SWITCHES = parse_args(sys.argv[1:])
-
+# NOTE: SWITCHES is created (from the command-line arguments) within app.logic.app_state
 # TODO Autodetect the screen resolution, but still allow a command line switch to override
 if SWITCHES.minmode:
     # built to look decent at 800x600
@@ -271,8 +271,20 @@ class MyWindow(QDialog,UiDialog):
         # resource file / 'rc file' (e.g. ./radiolog_rc.txt) stores the search-specific
         #  options settings; it is read at radiolog startup, and is written
         #  whenever the options dialog is accepted
-        self.configFileName = SWITCHES.configfile
+
+
+        # FIXME -- We are still calling the old method (readConfigFile) that loads the config settings (radiolog.cfg) into fields of MyWindow (self), because much of the existing code still looks there.
+        # FIXME -- We are ALSO calling the new method (load_config) that loads similar config settings (radiolog.ini) into the CONFIG namespace (in app.logic.app_state).
+        # FIXME -- (If radiolog.ini does not exist, then we call self.copy_oldstyle_config_to_new().)
+        # FIXME -- Eventually, all of the code will look to the new INI file, and we can stop calling readConfigFile.
+        # FIXME -- And then we won't need copy_oldstyle_config_to_new() anymore, either.
+        self.configFileName = "local/radiolog.cfg"
         self.readConfigFile() # defaults are set inside readConfigFile
+        LOG.debug(f"SWITCHES.configfile = {SWITCHES.configfile}")
+        if os.path.isfile(SWITCHES.configfile):
+            load_config(filename=SWITCHES.configfile, config=CONFIG)
+        else:
+            self.copy_oldstyle_config_to_new()
 
         # set the default lookup name - this must be after readConfigFile
         #  since that function accepts the options form which updates the
@@ -364,7 +376,7 @@ class MyWindow(QDialog,UiDialog):
         self.secondComPortFound=False
         self.comPortScanInProgress=False
         self.comPortTryList=[]
-##		if SWITCHES.develMode:
+##		if SWITCHES.devmode:
 ##			self.comPortTryList=[serial.Serial("\\\\.\\CNCB0")] # DEVEL
         self.fsBuffer=""
         self.entryHold=False
@@ -476,13 +488,13 @@ class MyWindow(QDialog,UiDialog):
         # make sure x/y/w/h from resource file will fit on the available display
         d=QApplication.desktop()
         if (self.x+self.w > d.width()) or (self.y+self.h > d.height()):
-            LOG.warn("The resource file specifies a main window geometry that is bigger than (or not on) the available desktop. Using default sizes for this session.")
+            LOG.warning("The resource file specifies a main window geometry that is bigger than (or not on) the available desktop. Using default sizes for this session.")
             self.x=50
             self.y=50
             self.w=d.availableGeometry(self).width()-100
             self.h=d.availableGeometry(self).height()-100
         if (self.clueLog_x+self.clueLog_w > d.width()) or (self.clueLog_y+self.clueLog_h > d.height()):
-            LOG.warn("The resource file specifies a clue log window geometry that is bigger than (or not on) the available desktop. Using default sizes for this session.")
+            LOG.warning("The resource file specifies a clue log window geometry that is bigger than (or not on) the available desktop. Using default sizes for this session.")
             self.clueLog_x=75
             self.clueLog_y=75
             self.clueLog_w=d.availableGeometry(self).width()-100
@@ -522,7 +534,7 @@ class MyWindow(QDialog,UiDialog):
         configFile=QFile(self.configFileName)
         if not configFile.open(QFile.ReadOnly|QFile.Text):
             issue = "Cannot read configuration file {0}; using default settings. {1}".format(self.configFileName,configFile.errorString())
-            LOG.warn(issue)
+            LOG.warning(issue)
             inform_user_about_issue(issue, icon=ICON_WARN, parent=self)
             self.timeoutRedSec=int(self.timeoutMinutes)*60
             self.updateOptionsDialog()
@@ -531,7 +543,7 @@ class MyWindow(QDialog,UiDialog):
         line=inStr.readLine()
         if line!="[RadioLog]":
             issue = "Specified configuration file {0} is not a valid configuration file; using default settings.".format(self.configFileName)
-            LOG.warn(issue)
+            LOG.warning(issue)
             inform_user_about_issue(issue, icon=ICON_WARN, parent=self)
             configFile.close()
             self.timeoutRedSec=int(self.timeoutMinutes)*60
@@ -566,6 +578,8 @@ class MyWindow(QDialog,UiDialog):
             elif tokens[0]=="tabGroups":
                 self.tabGroups=eval(tokens[1])
         configFile.close()
+
+
 
         # validation and post-processing of each item
         configErr=""
@@ -635,6 +649,43 @@ class MyWindow(QDialog,UiDialog):
         if SWITCHES.devmode:
             self.sarsoftServerName = "localhost" # DEVEL
 
+    def copy_oldstyle_config_to_new(self):
+        CONFIG.agencyName = self.agencyName
+        CONFIG.logo = Path(self.printLogoFileName)
+        if self.fillableClueReportPdfFileName:
+            CONFIG.clueReport = Path(self.fillableClueReportPdfFileName)
+        CONFIG.firstWorkingDir = Path(self.firstWorkingDir)
+        if self.secondWorkingDir:
+            CONFIG.secondWorkingDir = Path(self.secondWorkingDir)
+        CONFIG.tabGroups = self.tabGroups
+        # CONFIG.coordFormat = self.coordFormat
+        # CONFIG.datum = self.datum
+        CONFIG.rotateDelimiter = self.rotateDelimiter
+        CONFIG.rotateScript = self.rotateScript
+        CONFIG.sarsoftServerName = self.sarsoftServerName
+        CONFIG.timeoutMinutes = self.timeoutMinutes
+
+
+    def getPrintParams(self) -> argparse.Namespace:
+        """
+        This is temporary. Ultimately, this all needs to move to config settings or app-state settigs.
+        """
+        printParams = argparse.Namespace()
+        printParams.agencyNameForPrint = self.agencyNameForPrint
+        printParams.allTeamsList = self.allTeamsList
+        printParams.datum = self.datum
+        printParams.incidentName = self.incidentName
+        printParams.pdfFileName = self.pdfFileName
+        printParams.printLogoFileName = self.printLogoFileName
+        printParams.radioLog = self.radioLog
+        printParams.radioLogNeedsPrint = self.radioLogNeedsPrint
+        printParams.header_labels = self.tableModel.header_labels
+        printParams.clue_log_header_labels = clueTableModel.header_labels
+        printParams.clueLog = self.clueLog
+        printParams.fillableClueReportPdfFileName = self.fillableClueReportPdfFileName
+        return printParams
+
+
     def increaseFont(self):
         self.fontSize = self.fontSize + 2
         self.fontsChanged()
@@ -701,7 +752,7 @@ class MyWindow(QDialog,UiDialog):
             LOG.info("Invoking backup rotation script: "+cmd)
             subprocess.Popen(cmd)
         else:
-            LOG.warn("No backup rotation script and/or delimiter was specified; no rotation is being performed.")
+            LOG.warning("No backup rotation script and/or delimiter was specified; no rotation is being performed.")
 
     def updateOptionsDialog(self):
         LOG.debug("updating options dialog: datum="+self.datum)
@@ -1034,7 +1085,7 @@ class MyWindow(QDialog,UiDialog):
                         origLocString='NO FIX'
                         formattedLocString='NO FIX'
                     elif valid=='V':
-                        LOG.warn("WARNING status character parsed from $PKLSH; check the GPS mic attached to that radio")
+                        LOG.warning("WARNING status character parsed from $PKLSH; check the GPS mic attached to that radio")
                         origLocString='WARNING'
                         formattedLocString='WARNING'
                     else:
@@ -1343,346 +1394,8 @@ class MyWindow(QDialog,UiDialog):
             return "{}  {}".format(eStr[2:],nStr[2:])
         return "INVALID - UNKNOWN OUTPUT FORMAT REQUESTED"
 
-    def printLogHeaderFooter(self,canvas,doc,opPeriod="",teams=False):
-        formNameText="Radio Log"
-        if teams:
-            if isinstance(teams,str):
-                formNameText="Team: "+teams
-            else:
-                formNameText="Team Radio Logs"
-        canvas.saveState()
-        styles = getSampleStyleSheet()
-        self.img=None
-        if os.path.isfile(self.printLogoFileName):
-            LOG.debug("valid logo file "+self.printLogoFileName)
-            imgReader=utils.ImageReader(self.printLogoFileName)
-            imgW,imgH=imgReader.getSize()
-            imgAspect=imgH/float(imgW)
-            self.img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
-            headerTable=[
-                    [self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,formNameText+" - Page "+str(canvas.getPageNumber())],
-                    ["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
-            t=Table(headerTable,colWidths=[x*inch for x in [0.8,4.2,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
-            t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
-                                          ('FONT',(2,0),(3,0),'Helvetica-Bold'),
-                                   ('FONTSIZE',(1,0),(1,1),18),
-                                          ('SPAN',(0,0),(0,1)),
-                                          ('SPAN',(1,0),(1,1)),
-                                          ('LEADING',(1,0),(1,1),20),
-                                          ('TOPADDING',(1,0),(1,0),0),
-                                          ('BOTTOMPADDING',(1,1),(1,1),4),
-                                 ('VALIGN',(0,0),(-1,-1),"MIDDLE"),
-                                 ('ALIGN',(1,0),(1,-1),"CENTER"),
-                                          ('ALIGN',(0,0),(0,1),"CENTER"),
-                                          ('BOX',(0,0),(-1,-1),2,colors.black),
-                                          ('BOX',(2,0),(-1,-1),2,colors.black),
-                                          ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
-        else:
-            headerTable=[
-                    [self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,formNameText+" - Page "+str(canvas.getPageNumber())],
-                    ["","","Operational Period: ","Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
-            t=Table(headerTable,colWidths=[x*inch for x in [0.0,5,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
-            t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
-                                   ('FONT',(2,0),(3,0),'Helvetica-Bold'),
-                                   ('FONTSIZE',(1,0),(1,1),18),
-                                          ('SPAN',(0,0),(0,1)),
-                                          ('SPAN',(1,0),(1,1)),
-                                          ('LEADING',(1,0),(1,1),20),
-                                 ('VALIGN',(1,0),(-1,-1),"MIDDLE"),
-                                 ('ALIGN',(1,0),(1,-1),"CENTER"),
-                                          ('BOX',(0,0),(-1,-1),2,colors.black),
-                                          ('BOX',(2,0),(-1,-1),2,colors.black),
-                                          ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
-        w,h=t.wrapOn(canvas,doc.width,doc.height)
-# 		self.logMsgBox.setInformativeText("Generating page "+str(canvas.getPageNumber()))
-        QCoreApplication.processEvents()
-        LOG.debug("Page number:"+str(canvas.getPageNumber()))
-        LOG.debug("Height:"+str(h))
-        LOG.debug("Pagesize:"+str(doc.pagesize))
-        t.drawOn(canvas,doc.leftMargin,doc.pagesize[1]-h-0.5*inch) # enforce a 0.5 inch top margin regardless of paper size
-##		canvas.grid([x*inch for x in [0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10,10.5,11]],[y*inch for y in [0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5]])
-        LOG.trace("done drawing printLogHeaderFooter canvas")
-        canvas.restoreState()
-        LOG.trace("end of printLogHeaderFooter")
 
-    # optonal argument 'teams': if True, generate one pdf of all individual team logs;
-    #  so, this function should be called once to generate the overall log pdf, and
-    #  again with teams=True to generate team logs pdf
-    # if 'teams' is an array of team names, just print those team log(s)
-    def printLog(self,opPeriod,teams=False):
-        opPeriod=int(opPeriod)
-        pdfName=self.firstWorkingDir+"\\"+self.pdfFileName
-        teamFilterList=[""] # by default, print print all entries; if teams=True, add a filter for each team
-        msgAdder=""
-        if teams:
-            if isinstance(teams,list):
-                # recursively call this function for each team in list of teams
-                for team in teams:
-                    self.printLog(opPeriod,team)
-            elif isinstance(teams,str):
-                pdfName=pdfName.replace('.pdf','_'+teams.replace(' ','_').replace('.','_')+'.pdf')
-                msgAdder=" for "+teams
-                teamFilterList=[teams]
-            else:
-                pdfName=pdfName.replace('.pdf','_teams.pdf')
-                msgAdder=" for individual teams"
-                teamFilterList=[]
-                for team in self.allTeamsList:
-                    if team!="dummy":
-                        teamFilterList.append(team)
-        LOG.debug("teamFilterList="+str(teamFilterList))
-        pdfName=pdfName.replace('.pdf','_OP'+str(opPeriod)+'.pdf')
-        LOG.debug("generating radio log pdf: "+pdfName)
-        try:
-            f=open(pdfName,"wb")
-        except:
-            inform_user_about_issue("PDF could not be generated:\n\n"+pdfName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.",parent=self)
-            return
-        else:
-            f.close()
-# 		self.logMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF"+msgAdder+"; will send to default printer automatically; please wait...",
-# 							QMessageBox.Abort,self,STD_DIALOG_OPTS)
-# 		self.logMsgBox.setInformativeText("Initializing...")
-        # note the topMargin is based on what looks good; you would think that a 0.6 table plus a 0.5 hard
-        # margin (see t.drawOn above) would require a 1.1 margin here, but, not so.
-        doc = SimpleDocTemplate(pdfName, pagesize=landscape(letter),leftMargin=0.5*inch,rightMargin=0.5*inch,topMargin=1.03*inch,bottomMargin=0.5*inch) # or pagesize=letter
-# 		self.logMsgBox.show()
-# 		QTimer.singleShot(5000,self.logMsgBox.close)
-        QCoreApplication.processEvents()
-        elements=[]
-        for team in teamFilterList:
-            extTeamNameLower=getExtTeamName(team).lower()
-            radioLogPrint=[]
-            styles = getSampleStyleSheet()
-            radioLogPrint.append(MyTableModel.header_labels[0:6])
-##			if teams and opPeriod==1: # if request op period = 1, include 'Radio Log Begins' in all team tables
-##				radioLogPrint.append(self.radioLog[0])
-            entryOpPeriod=1 # update this number when 'Operational Period <x> Begins' lines are found
-##			hits=False # flag to indicate whether this team has any entries in the requested op period; if not, don't make a table for this team
-            for row in self.radioLog:
-                opStartRow=False
-##				LOG.debug("message:"+row[3]+":"+str(row[3].split()))
-                if row[3].startswith("Radio Log Begins:"):
-                    opStartRow=True
-                if row[3].startswith("Operational Period") and row[3].split()[3] == "Begins:":
-                    opStartRow=True
-                    entryOpPeriod=int(row[3].split()[2])
-##				LOG.debug("desired op period="+str(opPeriod)+"; this entry op period="+str(entryOpPeriod))
-                if entryOpPeriod == opPeriod:
-                    if team=="" or extTeamNameLower==getExtTeamName(row[2]).lower() or opStartRow: # filter by team name if argument was specified
-                        radioLogPrint.append([row[0],row[1],row[2],Paragraph(row[3],styles['Normal']),Paragraph(row[4],styles['Normal']),Paragraph(row[5],styles['Normal'])])
-##						hits=True
-            if not teams:
-                radioLogPrint[1][4]=self.datum
-            LOG.debug("length:"+str(len(radioLogPrint)))
-            if not teams or len(radioLogPrint)>2: # don't make a table for teams that have no entries during the requested op period
-                t=Table(radioLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.5,0.6,1.25,5.5,1.25,0.9]])
-                t.setStyle(TableStyle([('FONT',(0,0),(-1,-1),'Helvetica'),
-                                        ('FONT',(0,0),(-1,1),'Helvetica-Bold'),
-                                        ('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
-                                       ('BOX', (0,0), (-1,-1), 2, colors.black),
-                                       ('BOX', (0,0), (5,0), 2, colors.black)]))
-                elements.append(t)
-                if teams and team!=teamFilterList[-1]: # don't add a spacer after the last team - it could cause another page!
-                    elements.append(Spacer(0,0.25*inch))
-        doc.build(elements,onFirstPage=functools.partial(self.printLogHeaderFooter,opPeriod=opPeriod,teams=teams),onLaterPages=functools.partial(self.printLogHeaderFooter,opPeriod=opPeriod,teams=teams))
-# 		self.logMsgBox.setInformativeText("Finalizing and Printing...")
-        printPdf(pdfName)
-        self.radioLogNeedsPrint=False
 
-        if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-            LOG.debug("copying radio log pdf"+msgAdder+" to "+self.secondWorkingDir)
-            shutil.copy(pdfName,self.secondWorkingDir)
-
-    def printTeamLogs(self,opPeriod):
-        self.printLog(opPeriod,teams=True)
-
-    def printClueLogHeaderFooter(self,canvas,doc,opPeriod=""):
-        canvas.saveState()
-        styles = getSampleStyleSheet()
-        self.img=None
-        if os.path.isfile(self.printLogoFileName):
-            imgReader=utils.ImageReader(self.printLogoFileName)
-            imgW,imgH=imgReader.getSize()
-            imgAspect=imgH/float(imgW)
-            self.img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
-            headerTable=[
-                    [self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,"Clue Log - Page "+str(canvas.getPageNumber())],
-                    ["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
-            t=Table(headerTable,colWidths=[x*inch for x in [0.8,4.2,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
-            t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
-                                   ('FONTSIZE',(1,0),(1,1),18),
-                                          ('SPAN',(0,0),(0,1)),
-                                          ('SPAN',(1,0),(1,1)),
-                                          ('LEADING',(1,0),(1,1),20),
-                                          ('TOPADDING',(1,0),(1,0),0),
-                                          ('BOTTOMPADDING',(1,1),(1,1),4),
-                                 ('VALIGN',(0,0),(-1,-1),"MIDDLE"),
-                                 ('ALIGN',(1,0),(1,-1),"CENTER"),
-                                          ('ALIGN',(0,0),(0,1),"CENTER"),
-                                          ('BOX',(0,0),(-1,-1),2,colors.black),
-                                          ('BOX',(2,0),(-1,-1),2,colors.black),
-                                          ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
-        else:
-            headerTable=[
-                    [self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,"Clue Log - Page "+str(canvas.getPageNumber())],
-                    ["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
-            t=Table(headerTable,colWidths=[x*inch for x in [0.0,5,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
-            t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
-                                   ('FONTSIZE',(1,0),(1,1),18),
-                                          ('SPAN',(0,0),(0,1)),
-                                          ('SPAN',(1,0),(1,1)),
-                                          ('LEADING',(1,0),(1,1),20),
-                                 ('VALIGN',(1,0),(-1,-1),"MIDDLE"),
-                                 ('ALIGN',(1,0),(1,-1),"CENTER"),
-                                          ('BOX',(0,0),(-1,-1),2,colors.black),
-                                          ('BOX',(2,0),(-1,-1),2,colors.black),
-                                          ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
-        w,h=t.wrapOn(canvas,doc.width,doc.height)
-# 		self.clueLogMsgBox.setInformativeText("Generating page "+str(canvas.getPageNumber()))
-        QCoreApplication.processEvents()
-        LOG.debug("Page number:"+str(canvas.getPageNumber()))
-        LOG.debug("Height:"+str(h))
-        LOG.debug("Pagesize:"+str(doc.pagesize))
-        t.drawOn(canvas,doc.leftMargin,doc.pagesize[1]-h-0.5*inch) # enforce a 0.5 inch top margin regardless of paper size
-        LOG.trace("done drawing printClueLogHeaderFooter canvas")
-##		canvas.grid([x*inch for x in [0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10,10.5,11]],[y*inch for y in [0,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5]])
-        canvas.restoreState()
-        LOG.trace("end of printClueLogHeaderFooter")
-
-    def printClueLog(self,opPeriod):
-##      header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
-        opPeriod=int(opPeriod)
-        clueLogPdfFileName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clueLog_OP"+str(opPeriod)+".pdf")
-        LOG.trace("generating clue log pdf: "+clueLogPdfFileName)
-        try:
-            f=open(clueLogPdfFileName,"wb")
-        except:
-            inform_user_about_issue("PDF could not be generated:\n\n"+clueLogPdfFileName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.",
-                parent=self,timeout=10000)
-            return
-        else:
-            f.close()
-# 		self.clueLogMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF; will send to default printer automatically; please wait...",
-# 							QMessageBox.Abort,self,STD_DIALOG_OPTS)
-# 		self.clueLogMsgBox.setInformativeText("Initializing...")
-        # note the topMargin is based on what looks good; you would think that a 0.6 table plus a 0.5 hard
-        # margin (see t.drawOn above) would require a 1.1 margin here, but, not so.
-        doc = SimpleDocTemplate(clueLogPdfFileName, pagesize=landscape(letter),leftMargin=0.5*inch,rightMargin=0.5*inch,topMargin=1.03*inch,bottomMargin=0.5*inch) # or pagesize=letter
-# 		self.clueLogMsgBox.show()
-# 		QTimer.singleShot(5000,self.clueLogMsgBox.close)
-        QCoreApplication.processEvents()
-        elements=[]
-        styles = getSampleStyleSheet()
-        clueLogPrint=[]
-        clueLogPrint.append(clueTableModel.header_labels[0:5]+clueTableModel.header_labels[6:8]) # omit operational period
-        for row in self.clueLog:
-            LOG.debug("clue: opPeriod="+str(opPeriod)+"; row="+str(row))
-            if (str(row[5])==str(opPeriod) or row[1].startswith("Operational Period "+str(opPeriod)+" Begins:") or (opPeriod==1 and row[1].startswith("Radio Log Begins:"))):
-                clueLogPrint.append([row[0],Paragraph(row[1],styles['Normal']),row[2],row[3],row[4],Paragraph(row[6],styles['Normal']),Paragraph(row[7],styles['Normal'])])
-        clueLogPrint[1][5]=self.datum
-        if len(clueLogPrint)>2:
-##			t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.6,3.75,.9,0.5,1.25,3]])
-            t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.5]])
-            t.setStyle(TableStyle([('F/generating clue llONT',(0,0),(-1,-1),'Helvetica'),
-                                    ('FONT',(0,0),(-1,1),'Helvetica-Bold'),
-                                    ('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
-                                   ('BOX', (0,0), (-1,-1), 2, colors.black),
-                                   ('BOX', (0,0), (6,0), 2, colors.black)]))
-            elements.append(t)
-            doc.build(elements,onFirstPage=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod),onLaterPages=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod))
-# 			self.clueLogMsgBox.setInformativeText("Finalizing and Printing...")
-            printPdf(clueLogPdfFileName)
-            if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-                LOG.trace("copying clue log pdf to "+self.secondWorkingDir)
-                shutil.copy(clueLogPdfFileName,self.secondWorkingDir)
-# 		else:
-# 			self.clueLogMsgBox.setText("No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.")
-# 			self.clueLogMsgBox.setInformativeText("")
-# 			self.clueLogMsgBox.setStandardButtons(QMessageBox.Ok)
-# 			self.msgBox.close()
-# 			self.msgBox=QMessageBox(QMessageBox.Information,"Printing","No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.",QMessageBox.Ok)
-# 			QTimer.singleShot(500,self.msgBox.show)
-        self.clueLogNeedsPrint=False
-
-    def printClueReport(self,clueData):
-        if not self.fillableClueReportPdfFileName:
-            inform_user_about_issue("Reminder: no Clue Report form will be printed, since the fillable clue report PDF does not exist.\n\nThe clue report text is stored as part of the radio message text.\n\nThis warning will automatically close in a few seconds.",
-                icon=ICON_WARN,title="Clue Report PDF Unavailable", parent = self, timeout = 8000)
-            return
-
-##		header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
-        # do not use ui object here, since this could be called later, when the clueDialog is not open
-        cluePdfName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clue"+str(clueData[0]).zfill(2)+".pdf")
-        LOG.trace("generating clue report pdf: "+cluePdfName)
-        clueFdfName=cluePdfName.replace(".pdf",".fdf")
-
-# 		self.clueReportMsgBox=QMessageBox(QMessageBox.Information,"Printing Clue #"+clueData[0],"Generating PDF; will send to default printer automatically; please wait...",
-# 										QMessageBox.Abort,self,STD_DIALOG_OPTS)
-# 		self.clueReportMsgBox.show()
-# 		self.clueReportMsgBox.raise_()
-# 		QTimer.singleShot(5000,self.clueReportMsgBox.close)
-
-        instructions=clueData[7].lower()
-        # initialize all checkboxes to OFF
-        instructionsCollect=False
-        instructionsMarkAndLeave=False
-        instructionsDisregard=False
-        instructionsOther=False
-        # look for keywords in the instructions text
-        if "collect" in instructions:
-            instructionsCollect=True
-        if "mark & leave" in instructions:
-            instructionsMarkAndLeave=True
-        if "disregard" in instructions:
-            instructionsDisregard=True
-        # now see if there are any instructions other than the standard ones above; if so, print them in 'other'
-        instructions=re.sub(r'collect','',instructions)
-        instructions=re.sub(r'mark & leave','',instructions)
-        instructions=re.sub(r'disregard','',instructions)
-        instructions=re.sub(r'^[; ]+','',instructions) # only get rid of semicolons and spaces before the first word
-        instructions=re.sub(r' ; ','',instructions) # also get rid of remaining ' ; ' i.e. when first word is not a keyword
-        instructions=re.sub(r'; *$','',instructions) # also get rid of trailing ';' i.e. when last word is a keyword
-        if instructions != "":
-            instructionsOther=True
-        instructionsOtherText=instructions
-
-# 		locText=clueData[6]
-        if clueData[8]!="":
-# 			locText=locText+"\n(Radio GPS = "+clueData[8]+")"
-            radioLocText="(Radio GPS: "+re.sub(r"\n","  x  ",clueData[8])+")"
-        else:
-            radioLocText=""
-        fields=[('titleField',self.agencyNameForPrint),
-                ('incidentNameField',self.incidentName),
-                ('dateField',time.strftime("%x")),
-                 ('operationalPeriodField',clueData[5]),
-                ('clueNumberField',clueData[0]),
-                ('dateTimeField',clueData[4]+"   "+clueData[3]),
-                ('teamField',clueData[2]),
-                ('descriptionField',clueData[1]),
-                ('locationRadioGPSField',radioLocText),
-                ('locationField',clueData[6]),
-                ('instructionsCollectField',instructionsCollect),
-                ('instructionsDisregardField',instructionsDisregard),
-                ('instructionsMarkAndLeaveField',instructionsMarkAndLeave),
-                ('instructionsOtherField',instructionsOther),
-                ('instructionsOtherTextField',instructionsOtherText)]
-        fdf=forge_fdf("",fields,[],[],[])
-        fdf_file=open(clueFdfName,"wb")
-        fdf_file.write(fdf)
-        fdf_file.close()
-
-        pdftk_cmd='pdftk "'+self.fillableClueReportPdfFileName+'" fill_form "'+clueFdfName+'" output "'+cluePdfName+'" flatten'
-        LOG.debug("Calling pdftk with the following command:")
-        LOG.debug(pdftk_cmd)
-        os.system(pdftk_cmd)
-
-        printPdf(cluePdfName)
-        if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-            LOG.trace("copying clue report pdf to "+self.secondWorkingDir)
-            shutil.copy(clueFdfName,self.secondWorkingDir)
-            shutil.copy(cluePdfName,self.secondWorkingDir)
 
 
 
@@ -1874,7 +1587,7 @@ class MyWindow(QDialog,UiDialog):
         #  See https://stackoverflow.com/questions/44148992; need to develop a full
         #  test case to proceed with that question
             if self.newEntryWindow.isVisible():
-                LOG.warn("** keyPressEvent ambiguous timing; key press ignored: key="+str(hex(event.key())))
+                LOG.warning("** keyPressEvent ambiguous timing; key press ignored: key="+str(hex(event.key())))
                 event.ignore()
             else:
                 key=event.text().lower() # hotkeys are case insensitive
@@ -2023,12 +1736,12 @@ class MyWindow(QDialog,UiDialog):
         return cleanShutdownFlag
 
     def save(self,finalize=False):
-        csvFileNameList=[self.firstWorkingDir+"\\"+self.csvFileName]
-        if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-            csvFileNameList.append(self.secondWorkingDir+"\\"+self.csvFileName)
+        csvFileNameList=[CONFIG.firstWorkingDir / self.csvFileName]
+        if (path2wd := viable_2wd()):
+            csvFileNameList.append(path2wd / self.csvFileName)
         for fileName in csvFileNameList:
-            LOG.trace("Writing "+fileName)
-            with open(fileName,'w',newline='') as csvFile:
+            LOG.trace(f"Writing {fileName}")
+            with fileName.open('w',newline='') as csvFile:
                 csvWriter=csv.writer(csvFile)
                 csvWriter.writerow(["## Radio Log data file"])
                 csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
@@ -2045,12 +1758,12 @@ class MyWindow(QDialog,UiDialog):
                 if self.lastSavedFileName!=self.csvFileName: # this is the first save since startup, since restore, or since incident name change
                     self.lastSavedFileName=self.csvFileName
                     self.saveRcFile()
-            LOG.trace("Done writing "+fileName)
+            LOG.trace(f"Done writing {fileName}")
         # now write the clue log to a separate csv file: same filename appended by '.clueLog'
         if len(self.clueLog)>0:
             for fileName in csvFileNameList:
-                fileName=fileName.replace(".csv","_clueLog.csv")
-                LOG.trace("Writing "+fileName)
+                fileName=str(fileName).replace(".csv","_clueLog.csv")
+                LOG.trace(f"Writing {fileName}")
                 with open(fileName,'w',newline='') as csvFile:
                     csvWriter=csv.writer(csvFile)
                     csvWriter.writerow(["## Clue Log data file"])
@@ -2061,7 +1774,7 @@ class MyWindow(QDialog,UiDialog):
                         csvWriter.writerow(row)
                     if finalize:
                         csvWriter.writerow(["## end"])
-                LOG.trace("Done writing "+fileName)
+                LOG.trace(f"Done writing {fileName}")
 
     def load(self,fileName=None):
         # loading scheme:
@@ -2679,7 +2392,7 @@ class MyWindow(QDialog,UiDialog):
                 self.newEntryWidget.to_fromField.setCurrentIndex(1)
             if action==printTeamLogAction:
                 LOG.debug("printing team log for "+str(niceTeamName))
-                self.printLog(self.opPeriod,str(niceTeamName))
+                printLog(self.opPeriod,self.getPrintParams(),str(niceTeamName))
                 self.radioLogNeedsPrint=True # since only one log has been printed; need to enhance this
             if action==deleteTeamTabAction:
                 self.deleteTeamTab(niceTeamName)
