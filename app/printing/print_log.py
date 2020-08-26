@@ -5,7 +5,7 @@ import argparse
 import os
 import time
 
-from app.logic.app_state import SWITCHES
+from app.logic.app_state import CONFIG, SWITCHES
 from app.logic.teams import getExtTeamName
 from PyQt5.QtCore import QCoreApplication
 from gwpycore import inform_user_about_issue, print_pdf, view_pdf
@@ -89,7 +89,7 @@ def printLog(opPeriod, printParams: argparse.Namespace, teams=False):
     if 'teams' is an array of team names, just print those team log(s)
     """
     opPeriod = int(opPeriod)
-    pdfName = printParams.firstWorkingDir + "\\" + printParams.pdfFileName
+    pdfName = CONFIG.firstWorkingDir + "\\" + printParams.pdfFileName
     teamFilterList = [""]  # by default, print print all entries; if teams=True, add a filter for each team
     msgAdder = ""
     if teams:

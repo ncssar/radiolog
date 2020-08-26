@@ -5,7 +5,7 @@ import argparse
 import os
 from time import time
 
-from app.logic.app_state import SWITCHES
+from app.logic.app_state import CONFIG, SWITCHES
 from PyQt5.QtCore import QCoreApplication
 from gwpycore import inform_user_about_issue, print_pdf, view_pdf
 from reportlab.lib import colors, utils
@@ -73,7 +73,7 @@ def printClueLogHeaderFooter(canvas, doc, printParams: argparse.Namespace, opPer
 def printClueLog(opPeriod, printParams: argparse.Namespace):
     ##      header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
     opPeriod = int(opPeriod)
-    clueLogPdfFileName = printParams.firstWorkingDir + "\\" + printParams.pdfFileName.replace(".pdf", "_clueLog_OP" + str(opPeriod) + ".pdf")
+    clueLogPdfFileName = CONFIG.firstWorkingDir + "\\" + printParams.pdfFileName.replace(".pdf", "_clueLog_OP" + str(opPeriod) + ".pdf")
     LOG.trace("generating clue log pdf: " + clueLogPdfFileName)
     try:
         f = open(clueLogPdfFileName, "wb")

@@ -81,7 +81,7 @@ from pyproj import Transformer
 
 from app.logic.teams import *
 from app.logic.exceptions import *
-from app.db.file_management import determine_rotate_method, ensureLocalDirectoryExists, getFileNameBase
+from app.db.file_management import determine_rotate_method, ensureLocalDirectoryExists, getFileNameBase, viable_2wd
 
 from PyQt5 import uic, QtGui, QtCore
 
@@ -674,14 +674,11 @@ class MyWindow(QDialog,UiDialog):
         printParams.agencyNameForPrint = self.agencyNameForPrint
         printParams.allTeamsList = self.allTeamsList
         printParams.datum = self.datum
-        printParams.firstWorkingDir = self.firstWorkingDir
         printParams.incidentName = self.incidentName
         printParams.pdfFileName = self.pdfFileName
         printParams.printLogoFileName = self.printLogoFileName
         printParams.radioLog = self.radioLog
         printParams.radioLogNeedsPrint = self.radioLogNeedsPrint
-        printParams.secondWorkingDir = self.secondWorkingDir
-        printParams.use2WD = self.use2WD
         printParams.header_labels = self.tableModel.header_labels
         printParams.clue_log_header_labels = clueTableModel.header_labels
         printParams.clueLog = self.clueLog
@@ -1739,12 +1736,12 @@ class MyWindow(QDialog,UiDialog):
         return cleanShutdownFlag
 
     def save(self,finalize=False):
-        csvFileNameList=[self.firstWorkingDir+"\\"+self.csvFileName]
-        if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-            csvFileNameList.append(self.secondWorkingDir+"\\"+self.csvFileName)
+        csvFileNameList=[CONFIG.firstWorkingDir / self.csvFileName]
+        if (path2wd := viable_2wd()):
+            csvFileNameList.append(path2wd / self.csvFileName)
         for fileName in csvFileNameList:
-            LOG.trace("Writing "+fileName)
-            with open(fileName,'w',newline='') as csvFile:
+            LOG.trace(f"Writing {fileName}")
+            with fileName.open('w',newline='') as csvFile:
                 csvWriter=csv.writer(csvFile)
                 csvWriter.writerow(["## Radio Log data file"])
                 csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
@@ -1761,12 +1758,12 @@ class MyWindow(QDialog,UiDialog):
                 if self.lastSavedFileName!=self.csvFileName: # this is the first save since startup, since restore, or since incident name change
                     self.lastSavedFileName=self.csvFileName
                     self.saveRcFile()
-            LOG.trace("Done writing "+fileName)
+            LOG.trace(f"Done writing {fileName}")
         # now write the clue log to a separate csv file: same filename appended by '.clueLog'
         if len(self.clueLog)>0:
             for fileName in csvFileNameList:
-                fileName=fileName.replace(".csv","_clueLog.csv")
-                LOG.trace("Writing "+fileName)
+                fileName=str(fileName).replace(".csv","_clueLog.csv")
+                LOG.trace(f"Writing {fileName}")
                 with open(fileName,'w',newline='') as csvFile:
                     csvWriter=csv.writer(csvFile)
                     csvWriter.writerow(["## Clue Log data file"])
@@ -1777,7 +1774,7 @@ class MyWindow(QDialog,UiDialog):
                         csvWriter.writerow(row)
                     if finalize:
                         csvWriter.writerow(["## end"])
-                LOG.trace("Done writing "+fileName)
+                LOG.trace(f"Done writing {fileName}")
 
     def load(self,fileName=None):
         # loading scheme:

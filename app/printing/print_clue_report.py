@@ -7,7 +7,7 @@ import re
 from PyQt5.QtCore import QCoreApplication
 from gwpycore.gw_gui.gw_gui_dialogs import ICON_WARN, inform_user_about_issue
 from gwpycore.gw_windows_specific.gw_windows_printing import fill_in_pdf, print_pdf, view_pdf
-from app.logic.app_state import SWITCHES
+from app.logic.app_state import CONFIG, SWITCHES
 
 LOG = logging.getLogger('main')
 
@@ -19,7 +19,7 @@ def printClueReport(clueData, printParams: argparse.Namespace):
 
 ##		header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
     # do not use ui object here, since this could be called later, when the clueDialog is not open
-    cluePdfName = printParams.firstWorkingDir +"\\" +printParams.pdfFileName.replace(".pdf", "_clue" +str(clueData[0]).zfill(2) +".pdf")
+    cluePdfName = CONFIG.firstWorkingDir +"\\" +printParams.pdfFileName.replace(".pdf", "_clue" +str(clueData[0]).zfill(2) +".pdf")
     LOG.trace("generating clue report pdf: " + cluePdfName)
 
     instructions = clueData[7].lower()
