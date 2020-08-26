@@ -76,6 +76,8 @@ coordformat = XXX
 	captured = capsys.readouterr()
 	assert captured.out == ""
 	assert captured.err == """==START==
+INFO Operating system is Windows.
+INFO PowerShell.exe is in the path.
 WARNING The configuration setting of [mapping]datum = XXX is invalid. Possible values are: WGS84, NAD27
 WARNING The configuration setting of [mapping]coordformat = XXX is invalid. Possible values are: UTM7, UTM5, DEG, DEGMIN, DMS, DEGLIST
 ==END=="""

@@ -7,8 +7,7 @@ from app.command_line import parse_args
 import argparse
 
 
-SWITCHES: argparse.Namespace = parse_args(sys.argv[1:])
-# print(f"SWITCHES = {SWITCHES}")
+SWITCHES: argparse.Namespace = argparse.Namespace()
 
 CONFIG: argparse.Namespace = argparse.Namespace()
 

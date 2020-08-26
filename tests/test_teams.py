@@ -77,7 +77,7 @@ def test_getNiceTeamName():
 	assert getNiceTeamName("Transport1driver") == "Transport 1 Driver"
 
 def test_getShortNiceTeamName():
-	assert getShortNiceTeamName("ALL TEAMS") == "All"
+	assert getShortNiceTeamName("ALL TEAMS") == "ALL"
 	assert getShortNiceTeamName(" Team3") == "3"
 	assert getShortNiceTeamName(" Team400") == "400"
 	assert getShortNiceTeamName("5") == "5"

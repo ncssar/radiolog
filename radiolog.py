@@ -31,6 +31,7 @@ Attribution, feedback, bug reports and feature requests are appreciated
 # REVISION HISTORY: See doc_technical\CHANGE_LOG.adoc
 
 
+from app.command_line import parse_args
 from app.config import load_config
 import argparse
 from app.printing.print_log import printLog
@@ -86,7 +87,10 @@ from app.db.file_management import determine_rotate_method, ensureLocalDirectory
 from PyQt5 import uic, QtGui, QtCore
 
 
-# NOTE: SWITCHES is created (from the command-line arguments) within app.logic.app_state
+# NOTE: SWITCHES is declared in app.logic.app_state (as an empty namespace)
+SWITCHES = parse_args(sys.argv[1:])
+# print(f"SWITCHES = {SWITCHES}")
+
 # TODO Autodetect the screen resolution, but still allow a command line switch to override
 if SWITCHES.minmode:
     # built to look decent at 800x600
