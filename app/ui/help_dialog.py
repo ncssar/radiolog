@@ -1,18 +1,20 @@
+import logging
+
+from gwpycore import AppActions
 from PyQt5 import uic
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QDialog, QHeaderView
-from gwpycore import AppActions
-import logging
 
-LOG = logging.getLogger('main')
+LOG = logging.getLogger("main")
 
 
 HelpDialogSpec = uic.loadUiType("app/ui/help.ui")[0]
 
 HELP_FONT = QFont("Segoe UI", 9)
-HELP_FONT_STRIKEOUT = QFont("Segoe UI",9)
+HELP_FONT_STRIKEOUT = QFont("Segoe UI", 9)
 HELP_FONT_STRIKEOUT.setStrikeOut(True)
+
 
 class HelpDialog(QDialog, HelpDialogSpec):
     def __init__(self, *args):

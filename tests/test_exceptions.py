@@ -1,9 +1,13 @@
-from app.logic.exceptions import RadioLogError, RadioLogConfigError, RadioLogConfigSettingWarning
-import pytest
 import logging
 import sys
 import time
-from gwpycore import setup_logging, CRITICAL, ERROR, WARNING, INFO, DIAGNOSTIC, DEBUG, TRACE
+
+import pytest
+from gwpycore import (
+    CRITICAL, DEBUG, DIAGNOSTIC, ERROR, INFO, TRACE, WARNING, setup_logging)
+
+from app.logic.exceptions import (RadioLogConfigError,
+                                  RadioLogConfigSettingWarning, RadioLogError)
 
 # Notes:
 # 1. The capsys fixture captures sys.stdout and sys.stderr for us
@@ -11,40 +15,49 @@ from gwpycore import setup_logging, CRITICAL, ERROR, WARNING, INFO, DIAGNOSTIC, 
 
 
 def test_RadioLogError(capsys):
-	sys.stderr.write("==START==\n")
-	log = setup_logging("test1", logfile=None, nocolor=True)
-	log.exception(RadioLogError("exception"))
-	log.exception(RadioLogError("log as info", loglevel=INFO))
-	sys.stderr.write("==END==")
-	captured = capsys.readouterr()
-	assert captured.out == ""
-	assert captured.err == """==START==
+    sys.stderr.write("==START==\n")
+    log = setup_logging("test1", logfile=None, nocolor=True)
+    log.exception(RadioLogError("exception"))
+    log.exception(RadioLogError("log as info", loglevel=INFO))
+    sys.stderr.write("==END==")
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert (
+        captured.err
+        == """==START==
 ERROR exception
 INFO log as info
 ==END=="""
+    )
 
 
 def test_RadioLogConfigError(capsys):
-	sys.stderr.write("==START==\n")
-	log = setup_logging("test2", logfile=None, nocolor=True)
-	log.exception(RadioLogConfigError("exception"))
-	log.exception(RadioLogConfigError("log as critical", loglevel=CRITICAL))
-	sys.stderr.write("==END==")
-	captured = capsys.readouterr()
-	assert captured.out == ""
-	assert captured.err == """==START==
+    sys.stderr.write("==START==\n")
+    log = setup_logging("test2", logfile=None, nocolor=True)
+    log.exception(RadioLogConfigError("exception"))
+    log.exception(RadioLogConfigError("log as critical", loglevel=CRITICAL))
+    sys.stderr.write("==END==")
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert (
+        captured.err
+        == """==START==
 ERROR exception
 CRITICAL log as critical
 ==END=="""
+    )
 
 
 def test_RadioLogConfigSettingWarning(capsys):
-	sys.stderr.write("==START==\n")
-	log = setup_logging("test3", logfile=None, nocolor=True)
-	log.exception(RadioLogConfigSettingWarning("[section]key","foo","bar, baz"))
-	sys.stderr.write("==END==")
-	captured = capsys.readouterr()
-	assert captured.out == ""
-	assert captured.err == """==START==
+    sys.stderr.write("==START==\n")
+    log = setup_logging("test3", logfile=None, nocolor=True)
+    log.exception(RadioLogConfigSettingWarning("[section]key", "foo", "bar, baz"))
+    sys.stderr.write("==END==")
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert (
+        captured.err
+        == """==START==
 WARNING The configuration setting of [section]key = foo is invalid. Possible values are: bar, baz
 ==END=="""
+    )

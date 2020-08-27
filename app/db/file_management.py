@@ -1,13 +1,18 @@
-import os,shutil,logging
+import logging
+import os
+import shutil
 from pathlib import Path
 from typing import Optional, Tuple
+
 from app.logic.app_state import CONFIG
 
 LOG = logging.getLogger("main")
 
+
 def getFileNameBase(root):
     """Adds a timestamp to the given string (a root filename)."""
     return root  # +"_"+timestamp()
+
 
 def ensureLocalDirectoryExists():
     """
@@ -25,6 +30,7 @@ def ensureLocalDirectoryExists():
         shutil.copyfile("local_default/radiolog.cfg", "local/radiolog.cfg")
     return issue
 
+
 def determine_rotate_method() -> Tuple[Optional[str], Optional[str]]:
     rotateScript = None
     rotateDelimiter = None
@@ -40,6 +46,7 @@ def determine_rotate_method() -> Tuple[Optional[str], Optional[str]]:
         LOG.warn("Operating system is not Windows.  Powershell-based backup rotation script cannot be used.")
     return (rotateScript, rotateDelimiter)
 
+
 def viable_2wd():
     """
     Returns the Path() of the second working dir, if it exists and we're using it.
@@ -51,7 +58,7 @@ def viable_2wd():
 
 
 def make_backup_copy(filename):
-    if (path2wd := viable_2wd()):
+    if (path2wd := viable_2wd()) :
         LOG.debug(f"Copying {filename} to {path2wd}")
         shutil.copy(filename, path2wd)
 

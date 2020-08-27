@@ -1,10 +1,12 @@
-from app.logic.app_state import CONFIG, TIMEOUT_DISPLAY_LIST
+import logging
+
 from PyQt5 import uic
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QDialog
-import logging
 
-LOG = logging.getLogger('main')
+from app.logic.app_state import CONFIG, TIMEOUT_DISPLAY_LIST
+
+LOG = logging.getLogger("main")
 
 OptionsDialogSpec = uic.loadUiType("app/ui/options.ui")[0]
 
@@ -18,7 +20,7 @@ class OptionsDialog(QDialog, OptionsDialogSpec):
         self.displayTimeout()
         self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
-##		self.setAttribute(Qt.WA_DeleteOnClose)
+        ##		self.setAttribute(Qt.WA_DeleteOnClose)
         self.datumField.setEnabled(False)  # since convert menu is not working yet, TMG 4-8-15
         self.formatField.setEnabled(False)  # since convert menu is not working yet, TMG 4-8-15
         self.setFixedSize(self.size())

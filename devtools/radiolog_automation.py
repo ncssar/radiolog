@@ -1,16 +1,72 @@
-import sys, re, time
+import re
+import sys
+import time
 
+from gwpycore import SimpleControlPanel
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from gwpycore import SimpleControlPanel
 from pywinauto import backend
 
 sys.coinit_flags = 2
 import pywinauto
 
-PHONETIC_LIST = ["Alpha","Bravo","Charlie","Delta","Echo","Foxtrot","Golf","Hotel","India","Juliet","Kilo","Lima","Mike","November","Oscar","Papa","Quebec","Romeo","Sierra","Tango","Uniform","Victor","Whiskey","Xray","Yankee","Zulu"]
-PHONETIC_DICT = {"A": "Alpha","B": "Bravo","C": "Charlie","D": "Delta","E": "Echo","F": "Foxtrot","G": "Golf","H": "Hotel","I": "India","J": "Juliet","K": "Kilo","L": "Lima","M": "Mike","N": "November","O": "Oscar","P": "Papa","Q": "Quebec","R": "Romeo","S": "Sierra","T": "Tango","U": "Uniform","V": "Victor","W": "Whiskey","X": "Xray","Y": "Yankee","Z": "Zulu"}
+PHONETIC_LIST = [
+    "Alpha",
+    "Bravo",
+    "Charlie",
+    "Delta",
+    "Echo",
+    "Foxtrot",
+    "Golf",
+    "Hotel",
+    "India",
+    "Juliet",
+    "Kilo",
+    "Lima",
+    "Mike",
+    "November",
+    "Oscar",
+    "Papa",
+    "Quebec",
+    "Romeo",
+    "Sierra",
+    "Tango",
+    "Uniform",
+    "Victor",
+    "Whiskey",
+    "Xray",
+    "Yankee",
+    "Zulu",
+]
+PHONETIC_DICT = {
+    "A": "Alpha",
+    "B": "Bravo",
+    "C": "Charlie",
+    "D": "Delta",
+    "E": "Echo",
+    "F": "Foxtrot",
+    "G": "Golf",
+    "H": "Hotel",
+    "I": "India",
+    "J": "Juliet",
+    "K": "Kilo",
+    "L": "Lima",
+    "M": "Mike",
+    "N": "November",
+    "O": "Oscar",
+    "P": "Papa",
+    "Q": "Quebec",
+    "R": "Romeo",
+    "S": "Sierra",
+    "T": "Tango",
+    "U": "Uniform",
+    "V": "Victor",
+    "W": "Whiskey",
+    "X": "Xray",
+    "Y": "Yankee",
+    "Z": "Zulu",
+}
 
 
 def main():
@@ -40,53 +96,49 @@ class TestingControlPanel(SimpleControlPanel):
     def __init__(self):
         SimpleControlPanel.__init__(self, title="RadioLog Automation", grid_height=8)
 
-        self.chkPhonetic = self.add_checkbox("Use Phonetic Team Names",
-            tip="Use team names like Team Alpha, Team Bravo, ... (instead of Team 1, Team 2, ...)")
+        self.chkPhonetic = self.add_checkbox("Use Phonetic Team Names", tip="Use team names like Team Alpha, Team Bravo, ... (instead of Team 1, Team 2, ...)")
 
-        self.btnDeployTeams = self.add_action_button("Deploy 3 Teams", callback=deployTeams,
-            tip="Add several entries to the log (radio checks, and team departing) -- using Team 1, Team 2, ...")
+        self.btnDeployTeams = self.add_action_button("Deploy 3 Teams", callback=deployTeams, tip="Add several entries to the log (radio checks, and team departing) -- using Team 1, Team 2, ...")
 
-        self.btnTeamClue = self.add_action_button("Add a Team-Found Clue", callback=teamClue,
-            tip="Add an entry that Team 3 found a clue")
+        self.btnTeamClue = self.add_action_button("Add a Team-Found Clue", callback=teamClue, tip="Add an entry that Team 3 found a clue")
 
-        self.btnNonRadioClue = self.add_action_button("Add a Non-Radio Clue", callback=nonRadioClue,
-            tip="Add an entry that a Ranger found a clue")
+        self.btnNonRadioClue = self.add_action_button("Add a Non-Radio Clue", callback=nonRadioClue, tip="Add an entry that a Ranger found a clue")
 
         self.btnSubjectLocated = self.add_action_button("Subject Located", callback=subjectLocatedAction)
 
-        self.btnOpPeriodAction = self.add_action_button("Bump Operational Period", callback=opPeriodAction,
-            tip="Invoke the form that bumps to a new operational period")
+        self.btnOpPeriodAction = self.add_action_button("Bump Operational Period", callback=opPeriodAction, tip="Invoke the form that bumps to a new operational period")
 
         self.btnClueLogAction = self.add_action_button("Open Clue Log Window", callback=clueLogAction)
 
         self.btnHelpAction = self.add_action_button("Open the Help Window", callback=helpAction)
 
-        self.btnOptionsAction = self.add_action_button("Options Window", callback=optionsAction,
-            tip="Open the options window (e.g. Incident name)")
+        self.btnOptionsAction = self.add_action_button("Options Window", callback=optionsAction, tip="Open the options window (e.g. Incident name)")
 
-        self.btnFsFilterAction = self.add_action_button("FS Filtering", callback=fsFilterAction,
-            tip="Invoke filtering of the FS data")
+        self.btnFsFilterAction = self.add_action_button("FS Filtering", callback=fsFilterAction, tip="Invoke filtering of the FS data")
 
         self.btnPrintAction = self.add_action_button("Open the Print Dialog", callback=printAction)
 
-        self.move_to_next_cell() # add a spacer
+        self.move_to_next_cell()  # add a spacer
 
         self.btnExit = self.add_action_button("Exit Wihtout Printing", callback=exitWihtoutPrinting)
 
 
 NEW_ENTRY_PREFIX = "newEntryWindow.tabWidget.qt_tabwidget_stackedwidget.newEntryWidget"
 
+
 def _team_name(team_no):
     if cp.chkPhonetic.isChecked():
-        return PHONETIC_LIST[team_no-1]
+        return PHONETIC_LIST[team_no - 1]
     else:
-        return "Team "+str(team_no)
+        return "Team " + str(team_no)
+
 
 def _discover_elements(control):
     try:
         control.print_control_identifiers()
     except pywinauto.findbestmatch.MatchError as e:
-        print(f"Can't find ["+e.tofind+"]. Candidates are: "+';'.join(sorted(e.items)))
+        print(f"Can't find [" + e.tofind + "]. Candidates are: " + ";".join(sorted(e.items)))
+
 
 def deployTeams():
     radiolog.RadioLog.type_keys("f")
@@ -119,6 +171,7 @@ def deployTeams():
     dlg.child_window(auto_id=NEW_ENTRY_PREFIX + ".messageField", control_type="Edit").set_edit_text("Departing IC")
     dlg.type_keys("{ENTER}")
 
+
 def teamClue():
     radiolog.RadioLog.type_keys("f")
     # In case the "magic naming" on the next line doesn't work, here's the long way: dlg = radiolog.child_window(title="Radio Log - New Entry", auto_id="newEntryWindow", control_type="Window")
@@ -131,11 +184,12 @@ def teamClue():
     dlg.child_window(auto_id="clueDialog.descriptionField", control_type="Edit").set_edit_text("Candy Wrapper")
     dlg.child_window(auto_id="clueDialog.locationField", control_type="Edit").set_edit_text("12345 E 98765 N")
     # dlg.child_window(auto_id="clueDialog.instructionsField", control_type="Edit").set_edit_text("Mark & leave")
-    dlg.type_keys("{F2}")    # [F2] MARK & LEAVE
+    dlg.type_keys("{F2}")  # [F2] MARK & LEAVE
 
     # We DO NOT want to print a report! So, let's uncheck this.
     dlg.child_window(auto_id="clueDialog.clueReportPrintCheckBox", control_type="CheckBox").click()
-    dlg.OK.click() # same as dlg.type_keys("{ENTER}")
+    dlg.OK.click()  # same as dlg.type_keys("{ENTER}")
+
 
 def nonRadioClue():
     radiolog.RadioLog.NonRadioClue.click()
@@ -147,12 +201,14 @@ def nonRadioClue():
 
     # We DO NOT want to print a report! So, let's uncheck this.
     dlg.child_window(auto_id="nonRadioClueDialog.clueReportPrintCheckBox", control_type="CheckBox").click()
-    dlg.OK.click() # same as dlg.type_keys("{ENTER}")
+    dlg.OK.click()  # same as dlg.type_keys("{ENTER}")
+
 
 def opPeriodAction():
     radiolog.RadioLog.child_window(auto_id="Dialog.opPeriodButton", control_type="Button").click()  # Invoke the form that bumps to a new operational period
     # dlg = radiolog.child_window(title="Change Operational Period", auto_id="opPeriodDialog", control_type="Window")
     dlg = radiolog.ChangeOperationalPeriod
+
 
 def subjectLocatedAction():
     radiolog.RadioLog.type_keys("f")
@@ -169,11 +225,13 @@ def subjectLocatedAction():
     dlg.child_window(auto_id="subjectLocatedDialog.otherField", control_type="Edit").set_edit_text("Will meet EMS at Waypoint 7")
     # dlg.child_window(title="OK", control_type="Button").click()
 
+
 def clueLogAction():
     radiolog.RadioLog.child_window(auto_id="Dialog.clueLogButton", control_type="Button").click()  # Open the clue log window
     # dlg = radiolog.child_window(title="Clue Log", auto_id="clueLogDialog", control_type="Window")
     dlg = radiolog.ClueLog
     # _discover_elements(dlg)
+
 
 def fsFilterAction():
     radiolog.RadioLog.child_window(auto_id="Dialog.fsFilterButton", control_type="Button").click()  # Invoke filtering of the FS data
@@ -181,17 +239,20 @@ def fsFilterAction():
     dlg = radiolog.RadioLogFleetSyncFilterSetup
     # _discover_elements(dlg)
 
+
 def printAction():
     radiolog.RadioLog.child_window(auto_id="Dialog.printButton", control_type="Button").click()  # Open the print dialog
     # dlg = radiolog.child_window(title="Print", auto_id="printDialog", control_type="Window")
     dlg = radiolog.Print
     dlg.print_control_identifiers()
 
+
 def optionsAction():
     radiolog.RadioLog.child_window(auto_id="Dialog.optionsButton", control_type="Button").click()  # Open the options window (e.g. Incident name)
     # dlg = radiolog.child_window(title="Options", auto_id="optionsDialog", control_type="Window")
     dlg = radiolog.Options
     # _discover_elements(dlg)
+
 
 def helpAction():
     radiolog.RadioLog.child_window(auto_id="Dialog.helpButton", control_type="Button").click()  # Open the help window
@@ -200,12 +261,12 @@ def helpAction():
     dlg = radiolog.Help
     # _discover_elements(dlg)
 
+
 def exitWihtoutPrinting():
     radiolog.RadioLog.close()
     dlg = radiolog.Exit
     sys.exit(0)
 
+
 if __name__ == "__main__":
     main()
-
-

@@ -8,6 +8,7 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+
 class Ui_changeCallsignDialog(object):
     def setupUi(self, changeCallsignDialog):
         changeCallsignDialog.setObjectName("changeCallsignDialog")
@@ -22,7 +23,7 @@ class Ui_changeCallsignDialog(object):
         font.setPointSize(16)
         self.buttonBox.setFont(font)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
+        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
         self.buttonBox.setObjectName("buttonBox")
         self.fleetField = QtWidgets.QLineEdit(changeCallsignDialog)
         self.fleetField.setEnabled(False)
@@ -80,7 +81,7 @@ class Ui_changeCallsignDialog(object):
         font.setFamily("Segoe UI")
         font.setPointSize(16)
         self.label_3.setFont(font)
-        self.label_3.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.label_3.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter)
         self.label_3.setObjectName("label_3")
         self.label_4 = QtWidgets.QLabel(changeCallsignDialog)
         self.label_4.setGeometry(QtCore.QRect(10, 170, 191, 41))
@@ -88,7 +89,7 @@ class Ui_changeCallsignDialog(object):
         font.setFamily("Segoe UI")
         font.setPointSize(16)
         self.label_4.setFont(font)
-        self.label_4.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.label_4.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter)
         self.label_4.setObjectName("label_4")
         self.label_5 = QtWidgets.QLabel(changeCallsignDialog)
         self.label_5.setGeometry(QtCore.QRect(10, 20, 191, 41))
@@ -96,7 +97,7 @@ class Ui_changeCallsignDialog(object):
         font.setFamily("Segoe UI")
         font.setPointSize(16)
         self.label_5.setFont(font)
-        self.label_5.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.label_5.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter)
         self.label_5.setObjectName("label_5")
         self.fsFilterButton = QtWidgets.QToolButton(changeCallsignDialog)
         self.fsFilterButton.setGeometry(QtCore.QRect(476, 227, 47, 46))
@@ -120,5 +121,6 @@ class Ui_changeCallsignDialog(object):
         self.label_3.setText(_translate("changeCallsignDialog", "Current Callsign"))
         self.label_4.setText(_translate("changeCallsignDialog", "New Callsign"))
         self.label_5.setText(_translate("changeCallsignDialog", "FleetSync ID"))
+
 
 import radiolog_ui_rc

@@ -1,20 +1,24 @@
-from app.printing.print_clue_report import printClueReport
+import logging
 import re
-from gwpycore.gw_gui.gw_gui_dialogs import ICON_WARN, ask_user_to_confirm, inform_user_about_issue
-from app.logic.entries import rreplace
 import time
-from app.logic.app_state import lastClueNumber
+
+from gwpycore.gw_gui.gw_gui_dialogs import (ICON_WARN, ask_user_to_confirm,
+                                            inform_user_about_issue)
 from PyQt5 import uic
-from PyQt5.QtCore import QAbstractTableModel, QEvent, QVariant, Qt
+from PyQt5.QtCore import QAbstractTableModel, QEvent, Qt, QVariant
 from PyQt5.QtGui import QKeySequence, QPixmap
 from PyQt5.QtWidgets import QAbstractItemView, QDialog, QHeaderView
-import logging
 
-LOG = logging.getLogger('main')
+from app.logic.app_state import lastClueNumber
+from app.logic.entries import rreplace
+from app.printing.print_clue_report import printClueReport
+
+LOG = logging.getLogger("main")
 
 ClueDialogSpec = uic.loadUiType("app/ui/clueDialog.ui")[0]
 ClueLogDialogSpec = uic.loadUiType("app/ui/clueLogDialog.ui")[0]
 NonRadioClueDialogSpec = uic.loadUiType("app/ui/nonRadioClueDialog.ui")[0]
+
 
 class clueDialog(QDialog, ClueDialogSpec):
     ##	instances=[]
@@ -31,18 +35,18 @@ class clueDialog(QDialog, ClueDialogSpec):
         self.timeField.setText(t)
         self.dateField.setText(time.strftime("%x"))
         self.callsignField.setText(callsign)
-        self.radioLocField.setText(re.sub('  +', '\n', radioLoc))
+        self.radioLocField.setText(re.sub("  +", "\n", radioLoc))
         self.clueNumberField.setText(str(newClueNumber))
         self.clueQuickTextAddedStack = []
         self.parent = parent
         self.parent.childDialogs.append(self)
-##		self.parent.timer.stop() # do not timeout the new entry dialog if it has a child clueDialog open!
+        ##		self.parent.timer.stop() # do not timeout the new entry dialog if it has a child clueDialog open!
         self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
-##		self.setWindowFlags(Qt.FramelessWindowHint)
+        ##		self.setWindowFlags(Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.descriptionField.setFocus()
-##		self.i=0 # dialog box location index; set at runtime, so we know which index to free on close
-##		clueDialog.instances.append(self)
+        ##		self.i=0 # dialog box location index; set at runtime, so we know which index to free on close
+        ##		clueDialog.instances.append(self)
         [x, y, i] = self.pickXYI()
         self.move(x, y)
         self.i = i  # save the index so we can clear it on close
@@ -58,8 +62,8 @@ class clueDialog(QDialog, ClueDialogSpec):
         if self.parent.amendFlag:
             amendText = " during amendment of previous message"
         self.values[3] = "RADIO LOG SOFTWARE: 'LOCATED A CLUE' button pressed" + amendText + "; radio operator is gathering details"
-##		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' button pressed for '"+self.values[2]+"'; radio operator is gathering details"
-##		self.values[2]='' # this message is not actually from a team
+        ##		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' button pressed for '"+self.values[2]+"'; radio operator is gathering details"
+        ##		self.values[2]='' # this message is not actually from a team
         self.parent.parent.newEntry(self.values)
         self.setFixedSize(self.size())
 
@@ -111,10 +115,10 @@ class clueDialog(QDialog, ClueDialogSpec):
             return
 
         self.parent.clueLogNeedsPrint = True
-        textToAdd = ''
+        textToAdd = ""
         existingText = self.parent.messageField.text()
-        if existingText != '':
-            textToAdd = '; '
+        if existingText != "":
+            textToAdd = "; "
         textToAdd += "CLUE#" + number + ": " + description + "; LOCATION: " + location + "; INSTRUCTIONS: " + instructions
         self.parent.messageField.setText(existingText + textToAdd)
         # previously, lastClueNumber was saved here - on accept; we need to save it on init instead, so that
@@ -127,11 +131,11 @@ class clueDialog(QDialog, ClueDialogSpec):
         LOG.trace("accepted - calling close")
         self.parent.parent.clueLogDialog.tableView.model().layoutChanged.emit()
         self.closeEvent(QEvent(QEvent.Close), True)
-##		pixmap=QPixmap(":/radiolog_ui/print_icon.png")
-##		self.parent.parent.clueLogDialog.tableView.model().setHeaderData(0,Qt.Vertical,pixmap,Qt.DecorationRole)
-##		self.parent.parent.clueLogDialog.tableView.model().setHeaderData(1,Qt.Vertical,pixmap,Qt.DecorationRole)
-##		self.parent.parent.clueLogDialog.tableView.model().headerDataChanged.emit(Qt.Vertical,0,1)
-##		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().accept()
+        ##		pixmap=QPixmap(":/radiolog_ui/print_icon.png")
+        ##		self.parent.parent.clueLogDialog.tableView.model().setHeaderData(0,Qt.Vertical,pixmap,Qt.DecorationRole)
+        ##		self.parent.parent.clueLogDialog.tableView.model().setHeaderData(1,Qt.Vertical,pixmap,Qt.DecorationRole)
+        ##		self.parent.parent.clueLogDialog.tableView.model().headerDataChanged.emit(Qt.Vertical,0,1)
+        ##		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().accept()
         super(clueDialog, self).accept()
 
     def closeEvent(self, event, accepted=False):
@@ -155,12 +159,13 @@ class clueDialog(QDialog, ClueDialogSpec):
         event.accept()
         if accepted:
             self.parent.accept()
-##		NewEntryWidget.instances.remove(self)
+
+    ##		NewEntryWidget.instances.remove(self)
 
     def clueQuickTextAction(self):
         quickText = self.sender().text()
-        quickText = re.sub(r' +\[.*$', '', quickText)  # prune one or more spaces followed by open bracket, thru end
-        quickText = re.sub(r'&&', '&', quickText)  # double-ampersand is needed in Qt designer for a literal ampersand
+        quickText = re.sub(r" +\[.*$", "", quickText)  # prune one or more spaces followed by open bracket, thru end
+        quickText = re.sub(r"&&", "&", quickText)  # double-ampersand is needed in Qt designer for a literal ampersand
         existingText = self.instructionsField.text()
         if existingText == "":
             self.clueQuickTextAddedStack.append(quickText)
@@ -176,7 +181,7 @@ class clueDialog(QDialog, ClueDialogSpec):
         if len(self.clueQuickTextAddedStack):
             textToRemove = self.clueQuickTextAddedStack.pop()
             existingText = self.instructionsField.text()
-            self.instructionsField.setText(rreplace(existingText, textToRemove, '', 1))
+            self.instructionsField.setText(rreplace(existingText, textToRemove, "", 1))
             self.instructionsField.setFocus()
 
 
@@ -209,8 +214,8 @@ class nonRadioClueDialog(QDialog, NonRadioClueDialogSpec):
         team = self.callsignField.text()
         clueDate = self.dateField.text()
         clueTime = self.timeField.text()
-        radioLoc = ''
-        textToAdd = ''
+        radioLoc = ""
+        textToAdd = ""
         lastClueNumber = int(self.clueNumberField.text())
         # header_labels=['CLUE#','DESCRIPTION','TEAM','TIME','DATE','OP','LOCATION','INSTRUCTIONS','RADIO LOC.']
         clueData = [number, description, team, clueTime, clueDate, self.parent.opPeriod, location, instructions, radioLoc]
@@ -226,7 +231,7 @@ class nonRadioClueDialog(QDialog, NonRadioClueDialogSpec):
         if self.clueReportPrintCheckBox.isChecked():
             printClueReport(clueData, self.parent.getPrintParams())
         LOG.debug("accepted - calling close")
-##		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().accept()
+        ##		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().accept()
         self.parent.clueLogDialog.tableView.model().layoutChanged.emit()
         super(nonRadioClueDialog, self).accept()
 
@@ -240,6 +245,8 @@ class nonRadioClueDialog(QDialog, NonRadioClueDialogSpec):
             self.values[3] = "RADIO LOG SOFTWARE: radio operator has canceled the 'NON-RADIO CLUE' form"
             self.values[6] = time.time()
             self.parent.newEntry(self.values)
+
+
 # 	def reject(self):
 # ##		self.parent.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 # 		LOG.debug("rejected - calling close")
@@ -296,19 +303,20 @@ class clueLogDialog(QDialog, ClueLogDialogSpec):
 
 
 class clueTableModel(QAbstractTableModel):
-    header_labels = ['#', 'DESCRIPTION', 'TEAM', 'TIME', 'DATE', 'O.P.', 'LOCATION', 'INSTRUCTIONS', 'RADIO LOC.']
+    header_labels = ["#", "DESCRIPTION", "TEAM", "TIME", "DATE", "O.P.", "LOCATION", "INSTRUCTIONS", "RADIO LOC."]
 
     def __init__(self, datain, parent=None, *args):
         QAbstractTableModel.__init__(self, parent, *args)
         self.arraydata = datain
         self.printIconPixmap = QPixmap(20, 20)
         self.printIconPixmap.load(":/radiolog_ui/print_icon.png")
-##		self.setEditTriggers(QAbstractItemView.NoEditTriggers)
+
+    ##		self.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
         if orientation == Qt.Vertical:
             if role == Qt.DecorationRole and self.arraydata[section][0] != "":
-                #icon and button won't display correctly in this use case; just make the entire header item clickable
+                # icon and button won't display correctly in this use case; just make the entire header item clickable
                 return self.printIconPixmap
             if role == Qt.DisplayRole:
                 return ""

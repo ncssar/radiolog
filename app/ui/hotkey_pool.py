@@ -1,12 +1,14 @@
-from app.logic.teams import getShortNiceTeamName
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QBoxLayout, QLabel, QTabWidget
 import logging
 
-LOG = logging.getLogger('main')
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QBoxLayout, QLabel, QTabWidget
+
+from app.logic.teams import getShortNiceTeamName
+
+LOG = logging.getLogger("main")
 
 
-class TeamHotKeys():
+class TeamHotKeys:
     """
     The team hotkeys are what appear above the team tabs when you use F12 to toggle them on.
     While they are on, the assigned hotkeys take precendence over the normal meaning of that key.
@@ -75,7 +77,7 @@ class TeamHotKeys():
         bar = tabWidget.tabBar()
 
         hotkeyRDict = {v: k for k, v in self.hotkeyDict.items()}
-# 		LOG.debug("tab count="+str(bar.count()))
+        # 		LOG.debug("tab count="+str(bar.count()))
         for i in range(0, bar.count()):
             #  An apparent bug causes the tabButton (a label) to not have a text attrubite;
             #  so, use the whatsThis attribute instead.
