@@ -67,7 +67,8 @@ isort: | .venv # Cleans up all of the imports (using isort)
 	${BIN}\isort .
 
 lint: | .venv  # Lints code (using flake8)
-	${BIN}\flake8 --max-line-length=256 --extend-ignore=W191,W391 --extend-exclude=.venv,.pytest_cache,.vscode,doc,doc_technical,*.egg-info .
+	${BIN}\flake8 --max-line-length=256 --extend-ignore=W191,W391,E203,E265 --extend-exclude=.venv,.pytest_cache,.vscode,doc,doc_technical,*.egg-info . > lint_report.txt
+	# echo "See lint_report.txt"
 
 dist: | .venv  #  Builds a distributable .EXE
 	pyinstaller --onefile radiolog.py
