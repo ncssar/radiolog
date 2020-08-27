@@ -69,7 +69,7 @@ class clueDialog(QDialog, ClueDialogSpec):
 
     def pickXYI(self):
         for index in range(len(clueDialog.indices)):
-            if clueDialog.indices[index] == False:
+            if clueDialog.indices[index] is False:
                 clueDialog.indices[index] = True
                 return [index * clueDialog.dx + clueDialog.x0, index * clueDialog.dy + clueDialog.y0, index]
 

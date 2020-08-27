@@ -69,7 +69,8 @@ from app.db.file_management import (determine_rotate_method,
 from app.logic.app_state import (CONFIG, SWITCHES, TIMEOUT_DISPLAY_LIST,
                                  continueSec, lastClueNumber, teamStatusDict)
 from app.logic.exceptions import RadioLogError
-from app.logic.teams import getExtTeamName, getNiceTeamName, getShortNiceTeamName
+from app.logic.teams import (getExtTeamName, getNiceTeamName,
+                             getShortNiceTeamName)
 from app.printing.print_log import printLog
 from app.ui.clue_dialogs import (clueDialog, clueLogDialog, clueTableModel,
                                  nonRadioClueDialog)
@@ -83,7 +84,7 @@ from app.ui.options_dialog import OptionsDialog
 from app.ui.print_dialogs import PrintDialog, printClueLogDialog
 
 # NOTE: SWITCHES is declared in app.logic.app_state (as an empty namespace)
-SWITCHES = parse_args(sys.argv[1:])
+SWITCHES = parse_args(sys.argv[1:])  # noqa F811
 # print(f"SWITCHES = {SWITCHES}")
 
 # TODO Autodetect the screen resolution, but still allow a command line switch to override
@@ -1241,13 +1242,9 @@ class MyWindow(QDialog, UiDialog):
                     inform_user_about_issue(f"FleetSync ID table has been re-loaded from file {fsFileName}.", icon=ICON_INFO, title="Information", parent=self, timeout=2000)
         except:
             if fsEmptyFlag:
-                msg = (
-                    "Cannot read FleetSync ID table file '"
-                    + fsFileName
-                    + "' and no FleetSync ID table has yet been loaded.  Callsigns for incoming FleetSync calls will be of the format 'KW-<fleet>-<device>'.\n\nThis warning will automatically close in a few seconds."
-                )
+                msg = f"Cannot read FleetSync ID table file '{fsFileName}' and no FleetSync ID table has yet been loaded.  Callsigns for incoming FleetSync calls will be of the format 'KW-<fleet>-<device>'.\n\nThis warning will automatically close in a few seconds."
             else:
-                msg = "Cannot read FleetSync ID table file '" + fsFileName + "'!  Using existing settings.\n\nThis warning will automatically close in a few seconds."
+                msg = f"Cannot read FleetSync ID table file '{fsFileName}'!  Using existing settings.\n\nThis warning will automatically close in a few seconds."
             LOG.warning(msg)
             if not hideWarnings:
                 inform_user_about_issue(msg, icon=ICON_WARN, parent=self, timeout=8000)
@@ -1914,24 +1911,7 @@ class MyWindow(QDialog, UiDialog):
         self.timeoutLabel.setText("TIMEOUT:\n" + TIMEOUT_DISPLAY_LIST[self.optionsDialog.timeoutField.value()][0])
 
     def openNewEntry(self, key=None, callsign=None, formattedLocString=None, fleet=None, dev=None, origLocString=None, amendFlag=False, amendRow=None):
-        LOG.debug(
-            "openNewEntry called:key="
-            + str(key)
-            + " callsign="
-            + str(callsign)
-            + " formattedLocString="
-            + str(formattedLocString)
-            + " fleet="
-            + str(fleet)
-            + " dev="
-            + str(dev)
-            + " origLocString="
-            + str(origLocString)
-            + " amendFlag="
-            + str(amendFlag)
-            + " amendRow="
-            + str(amendRow)
-        )
+        LOG.debug(f"openNewEntry called:key= {key} callsign= {callsign} formattedLocString= {formattedLocString} fleet= {fleet} dev= {dev} origLocString= {origLocString} amendFlag= {amendFlag} amendRow=" + str(amendRow))
         if clueDialog.openDialogCount == 0:
             self.newEntryWindow.setWindowFlags(Qt.WindowTitleHint | Qt.WindowStaysOnTopHint)  # enable always on top
         else:
@@ -2082,7 +2062,7 @@ class MyWindow(QDialog, UiDialog):
                 self.newTeam(niceTeamName)
             i = self.extTeamNameList.index(extTeamName)
             teamStatusDict[extTeamName] = status
-            if not extTeamName in teamFSFilterDict:
+            if extTeamName not in teamFSFilterDict:
                 teamFSFilterDict[extTeamName] = 0
             # credit to Berryblue031 for pointing out this way to style the tab widgets
             # http://www.qtcentre.org/threads/49025
@@ -2203,7 +2183,7 @@ class MyWindow(QDialog, UiDialog):
     def newTeam(self, newTeamName):
         # not sure why newTeamName is False (bool) when called as a slot;
         # setting a default val for the arg has not effect, so just work with it
-        if newTeamName == False:
+        if newTeamName is False:
             newTeamName = "Team0"
 
         # determine the correct index - keep team tabs in sequential order,

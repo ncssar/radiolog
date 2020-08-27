@@ -3,9 +3,6 @@ Various globals and constants used through the application
 """
 
 import argparse
-import sys
-
-from app.command_line import parse_args
 
 SWITCHES: argparse.Namespace = argparse.Namespace()
 

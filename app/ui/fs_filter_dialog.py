@@ -82,7 +82,7 @@ class fsTableModel(QAbstractTableModel):
         if not index.isValid():
             return QVariant()
         elif role == Qt.DecorationRole and index.column() == 3:
-            if self.arraydata[index.row()][index.column()] == True:
+            if self.arraydata[index.row()][index.column()] is True:
                 # 			return QColor(128,128,255)
                 return self.filteredIcon
             else:
@@ -99,8 +99,8 @@ class fsTableModel(QAbstractTableModel):
             LOG.debug(self.arraydata)
         else:
             if index.column() == 3:
-                if rval == True:
+                if rval is True:
                     rval = "Filtered"
-                if rval == False:
+                if rval is False:
                     rval = "Unfiltered"
             return rval

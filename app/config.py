@@ -1,13 +1,10 @@
 import argparse
 import configparser
 import logging
-import os
-from dataclasses import dataclass
 from pathlib import Path
 
 from app.db.file_management import determine_rotate_method
-from app.logic.exceptions import (RadioLogConfigError,
-                                  RadioLogConfigSettingWarning)
+from app.logic.exceptions import RadioLogConfigSettingWarning
 from app.logic.mapping import CoordFormat, Datum
 
 LOG = logging.getLogger("main")

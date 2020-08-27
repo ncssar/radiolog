@@ -127,9 +127,7 @@ def printLog(opPeriod, printParams: argparse.Namespace, teams=False):
         f = open(pdfName, "wb")
     except:
         inform_user_about_issue(
-            "PDF could not be generated:\n\n"
-            + pdfName
-            + "\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file."
+            f"PDF could not be generated:\n\n{pdfName}\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file."
         )
         return
     else:

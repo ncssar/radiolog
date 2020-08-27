@@ -1,6 +1,5 @@
 import logging
 import math
-import re
 from enum import Enum, IntEnum
 from typing import List
 

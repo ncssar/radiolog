@@ -470,7 +470,7 @@ class NewEntryWidget(QWidget, NewEntryWidgetSpec):
 
     def updateButtonsEnabled(self):
         setButtons = False
-        if self.buttonsEnabled == False:
+        if self.buttonsEnabled is False:
             if self.teamField.text() != "":
                 # enable all buttons
                 setButtons = True
@@ -764,7 +764,7 @@ class NewEntryWidget(QWidget, NewEntryWidgetSpec):
     def focusChanged(self, oldFocus, newFocus):
         LOG.debug(f"oldFocus = {type(oldFocus)}")
         if oldFocus is self.teamField:
-            LOG.debug(f"Team Field losing focus. Calling setStatusFromTeam()")
+            LOG.debug("Team Field losing focus. Calling setStatusFromTeam()")
             self.setStatusFromTeam()
 
     def setStatusFromTeam(self):
@@ -1063,7 +1063,7 @@ class NewEntryWidget(QWidget, NewEntryWidgetSpec):
             locString = self.formattedLocString
         # 		location=self.radioLocField.text()
         status = ""
-        if self.statusButtonGroup.checkedButton() != None:
+        if self.statusButtonGroup.checkedButton() is not None:
             status = self.statusButtonGroup.checkedButton().text()
         return [time, to_from, team, message, locString, status, self.sec, self.fleet, self.dev, self.origLocString]
 
