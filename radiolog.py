@@ -33,12 +33,10 @@ Attribution, feedback, bug reports and feature requests are appreciated
 
 import argparse
 import csv
-import functools
 import math
 import os
 import os.path
 import re
-import shutil
 import subprocess
 import sys
 import textwrap
@@ -49,31 +47,19 @@ from typing import Optional
 import requests
 import serial
 import serial.tools.list_ports
-from fdfgen import forge_fdf
-from gwpycore import (
-    DEBUG, DIAGNOSTIC, ICON_ERROR, ICON_INFO, ICON_WARN, INFO, TRACE,
-    FingerTabBarWidget, WindowsBehaviorAdjuster, ask_user_to_confirm,
-    inform_user_about_issue, normalizeName, setup_logging)
-from gwpycore.gw_windows_specific.gw_windows_printing import fill_in_pdf
+from gwpycore import (ICON_ERROR, ICON_INFO, ICON_WARN,
+                      WindowsBehaviorAdjuster, ask_user_to_confirm,
+                      inform_user_about_issue, normalizeName, setup_logging)
 from pyproj import Transformer
-from PyQt5 import QtCore, QtGui, uic
+from PyQt5 import uic
 from PyQt5.QtCore import (
-    QAbstractTableModel, QCoreApplication, QEvent, QFile, QLocale, QModelIndex,
-    QObject, QRect, QSortFilterProxyModel, Qt, QTextStream, QTimer, QVariant)
-from PyQt5.QtGui import (QColor, QFont, QIcon, QKeyEvent, QKeySequence,
-                         QPalette, QPixmap)
-from PyQt5.QtWidgets import (QAbstractItemView, QApplication, QCheckBox,
-                             QDialog, QDialogButtonBox, QFileDialog,
-                             QGridLayout, QHBoxLayout, QHeaderView, QLabel,
-                             QMenu, QMessageBox, QProgressDialog, QPushButton,
-                             QSizePolicy, QTabBar, QTableView, QTabWidget,
-                             QTextEdit, QWidget)
-from reportlab.lib import colors, utils
-from reportlab.lib.pagesizes import landscape, letter
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import inch
-from reportlab.platypus import (Image, Paragraph, SimpleDocTemplate, Spacer,
-                                Table, TableStyle)
+    QAbstractTableModel, QCoreApplication, QEvent, QFile, QModelIndex, QObject,
+    QSortFilterProxyModel, Qt, QTextStream, QTimer, QVariant)
+from PyQt5.QtGui import QIcon, QKeyEvent, QKeySequence, QPixmap
+from PyQt5.QtWidgets import (QAbstractItemView, QApplication, QDialog,
+                             QFileDialog, QGridLayout, QHeaderView, QLabel,
+                             QMenu, QProgressDialog, QTabBar, QTableView,
+                             QWidget)
 
 from app.command_line import parse_args
 from app.config import load_config
@@ -82,9 +68,8 @@ from app.db.file_management import (determine_rotate_method,
                                     getFileNameBase, viable_2wd)
 from app.logic.app_state import (CONFIG, SWITCHES, TIMEOUT_DISPLAY_LIST,
                                  continueSec, lastClueNumber, teamStatusDict)
-from app.logic.entries import rreplace
-from app.logic.exceptions import *
-from app.logic.teams import *
+from app.logic.exceptions import RadioLogError
+from app.logic.teams import getExtTeamName, getNiceTeamName, getShortNiceTeamName
 from app.printing.print_log import printLog
 from app.ui.clue_dialogs import (clueDialog, clueLogDialog, clueTableModel,
                                  nonRadioClueDialog)
@@ -143,7 +128,7 @@ versionDepth = 5  # how many backup versions to keep; see rotateBackups
 # log com port messages?
 comLog = False
 
-##newEntryDialogTimeoutSeconds=600
+# newEntryDialogTimeoutSeconds=600
 # choosing window location for newly opened dialog: just keeping a count of how many
 # dialogs are open does not work, since an open dialog at a given position could
 # still be completely covered by a newly opened dialog at that same position.
@@ -151,29 +136,29 @@ comLog = False
 # will just use the first available one in the list.  Update the list of which ones
 # are used when each dialog is opened.
 # openNewEntryDialogCount=0
-##newEntryDialog_x0=100
-##newEntryDialog_y0=100
-##newEntryDialog_dx=30
-##newEntryDialog_dy=30
+# newEntryDialog_x0=100
+# newEntryDialog_y0=100
+# newEntryDialog_dx=30
+# newEntryDialog_dy=30
 
 
-##quickTextList=[
-##	["DEPARTING IC",Qt.Key_F1],
-##	["STARTING ASSIGNMENT",Qt.Key_F2],
-##	["COMPLETED ASSIGNMENT",Qt.Key_F3],
-##	["ARRIVING AT IC",Qt.Key_F4],
-##	"separator",
-##	["RADIO CHECK: OK",Qt.Key_F5],
-##	["WELFARE CHECK: OK",Qt.Key_F6],
-##	["REQUESTING TRANSPORT",Qt.Key_F7],
-##	"separator",
-##	["STANDBY",Qt.Key_F8],
-##	"separator",
-##	["LOCATED A CLUE",Qt.Key_F9],
-##	"separator",
-##	["SUBJECT LOCATED",Qt.Key_F10],
-##	"separator",
-##	["REQUESTING DEPUTY",Qt.Key_F11]]
+# quickTextList=[
+# ["DEPARTING IC",Qt.Key_F1],
+# ["STARTING ASSIGNMENT",Qt.Key_F2],
+# ["COMPLETED ASSIGNMENT",Qt.Key_F3],
+# ["ARRIVING AT IC",Qt.Key_F4],
+# "separator",
+# ["RADIO CHECK: OK",Qt.Key_F5],
+# ["WELFARE CHECK: OK",Qt.Key_F6],
+# ["REQUESTING TRANSPORT",Qt.Key_F7],
+# "separator",
+# ["STANDBY",Qt.Key_F8],
+# "separator",
+# ["LOCATED A CLUE",Qt.Key_F9],
+# "separator",
+# ["SUBJECT LOCATED",Qt.Key_F10],
+# "separator",
+# ["REQUESTING DEPUTY",Qt.Key_F11]]
 
 logfilepath: Optional[Path] = None
 if not SWITCHES.nologfile:
@@ -628,7 +613,7 @@ class MyWindow(QDialog, UiDialog):
             configErr += "ERROR: timeout minutes value must be an integer.  Will use 30 minutes for this session.\n\n"
             self.timeoutMinutes = 30
         self.timeoutRedSec = int(self.timeoutMinutes) * 60
-        if not self.timeoutRedSec in self.timeoutDisplaySecList:
+        if self.timeoutRedSec not in self.timeoutDisplaySecList:
             configErr += "ERROR: invalid timeout period (" + str(self.timeoutMinutes) + " minutes)\n"
             configErr += "  Valid choices:" + str(self.timeoutDisplayMinList) + "\nWill use 30 minutes for this session.\n\n"
             self.timeoutRedSec = 1800
@@ -638,7 +623,7 @@ class MyWindow(QDialog, UiDialog):
         # if agencyName contains newline character(s), use it as-is for print;
         #  if not, textwrap with max line length that looks best on pdf reports
         self.agencyNameForPrint = self.agencyName
-        if not "\n" in self.agencyName:
+        if "\n" not in self.agencyName:
             self.agencyNameForPrint = "\n".join(textwrap.wrap(self.agencyName.upper(), width=int(len(self.agencyName) / 2 + 6)))
 
         if not os.path.isfile(self.fillableClueReportPdfFileName):
@@ -812,7 +797,7 @@ class MyWindow(QDialog, UiDialog):
 
     def fsAnythingFiltered(self):
         for row in self.fsLog:
-            if row[3] == True:
+            if row[3] is True:
                 return True
         return False
 
@@ -825,7 +810,7 @@ class MyWindow(QDialog, UiDialog):
         for row in self.fsLog:
             if getExtTeamName(row[2]) == extTeamName:
                 total += 1
-                if row[3] == True:
+                if row[3] is True:
                     filtered += 1
         if filtered == 0:
             return 0
@@ -1209,7 +1194,7 @@ class MyWindow(QDialog, UiDialog):
     def fsBuildTooltip(self):
         filteredHtml = ""
         for row in self.fsLog:
-            if row[3] == True:
+            if row[3] is True:
                 filteredHtml += "<tr><td>" + row[2] + "</td><td>" + str(row[0]) + "</td><td>" + str(row[1]) + "</td></tr>"
         if filteredHtml != "":
             tt = "Filtered devices:<br>(left-click to edit)<table border='1' cellpadding='3'><tr><td>Callsign</td><td>Fleet</td><td>ID</td></tr>" + filteredHtml + "</table>"
@@ -1227,7 +1212,7 @@ class MyWindow(QDialog, UiDialog):
         # 			return True
         # if the fleet is valid, check for filtered device ID
         for row in self.fsLog:
-            if row[0] == fleet and row[1] == dev and row[3] == True:
+            if row[0] == fleet and row[1] == dev and row[3] is True:
                 # 				LOG.debug("  device is fitlered; returning True")
                 return True
         # 		LOG.debug("not filtered; returning False")
@@ -1352,9 +1337,9 @@ class MyWindow(QDialog, UiDialog):
                 self.targetCRS = targetCRS
                 self.transformer = Transformer.from_crs(sourceCRS, targetCRS)
 
-            ############## the actual transformation ################
+            # ================ the actual transformation ==================
             t = self.transformer.transform(latDd, lonDd)
-            #########################################################
+            # =============================================================
 
             if re.match("UTM", targetFormat):
                 [easting, northing] = map(int, t)
@@ -2045,7 +2030,7 @@ class MyWindow(QDialog, UiDialog):
         niceTeamName = values[2]
         extTeamName = getExtTeamName(niceTeamName)
         status = values[5]
-        if values[4] == None:
+        if values[4] is None:
             values[4] = ""
         sec = values[6]  # epoch seconds of dialog open time, for sorting; not displayed
         # sorting is bad because layoutChanged should be emitted which is slow;

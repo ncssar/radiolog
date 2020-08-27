@@ -2,8 +2,7 @@ import logging
 import re
 import time
 
-from gwpycore.gw_gui.gw_gui_dialogs import (ICON_WARN, ask_user_to_confirm,
-                                            inform_user_about_issue)
+from gwpycore import ICON_WARN, ask_user_to_confirm, inform_user_about_issue
 from PyQt5 import uic
 from PyQt5.QtCore import QEvent, Qt
 from PyQt5.QtWidgets import QDialog

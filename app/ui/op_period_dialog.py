@@ -1,8 +1,6 @@
 import logging
 import time
 
-from gwpycore.gw_gui.gw_gui_dialogs import (ICON_WARN, ask_user_to_confirm,
-                                            inform_user_about_issue)
 from PyQt5 import uic
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QDialog
@@ -40,7 +38,7 @@ class opPeriodDialog(QDialog, OpPeriodDialogSpec):
         self.parent.opPeriodButton.setText("OP " + str(self.parent.opPeriod))
         opText = "Operational Period " + str(self.parent.opPeriod) + " Begins: " + time.strftime("%a %b %d, %Y")
         self.parent.newEntry([time.strftime("%H%M"), "", "", opText, "", "", time.time(), "", ""])
-        ##      clueData=[number,description,team,clueTime,clueDate,self.parent.parent.opPeriod,location,instructions,radioLoc]
+        # clueData=[number,description,team,clueTime,clueDate,self.parent.parent.opPeriod,location,instructions,radioLoc]
         self.parent.clueLog.append(["", opText, "", time.strftime("%H%M"), "", "", "", "", ""])
         self.parent.printDialog.opPeriodComboBox.addItem(self.newOpPeriodField.text())
         super(opPeriodDialog, self).accept()

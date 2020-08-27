@@ -1,8 +1,7 @@
 import logging
 import re
 
-from gwpycore import PHONETIC_DICT
-from gwpycore.gw_functions.gw_alphabet import PHONETIC_LIST
+from gwpycore import PHONETIC_DICT, PHONETIC_LIST
 
 LOG = logging.getLogger("main")
 

@@ -87,7 +87,7 @@ def printClueLogHeaderFooter(canvas, doc, printParams: argparse.Namespace, opPer
 
 
 def printClueLog(opPeriod, printParams: argparse.Namespace):
-    ##      header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
+    # header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
     opPeriod = int(opPeriod)
     clueLogPdfFileName = CONFIG.firstWorkingDir + "\\" + printParams.pdfFileName.replace(".pdf", "_clueLog_OP" + str(opPeriod) + ".pdf")
     LOG.trace("generating clue log pdf: " + clueLogPdfFileName)

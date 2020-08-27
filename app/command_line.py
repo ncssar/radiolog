@@ -1,6 +1,6 @@
 import argparse
 
-from gwpycore import DEBUG, DIAGNOSTIC, INFO, TRACE, basic_cli_parser
+from gwpycore import basic_cli_parser
 
 # TODO Move this to __init__.py
 __version__ = "2.0.2"

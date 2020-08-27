@@ -6,7 +6,6 @@ from typing import List
 from gwpycore import setup_logging
 
 from app.config import load_config
-from app.logic.exceptions import RadioLogConfigError
 from app.logic.mapping import CoordFormat, Datum
 
 
@@ -48,7 +47,7 @@ cluereport = fabclue.pdf
 [storage]
 firstworkingdir = C:\\ir
 secondworkingdir = E:\\fab
-	"""
+    """
     setup_logging.cache_clear()
     log = setup_logging("main", logfile=None, nocolor=True)
     config = load_config(ini=ini)
@@ -71,7 +70,7 @@ def test_config_bad(capsys):
 [mapping]
 datum = XXX
 coordformat = XXX
-	"""
+    """
     sys.stderr.write("==START==\n")
     setup_logging.cache_clear()
     log = setup_logging("main", logfile=None, nocolor=True)

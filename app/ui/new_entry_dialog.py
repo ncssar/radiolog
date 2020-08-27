@@ -2,9 +2,8 @@ import logging
 import re
 import time
 
-from gwpycore.gw_gui.gw_gui_dialogs import (ICON_WARN, ask_user_to_confirm,
-                                            inform_user_about_issue)
-from gwpycore.gw_gui.gw_gui_finger_tabs import FingerTabBarWidget
+from gwpycore import (ICON_WARN, FingerTabBarWidget, ask_user_to_confirm,
+                      inform_user_about_issue)
 from PyQt5 import uic
 from PyQt5.QtCore import QEvent, QRect, Qt, QTimer
 from PyQt5.QtGui import QColor, QFont, QKeySequence, QPalette
@@ -934,7 +933,7 @@ class NewEntryWidget(QWidget, NewEntryWidgetSpec):
         prevStatus = ""
         if extTeamName in teamStatusDict:
             prevStatus = teamStatusDict[extTeamName]
-        newStatus = ""  #  need to actively set it back to blank if neeeded, since this function is called on every text change
+        newStatus = ""  # need to actively set it back to blank if neeeded, since this function is called on every text change
         # use an if/elif/else clause, which requires a search order; use the more final messages first
         # note, these hints can be trumped by clicking the status button AFTER typing
 
