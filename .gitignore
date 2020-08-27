@@ -18,3 +18,5 @@ gitignore
 .venv
 .idea
 /test_data
+/build
+/dist
