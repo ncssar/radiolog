@@ -8,7 +8,7 @@ NON_VIRTUAL_PYTHON?=${PY_HOME}\python
 # HOST=127.0.0.1
 TEST_PATH=.\tests
 
-.PHONY: help clean clean-pyc test examples activate linters requirements gwpycore dev-env format isort lint
+.PHONY: help clean clean-pyc test examples activate linters requirements gwpycore dev-env format isort lint dist
 .ONESHELL:
 
 help: # If you just say `make`, then this first target is assumed as the goal
@@ -71,7 +71,7 @@ isort: | .venv # Cleans up all of the imports (using isort)
 # E722 do not use bare 'except' -- ignore here, but not in .flake8
 lint: | .venv  # Lints code (using flake8)
 	${BIN}\flake8 --max-line-length=256 --extend-ignore=W191,W391,E203,E265,F841,E722,E301 --extend-exclude=.venv,.pytest_cache,.vscode,doc,doc_technical,*.egg-info . > lint_report.txt
-	# echo "See lint_report.txt"
 
 dist: | .venv  #  Builds a distributable .EXE
-	pyinstaller --onefile radiolog.py
+	pyinstaller --clean --onedir -w --debug all --log-level=DEBUG --noupx radiolog.spec 2> build.txt
+# pyinstaller --onefile --paths=.venv\Lib\site-packages radiolog.py
