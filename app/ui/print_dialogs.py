@@ -1,6 +1,6 @@
 import logging
 
-from gwpycore.gw_gui.gw_gui_dialogs import inform_user_about_issue
+from gwpycore import inform_user_about_issue
 from PyQt5 import uic
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QDialog, QDialogButtonBox

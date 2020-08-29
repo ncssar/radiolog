@@ -1,6 +1,6 @@
 import logging
 
-from gwpycore.gw_gui.gw_gui_dialogs import ICON_WARN, ask_user_to_confirm
+from gwpycore import ICON_WARN, ask_user_to_confirm
 from PyQt5 import uic
 from PyQt5.QtCore import QEvent, Qt
 from PyQt5.QtWidgets import QDialog

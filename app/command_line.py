@@ -3,7 +3,7 @@ import argparse
 from gwpycore import basic_cli_parser
 
 # TODO Move this to __init__.py
-__version__ = "2.0.2"
+__version__ = "2.0.3"
 
 # KEEP IN MIND: logging has not been set up yet. Don't try to make logging calls in here.
 
