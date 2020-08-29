@@ -1185,7 +1185,7 @@
   <customwidget>
    <class>QLineEditWithDeselect</class>
    <extends>QLineEdit</extends>
-   <header>QLineEditWithDeselect.h</header>
+   <header>gwpycore.gw_gui.gw_gui_q_line_edit</header>
   </customwidget>
  </customwidgets>
  <tabstops>

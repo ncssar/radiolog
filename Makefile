@@ -73,5 +73,5 @@ lint: | .venv  # Lints code (using flake8)
 	${BIN}\flake8 --max-line-length=256 --extend-ignore=W191,W391,E203,E265,F841,E722,E301 --extend-exclude=.venv,.pytest_cache,.vscode,doc,doc_technical,*.egg-info . > lint_report.txt
 
 dist: | .venv  #  Builds a distributable .EXE
-	pyinstaller --clean --onedir -w --debug all --log-level=DEBUG --noupx radiolog.spec 2> build.txt
+	pyinstaller --clean --debug all --log-level=DEBUG radiolog.spec 2> build.log
 # pyinstaller --onefile --paths=.venv\Lib\site-packages radiolog.py
