@@ -24,7 +24,7 @@ def printClueReport(clueData, printParams: argparse.Namespace):
 
     ##		header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
     # do not use ui object here, since this could be called later, when the clueDialog is not open
-    cluePdfName = CONFIG.firstWorkingDir + "\\" + printParams.pdfFileName.replace(".pdf", "_clue" + str(clueData[0]).zfill(2) + ".pdf")
+    cluePdfName = CONFIG.firstWorkingDir / printParams.pdfFileName.replace(".pdf", f"_clue{str(clueData[0]).zfill(2)}.pdf")
     LOG.trace("generating clue report pdf: " + cluePdfName)
 
     instructions = clueData[7].lower()

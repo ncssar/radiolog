@@ -511,7 +511,7 @@ class MyWindow(QDialog, UiDialog):
     def readConfigFile(self):
         # TODO Use Python's built-in ConfigParser for this
         # specify defaults here
-        self.fillableClueReportPdfFileName = "clueReportFillable.pdf"
+        self.fillableClueReportPdfFileName = "resources/clueReportFillable.pdf"
         self.agencyName = "Search and Rescue"
         self.datum = "WGS84"
         self.coordFormatAscii = "UTM 5x5"
@@ -648,10 +648,10 @@ class MyWindow(QDialog, UiDialog):
         CONFIG.agencyName = self.agencyName
         CONFIG.logo = Path(self.printLogoFileName)
         if self.fillableClueReportPdfFileName:
-            CONFIG.clueReport = Path(self.fillableClueReportPdfFileName)
-        CONFIG.firstWorkingDir = Path(self.firstWorkingDir)
+            CONFIG.clueReport = Path(self.fillableClueReportPdfFileName).expanduser()
+        CONFIG.firstWorkingDir = Path(self.firstWorkingDir).expanduser()
         if self.secondWorkingDir:
-            CONFIG.secondWorkingDir = Path(self.secondWorkingDir)
+            CONFIG.secondWorkingDir = Path(self.secondWorkingDir).expanduser()
         CONFIG.tabGroups = self.tabGroups
         # CONFIG.coordFormat = self.coordFormat
         # CONFIG.datum = self.datum

@@ -6,19 +6,16 @@ from pathlib import Path
 from app.db.file_management import determine_rotate_method
 from app.logic.exceptions import RadioLogConfigSettingWarning
 from app.logic.mapping import CoordFormat, Datum
+from gwpycore import as_path
 
 LOG = logging.getLogger("main")
 
 DEFAULT_NAME = "Search and Rescue"
 DEFAULT_LOGO = "radiolog_logo.jpg"
-DEFAULT_CLUE_REPORT = "clueReportFillable.pdf"
+DEFAULT_CLUE_REPORT = "resources/clueReportFillable.pdf"
 DEFAULT_TIMEOUT = 30
 DEFAULT_WORKINGDIR = "testdata"
 DEFAULT_SARSOFT_SERVER = "localhost"
-
-
-def _as_path(input: str) -> Path:
-    return Path(input)
 
 
 def _as_datum(input: str) -> Datum:
@@ -29,7 +26,7 @@ def _as_coordFormat(input: str) -> CoordFormat:
     return CoordFormat.__members__[input]
 
 
-CONVERTERS = {"path": _as_path, "datum": _as_datum, "coordformat": _as_coordFormat}
+CONVERTERS = {"path": as_path, "datum": _as_datum, "coordformat": _as_coordFormat}
 
 
 def __agency_section(parser, config):

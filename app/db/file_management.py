@@ -38,7 +38,7 @@ def determine_rotate_method() -> Tuple[Optional[str], Optional[str]]:
         LOG.info("Operating system is Windows.")
         if shutil.which("powershell.exe"):
             LOG.info("PowerShell.exe is in the path.")
-            rotateScript = "powershell.exe -ExecutionPolicy Bypass .\\rotateCsvBackups.ps1 -filenames "
+            rotateScript = "powershell.exe -ExecutionPolicy Bypass .\\resources\\rotateCsvBackups.ps1 -filenames "
             rotateDelimiter = ","
         else:
             LOG.warn("PowerShell.exe is not in the path; poweshell-based backup rotation script cannot be used.")
