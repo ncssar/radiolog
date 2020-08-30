@@ -3,7 +3,8 @@ import os
 import shutil
 from pathlib import Path
 from typing import Optional, Tuple
-from gwpycore import inform_user_about_issue, ICON_INFO
+from gwpycore import inform_user_about_issue, ICON_INFO, ICON_ERROR, ask_user_to_choose
+from app.logic.exceptions import RadioLogConfigError
 
 from app.logic.app_state import CONFIG
 
@@ -27,13 +28,19 @@ def ensureLocalDirectoryExists():
 
     issue = ""
     if not os.path.isdir("local"):
+        # TODO Build this list by seeing what subfolders are in local_default
+        org_list = ["Generic", "NCSSAR", "RRSAR"]
+        index = 0
         if CONFIG.first_time_install:
-            inform_user_about_issue("Created a 'local' folder based on 'local_default'. You may want to edit local/radiolog.cfg", icon=ICON_INFO,
-                                    title="First Time Install")
+            index = ask_user_to_choose("Which is your organization? Choose 'Generic' if you are not sure.", org_list)
+            # index will be 0 if the user escaped, otherwise a 1-based index into the given list
+            if index == 0:
+                raise RadioLogConfigError("User quit out of first-time install.")
         else:
-            issue = "Not a first-time install, yet 'local' directory not found; copying 'local_default' to 'local'; you may want to edit local/radiolog.cfg"
+            issue = "Not a first-time install, yet 'local' directory not found; copying 'local_default/generic' to 'local'; you will want to edit local/radiolog.cfg -- or restore local from a backup."
             LOG.error(issue)
-        shutil.copytree("local_default", "local")
+            inform_user_about_issue(issue, icon=ICON_ERROR, title="Missing Configuration Folder")
+        shutil.copytree(f"local_default\\{org_list[index-1]}", "local")
     elif not os.path.isfile("local/radiolog.cfg"):
         issue = "'local' directory was found but did not contain radiolog.cfg; copying from local_default"
         LOG.error(issue)

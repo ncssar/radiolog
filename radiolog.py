@@ -601,6 +601,9 @@ class MyWindow(QDialog, UiDialog):
         if self.secondWorkingDir:
             self.secondWorkingDir = os.path.expanduser(self.secondWorkingDir)
 
+        if not os.path.isdir(self.firstWorkingDir) and CONFIG.first_time_install:
+            if ask_user_to_confirm(f"{self.firstWorkingDir} does not exist. Create it?", parent=self):
+                os.mkdir(self.firstWorkingDir)
         if not os.path.isdir(self.firstWorkingDir):
             raise RadioLogError("Configuration error: The specified first working directory '{0}' does not exist.".format(self.firstWorkingDir))
 
