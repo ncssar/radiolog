@@ -15,7 +15,7 @@ LOG = logging.getLogger("main")
 def printClueReport(clueData, printParams: argparse.Namespace):
     if not printParams.fillableClueReportPdfFileName:
         inform_user_about_issue(
-            "Reminder: no Clue Report form will be printed, since the fillable clue report PDF does not exist.\n\nThe clue report text is stored as part of the radio message text.\n\nThis warning will automatically close in a few seconds.",
+            "Reminder: no Clue Report form will be printed, since the fillable clue report PDF does not exist.\n\nThe clue report text is stored as part of the radio message text.",
             icon=ICON_WARN,
             title="Clue Report PDF Unavailable",
             timeout=8000,
@@ -25,7 +25,7 @@ def printClueReport(clueData, printParams: argparse.Namespace):
     ##		header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
     # do not use ui object here, since this could be called later, when the clueDialog is not open
     cluePdfName = CONFIG.firstWorkingDir / printParams.pdfFileName.replace(".pdf", f"_clue{str(clueData[0]).zfill(2)}.pdf")
-    LOG.trace("generating clue report pdf: " + cluePdfName)
+    LOG.trace(f"generating clue report pdf: {cluePdfName}")
 
     instructions = clueData[7].lower()
     # initialize all checkboxes to OFF

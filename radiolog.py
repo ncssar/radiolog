@@ -478,7 +478,7 @@ class MyWindow(QDialog, UiDialog):
         self.rcFileName = "radiolog_rc.txt"
         self.previousCleanShutdown = self.loadRcFile()
         showStartupOptions = True
-        if not self.previousCleanShutdown:
+        if not self.previousCleanShutdown and not CONFIG.first_time_install:
             if ask_user_to_confirm("The previous Radio Log session may have shut down incorrectly.  Do you want to restore the last saved files (Radio Log, Clue Log, and FleetSync table)?", title="Restore last saved files?", icon=ICON_ERROR, parent=self):
                 self.restore()
                 showStartupOptions = False
@@ -1242,9 +1242,9 @@ class MyWindow(QDialog, UiDialog):
                     inform_user_about_issue(f"FleetSync ID table has been re-loaded from file {fsFileName}.", icon=ICON_INFO, title="Information", parent=self, timeout=2000)
         except:
             if fsEmptyFlag:
-                msg = f"Cannot read FleetSync ID table file '{fsFileName}' and no FleetSync ID table has yet been loaded.  Callsigns for incoming FleetSync calls will be of the format 'KW-<fleet>-<device>'.\n\nThis warning will automatically close in a few seconds."
+                msg = f"Cannot read FleetSync ID table file '{fsFileName}' and no FleetSync ID table has yet been loaded.  Callsigns for incoming FleetSync calls will be of the format 'KW-<fleet>-<device>'."
             else:
-                msg = f"Cannot read FleetSync ID table file '{fsFileName}'!  Using existing settings.\n\nThis warning will automatically close in a few seconds."
+                msg = f"Cannot read FleetSync ID table file '{fsFileName}'!  Using existing settings."
             LOG.warning(msg)
             if not hideWarnings:
                 inform_user_about_issue(msg, icon=ICON_WARN, parent=self, timeout=8000)
@@ -1662,12 +1662,13 @@ class MyWindow(QDialog, UiDialog):
         #  be taken from the config file.
         rcFile = QFile(self.rcFileName)
         if not rcFile.open(QFile.ReadOnly | QFile.Text):
-            inform_user_about_issue("Cannot read resource file " + self.rcFileName + "; using default settings. " + rcFile.errorString(), icon=ICON_WARN, parent=self)
+            if not CONFIG.first_time_install:
+                inform_user_about_issue("Cannot read resource file " + self.rcFileName + "; using default settings. " + rcFile.errorString(), icon=ICON_WARN, parent=self)
             return
         inStr = QTextStream(rcFile)
         line = inStr.readLine()
         if line != "[RadioLog]":
-            inform_user_about_issue("Specified resource file " + self.rcFileName + " is not a valid resource file; using default settings.", icon=ICON_WARN, parent=self)
+            inform_user_about_issue(f"{self.rcFileName} is not a valid resource file; using default settings.", icon=ICON_WARN, parent=self)
             rcFile.close()
             return
         cleanShutdownFlag = False

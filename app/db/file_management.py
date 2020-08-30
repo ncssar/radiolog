@@ -3,10 +3,12 @@ import os
 import shutil
 from pathlib import Path
 from typing import Optional, Tuple
+from gwpycore import inform_user_about_issue, ICON_INFO
 
 from app.logic.app_state import CONFIG
 
 LOG = logging.getLogger("main")
+FIRST_TIME_INSTALL_FLAG = "first_time_install.txt"
 
 
 def getFileNameBase(root):
@@ -19,14 +21,22 @@ def ensureLocalDirectoryExists():
     create the local dir if it doesn't already exist, and populate it
     with files from local_default.
     """
+    if os.path.isfile(FIRST_TIME_INSTALL_FLAG):
+        CONFIG.first_time_install = True
+        os.remove(FIRST_TIME_INSTALL_FLAG)
+
     issue = ""
     if not os.path.isdir("local"):
-        issue = "'local' directory not found; copying 'local_default' to 'local'; you may want to edit local/radiolog.cfg"
-        LOG.warn(issue)
+        if CONFIG.first_time_install:
+            inform_user_about_issue("Created a 'local' folder based on 'local_default'. You may want to edit local/radiolog.cfg", icon=ICON_INFO,
+                                    title="First Time Install")
+        else:
+            issue = "Not a first-time install, yet 'local' directory not found; copying 'local_default' to 'local'; you may want to edit local/radiolog.cfg"
+            LOG.error(issue)
         shutil.copytree("local_default", "local")
     elif not os.path.isfile("local/radiolog.cfg"):
         issue = "'local' directory was found but did not contain radiolog.cfg; copying from local_default"
-        LOG.warn(issue)
+        LOG.error(issue)
         shutil.copyfile("local_default/radiolog.cfg", "local/radiolog.cfg")
     return issue
 
