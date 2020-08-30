@@ -8,7 +8,7 @@ NON_VIRTUAL_PYTHON?=${PY_HOME}\python
 # HOST=127.0.0.1
 TEST_PATH=.\tests
 
-.PHONY: help clean clean-pyc test examples activate linters requirements gwpycore dev-env format isort lint
+.PHONY: help clean clean-pyc test examples activate linters requirements gwpycore dev-env format isort lint dist
 .ONESHELL:
 
 help: # If you just say `make`, then this first target is assumed as the goal
@@ -66,6 +66,15 @@ format: | .venv # Re-formats all of the Python code (with black)
 isort: | .venv # Cleans up all of the imports (using isort)
 	${BIN}\isort .
 
+# E301 expected 1 blank line, found 0
+# F841 variable defined but never used -- ignore here, but not in .flake8
+# E722 do not use bare 'except' -- ignore here, but not in .flake8
 lint: | .venv  # Lints code (using flake8)
-	${BIN}\flake8 --max-line-length=256 --extend-ignore=W191,W391 --extend-exclude=.venv,.pytest_cache,.vscode,doc,doc_technical,*.egg-info .
+	${BIN}\flake8 --max-line-length=256 --extend-ignore=W191,W391,E203,E265,F841,E722,E301 --extend-exclude=.venv,.pytest_cache,.vscode,doc,doc_technical,*.egg-info . > lint_report.txt
+
+dist: | .venv  #  Builds a distributable .EXE
+	if exist .\dist\radiolog rmdir /S /Q .\dist\radiolog
+	pyinstaller --clean --debug all --log-level=DEBUG radiolog.spec 2> build.log
+	touch .\dist\radiolog\first_time_install.txt
+	"C:\Program Files\7-Zip\7z.exe" a -sfx .\dist\radiolog_install_here .\dist\*
 

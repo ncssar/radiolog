@@ -1,9 +1,15 @@
 = Radiolog
 
-Software that tracks Search and Rescue missions.
+Software that tracks Search and Rescue missions, Evacuations, and other Incidents.
 Used by the radio operator in the command post.
 Logs the status and positions of the field teams over time, as well as any clues they encounter.
 The data is saved to the hard drive as plain text (CSV files) for later analysis, and a hard-copy report can be printed at the end of the mission (or sub-missions).
+
+* Takes advantage of any radios that are Fleetsync enabled.
+* Can interface with SarTopo.
+* Easy to learn.
+* Quick and easy to use -- log most entries in just a few keystrokes. 
+
 
 == Introduction
 
@@ -55,7 +61,7 @@ An overview slideshow (17 slides describing the features in a bit more detail): 
 
 FleetSync interface details are spelled out link:/doc/radiolog_fleetsync_details.pdf[here].
 
-Please contact the author if other documentation would be helpful.
+Please let us know if other documentation would be helpful.
 
 == Project Status
 
@@ -69,14 +75,14 @@ See also link:doc_technical/CHANGE_LOG.adoc[].
 == Known Limitations
 
 * Windows Only: This software has only been tested on Windows (Vista and higher, 32-bit)
-* Cannot handle team names that have alpha characters after numeric characters (3b, 4a, etc.)
 
 == Installation and Getting Started
 
-Unfortunately, this software is not yet in an easily installable state, but creating a clean installer is on the to-do list.
-Until then, please contact us if your team is interested in using this software.
+This software should work on any Windows computer.
+The only prerequisite is that Adobe Acrobat Reader must be installed.
 
-The current installation procedure is in link:doc/INSTALL.adoc[].
+Installation is an easy 4-step process, plus a little bit of configuration/fine tuning.
+Complete instructions are here: link:doc/INSTALL.adoc[].
 
 == Our Design Philosophy
 

@@ -1,12 +1,13 @@
+import logging
 import re
-from gwpycore.gw_gui.gw_gui_dialogs import ICON_WARN, ask_user_to_confirm, inform_user_about_issue
 import time
+
+from gwpycore import ICON_WARN, ask_user_to_confirm, inform_user_about_issue
 from PyQt5 import uic
 from PyQt5.QtCore import QEvent, Qt
 from PyQt5.QtWidgets import QDialog
-import logging
 
-LOG = logging.getLogger('main')
+LOG = logging.getLogger("main")
 
 SubjectLocatedDialog = uic.loadUiType("app/ui/subjectLocatedDialog.ui")[0]
 
@@ -20,7 +21,7 @@ class subjectLocatedDialog(QDialog, SubjectLocatedDialog):
         self.timeField.setText(t)
         self.dateField.setText(time.strftime("%x"))
         self.callsignField.setText(callsign)
-        self.radioLocField.setText(re.sub('  +', '\n', radioLoc))
+        self.radioLocField.setText(re.sub("  +", "\n", radioLoc))
         self.parent = parent
         self.parent.subjectLocatedDialogOpen = True
         self.parent.childDialogs.append(self)
@@ -57,25 +58,25 @@ class subjectLocatedDialog(QDialog, SubjectLocatedDialog):
             inform_user_about_issue("Please complete the form and try again:\n" + vText, parent=self)
             return
 
-        textToAdd = ''
+        textToAdd = ""
         existingText = self.parent.messageField.text()
-        if existingText != '':
-            textToAdd = '; '
+        if existingText != "":
+            textToAdd = "; "
         textToAdd += "SUBJECT LOCATED: LOCATION: " + location + "; CONDITION: " + condition + "; RESOURCES NEEDED: " + resources
-        if other != '':
+        if other != "":
             textToAdd += "; " + other
         self.parent.messageField.setText(existingText + textToAdd)
         self.closeEvent(QEvent(QEvent.Close), True)
         super(subjectLocatedDialog, self).accept()
 
-# 	def reject(self):
-# 		LOG.debug("rejected - calling close")
-# 		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().reject()
-# 		self.closeEvent(None)
-# 		self.values=self.parent.getValues()
-# 		self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'SUBJECT LOCATED' form"
-# 		self.parent.parent.newEntry(self.values)
-# 		super(subjectLocatedDialog,self).reject()
+    # 	def reject(self):
+    # 		LOG.debug("rejected - calling close")
+    # 		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().reject()
+    # 		self.closeEvent(None)
+    # 		self.values=self.parent.getValues()
+    # 		self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'SUBJECT LOCATED' form"
+    # 		self.parent.parent.newEntry(self.values)
+    # 		super(subjectLocatedDialog,self).reject()
 
     def closeEvent(self, event, accepted=False):
         # note, this type of messagebox is needed to show above all other dialogs for this application,

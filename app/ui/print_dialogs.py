@@ -1,15 +1,18 @@
-from app.printing.print_clue_log import printClueLog
-from app.printing.print_log import printLog
-from gwpycore.gw_gui.gw_gui_dialogs import inform_user_about_issue
+import logging
+
+from gwpycore import inform_user_about_issue
 from PyQt5 import uic
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QDialog, QDialogButtonBox
-import logging
 
-LOG = logging.getLogger('main')
+from app.printing.print_clue_log import printClueLog
+from app.printing.print_log import printLog
+
+LOG = logging.getLogger("main")
 
 PrintDialogSpec = uic.loadUiType("app/ui/printDialog.ui")[0]
 PrintClueLogDialogSpec = uic.loadUiType("app/ui/printClueLogDialog.ui")[0]
+
 
 class PrintDialog(QDialog, PrintDialogSpec):
     def __init__(self, parent):
@@ -48,11 +51,13 @@ class PrintDialog(QDialog, PrintDialogSpec):
             printLog(opPeriod, self.parent.getPrintParams(), teams=True)
         if self.clueLogField.isChecked():
             LOG.debug("PRINT clue log")
-# 			LOG.debug("  printDialog.accept.clueLog.trace1")
+            # 			LOG.debug("  printDialog.accept.clueLog.trace1")
             self.parent.printClueLog(opPeriod)
-# 			LOG.debug("  printDialog.accept.clueLog.trace2")
-# 		LOG.debug("  printDialog.accept.end.trace1")
+        # 			LOG.debug("  printDialog.accept.clueLog.trace2")
+        # 		LOG.debug("  printDialog.accept.end.trace1")
         super(PrintDialog, self).accept()
+
+
 # 		LOG.debug("  printDialog.accept.end.trace2")
 
 
@@ -66,14 +71,14 @@ class printClueLogDialog(QDialog, PrintClueLogDialogSpec):
     def showEvent(self, event):
         itemsToAdd = self.parent.opsWithClues
         if len(itemsToAdd) == 0:
-            itemsToAdd = ['--']
+            itemsToAdd = ["--"]
         self.opPeriodComboBox.clear()
         self.opPeriodComboBox.addItems(itemsToAdd)
 
     def accept(self):
         opPeriod = self.opPeriodComboBox.currentText()
         LOG.trace("Open printClueLogDialog.accept")
-        if opPeriod == '--':
+        if opPeriod == "--":
             inform_user_about_issue("There are no clues to print.", title="No Clues to Print", parent=self)
             self.reject()
         else:
@@ -82,6 +87,7 @@ class printClueLogDialog(QDialog, PrintClueLogDialogSpec):
             LOG.trace("Called parent printClueLogDialog.accept")
             super(printClueLogDialog, self).accept()
             LOG.trace("Called super printClueLogDialog.accept")
+
 
 # actions to be performed when changing the operational period:
 # - bring up print dialog for current OP if checked (and wait until it is closed)

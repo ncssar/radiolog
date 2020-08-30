@@ -1,4 +1,7 @@
+# Compiled python modules.
+*.pyc
 __pycache__
+
 radiolog*.txt
 doc/radiolog_overview.odp
 *.cprof
@@ -13,8 +16,19 @@ local
 local_bak/radiolog.cfg
 local_bak/radiolog_logo.jpg
 radiolog_rc.txt
-gitignore
 .vscode
 .venv
 .idea
-/test_data
+test_data
+build/
+dist/
+eggs/
+.eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+lint_report.txt
