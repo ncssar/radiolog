@@ -23,12 +23,25 @@ The `make` command is standard with linux, but it must be manually installed in 
 
 == Installing the Radiolog Source Code
 
-See link:/doc/INSTALL.adoc[INSTALL]
+
+. Install python 3.8 or higher - install for All Users, which may require you to run the installer as Administrator, and also to check 'install for all users' in the Advanced Options, and change the installation directory to C:\Python-<version> to avoid spaces in the directory name, but this will require you to edit the properties of Lib\site-packages in the python install directory to remove the read-only flag (and apply to all subdirectories) in order to allow the following steps.
+
+. Clone the source code from https://github.com/ncssar/radiolog
+
+. Install the required python modules, listed in requirements.txt.
+To install them, open a terminal or powershell window in C:\ then use: 
+
+    pip install -r requirements.txt
+
+. Make sure the Liberation Sans font is installed through the operating system.
+(TBD: from where? acquire the Liberation Sans .ttf file(s), right-click to install).  
+You will know if you are missing it when a generated PDF during print will show up with a bunch of dots instead of letters.
+
 
 == Installing the GruntWurk Python Core Source Code
 
 GruntWurk Python Core (`gwpycore`) is a library of general-purpose Python functions and frameworks.
-It was started by Craig Jones, inspired in part by Radiolog, and is being incorported into Radiolog.
+It was started by Craig Jones, inspired in part by Radiolog, and is being incorporated into Radiolog.
 
 If you are going to work on the Radiolog source code, then you may as well work directly with the `gwpycore` source code, as well.
 
