@@ -3,11 +3,12 @@
 Basic installation is done with a self-extracting archive called `radiolog_install_here.exe`.
 The only prerequisite is that Adobe Acrobat Reader must be installed and it must have been run at least once.
 It must also have been set up as the default application for `.pdf` files. 
-(To check this, just find a pdf file and double-click on it. If it comes up in Abode, you're fine. If not, right-click on the PDF file, select `Open with...`, click on "other application", check the boxe that says "always open with this" and then click on Abode Acrobat Reader.)
+(To check this, just find a `pdf` file and double-click on it. If it comes up in Abode, you're fine. If not, right-click on the PDF file, select `Open with...`, click on "other application", check the box that says "always open with this" and then click on Abode Acrobat Reader.)
 
 . Create a folder where you want to install radiolog. For example, `C:\SARStuff`.
-. Download the Radiolog installer (`radiolog_install_here.exe`) from https://github.com/ncssar/radiolog.
-If your browsers asks you where you want to save it to, tell it to save it to the folder you created above.
+. Download the Radiolog installer (`radiolog_install_here.exe`) from https://github.com/ncssar/radiolog/releases.
+(You might need to click on the little triangle to the left of "assets" to expand the list.)
+If your browser asks you where you want to save it to, tell it to save it to the folder you created above.
 If it doesn't ask, then it will probably put in in your Downloads folder.
 In that case, move it to the created folder from there.
 . Once the installer program is in the desired folder (`C:\SARStuff`), double-click on the installer.
@@ -58,7 +59,7 @@ A starting size of about 200x200 pixels should be fine.
 
 == Installing from Source
 
-If you happen to be a Python developer and want to explore the RadioLog source code, then see link:doc_technical/DEVELOPMENT_SETUP.adoc[].
+If you happen to be a Python developer and want to explore the RadioLog source code, then see our link:doc_technical/DEVELOPMENT_SETUP.adoc[Development Setup] page.
 
 
 Next Topic: link:/doc_technical/CONTRIBUTING.adoc[Contributing]
