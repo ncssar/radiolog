@@ -59,7 +59,7 @@ A starting size of about 200x200 pixels should be fine.
 
 == Installing from Source
 
-If you happen to be a Python developer and want to explore the RadioLog source code, then see our link:doc_technical/DEVELOPMENT_SETUP.adoc[Development Setup] page.
+If you happen to be a Python developer and want to explore the RadioLog source code, then see our link:/doc_technical/DEVELOPMENT_SETUP.adoc[Development Setup] page.
 
 
 Next Topic: link:/doc_technical/CONTRIBUTING.adoc[Contributing]
