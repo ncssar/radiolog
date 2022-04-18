@@ -3455,11 +3455,14 @@ class MyWindow(QDialog,Ui_Dialog):
 ####				self.ui.tabWidget.tabBar().setTabText(i,"boo")
 ##				self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
 
-	def sendText(self,fleetOrList,device=None,message=None):
-		if isinstance(fleetOrList,list):
-			theList=fleetOrList
+	def sendText(self,fleetOrListOrAll,device=None,message=None):
+		broadcast=False
+		if isinstance(fleetOrListOrAll,list):
+			theList=fleetOrListOrAll
+		elif fleetOrListOrAll=='ALL':
+			broadcast=True
 		else:
-			theList=[[fleetOrList,device]]
+			theList=[[fleetOrListOrAll,device]]
 		if not message:
 			suffix=''
 			if len(theList)>1:
@@ -3474,8 +3477,11 @@ class MyWindow(QDialog,Ui_Dialog):
 				label+='\n'+str(fleet)+':'+str(device)+' '+callsignText
 			message=QInputDialog.getText(self.ui.tabWidget,'Send Text Message',label)[0]
 		if message:
-			for [fleet,device] in theList:
-				rprint('sending text message to fleet='+str(fleet)+' device='+str(device))
+			if broadcast:
+				rprint('broadcasting text message to all devices')
+			else:
+				for [fleet,device] in theList:
+					rprint('sending text message to fleet='+str(fleet)+' device='+str(device))
 			rprint('message:'+str(message))
 
 	def pollGPS(self,fleet,device):
@@ -5298,7 +5304,17 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 
 	def accept(self):
 		if self.ui.sendTextRadioButton.isChecked():
-			self.parent.sendText(self.ui.fleetField.text(),self.ui.deviceField.text(),self.ui.messageField.text())
+			if self.ui.sendToAllCheckbox.isChecked():
+				self.parent.sendText('ALL',message=self.ui.messageField.text())
+			else:
+				deviceParse=re.split('[ ,]+',self.ui.deviceField.text())
+				if len(deviceParse)==1:
+					self.parent.sendText(self.ui.fleetField.text(),self.ui.deviceField.text(),self.ui.messageField.text())
+				elif len(deviceParse)>1:
+					self.parent.sendText([[self.ui.fleetField.text(),d] for d in deviceParse],message=self.ui.messageField.text())
+				else:
+					rprint('ERROR: must specify a device ID or list of device IDs (separated by comma or space)')
+					self.reject()
 		else:
 			self.parent.pollGPS(self.ui.fleetField.text(),self.ui.deviceField.text())
 		super(fsSendDialog,self).accept()
