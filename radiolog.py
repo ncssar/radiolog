@@ -313,6 +313,7 @@ from PyQt5.QtWidgets import *
 
 from help_ui import Ui_Help
 from options_ui import Ui_optionsDialog
+from fsSendDialog_ui import Ui_fsSendDialog
 from newEntryWindow_ui import Ui_newEntryWindow
 from newEntryWidget_ui import Ui_newEntryWidget
 from clueDialog_ui import Ui_clueDialog
@@ -626,6 +627,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.noSend=noSend
 		self.fsMutedBlink=False
 		self.fsFilterBlinkState=False
+		self.enableSendText=True
+		self.enablePollGPS=True
 		self.getString=""
 
 		self.firstWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents"
@@ -647,6 +650,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.optionsDialog=optionsDialog(self)
 		self.optionsDialog.accepted.connect(self.optionsAccepted)
 		
+		self.fsSendDialog=fsSendDialog(self)
+
 		self.validDatumList=["WGS84","NAD27","NAD27 CONUS"]
 		self.timeoutDisplaySecList=[i[1] for i in timeoutDisplayList]
 		self.timeoutDisplayMinList=[int(i/60) for i in self.timeoutDisplaySecList if i>=60]
@@ -1613,7 +1618,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			warn.exec_()
 
 	def getCallsign(self,fleet,dev):
-		entry=[element for element in self.fsLookup if (element[0]==fleet and element[1]==dev)]
+		entry=[element for element in self.fsLookup if (str(element[0])==str(fleet) and str(element[1])==str(dev))]
 		if len(entry)!=1 or len(entry[0])!=3: # no match
 			return "KW-"+str(fleet)+"-"+str(dev)
 		else:
@@ -3378,6 +3383,19 @@ class MyWindow(QDialog,Ui_Dialog):
 			if len(devices)>0:
 				fsMenu=menu.addMenu("FleetSync...")
 				menu.addSeparator()
+				if self.enableSendText:
+					if len(devices)>1:
+						fsSendTextToAllAction=fsMenu.addAction("Send text message to all "+niceTeamName+" devices")
+						fsMenu.addSeparator()
+					for device in devices:
+						key=str(device[0])+":"+str(device[1])
+						fsMenu.addAction("Send text message to "+key).setData([device[0],device[1],'SendText'])
+					fsMenu.addSeparator()
+				if self.enablePollGPS:
+					for device in devices:
+						key=str(device[0])+":"+str(device[1])
+						fsMenu.addAction("Request location from "+key).setData([device[0],device[1],'PollGPS'])
+					fsMenu.addSeparator()
 				if len(devices)>1:
 					if teamFSFilterDict[extTeamName]==2:
 						fsToggleAllAction=fsMenu.addAction("Unfilter all "+niceTeamName+" devices")
@@ -3387,39 +3405,48 @@ class MyWindow(QDialog,Ui_Dialog):
 					for device in devices:
 						key=str(device[0])+":"+str(device[1])
 						if self.fsIsFiltered(device[0],device[1]):
-							fsMenu.addAction("Unfilter calls from "+key).setData([device[0],device[1],False])
+							fsMenu.addAction("Unfilter calls from "+key).setData([device[0],device[1],'unfilter'])
 						else:
-							fsMenu.addAction("Filter calls from "+key).setData([device[0],device[1],True])
+							fsMenu.addAction("Filter calls from "+key).setData([device[0],device[1],'filter'])
 				else:
 					key=str(devices[0][0])+":"+str(devices[0][1])
 					if teamFSFilterDict[extTeamName]==2:
 						fsToggleAllAction=fsMenu.addAction("Unfilter calls from "+niceTeamName+" ("+key+")")
 					else:
 						fsToggleAllAction=fsMenu.addAction("Filter calls from "+niceTeamName+" ("+key+")")
-			
 			deleteTeamTabAction=menu.addAction("Hide tab for "+str(niceTeamName))
+
+			# action handlers
 			action=menu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(pos))
 			if action==newEntryFromAction:
 				self.openNewEntry('tab',str(niceTeamName))
-			if action==newEntryToAction:
+			elif action==newEntryToAction:
 				self.openNewEntry('tab',str(niceTeamName))
 				self.newEntryWidget.ui.to_fromField.setCurrentIndex(1)
-			if action==printTeamLogAction:
+			elif action==printTeamLogAction:
 				rprint("printing team log for "+str(niceTeamName))
 				self.printLog(self.opPeriod,str(niceTeamName))
 				self.radioLogNeedsPrint=True # since only one log has been printed; need to enhance this
-			if action==deleteTeamTabAction:
+			elif action==deleteTeamTabAction:
 				self.deleteTeamTab(niceTeamName)
-			if action and action.data(): # only the single-device toggle actions will have data
-# 				rprint("fsToggleOneAction called; data="+str(action.data()))
+			elif action and action.data(): # only the single-device toggle/text/poll actions will have data
 				d=action.data()
-				self.fsFilterEdit(d[0],d[1],d[2])
-				self.fsBuildTeamFilterDict()	
-			if action==fsToggleAllAction:
+				if 'filter' in d[2].lower():
+					self.fsFilterEdit(d[0],d[1],d[2].lower()=='filter')
+					self.fsBuildTeamFilterDict()
+				elif d[2]=='SendText':
+					self.sendText(d[0],d[1])
+				elif d[2]=='PollGPS':
+					self.pollGPS(d[0],d[1])
+				else:
+					rprint('unknown context menu action:'+str(d))
+			elif action==fsToggleAllAction:
 				newState=teamFSFilterDict[extTeamName]!=2 # if 2, unfilter all; else, filter all
 				for device in self.fsGetTeamDevices(extTeamName):
 					self.fsFilterEdit(device[0],device[1],newState)
 				self.fsBuildTeamFilterDict()
+			elif action==fsSendTextToAllAction:
+				self.sendText(devices)
 
 ##			if action==relabelTeamTabAction:
 ##				label=QLabel(" abcdefg ")
@@ -3427,6 +3454,32 @@ class MyWindow(QDialog,Ui_Dialog):
 ##				self.ui.tabWidget.tabBar().setTabButton(i,QTabBar.LeftSide,label)
 ####				self.ui.tabWidget.tabBar().setTabText(i,"boo")
 ##				self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
+
+	def sendText(self,fleetOrList,device=None,message=None):
+		if isinstance(fleetOrList,list):
+			theList=fleetOrList
+		else:
+			theList=[[fleetOrList,device]]
+		if not message:
+			suffix=''
+			if len(theList)>1:
+				suffix='s'
+			label='Enter text message to send to '+str(len(theList))+' device'+suffix+':\n'
+			for [fleet,device] in theList:
+				callsignText=self.getCallsign(fleet,device)
+				if callsignText:
+					callsignText='"'+callsignText+'"'
+				else:
+					callsignText='(no callsign)'
+				label+='\n'+str(fleet)+':'+str(device)+' '+callsignText
+			message=QInputDialog.getText(self.ui.tabWidget,'Send Text Message',label)[0]
+		if message:
+			for [fleet,device] in theList:
+				rprint('sending text message to fleet='+str(fleet)+' device='+str(device))
+			rprint('message:'+str(message))
+
+	def pollGPS(self,fleet,device):
+		rprint('polling GPS for fleet='+str(fleet)+' device='+str(device))
 
 	def deleteTeamTab(self,teamName,ext=False):
 		# optional arg 'ext' if called with extTeamName
@@ -3603,6 +3656,9 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	
 	def secondWorkingDirCB(self):
 		self.parent.use2WD=self.ui.secondWorkingDirCheckBox.isChecked()
+
+	def fsSendCB(self):
+		self.parent.fsSendDialog.show()
 
 	def accept(self):
 		# only save the rc file when the options dialog is accepted interactively;
@@ -5215,7 +5271,39 @@ class fsFilterDialog(QDialog,Ui_fsFilterDialog):
 	def closeEvent(self,event):
 		rprint("closing fsFilterDialog")
 				
+
+class fsSendDialog(QDialog,Ui_fsSendDialog):
+	def __init__(self,parent):
+		QDialog.__init__(self)
+		self.ui=Ui_fsSendDialog()
+		self.ui.setupUi(self)
+		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		self.parent=parent
+
+	def functionChanged(self):
+		sendText=self.ui.sendTextRadioButton.isChecked()
+		self.ui.sendToAllCheckbox.setEnabled(sendText)
+		self.ui.messageField.setEnabled(sendText)
+		# if sending, a comma-or-space-delimited list of device IDs can be specified;
+		# if polling GPS, only one device ID can be specified
+		if sendText:
+			self.ui.deviceLabel.setText('Device ID(s)')
+		else:
+			self.ui.deviceLabel.setText('Device ID')
+
+	def sendAllCheckboxChanged(self):
+		sendAll=self.ui.sendToAllCheckbox.isChecked()
+		self.ui.fleetField.setEnabled(not sendAll)
+		self.ui.deviceField.setEnabled(not sendAll)
+
+	def accept(self):
+		if self.ui.sendTextRadioButton.isChecked():
+			self.parent.sendText(self.ui.fleetField.text(),self.ui.deviceField.text(),self.ui.messageField.text())
+		else:
+			self.parent.pollGPS(self.ui.fleetField.text(),self.ui.deviceField.text())
+		super(fsSendDialog,self).accept()
 		
+
 class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 	openDialogCount=0
 	def __init__(self,parent,callsign,fleet,device):

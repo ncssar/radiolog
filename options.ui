@@ -20,61 +20,6 @@
    <string>Options</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="0" column="0">
-    <widget class="QLabel" name="label">
-     <property name="font">
-      <font>
-       <family>Segoe UI</family>
-       <pointsize>16</pointsize>
-      </font>
-     </property>
-     <property name="text">
-      <string>Incident Name</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="1">
-    <widget class="QComboBox" name="datumField">
-     <property name="font">
-      <font>
-       <family>Segoe UI</family>
-       <pointsize>16</pointsize>
-      </font>
-     </property>
-     <property name="focusPolicy">
-      <enum>Qt::ClickFocus</enum>
-     </property>
-     <item>
-      <property name="text">
-       <string>NAD27 CONUS</string>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>WGS84</string>
-      </property>
-     </item>
-    </widget>
-   </item>
-   <item row="2" column="0">
-    <widget class="QLabel" name="label_4">
-     <property name="font">
-      <font>
-       <family>Segoe UI</family>
-       <pointsize>16</pointsize>
-      </font>
-     </property>
-     <property name="text">
-      <string>Coordinate Format</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-     </property>
-    </widget>
-   </item>
    <item row="3" column="1">
     <widget class="QSlider" name="timeoutField">
      <property name="font">
@@ -115,6 +60,38 @@
      </property>
     </widget>
    </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="label">
+     <property name="font">
+      <font>
+       <family>Segoe UI</family>
+       <pointsize>16</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>Incident Name</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="label_4">
+     <property name="font">
+      <font>
+       <family>Segoe UI</family>
+       <pointsize>16</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>Coordinate Format</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+    </widget>
+   </item>
    <item row="9" column="1">
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="font">
@@ -145,6 +122,29 @@
      <property name="alignment">
       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
      </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QComboBox" name="datumField">
+     <property name="font">
+      <font>
+       <family>Segoe UI</family>
+       <pointsize>16</pointsize>
+      </font>
+     </property>
+     <property name="focusPolicy">
+      <enum>Qt::ClickFocus</enum>
+     </property>
+     <item>
+      <property name="text">
+       <string>NAD27 CONUS</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>WGS84</string>
+      </property>
+     </item>
     </widget>
    </item>
    <item row="2" column="1">
@@ -185,6 +185,24 @@
      </item>
     </widget>
    </item>
+   <item row="8" column="1">
+    <widget class="QCheckBox" name="secondWorkingDirCheckBox">
+     <property name="font">
+      <font>
+       <pointsize>14</pointsize>
+      </font>
+     </property>
+     <property name="whatsThis">
+      <string extracomment="Uncheck if local network is slow or intermittent"/>
+     </property>
+     <property name="text">
+      <string>Use Second Working Directory</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
    <item row="3" column="0">
     <widget class="QLabel" name="timeoutLabel">
      <property name="font">
@@ -217,21 +235,10 @@
      </property>
     </widget>
    </item>
-   <item row="8" column="1">
-    <widget class="QCheckBox" name="secondWorkingDirCheckBox">
-     <property name="font">
-      <font>
-       <pointsize>14</pointsize>
-      </font>
-     </property>
-     <property name="whatsThis">
-      <string extracomment="Uncheck if local network is slow or intermittent"/>
-     </property>
+   <item row="9" column="0">
+    <widget class="QPushButton" name="fsSendButton">
      <property name="text">
-      <string>Use Second Working Directory</string>
-     </property>
-     <property name="checked">
-      <bool>true</bool>
+      <string>FleetSync Send Console</string>
      </property>
     </widget>
    </item>
@@ -287,8 +294,25 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>fsSendButton</sender>
+   <signal>clicked()</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>fsSendCB()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>22</x>
+     <y>323</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>56</x>
+     <y>262</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>secondWorkingDirCB()</slot>
+  <slot>fsSendCB()</slot>
  </slots>
 </ui>
