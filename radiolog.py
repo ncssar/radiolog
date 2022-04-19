@@ -3455,6 +3455,24 @@ class MyWindow(QDialog,Ui_Dialog):
 ####				self.ui.tabWidget.tabBar().setTabText(i,"boo")
 ##				self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
 
+	# sendText - outgoing serial port data format:
+	#
+	# <start><length_code><fleet><device><msg><sequence><end>
+	#
+	# <start> - 02 hex (ascii smiley face)
+	# <length_code> - indicates max possible message length, though the plain text message is not padded to that length
+	#   46 hex (ascii F) - corresponds to 'S' (Short - 48 characters)
+	#   47 hex (ascii G) - corresponds to both 'L' (Long - 1024 characters) and 'X' (Extra-long - 4096 characters)
+	# <fleet> - plain-text three-digit fleet ID (000 for broadcast)
+	# <device> - plain-text four-digit device ID (0000 for broadcast)
+	# <msg> - plain-text message
+	# <sequence> - plain-text two-digit decimal sequence identifier - increments with each send - probably not relevant
+	# <end> - 03 hex (ascii heart)
+	#
+	# examples:
+	# broadcast 'test' (short):  02 46 30 30 30 30 30 30 30 74 65 73 74 32 39 03   F0000000test28  (sequence=28)
+	# 100:1002 'test' (short):  02 46 31 30 30 31 30 30 32 74 65 73 74 33 31 03   F1001002test31  (sequence=31)
+
 	def sendText(self,fleetOrListOrAll,device=None,message=None):
 		broadcast=False
 		if isinstance(fleetOrListOrAll,list):
@@ -3484,6 +3502,21 @@ class MyWindow(QDialog,Ui_Dialog):
 					rprint('sending text message to fleet='+str(fleet)+' device='+str(device))
 			rprint('message:'+str(message))
 
+	# pollGPS - outgoing serial port data format:
+	#
+	# <start><poll_code><fleet><device><sequence><end>
+	#
+	# <start> - 02 hex (ascii smiley face)
+	# <poll_code> - 52 33 hex (ascii R3)
+	# <fleet> - plain-text three-digit fleet ID (000 for broadcast)
+	# <device> - plain-text four-digit device ID (0000 for broadcast)
+	# <sequence> - plain-text two-digit decimal sequence identifier - increments with each send - probably not relevant
+	# <end> - 03 hex (ascii heart)
+
+	# examples:
+	# poll 100:1001:  02 52 33 31 30 30 31 30 30 31 32 35 03   R3100100120  (sequence=20)
+	# poll 100:1002:  02 52 33 31 30 30 31 30 30 32 32 37 03   R3100100221  (sequence=21)
+	
 	def pollGPS(self,fleet,device):
 		rprint('polling GPS for fleet='+str(fleet)+' device='+str(device))
 
