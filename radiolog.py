@@ -3455,6 +3455,19 @@ class MyWindow(QDialog,Ui_Dialog):
 ####				self.ui.tabWidget.tabBar().setTabText(i,"boo")
 ##				self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
 
+	# sendText and pollGPS:
+	# self.firstComPort is not defined until FS data has been read.  May want to revise that to help with the send functions.
+	#  self.comPortTryList is a list of 'opened' ports.
+
+	def fsSendData(self,d,portList=None):
+		portList=portList or self.comPortTryList
+		if len(portList)>0:
+			for port in portList:
+				rprint('Sending FleetSync data to '+str(port.name)+'...')
+				port.write(d.encode())
+		else:
+			rprint('Cannot send FleetSync data - no open ports were found.')
+
 	# sendText - outgoing serial port data format:
 	#
 	# <start><length_code><fleet><device><msg><sequence><end>
@@ -3495,12 +3508,18 @@ class MyWindow(QDialog,Ui_Dialog):
 				label+='\n'+str(fleet)+':'+str(device)+' '+callsignText
 			message=QInputDialog.getText(self.ui.tabWidget,'Send Text Message',label)[0]
 		if message:
+			rprint('message:'+str(message))
 			if broadcast:
 				rprint('broadcasting text message to all devices')
+				d='\x02\x460000000'+message+'01\x03'
+				rprint('com data: '+str(d))
+				self.fsSendData(d)
 			else:
 				for [fleet,device] in theList:
 					rprint('sending text message to fleet='+str(fleet)+' device='+str(device))
-			rprint('message:'+str(message))
+					d='\x02\x46'+str(fleet)+str(device)+message+'01\x03'
+					rprint('com data: '+str(d))
+					self.fsSendData(d)
 
 	# pollGPS - outgoing serial port data format:
 	#
@@ -3519,6 +3538,9 @@ class MyWindow(QDialog,Ui_Dialog):
 	
 	def pollGPS(self,fleet,device):
 		rprint('polling GPS for fleet='+str(fleet)+' device='+str(device))
+		d='\x02\x52\x33'+str(fleet)+str(device)+'01\x03'
+		rprint('com data: '+str(d))
+		self.fsSendData(d)
 
 	def deleteTeamTab(self,teamName,ext=False):
 		# optional arg 'ext' if called with extTeamName
