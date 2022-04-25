@@ -756,6 +756,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.secondComPortAlive=False
 		self.firstComPortFound=False
 		self.secondComPortFound=False
+		self.firstComPort=None
+		self.secondComPort=None
 		self.comPortScanInProgress=False
 		self.comPortTryList=[]
 ##		if develMode:
@@ -763,6 +765,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsBuffer=""
 		self.entryHold=False
 		self.currentEntryLastModAge=0
+		self.fsAwaitingResponse=None # used as a flag: [fleet,device,text,elapsed]
+		self.fsAwaitingResponseTimeout=5 # give up after this many seconds
 
 		self.opPeriodDialog=opPeriodDialog(self)
 		self.clueLogDialog=clueLogDialog(self)
@@ -1209,6 +1213,20 @@ class MyWindow(QDialog,Ui_Dialog):
 	#  after which /x02 will show up as a happy face and /x03 will show up as a heart on standard ASCII display.
 
 	def fsCheck(self):
+		if self.fsAwaitingResponse:
+			if self.fsAwaitingResponse[3]>=self.fsAwaitingResponseTimeout:
+				self.fsAwaitingResponseMessageBox.close()
+				self.fsAwaitingResponse=None # clear the flag
+				msg='FleetSync did not respond within '+str(self.fsAwaitingResponseTimeout)+' seconds.'
+				if self.fsAwaitingResponse[2]=='Location request sent':
+					msg+='\n\nThis could happen for one of several reasons:\n  - The radio in question was off\n  - The radio in question was on, but not set to this channel\n  - The radio in question was on and set to this channel, but had no GPS fix'
+				box=QMessageBox(QMessageBox.Critical,'FleetSync timeout',msg,
+					QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				box.open()
+				box.raise_()
+				box.exec_()
+			else:
+				self.fsAwaitingResponse[3]+=1
 		if not (self.firstComPortFound and self.secondComPortFound): # correct com ports not yet found; scan for waiting fleetsync data
 			if not self.comPortScanInProgress: # but not if this scan is already in progress (taking longer than 1 second)
 				if comLog:
@@ -1235,7 +1253,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						if isWaiting:
 							rprint("     DATA IS WAITING!!!")
 							tmpData=comPortTry.read(comPortTry.inWaiting()).decode("utf-8")
-							if '\x02I' in tmpData:
+							if '\x02I' in tmpData or tmpData=='\x020\x03' or tmpData=='\x021\x03' or tmpData.startswith('\x02$PKL'):
 								rprint("      VALID FLEETSYNC DATA!!!")
 								self.fsBuffer=self.fsBuffer+tmpData
 
@@ -1348,15 +1366,31 @@ class MyWindow(QDialog,Ui_Dialog):
 		callsign=''
 		self.getString=''
 		sec=time.time()
+		fleet=None
+		dev=None
 		# the line delimeters are literal backslash then n, rather than standard \n
 		for line in self.fsBuffer.split('\n'):
 			rprint(" line:"+line)
+			if line=='\x021\x03': # failure response
+				if self.fsAwaitingResponse:
+					[f,dev]=self.fsAwaitingResponse[0:2]
+					# values format for adding a new entry:
+					#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+					self.values=["" for n in range(10)]
+					self.values[0]=time.strftime("%H%M")
+					self.values[3]='FLEETSYNC: NO RESPONSE from '+str(f)+':'+str(dev)
+					self.values[6]=time.time()
+					self.parent.newEntry(self.values)
+					self.fsAwatingResponse=None # clear the flag
+					rprint('FLEETSYNC: NO RESPONSE from '+str(f)+':'+str(dev))
+					return
 			if '$PKLSH' in line:
 				lineParse=line.split(',')
 				if len(lineParse)==10:
 					[pklsh,nval,nstr,wval,wstr,utc,valid,fleet,dev,chksum]=lineParse
 					callsign=self.getCallsign(fleet,dev)
 					rprint("$PKLSH detected containing CID: fleet="+fleet+"  dev="+dev+"  -->  callsign="+callsign)
+					# OLD RADIOS (2180):
 					# unusual PKLSH lines seen from log files:
 					# $PKLSH,2913.1141,N,,,175302,A,100,2016,*7A - no data for west - this caused
 					#   parsing error "ValueError: invalid literal for int() with base 10: ''"
@@ -1364,12 +1398,20 @@ class MyWindow(QDialog,Ui_Dialog):
 					#   in standard NMEA sentences, status 'V' = 'warning'.  Dead GPS mic?
 					#   we should flag these to the user somehow; note, the coordinates are
 					#   for the Garmin factory in Olathe, KS
-					# so:
 					# - if valid=='V' set coord field to 'WARNING', do not attempt to parse, and carry on
 					# - if valid=='A' and coords are incomplete or otherwise invalid, set coord field
 					#    to 'INVALID', do not attempt to parse, and carry on
-					if valid=='A':  # only process if there is a GPS lock
-	#				if valid!='Z':  # process regardless of GPS lock
+					# 
+					# NEW RADIOS (NX5200):
+					# $PKLSH can contain status 'V' if it had a GPS lock before but does not currently,
+					#   in which case the real coodinates of the last known lock will be included.
+					#   If this happens, we do want to see the coordinates in the entry body, but we do not want
+					#   to update the sartopo locator.
+					# - iv valid=='V', append the formatted string with an asterisk, but do not update the locator
+					# - if valid=='A' - as with old radios
+					# so:
+					# if valid=='A':  # only process if there is a GPS lock
+					if valid!='Z':  # process regardless of GPS lock
 						locList=[nval,nstr,wval,wstr]
 						origLocString='|'.join(locList) # don't use comma, that would conflict with CSV delimeter
 						validated=True
@@ -1388,21 +1430,48 @@ class MyWindow(QDialog,Ui_Dialog):
 							rprint("Formatted location string:'"+formattedLocString+"'")
 							[lat,lon]=self.convertCoords(locList,targetDatum="WGS84",targetFormat="D.dList")
 							rprint("WGS84 lat="+str(lat)+"  lon="+str(lon))
-							# sarsoft requires &id=FLEET:<fleet#>-<deviceID>
-							#  fleet# must match the locatorGroup fleet number in sarsoft
-							#  but deviceID can be any text; use the callsign to get useful names in sarsoft
-							if callsign.startswith("KW-"):
-		                   # did not find a good callsign; use the device number in the GET request
-								devTxt=dev
-							else:
-								# found a good callsign; use the callsign in the GET request
-								devTxt=callsign
-							self.getString="http://"+self.sarsoftServerName+":8080/rest/location/update/position?lat="+str(lat)+"&lng="+str(lon)+"&id=FLEET:"+fleet+"-"
-							# if callsign = "Radio ..." then leave the getString ending with hyphen for now, as a sign to defer
-							#  sending until accept of change callsign dialog, or closeEvent of newEntryWidget, whichever comes first;
-							#  otherwise, append the callsign now, as a sign to send immediately
-							if not devTxt.startswith("Radio "):
-								self.getString=self.getString+devTxt
+							if valid=='A': # don't update the locator if valid=='V'
+								# sarsoft requires &id=FLEET:<fleet#>-<deviceID>
+								#  fleet# must match the locatorGroup fleet number in sarsoft
+								#  but deviceID can be any text; use the callsign to get useful names in sarsoft
+								if callsign.startswith("KW-"):
+									# did not find a good callsign; use the device number in the GET request
+									devTxt=dev
+								else:
+									# found a good callsign; use the callsign in the GET request
+									devTxt=callsign
+								self.getString="http://"+self.sarsoftServerName+":8080/rest/location/update/position?lat="+str(lat)+"&lng="+str(lon)+"&id=FLEET:"+fleet+"-"
+								# if callsign = "Radio ..." then leave the getString ending with hyphen for now, as a sign to defer
+								#  sending until accept of change callsign dialog, or closeEvent of newEntryWidget, whichever comes first;
+								#  otherwise, append the callsign now, as a sign to send immediately
+								if not devTxt.startswith("Radio "):
+									self.getString=self.getString+devTxt
+							# was this a response to a location request for this device?
+							if self.fsAwaitingResponse and [fleet,dev]==self.fsAwaitingResponse[0:2]:
+								# values format for adding a new entry:
+								#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+								self.values=["" for n in range(10)]
+								self.values[0]=time.strftime("%H%M")
+								self.values[4]=formattedLocString
+								if valid=='A':
+									prefix='SUCCESSFUL RESPONSE'
+								elif valid=='V':
+									prefix='RESPONSE WITH WARNING CODE (probably indicates a stale GPS lock)'
+									self.values[4]='*'+self.values[4]+'*'
+								else:
+									rprint('ERROR: unexpected status code "'+str(valid)+'" in PKLSH line.')
+									return
+								self.values[3]='LOCATION REQUEST: '+prefix+' for device '+str(fleet)+':'+str(dev)
+								self.values[6]=time.time()
+								self.parent.newEntry(self.values)
+								t=self.fsAwaitingResponse[2]
+								self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,prefix+' '+formattedLocString+'\n\nNew entry created with response coordinates.',
+												QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+								self.fsAwaitingResponseMessageBox.show()
+								self.fsAwaitingResponseMessageBox.raise_()
+								self.fsAwaitingResponseMessageBox.exec_()
+								self.fsAwatingResponse=None # clear the flag
+								return # done processing this FS traffic - don't spawn a new entry dialog
 						else:
 							rprint("INVALID location string parsed from $PKLSH: '"+origLocString+"'")
 							origLocString='INVALID'
@@ -1460,15 +1529,16 @@ class MyWindow(QDialog,Ui_Dialog):
 						widget.ui.datumFormatLabel.setText(datumFormatString)
 						widget.formattedLocString=formattedLocString
 						widget.origLocString=origLocString
-		self.fsLogUpdate(int(fleet),int(dev))
-		# only open a new entry widget if the fleet/dev is not being filtered
-		if not found:
-			if self.fsIsFiltered(int(fleet),int(dev)):
-				self.fsFilteredCallDisplay("on",fleet,dev,callsign)
-				QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
-			else:
-				self.openNewEntry('fs',callsign,formattedLocString,fleet,dev,origLocString)
-		self.sendPendingGet()
+		if fleet and dev:
+			self.fsLogUpdate(int(fleet),int(dev))
+			# only open a new entry widget if the fleet/dev is not being filtered
+			if not found:
+				if self.fsIsFiltered(int(fleet),int(dev)):
+					self.fsFilteredCallDisplay("on",fleet,dev,callsign)
+					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
+				else:
+					self.openNewEntry('fs',callsign,formattedLocString,fleet,dev,origLocString)
+			self.sendPendingGet()
 
 	def sendPendingGet(self,suffix=""):
 		# NOTE that requests.get can cause a blocking delay; so, do it AFTER spawning the newEntryDialog
@@ -3458,18 +3528,31 @@ class MyWindow(QDialog,Ui_Dialog):
 ##				self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:20px;border:1px outset black;qproperty-alignment:AlignCenter")
 
 	# sendText and pollGPS:
-	# self.firstComPort is not defined until FS data has been read.  May want to revise that to help with the send functions.
-	#  self.comPortTryList is a list of 'opened' ports.
+	# self.firstComPort and secondComPort are not defined until valid FS data has been read from that port.
+	#  Even if we expand the definition of 'valid' data, we want to be able to send to a port regardless of
+	#  whether any data has yet been read from that port. May want to revise that to help with the send functions.
 
-	def fsSendData(self,d,portList=None):
-		portList=portList or self.comPortTryList
-		rprint('trying to send - portList='+str(portList))
-		if len(portList)>0:
-			for port in portList:
-				rprint('Sending FleetSync data to '+str(port.name)+'...')
-				port.write(d.encode())
+	# def fsSendData(self,d,portList=None):
+	# 	portList=portList or [self.firstComPort]
+	# 	rprint('trying to send - portList='+str(portList))
+	# 	if portList and len(portList)>0:
+	# 		for port in portList:
+	# 			rprint('Sending FleetSync data to '+str(port.name)+'...')
+	# 			port.write(d.encode())
+	# 	else:
+	# 		rprint('Cannot send FleetSync data - no open ports were found.')
+
+	def fsSendData(self,d,port=None):
+		port=port or self.firstComPort
+		if port:
+			rprint('Sending FleetSync data to '+str(port.name)+'...')
+			port.write(d.encode())
 		else:
 			rprint('Cannot send FleetSync data - no open ports were found.')
+
+	# Serial data format for sendText and pollGPS functions was discovered by using RADtext 
+	#    https://radtext.morganized.com/radtext
+	#  along with a virtual COM port bridge, and a COM port terminal emulator to watch the traffic
 
 	# sendText - outgoing serial port data format:
 	#
@@ -3547,6 +3630,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		d='\x02\x52\x33'+str(fleet)+str(device)+'\x03'
 		rprint('com data: '+str(d))
 		self.fsSendData(d)
+		self.fsAwaitingResponse=[fleet,device,'Location request sent',0]
+		[f,dev,t]=self.fsAwaitingResponse[0:3]
+		self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,t+' to '+str(f)+':'+str(dev)+'; awaiting response up to five seconds...',
+						QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		self.fsAwaitingResponseMessageBox.show()
+		self.fsAwaitingResponseMessageBox.raise_()
+		self.fsAwaitingResponseMessageBox.exec_()
+		self.fsAwaitingResponse=None # clear the flag - this will happen after the messagebox is closed (due to valid response, or timeout in fsCheck, or Abort clicked)
 
 	def deleteTeamTab(self,teamName,ext=False):
 		# optional arg 'ext' if called with extTeamName
