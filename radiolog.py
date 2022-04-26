@@ -1371,6 +1371,33 @@ class MyWindow(QDialog,Ui_Dialog):
 		# the line delimeters are literal backslash then n, rather than standard \n
 		for line in self.fsBuffer.split('\n'):
 			rprint(" line:"+line)
+			if line=='\x020\x03':
+				# success response code - happens in these cases:
+				# - positive acknowledge received after text sent to individual device
+				# - broadcast text sent (target radios will not try to respond to broadcast)
+				# - positive acknowledge received after location poll, regardless of response from portable radio;
+				#     if target radio has a GPS lock, either current (A status) or stale (V status), 
+				#     the next lines will include $PKLSH etc.  In this case, there is no action to take;
+				#     just move on to the next line.
+				if self.fsAwaitingResponse and self.fsAwaitingResponse[2]=='Text message sent':
+					[f,dev]=self.fsAwaitingResponse[0:2]
+					recipient=''
+					suffix=''
+					if int(f)==0 and int(dev)==0:
+						recipient='all devices'
+					else:
+						recipient=str(f)+':'+str(dev)
+						suffix='; delivery confirmed'
+					# values format for adding a new entry:
+					#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+					self.values=["" for n in range(10)]
+					self.values[0]=time.strftime("%H%M")
+					self.values[3]='FLEETSYNC: Text message sent to '+recipient+suffix
+					self.values[6]=time.time()
+					self.parent.newEntry(self.values)
+					self.fsAwatingResponse=None # clear the flag
+					rprint('FLEETSYNC: Text message sent to '+recipient+suffix)
+					return
 			if line=='\x021\x03': # failure response
 				if self.fsAwaitingResponse:
 					[f,dev]=self.fsAwaitingResponse[0:2]
@@ -1450,20 +1477,20 @@ class MyWindow(QDialog,Ui_Dialog):
 							if self.fsAwaitingResponse and [fleet,dev]==self.fsAwaitingResponse[0:2]:
 								# values format for adding a new entry:
 								#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
-								self.values=["" for n in range(10)]
-								self.values[0]=time.strftime("%H%M")
-								self.values[4]=formattedLocString
+								values=["" for n in range(10)]
+								values[0]=time.strftime("%H%M")
+								values[4]=formattedLocString
 								if valid=='A':
 									prefix='SUCCESSFUL RESPONSE'
 								elif valid=='V':
 									prefix='RESPONSE WITH WARNING CODE (probably indicates a stale GPS lock)'
-									self.values[4]='*'+self.values[4]+'*'
+									values[4]='*'+values[4]+'*'
 								else:
-									rprint('ERROR: unexpected status code "'+str(valid)+'" in PKLSH line.')
-									return
-								self.values[3]='LOCATION REQUEST: '+prefix+' for device '+str(fleet)+':'+str(dev)
-								self.values[6]=time.time()
-								self.parent.newEntry(self.values)
+									prefix='UNKNOWN RESPONSE CODE "'+str(valid)+'"'
+									values[4]='!'+values[4]+'!'
+								values[3]='LOCATION REQUEST: '+prefix+' for device '+str(fleet)+':'+str(dev)
+								values[6]=time.time()
+								self.parent.newEntry(values)
 								t=self.fsAwaitingResponse[2]
 								self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,prefix+' '+formattedLocString+'\n\nNew entry created with response coordinates.',
 												QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
@@ -3599,16 +3626,34 @@ class MyWindow(QDialog,Ui_Dialog):
 		if message:
 			rprint('message:'+str(message))
 			if broadcast:
+				# portable radios will not attempt to send acknowledgement for broadcast
 				rprint('broadcasting text message to all devices')
 				d='\x02\x460000000'+message+'\x03'
 				rprint('com data: '+str(d))
 				self.fsSendData(d)
+				# values format for adding a new entry:
+				#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+				values=["" for n in range(10)]
+				values[0]=time.strftime("%H%M")
+				values[3]='TEXT MESSAGE SENT TO ALL DEVICES: "'+str(message)+'"'
+				values[6]=time.time()
+				self.parent.newEntry(values)
 			else:
+				# recipient portable will send acknowledgement
 				for [fleet,device] in theList:
 					rprint('sending text message to fleet='+str(fleet)+' device='+str(device))
 					d='\x02\x46'+str(fleet)+str(device)+message+'\x03'
 					rprint('com data: '+str(d))
 					self.fsSendData(d)
+					self.fsAwaitingResponse=[fleet,device,'Text message sent',0]
+					[f,dev,t]=self.fsAwaitingResponse[0:3]
+					self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,t+' to '+str(f)+':'+str(dev)+'; awaiting response up to five seconds...',
+									QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					self.fsAwaitingResponseMessageBox.show()
+					self.fsAwaitingResponseMessageBox.raise_()
+					self.fsAwaitingResponseMessageBox.exec_()
+					self.fsAwaitingResponse=None # clear the flag - this will happen after the messagebox is closed (due to valid response, or timeout in fsCheck, or Abort clicked)
+
 
 	# pollGPS - outgoing serial port data format:
 	#
