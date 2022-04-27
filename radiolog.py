@@ -1215,11 +1215,31 @@ class MyWindow(QDialog,Ui_Dialog):
 	def fsCheck(self):
 		if self.fsAwaitingResponse:
 			if self.fsAwaitingResponse[3]>=self.fsAwaitingResponseTimeout:
+				rprint('Fleetsync timed out awaiting response')
 				self.fsAwaitingResponseMessageBox.close()
-				self.fsAwaitingResponse=None # clear the flag
+				[f,dev]=self.fsAwaitingResponse[0:2]
+				callsignText=self.getCallsign(f,dev)
+				if callsignText:
+					callsignText='('+callsignText+')'
+				else:
+					callsignText='(no callsign)'
+				# values format for adding a new entry:
+				#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+				values=["" for n in range(10)]
+				values[0]=time.strftime("%H%M")
+				values[6]=time.time()
+				if self.fsAwaitingResponse[2]=='Location request sent':
+					values[3]='FLEETSYNC: No response received for location request from '+str(f)+':'+str(dev)+' '+callsignText
+				elif self.fsAwaitingResponse[2]=='Text message sent':
+					msg=self.fsAwaitingResponse[4]
+					values[3]='FLEETSYNC: Text message sent to '+str(f)+':'+str(dev)+callsignText+' but delivery was NOT confirmed: "'+msg+'"'
+				else:
+					values[3]='FLEETSYNC: Timeout after unknown command type "'+self.fsAwaitingResponse[2]+'"'
+				self.newEntry(values)
 				msg='FleetSync did not respond within '+str(self.fsAwaitingResponseTimeout)+' seconds.'
 				if self.fsAwaitingResponse[2]=='Location request sent':
-					msg+='\n\nThis could happen for one of several reasons:\n  - The radio in question was off\n  - The radio in question was on, but not set to this channel\n  - The radio in question was on and set to this channel, but had no GPS fix'
+					msg+='\n\nThis could happen after a location request for one of several reasons:\n  - The radio in question was off\n  - The radio in question was on, but not set to this channel\n  - The radio in question was on and set to this channel, but had no GPS fix'
+				self.fsAwaitingResponse=None # clear the flag
 				box=QMessageBox(QMessageBox.Critical,'FleetSync timeout',msg,
 					QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 				box.open()
@@ -1380,22 +1400,29 @@ class MyWindow(QDialog,Ui_Dialog):
 				#     the next lines will include $PKLSH etc.  In this case, there is no action to take;
 				#     just move on to the next line.
 				if self.fsAwaitingResponse and self.fsAwaitingResponse[2]=='Text message sent':
+					self.fsAwaitingResponseMessageBox.close()
 					[f,dev]=self.fsAwaitingResponse[0:2]
+					msg=self.fsAwaitingResponse[4]
+					self.fsAwaitingResponse=None # clear the flag
 					recipient=''
 					suffix=''
 					if int(f)==0 and int(dev)==0:
 						recipient='all devices'
 					else:
 						recipient=str(f)+':'+str(dev)
-						suffix='; delivery confirmed'
+						callsignText=self.getCallsign(f,dev)
+						if callsignText:
+							callsignText='('+callsignText+')'
+						else:
+							callsignText='(no callsign)'
+						suffix=callsignText+' and delivery confirmed'
 					# values format for adding a new entry:
 					#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
-					self.values=["" for n in range(10)]
-					self.values[0]=time.strftime("%H%M")
-					self.values[3]='FLEETSYNC: Text message sent to '+recipient+suffix
-					self.values[6]=time.time()
-					self.parent.newEntry(self.values)
-					self.fsAwatingResponse=None # clear the flag
+					values=["" for n in range(10)]
+					values[0]=time.strftime("%H%M")
+					values[3]='FLEETSYNC: Text message sent to '+recipient+suffix+': "'+msg+'"'
+					values[6]=time.time()
+					self.newEntry(values)
 					rprint('FLEETSYNC: Text message sent to '+recipient+suffix)
 					return
 			if line=='\x021\x03': # failure response
@@ -1403,11 +1430,11 @@ class MyWindow(QDialog,Ui_Dialog):
 					[f,dev]=self.fsAwaitingResponse[0:2]
 					# values format for adding a new entry:
 					#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
-					self.values=["" for n in range(10)]
-					self.values[0]=time.strftime("%H%M")
-					self.values[3]='FLEETSYNC: NO RESPONSE from '+str(f)+':'+str(dev)
-					self.values[6]=time.time()
-					self.parent.newEntry(self.values)
+					values=["" for n in range(10)]
+					values[0]=time.strftime("%H%M")
+					values[3]='FLEETSYNC: NO RESPONSE from '+str(f)+':'+str(dev)
+					values[6]=time.time()
+					self.newEntry(values)
 					self.fsAwatingResponse=None # clear the flag
 					rprint('FLEETSYNC: NO RESPONSE from '+str(f)+':'+str(dev))
 					return
@@ -1475,6 +1502,7 @@ class MyWindow(QDialog,Ui_Dialog):
 									self.getString=self.getString+devTxt
 							# was this a response to a location request for this device?
 							if self.fsAwaitingResponse and [fleet,dev]==self.fsAwaitingResponse[0:2]:
+								self.fsAwaitingResponseMessageBox.close()
 								# values format for adding a new entry:
 								#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
 								values=["" for n in range(10)]
@@ -1488,16 +1516,22 @@ class MyWindow(QDialog,Ui_Dialog):
 								else:
 									prefix='UNKNOWN RESPONSE CODE "'+str(valid)+'"'
 									values[4]='!'+values[4]+'!'
-								values[3]='LOCATION REQUEST: '+prefix+' for device '+str(fleet)+':'+str(dev)
+								callsignText=self.getCallsign(fleet,dev)
+								if callsignText:
+									callsignText='('+callsignText+')'
+								else:
+									callsignText='(no callsign)'
+								values[3]='FLEETSYNC LOCATION REQUEST: '+prefix+' from device '+str(fleet)+':'+str(dev)+' '+callsignText
 								values[6]=time.time()
-								self.parent.newEntry(values)
+								self.newEntry(values)
+								rprint(values[3])
 								t=self.fsAwaitingResponse[2]
-								self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,prefix+' '+formattedLocString+'\n\nNew entry created with response coordinates.',
+								self.fsAwatingResponse=None # clear the flag
+								self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,values[3]+':\n\n'+formattedLocString+'\n\nNew entry created with response coordinates.',
 												QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 								self.fsAwaitingResponseMessageBox.show()
 								self.fsAwaitingResponseMessageBox.raise_()
 								self.fsAwaitingResponseMessageBox.exec_()
-								self.fsAwatingResponse=None # clear the flag
 								return # done processing this FS traffic - don't spawn a new entry dialog
 						else:
 							rprint("INVALID location string parsed from $PKLSH: '"+origLocString+"'")
@@ -3574,8 +3608,16 @@ class MyWindow(QDialog,Ui_Dialog):
 		if port:
 			rprint('Sending FleetSync data to '+str(port.name)+'...')
 			port.write(d.encode())
+			return True
 		else:
-			rprint('Cannot send FleetSync data - no open ports were found.')
+			msg='Cannot send FleetSync data - no valid FleetSync COM ports were found.  Keying the mic on a portable radio will trigger COM port recognition.'
+			rprint(msg)
+			box=QMessageBox(QMessageBox.Critical,'FleetSync error',msg,
+				QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.open()
+			box.raise_()
+			box.exec_()
+			return False
 
 	# Serial data format for sendText and pollGPS functions was discovered by using RADtext 
 	#    https://radtext.morganized.com/radtext
@@ -3604,24 +3646,29 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def sendText(self,fleetOrListOrAll,device=None,message=None):
 		broadcast=False
+		theList=[[]]
 		if isinstance(fleetOrListOrAll,list):
 			theList=fleetOrListOrAll
+			recipientText=str(len(theList))+' device'
 		elif fleetOrListOrAll=='ALL':
 			broadcast=True
+			recipientText='all devices'
 		else:
 			theList=[[fleetOrListOrAll,device]]
+			recipientText=str(len(theList))+' device'
 		if not message:
 			suffix=''
 			if len(theList)>1:
 				suffix='s'
-			label='Enter text message to send to '+str(len(theList))+' device'+suffix+':\n'
-			for [fleet,device] in theList:
-				callsignText=self.getCallsign(fleet,device)
-				if callsignText:
-					callsignText='"'+callsignText+'"'
-				else:
-					callsignText='(no callsign)'
-				label+='\n'+str(fleet)+':'+str(device)+' '+callsignText
+			label='Enter text message to send to '+recipientText+suffix+':\n'
+			if not broadcast:
+				for [fleet,device] in theList:
+					callsignText=self.getCallsign(fleet,device)
+					if callsignText:
+						callsignText='"'+callsignText+'"'
+					else:
+						callsignText='(no callsign)'
+					label+='\n'+str(fleet)+':'+str(device)+' '+callsignText
 			message=QInputDialog.getText(self.ui.tabWidget,'Send Text Message',label)[0]
 		if message:
 			rprint('message:'+str(message))
@@ -3630,29 +3677,29 @@ class MyWindow(QDialog,Ui_Dialog):
 				rprint('broadcasting text message to all devices')
 				d='\x02\x460000000'+message+'\x03'
 				rprint('com data: '+str(d))
-				self.fsSendData(d)
-				# values format for adding a new entry:
-				#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
-				values=["" for n in range(10)]
-				values[0]=time.strftime("%H%M")
-				values[3]='TEXT MESSAGE SENT TO ALL DEVICES: "'+str(message)+'"'
-				values[6]=time.time()
-				self.parent.newEntry(values)
+				if self.fsSendData(d):
+					# values format for adding a new entry:
+					#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+					values=["" for n in range(10)]
+					values[0]=time.strftime("%H%M")
+					values[3]='TEXT MESSAGE SENT TO ALL DEVICES: "'+str(message)+'"'
+					values[6]=time.time()
+					self.newEntry(values)
 			else:
 				# recipient portable will send acknowledgement
 				for [fleet,device] in theList:
 					rprint('sending text message to fleet='+str(fleet)+' device='+str(device))
 					d='\x02\x46'+str(fleet)+str(device)+message+'\x03'
 					rprint('com data: '+str(d))
-					self.fsSendData(d)
-					self.fsAwaitingResponse=[fleet,device,'Text message sent',0]
-					[f,dev,t]=self.fsAwaitingResponse[0:3]
-					self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,t+' to '+str(f)+':'+str(dev)+'; awaiting response up to five seconds...',
-									QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-					self.fsAwaitingResponseMessageBox.show()
-					self.fsAwaitingResponseMessageBox.raise_()
-					self.fsAwaitingResponseMessageBox.exec_()
-					self.fsAwaitingResponse=None # clear the flag - this will happen after the messagebox is closed (due to valid response, or timeout in fsCheck, or Abort clicked)
+					if self.fsSendData(d):
+						self.fsAwaitingResponse=[fleet,device,'Text message sent',0,message]
+						[f,dev,t]=self.fsAwaitingResponse[0:3]
+						self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,t+' to '+str(f)+':'+str(dev)+'; awaiting response up to five seconds...',
+										QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+						self.fsAwaitingResponseMessageBox.show()
+						self.fsAwaitingResponseMessageBox.raise_()
+						self.fsAwaitingResponseMessageBox.exec_()
+						self.fsAwaitingResponse=None # clear the flag - this will happen after the messagebox is closed (due to valid response, or timeout in fsCheck, or Abort clicked)
 
 
 	# pollGPS - outgoing serial port data format:
@@ -3674,15 +3721,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint('polling GPS for fleet='+str(fleet)+' device='+str(device))
 		d='\x02\x52\x33'+str(fleet)+str(device)+'\x03'
 		rprint('com data: '+str(d))
-		self.fsSendData(d)
-		self.fsAwaitingResponse=[fleet,device,'Location request sent',0]
-		[f,dev,t]=self.fsAwaitingResponse[0:3]
-		self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,t+' to '+str(f)+':'+str(dev)+'; awaiting response up to five seconds...',
-						QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-		self.fsAwaitingResponseMessageBox.show()
-		self.fsAwaitingResponseMessageBox.raise_()
-		self.fsAwaitingResponseMessageBox.exec_()
-		self.fsAwaitingResponse=None # clear the flag - this will happen after the messagebox is closed (due to valid response, or timeout in fsCheck, or Abort clicked)
+		if self.fsSendData(d):
+			self.fsAwaitingResponse=[fleet,device,'Location request sent',0]
+			[f,dev,t]=self.fsAwaitingResponse[0:3]
+			self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,t+' to '+str(f)+':'+str(dev)+'; awaiting response up to five seconds...',
+							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			self.fsAwaitingResponseMessageBox.show()
+			self.fsAwaitingResponseMessageBox.raise_()
+			self.fsAwaitingResponseMessageBox.exec_()
+			self.fsAwaitingResponse=None # clear the flag - this will happen after the messagebox is closed (due to valid response, or timeout in fsCheck, or Abort clicked)
 
 	def deleteTeamTab(self,teamName,ext=False):
 		# optional arg 'ext' if called with extTeamName
