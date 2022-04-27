@@ -5522,6 +5522,17 @@ class fsFilterDialog(QDialog,Ui_fsFilterDialog):
 		rprint("closing fsFilterDialog")
 				
 
+# custom QValidator class to specify that a field must not be blank
+
+class NotEmptyValidator(QValidator):
+	def validate(self, text: str, pos):
+		if bool(text.strip()):
+			state = QValidator.Acceptable
+		else:
+			state = QValidator.Intermediate  # so that field can be made empty temporarily
+		return state, text, pos
+
+
 class fsSendDialog(QDialog,Ui_fsSendDialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
@@ -5529,6 +5540,12 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 		self.ui.setupUi(self)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.parent=parent
+		# need to connect apply signal by hand https://stackoverflow.com/a/35444005
+		btn=self.ui.buttonBox.button(QDialogButtonBox.Apply)
+		btn.clicked.connect(self.apply)
+		self.ui.fleetField.setValidator(QRegExpValidator(QRegExp('[1-9][0-9][0-9]'),self.ui.fleetField))
+		self.ui.messageField.setValidator(NotEmptyValidator(self.ui.messageField))
+		self.functionChanged() # to set device validator
 
 	def functionChanged(self):
 		sendText=self.ui.sendTextRadioButton.isChecked()
@@ -5538,30 +5555,64 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 		# if polling GPS, only one device ID can be specified
 		if sendText:
 			self.ui.deviceLabel.setText('Device ID(s)')
+			self.ui.deviceField.setValidator(QRegExpValidator(QRegExp('^([1-9][0-9][0-9][0-9][, ]?)*$'),self.ui.deviceField))
 		else:
 			self.ui.deviceLabel.setText('Device ID')
+			self.ui.deviceField.setValidator(QRegExpValidator(QRegExp('[1-9][0-9][0-9][0-9]'),self.ui.deviceField))
+			
 
 	def sendAllCheckboxChanged(self):
 		sendAll=self.ui.sendToAllCheckbox.isChecked()
 		self.ui.fleetField.setEnabled(not sendAll)
 		self.ui.deviceField.setEnabled(not sendAll)
 
-	def accept(self):
+	def apply(self):
+		# validate fields
+		# valid=(fleet.isnumeric() and int(fleet)>99 and int(fleet)<1000) # three digit integer
+		# valid=valid and (device.isnumeric() and int(fleet)>99 and int(fleet)<1000) # three digit integer
+		valid=True
+		invalidMsg='The form had error(s).  Please correct and try again:'
+		sendText=self.ui.sendTextRadioButton.isChecked()
+		sendAll=self.ui.sendToAllCheckbox.isChecked()
+		if not sendAll:
+			if not self.ui.fleetField.hasAcceptableInput():
+				invalidMsg+='\n - Fleet ID must be a three-digit integer'
+				valid=False
+			if not self.ui.deviceField.hasAcceptableInput():
+				if sendText:
+					invalidMsg+='\n - Device ID(s) must be a four-digit integer, or a comma-separated or space-separated list of four-digit integers'
+				else:
+					invalidMsg+='\n - Device ID must be a four-digit integer'
+				valid=False
+		if sendText:
+			if not self.ui.messageField.hasAcceptableInput():
+				invalidMsg+='\n - Message cannot be blank'
+				valid=False
+		if not valid:
+			box=QMessageBox(QMessageBox.Critical,"Form errors",invalidMsg,
+										QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.show()
+			box.raise_()
+			box.exec_()
+			return
+
+		# validated
+		fleet=self.ui.fleetField.text()
+		device=self.ui.deviceField.text()
+		msg=self.ui.messageField.text()
 		if self.ui.sendTextRadioButton.isChecked():
 			if self.ui.sendToAllCheckbox.isChecked():
-				self.parent.sendText('ALL',message=self.ui.messageField.text())
+				self.parent.sendText('ALL',message=msg)
 			else:
-				deviceParse=re.split('[ ,]+',self.ui.deviceField.text())
+				deviceParse=re.split('[ ,]+',device)
 				if len(deviceParse)==1:
-					self.parent.sendText(self.ui.fleetField.text(),self.ui.deviceField.text(),self.ui.messageField.text())
+					self.parent.sendText(fleet,device,msg)
 				elif len(deviceParse)>1:
-					self.parent.sendText([[self.ui.fleetField.text(),d] for d in deviceParse],message=self.ui.messageField.text())
+					self.parent.sendText([[fleet,d] for d in deviceParse],message=msg)
 				else:
-					rprint('ERROR: must specify a device ID or list of device IDs (separated by comma or space)')
-					self.reject()
+					rprint('ERROR: the form validated, but apparently in error: must specify a device ID or list of device IDs (separated by comma or space)')
 		else:
-			self.parent.pollGPS(self.ui.fleetField.text(),self.ui.deviceField.text())
-		super(fsSendDialog,self).accept()
+			self.parent.pollGPS(fleet,device)
 		
 
 class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
