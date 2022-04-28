@@ -3677,16 +3677,26 @@ class MyWindow(QDialog,Ui_Dialog):
 				rprint('broadcasting text message to all devices')
 				d='\x02\x460000000'+message+'\x03'
 				rprint('com data: '+str(d))
-				if self.fsSendData(d):
+				r1=self.fsSendData(d)
+				suffix=''
+				if r1:
+					suffix=' using one mobile radio'
+				r2=False
+				if self.secondComPort:
+					time.sleep(2) # yes, we do want a blocking sleep
+					r2=self.fsSendData(d,self.secondComPort)
+					if r2:
+						suffix=' using two mobile radios'
+				if r1 or r2:
 					# values format for adding a new entry:
 					#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
 					values=["" for n in range(10)]
 					values[0]=time.strftime("%H%M")
-					values[3]='TEXT MESSAGE SENT TO ALL DEVICES: "'+str(message)+'"'
+					values[3]='TEXT MESSAGE SENT TO ALL DEVICES'+suffix+': "'+str(message)+'"'
 					values[6]=time.time()
 					self.newEntry(values)
 			else:
-				# recipient portable will send acknowledgement
+				# recipient portable will send acknowledgement when fleet and device ase specified
 				for [fleet,device] in theList:
 					rprint('sending text message to fleet='+str(fleet)+' device='+str(device))
 					d='\x02\x46'+str(fleet)+str(device)+message+'\x03'
@@ -5567,6 +5577,16 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 		self.ui.deviceField.setEnabled(not sendAll)
 
 	def apply(self):
+		if not self.parent.firstComPort:
+			msg='Cannot send FleetSync data - no valid FleetSync COM ports were found.  Keying the mic on a portable radio will trigger COM port recognition.'
+			rprint(msg)
+			box=QMessageBox(QMessageBox.Critical,'FleetSync error',msg,
+				QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.open()
+			box.raise_()
+			box.exec_()
+			return
+
 		# validate fields
 		# valid=(fleet.isnumeric() and int(fleet)>99 and int(fleet)<1000) # three digit integer
 		# valid=valid and (device.isnumeric() and int(fleet)>99 and int(fleet)<1000) # three digit integer
@@ -5596,12 +5616,12 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 			box.exec_()
 			return
 
-		# validated
+		# validation completed
 		fleet=self.ui.fleetField.text()
 		device=self.ui.deviceField.text()
 		msg=self.ui.messageField.text()
-		if self.ui.sendTextRadioButton.isChecked():
-			if self.ui.sendToAllCheckbox.isChecked():
+		if sendText:
+			if sendAll:
 				self.parent.sendText('ALL',message=msg)
 			else:
 				deviceParse=re.split('[ ,]+',device)
