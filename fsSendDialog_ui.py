@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_fsSendDialog(object):
     def setupUi(self, fsSendDialog):
         fsSendDialog.setObjectName("fsSendDialog")
-        fsSendDialog.resize(316, 332)
+        fsSendDialog.resize(431, 386)
         self.verticalLayout = QtWidgets.QVBoxLayout(fsSendDialog)
         self.verticalLayout.setObjectName("verticalLayout")
         self.verticalLayout_5 = QtWidgets.QVBoxLayout()
@@ -79,6 +79,7 @@ class Ui_fsSendDialog(object):
         font.setFamily("Segoe UI")
         font.setPointSize(12)
         self.label.setFont(font)
+        self.label.setStyleSheet("margin-bottom:-2")
         self.label.setObjectName("label")
         self.verticalLayout_2.addWidget(self.label)
         self.fleetField = QtWidgets.QLineEdit(fsSendDialog)
@@ -98,6 +99,7 @@ class Ui_fsSendDialog(object):
         font.setFamily("Segoe UI")
         font.setPointSize(12)
         self.deviceLabel.setFont(font)
+        self.deviceLabel.setStyleSheet("margin-bottom:-2")
         self.deviceLabel.setObjectName("deviceLabel")
         self.verticalLayout_3.addWidget(self.deviceLabel)
         self.deviceField = QtWidgets.QLineEdit(fsSendDialog)
@@ -120,8 +122,17 @@ class Ui_fsSendDialog(object):
         font.setFamily("Segoe UI")
         font.setPointSize(12)
         self.label_3.setFont(font)
+        self.label_3.setStyleSheet("margin-bottom:-2")
+        self.label_3.setWordWrap(True)
         self.label_3.setObjectName("label_3")
         self.verticalLayout_4.addWidget(self.label_3)
+        self.label_4 = QtWidgets.QLabel(fsSendDialog)
+        font = QtGui.QFont()
+        font.setFamily("Segoe UI")
+        font.setPointSize(9)
+        self.label_4.setFont(font)
+        self.label_4.setObjectName("label_4")
+        self.verticalLayout_4.addWidget(self.label_4)
         self.messageField = QtWidgets.QLineEdit(fsSendDialog)
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
@@ -131,6 +142,14 @@ class Ui_fsSendDialog(object):
         self.verticalLayout_4.addWidget(self.messageField)
         self.verticalLayout_5.addLayout(self.verticalLayout_4)
         self.verticalLayout.addLayout(self.verticalLayout_5)
+        self.label_2 = QtWidgets.QLabel(fsSendDialog)
+        font = QtGui.QFont()
+        font.setFamily("Segoe UI")
+        font.setPointSize(10)
+        self.label_2.setFont(font)
+        self.label_2.setWordWrap(True)
+        self.label_2.setObjectName("label_2")
+        self.verticalLayout.addWidget(self.label_2)
         self.buttonBox = QtWidgets.QDialogButtonBox(fsSendDialog)
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
@@ -143,11 +162,15 @@ class Ui_fsSendDialog(object):
         self.verticalLayout.addWidget(self.buttonBox)
 
         self.retranslateUi(fsSendDialog)
-        self.buttonBox.accepted.connect(fsSendDialog.accept) # type: ignore
         self.buttonBox.rejected.connect(fsSendDialog.reject) # type: ignore
         self.sendTextRadioButton.toggled['bool'].connect(fsSendDialog.functionChanged) # type: ignore
         self.sendToAllCheckbox.toggled['bool'].connect(fsSendDialog.sendAllCheckboxChanged) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(fsSendDialog)
+        fsSendDialog.setTabOrder(self.sendTextRadioButton, self.pollGPSRadioButton)
+        fsSendDialog.setTabOrder(self.pollGPSRadioButton, self.sendToAllCheckbox)
+        fsSendDialog.setTabOrder(self.sendToAllCheckbox, self.fleetField)
+        fsSendDialog.setTabOrder(self.fleetField, self.deviceField)
+        fsSendDialog.setTabOrder(self.deviceField, self.messageField)
 
     def retranslateUi(self, fsSendDialog):
         _translate = QtCore.QCoreApplication.translate
@@ -158,3 +181,5 @@ class Ui_fsSendDialog(object):
         self.label.setText(_translate("fsSendDialog", "Fleet ID"))
         self.deviceLabel.setText(_translate("fsSendDialog", "Device ID(s)"))
         self.label_3.setText(_translate("fsSendDialog", "Message"))
+        self.label_4.setText(_translate("fsSendDialog", " 36 characters max; date and time automatically included"))
+        self.label_2.setText(_translate("fsSendDialog", "Note: any of these functions (excecpt \'Send to All\') can also be done by right-clicking a Team Tab"))

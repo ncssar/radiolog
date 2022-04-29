@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>316</width>
-    <height>332</height>
+    <width>431</width>
+    <height>386</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -156,6 +156,9 @@
              <pointsize>12</pointsize>
             </font>
            </property>
+           <property name="styleSheet">
+            <string notr="true">margin-bottom:-2</string>
+           </property>
            <property name="text">
             <string>Fleet ID</string>
            </property>
@@ -188,6 +191,9 @@
              <family>Segoe UI</family>
              <pointsize>12</pointsize>
             </font>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">margin-bottom:-2</string>
            </property>
            <property name="text">
             <string>Device ID(s)</string>
@@ -224,8 +230,27 @@
            <pointsize>12</pointsize>
           </font>
          </property>
+         <property name="styleSheet">
+          <string notr="true">margin-bottom:-2</string>
+         </property>
          <property name="text">
           <string>Message</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_4">
+         <property name="font">
+          <font>
+           <family>Segoe UI</family>
+           <pointsize>9</pointsize>
+          </font>
+         </property>
+         <property name="text">
+          <string> 36 characters max; date and time automatically included</string>
          </property>
         </widget>
        </item>

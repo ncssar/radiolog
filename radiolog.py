@@ -314,6 +314,7 @@ from PyQt5.QtWidgets import *
 from help_ui import Ui_Help
 from options_ui import Ui_optionsDialog
 from fsSendDialog_ui import Ui_fsSendDialog
+from fsSendMessageDialog_ui import Ui_fsSendMessageDialog
 from newEntryWindow_ui import Ui_newEntryWindow
 from newEntryWidget_ui import Ui_newEntryWidget
 from clueDialog_ui import Ui_clueDialog
@@ -766,7 +767,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.entryHold=False
 		self.currentEntryLastModAge=0
 		self.fsAwaitingResponse=None # used as a flag: [fleet,device,text,elapsed]
-		self.fsAwaitingResponseTimeout=5 # give up after this many seconds
+		self.fsAwaitingResponseTimeout=8 # give up after this many seconds
 
 		self.opPeriodDialog=opPeriodDialog(self)
 		self.clueLogDialog=clueLogDialog(self)
@@ -3568,7 +3569,15 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.fsFilterEdit(d[0],d[1],d[2].lower()=='filter')
 					self.fsBuildTeamFilterDict()
 				elif d[2]=='SendText':
-					self.sendText(d[0],d[1])
+					callsignText=self.getCallsign(d[0],d[1])
+					if callsignText:
+						callsignText='('+callsignText+')'
+					else:
+						callsignText='(no callsign)'
+					box=fsSendMessageDialog(self,d[0],d[1],callsignText)
+					box.show()
+					box.raise_()
+					box.exec_()
 				elif d[2]=='PollGPS':
 					self.pollGPS(d[0],d[1])
 				else:
@@ -3631,6 +3640,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	# <length_code> - indicates max possible message length, though the plain text message is not padded to that length
 	#   46 hex (ascii F) - corresponds to 'S' (Short - 48 characters)
 	#   47 hex (ascii G) - corresponds to both 'L' (Long - 1024 characters) and 'X' (Extra-long - 4096 characters)
+	#   if you send COM port data with message body longer than that limit, the mobile will not transmit
 	# <fleet> - plain-text three-digit fleet ID (000 for broadcast)
 	# <device> - plain-text four-digit device ID (0000 for broadcast)
 	# <msg> - plain-text message
@@ -3649,36 +3659,22 @@ class MyWindow(QDialog,Ui_Dialog):
 		theList=[[]]
 		if isinstance(fleetOrListOrAll,list):
 			theList=fleetOrListOrAll
-			recipientText=str(len(theList))+' device'
 		elif fleetOrListOrAll=='ALL':
 			broadcast=True
-			recipientText='all devices'
 		else:
 			theList=[[fleetOrListOrAll,device]]
-			recipientText=str(len(theList))+' device'
-		if not message:
-			suffix=''
-			if len(theList)>1:
-				suffix='s'
-			label='Enter text message to send to '+recipientText+suffix+':\n'
-			if not broadcast:
-				for [fleet,device] in theList:
-					callsignText=self.getCallsign(fleet,device)
-					if callsignText:
-						callsignText='"'+callsignText+'"'
-					else:
-						callsignText='(no callsign)'
-					label+='\n'+str(fleet)+':'+str(device)+' '+callsignText
-			message=QInputDialog.getText(self.ui.tabWidget,'Send Text Message',label)[0]
 		if message:
+			timestamp=time.strftime("%b%d %H:%M") # this uses 11 chars plus space, leaving 36 usable for short message
+			# timestamp=time.strftime('%m/%d/%y %H:%M') # this uses 14 chars plus space
 			rprint('message:'+str(message))
 			if broadcast:
 				# portable radios will not attempt to send acknowledgement for broadcast
 				rprint('broadcasting text message to all devices')
-				d='\x02\x460000000'+message+'\x03'
+				d='\x02\x460000000'+timestamp+' '+message+'\x03'
 				rprint('com data: '+str(d))
 				r1=self.fsSendData(d)
 				suffix=''
+
 				if r1:
 					suffix=' using one mobile radio'
 				r2=False
@@ -3699,12 +3695,12 @@ class MyWindow(QDialog,Ui_Dialog):
 				# recipient portable will send acknowledgement when fleet and device ase specified
 				for [fleet,device] in theList:
 					rprint('sending text message to fleet='+str(fleet)+' device='+str(device))
-					d='\x02\x46'+str(fleet)+str(device)+message+'\x03'
+					d='\x02\x46'+str(fleet)+str(device)+timestamp+' '+message+'\x03'
 					rprint('com data: '+str(d))
 					if self.fsSendData(d):
 						self.fsAwaitingResponse=[fleet,device,'Text message sent',0,message]
 						[f,dev,t]=self.fsAwaitingResponse[0:3]
-						self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,t+' to '+str(f)+':'+str(dev)+'; awaiting response up to five seconds...',
+						self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,t+' to '+str(f)+':'+str(dev)+'; awaiting response up to '+str(self.fsAwaitingResponseTimeout)+' seconds...',
 										QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 						self.fsAwaitingResponseMessageBox.show()
 						self.fsAwaitingResponseMessageBox.raise_()
@@ -5530,17 +5526,6 @@ class fsFilterDialog(QDialog,Ui_fsFilterDialog):
 			
 	def closeEvent(self,event):
 		rprint("closing fsFilterDialog")
-				
-
-# custom QValidator class to specify that a field must not be blank
-
-class NotEmptyValidator(QValidator):
-	def validate(self, text: str, pos):
-		if bool(text.strip()):
-			state = QValidator.Acceptable
-		else:
-			state = QValidator.Intermediate  # so that field can be made empty temporarily
-		return state, text, pos
 
 
 class fsSendDialog(QDialog,Ui_fsSendDialog):
@@ -5554,7 +5539,9 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 		btn=self.ui.buttonBox.button(QDialogButtonBox.Apply)
 		btn.clicked.connect(self.apply)
 		self.ui.fleetField.setValidator(QRegExpValidator(QRegExp('[1-9][0-9][0-9]'),self.ui.fleetField))
-		self.ui.messageField.setValidator(NotEmptyValidator(self.ui.messageField))
+		# self.ui.messageField.setValidator(NotEmptyValidator(self.ui.messageField))
+		# 36 character max length - see sendText notes
+		self.ui.messageField.setValidator(QRegExpValidator(QRegExp('.{1,36}'),self.ui.messageField))
 		self.functionChanged() # to set device validator
 
 	def functionChanged(self):
@@ -5591,6 +5578,9 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 		# valid=(fleet.isnumeric() and int(fleet)>99 and int(fleet)<1000) # three digit integer
 		# valid=valid and (device.isnumeric() and int(fleet)>99 and int(fleet)<1000) # three digit integer
 		valid=True
+		fleet=self.ui.fleetField.text()
+		device=self.ui.deviceField.text()
+		msg=self.ui.messageField.text()
 		invalidMsg='The form had error(s).  Please correct and try again:'
 		sendText=self.ui.sendTextRadioButton.isChecked()
 		sendAll=self.ui.sendToAllCheckbox.isChecked()
@@ -5605,7 +5595,7 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 					invalidMsg+='\n - Device ID must be a four-digit integer'
 				valid=False
 		if sendText:
-			if not self.ui.messageField.hasAcceptableInput():
+			if not msg or msg.isspace():
 				invalidMsg+='\n - Message cannot be blank'
 				valid=False
 		if not valid:
@@ -5617,9 +5607,6 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 			return
 
 		# validation completed
-		fleet=self.ui.fleetField.text()
-		device=self.ui.deviceField.text()
-		msg=self.ui.messageField.text()
 		if sendText:
 			if sendAll:
 				self.parent.sendText('ALL',message=msg)
@@ -5633,7 +5620,33 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 					rprint('ERROR: the form validated, but apparently in error: must specify a device ID or list of device IDs (separated by comma or space)')
 		else:
 			self.parent.pollGPS(fleet,device)
-		
+
+
+class fsSendMessageDialog(QDialog,Ui_fsSendMessageDialog):
+	def __init__(self,parent,fleet,device,callsignText):
+		QDialog.__init__(self)
+		self.ui=Ui_fsSendMessageDialog()
+		self.ui.setupUi(self)
+		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		self.parent=parent
+		self.fleet=fleet
+		self.device=device
+		# 36 character max length - see sendText notes
+		self.ui.messageField.setValidator(QRegExpValidator(QRegExp('.{1,36}'),self.ui.messageField))
+		self.ui.theLabel.setText('Message for '+str(fleet)+':'+str(device)+' '+str(callsignText)+':')
+
+	def accept(self):
+		msg=self.ui.messageField.text()
+		if not msg or msg.isspace():
+			box=QMessageBox(QMessageBox.Critical,"Form error",'Message cannot be blank; please try again.',
+										QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.show()
+			box.raise_()
+			box.exec_()
+			return
+		self.parent.sendText(self.fleet,self.device,msg)
+		super(fsSendMessageDialog,self).accept()
+
 
 class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 	openDialogCount=0
