@@ -721,6 +721,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsFilterDialog.ui.tableView.setColumnWidth(0,50)
 		self.fsFilterDialog.ui.tableView.setColumnWidth(1,75)
 		self.fsBuildTooltip()
+		self.fsLatestComPort=None
 		
 		self.ui.addNonRadioClueButton.clicked.connect(self.addNonRadioClue)
 
@@ -1281,9 +1282,11 @@ class MyWindow(QDialog,Ui_Dialog):
 								if not self.firstComPortFound:
 									self.firstComPort=comPortTry # pass the actual open com port object, to keep it open
 									self.firstComPortFound=True
+									self.fsLatestComPort=self.firstComPort
 								else:
 									self.secondComPort=comPortTry # pass the actual open com port object, to keep it open
 									self.secondComPortFound=True
+									self.fsLatestComPort=self.secondComPort
 								self.comPortTryList.remove(comPortTry) # and remove the good com port from the list of ports to try going forward
 							else:
 								rprint("      but not valid fleetsync data.  Scan continues...")
@@ -1332,6 +1335,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			if waiting:
 				self.ui.firstComPortField.setStyleSheet("background-color:#00ff00")
 				self.fsBuffer=self.fsBuffer+self.firstComPort.read(waiting).decode('utf-8')
+				self.fsLatestComPort=self.firstComPort
 		if self.secondComPortFound:
 # 			self.ui.secondComPortField.setStyleSheet("background-color:#00bb00")
 			waiting=0
@@ -1346,6 +1350,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			if waiting:
 				self.ui.secondComPortField.setStyleSheet("background-color:#00ff00")
 				self.fsBuffer=self.fsBuffer+self.secondComPort.read(waiting).decode('utf-8')
+				self.fsLatestComPort=self.secondComPort
 
 		# don't process fsMuted before this point: we need to read the com ports
 		#  even if they are muted, so that the com port buffers don't fill up
@@ -1635,10 +1640,11 @@ class MyWindow(QDialog,Ui_Dialog):
 	#  if callsign is not specified, udpate the time but not the callsign;
 	#  if the entry does not yet exist, add it
 	def fsLogUpdate(self,fleet,dev,callsign=False):
-		# row structure: [fleet,dev,callsign,filtered,last_received]
-		rprint("fsLogUpdate called: fleet="+str(fleet)+" dev="+str(dev)+" callsign="+(callsign or "<None>"))
+		# row structure: [fleet,dev,callsign,filtered,last_received,com port]
+		rprint("fsLogUpdate called: fleet="+str(fleet)+" dev="+str(dev)+" callsign="+(callsign or "<None>")+"  COM port="+self.fsLatestComPort.name)
 		found=False
 		t=time.strftime("%a %H:%M:%S")
+		com=str(self.fsLatestComPort.name)
 		for row in self.fsLog:
 			if row[0]==fleet and row[1]==dev:
 				found=True
@@ -1646,14 +1652,31 @@ class MyWindow(QDialog,Ui_Dialog):
 					row[2]=callsign
 				else:
 					row[4]=t
+				row[5]=com
 		if not found:
 			# always update callsign - it may have changed since creation
-			self.fsLog.append([fleet,dev,self.getCallsign(fleet,dev),False,t])
+			self.fsLog.append([fleet,dev,self.getCallsign(fleet,dev),False,t,com])
 # 		rprint(self.fsLog)
 # 		if self.fsFilterDialog.ui.tableView:
 		self.fsFilterDialog.ui.tableView.model().layoutChanged.emit()
 		self.fsBuildTeamFilterDict()
-		
+	
+	def fsGetLatestComPort(self,fleet,device):
+		log=[x for x in self.fsLog if x[0:2]==[fleet,device]]
+		if len(log)==1:
+			comPortName=log[0][5]
+		elif len(log)>1:
+			rprint('WARNING: there are multiple fsLog entries for '+str(fleet)+':'+str(device))
+			comPortName=log[0][5]
+		else:
+			rprint('WARNING: '+str(fleet)+':'+str(device)+' has no fsLog entry so it probably has not been heard from yet')
+			comPortName=None
+		# rprint('returning '+str(comPortName))
+		if self.firstComPort and self.firstComPort.name==comPortName:
+			return self.firstComPort
+		elif self.secondComPort and self.secondComPort.name:
+			return self.secondComPort
+
 	def fsBuildTeamFilterDict(self):
 		for extTeamName in teamFSFilterDict:
 			teamFSFilterDict[extTeamName]=self.fsGetTeamFilterStatus(extTeamName)
@@ -3602,6 +3625,19 @@ class MyWindow(QDialog,Ui_Dialog):
 	#  Even if we expand the definition of 'valid' data, we want to be able to send to a port regardless of
 	#  whether any data has yet been read from that port. May want to revise that to help with the send functions.
 
+	# How do we decide which COM port to send to?  There's no perfect solution, but, let's go with this plan:
+	# Q1: is self.firstComPort alive?
+	#   YES1: Q2: is self.secondComPort alive?
+	#     YES2: Q3: does self.fsLog have an entry for the device in question?
+	#       YES3: send to the com port specified for that device in self.fsLog
+	#                i.e. the com port on which that device was most recently heard from
+	#                 (if failed, send to the other port; if that also fails, show failure message)
+	#       NO3: send to the com port that has the most recent entry (for any device) in self.fsLog
+	#                 (if failed, send to the other port; if that also fails, show failure message)
+	#     NO2: send to firstComPort (if failed, show failure message - there is no second port to try)
+	#   NO1: cannot send - show a message box and return False
+	# 
+
 	# def fsSendData(self,d,portList=None):
 	# 	portList=portList or [self.firstComPort]
 	# 	rprint('trying to send - portList='+str(portList))
@@ -3672,9 +3708,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				rprint('broadcasting text message to all devices')
 				d='\x02\x460000000'+timestamp+' '+message+'\x03'
 				rprint('com data: '+str(d))
-				r1=self.fsSendData(d)
+				r1=self.fsSendData(d,self.firstComPort)
 				suffix=''
-
 				if r1:
 					suffix=' using one mobile radio'
 				r2=False
@@ -3697,7 +3732,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					rprint('sending text message to fleet='+str(fleet)+' device='+str(device))
 					d='\x02\x46'+str(fleet)+str(device)+timestamp+' '+message+'\x03'
 					rprint('com data: '+str(d))
-					if self.fsSendData(d):
+					if self.fsSendData(d,self.fsGetLatestComPort(fleet,device)):
 						self.fsAwaitingResponse=[fleet,device,'Text message sent',0,message]
 						[f,dev,t]=self.fsAwaitingResponse[0:3]
 						self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,t+' to '+str(f)+':'+str(dev)+'; awaiting response up to '+str(self.fsAwaitingResponseTimeout)+' seconds...',
@@ -3727,7 +3762,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint('polling GPS for fleet='+str(fleet)+' device='+str(device))
 		d='\x02\x52\x33'+str(fleet)+str(device)+'\x03'
 		rprint('com data: '+str(d))
-		if self.fsSendData(d):
+		if self.fsSendData(d,self.fsGetLatestComPort(fleet,device)):
 			self.fsAwaitingResponse=[fleet,device,'Location request sent',0]
 			[f,dev,t]=self.fsAwaitingResponse[0:3]
 			self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,t+' to '+str(f)+':'+str(dev)+'; awaiting response up to five seconds...',
@@ -5539,7 +5574,6 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 		btn=self.ui.buttonBox.button(QDialogButtonBox.Apply)
 		btn.clicked.connect(self.apply)
 		self.ui.fleetField.setValidator(QRegExpValidator(QRegExp('[1-9][0-9][0-9]'),self.ui.fleetField))
-		# self.ui.messageField.setValidator(NotEmptyValidator(self.ui.messageField))
 		# 36 character max length - see sendText notes
 		self.ui.messageField.setValidator(QRegExpValidator(QRegExp('.{1,36}'),self.ui.messageField))
 		self.functionChanged() # to set device validator
@@ -5556,7 +5590,6 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 		else:
 			self.ui.deviceLabel.setText('Device ID')
 			self.ui.deviceField.setValidator(QRegExpValidator(QRegExp('[1-9][0-9][0-9][0-9]'),self.ui.deviceField))
-			
 
 	def sendAllCheckboxChanged(self):
 		sendAll=self.ui.sendToAllCheckbox.isChecked()
