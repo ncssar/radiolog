@@ -1220,34 +1220,35 @@ class MyWindow(QDialog,Ui_Dialog):
 				rprint('Fleetsync timed out awaiting response')
 				self.fsFailedFlag=True
 				self.fsAwaitingResponseMessageBox.close()
-				[f,dev]=self.fsAwaitingResponse[0:2]
-				callsignText=self.getCallsign(f,dev)
-				if callsignText:
-					callsignText='('+callsignText+')'
-				else:
-					callsignText='(no callsign)'
-				# values format for adding a new entry:
-				#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
-				values=["" for n in range(10)]
-				values[0]=time.strftime("%H%M")
-				values[6]=time.time()
-				if self.fsAwaitingResponse[2]=='Location request sent':
-					values[3]='FLEETSYNC: No response received for location request from '+str(f)+':'+str(dev)+' '+callsignText
-				elif self.fsAwaitingResponse[2]=='Text message sent':
-					msg=self.fsAwaitingResponse[4]
-					values[3]='FLEETSYNC: Text message sent to '+str(f)+':'+str(dev)+callsignText+' but delivery was NOT confirmed: "'+msg+'"'
-				else:
-					values[3]='FLEETSYNC: Timeout after unknown command type "'+self.fsAwaitingResponse[2]+'"'
-				self.newEntry(values)
-				msg='FleetSync did not respond within '+str(self.fsAwaitingResponseTimeout)+' seconds.'
-				if self.fsAwaitingResponse[2]=='Location request sent':
-					msg+='\n\nThis could happen after a location request for one of several reasons:\n  - The radio in question was off\n  - The radio in question was on, but not set to this channel\n  - The radio in question was on and set to this channel, but had no GPS fix'
-				self.fsAwaitingResponse=None # clear the flag
-				box=QMessageBox(QMessageBox.Critical,'FleetSync timeout',msg,
-					QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-				box.open()
-				box.raise_()
-				box.exec_()
+				if not self.fsThereWillBeAnotherTry:
+					[f,dev]=self.fsAwaitingResponse[0:2]
+					callsignText=self.getCallsign(f,dev)
+					if callsignText:
+						callsignText='('+callsignText+')'
+					else:
+						callsignText='(no callsign)'
+					# values format for adding a new entry:
+					#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+					values=["" for n in range(10)]
+					values[0]=time.strftime("%H%M")
+					values[6]=time.time()
+					if self.fsAwaitingResponse[2]=='Location request sent':
+						values[3]='FLEETSYNC: No response received for location request from '+str(f)+':'+str(dev)+' '+callsignText
+					elif self.fsAwaitingResponse[2]=='Text message sent':
+						msg=self.fsAwaitingResponse[4]
+						values[3]='FLEETSYNC: Text message sent to '+str(f)+':'+str(dev)+callsignText+' but delivery was NOT confirmed: "'+msg+'"'
+					else:
+						values[3]='FLEETSYNC: Timeout after unknown command type "'+self.fsAwaitingResponse[2]+'"'
+					self.newEntry(values)
+					msg='FleetSync did not respond within '+str(self.fsAwaitingResponseTimeout)+' seconds.'
+					if self.fsAwaitingResponse[2]=='Location request sent':
+						msg+='\n\nThis could happen after a location request for one of several reasons:\n  - The radio in question was off\n  - The radio in question was on, but not set to this channel\n  - The radio in question was on and set to this channel, but had no GPS fix'
+					self.fsAwaitingResponse=None # clear the flag
+					box=QMessageBox(QMessageBox.Critical,'FleetSync timeout',msg,
+						QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					box.open()
+					box.raise_()
+					box.exec_()
 			else:
 				self.fsAwaitingResponse[3]+=1
 		if not (self.firstComPortFound and self.secondComPortFound): # correct com ports not yet found; scan for waiting fleetsync data
@@ -1434,18 +1435,19 @@ class MyWindow(QDialog,Ui_Dialog):
 					return
 			if line=='\x021\x03': # failure response
 				if self.fsAwaitingResponse:
-					[f,dev]=self.fsAwaitingResponse[0:2]
-					# values format for adding a new entry:
-					#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
-					values=["" for n in range(10)]
-					values[0]=time.strftime("%H%M")
-					values[3]='FLEETSYNC: NO RESPONSE from '+str(f)+':'+str(dev)
-					values[6]=time.time()
-					self.newEntry(values)
-					self.fsFailedFlag=True
-					self.fsAwatingResponse=None # clear the flag
-					rprint('FLEETSYNC: NO RESPONSE from '+str(f)+':'+str(dev))
-					return
+					if not self.fsThereWillBeAnotherTry:
+						[f,dev]=self.fsAwaitingResponse[0:2]
+						# values format for adding a new entry:
+						#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+						values=["" for n in range(10)]
+						values[0]=time.strftime("%H%M")
+						values[3]='FLEETSYNC: NO RESPONSE from '+str(f)+':'+str(dev)
+						values[6]=time.time()
+						self.newEntry(values)
+						self.fsFailedFlag=True
+						self.fsAwatingResponse=None # clear the flag
+						rprint('FLEETSYNC: NO RESPONSE from '+str(f)+':'+str(dev))
+						return
 			if '$PKLSH' in line:
 				lineParse=line.split(',')
 				if len(lineParse)==10:
@@ -1664,7 +1666,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsBuildTeamFilterDict()
 	
 	def fsGetLatestComPort(self,fleet,device):
-		log=[x for x in self.fsLog if x[0:2]==[fleet,device]]
+		rprint('fsLog:'+str(self.fsLog))
+		log=[x for x in self.fsLog if x[0:2]==[int(fleet),int(device)]]
 		if len(log)==1:
 			comPortName=log[0][5]
 		elif len(log)>1:
@@ -3743,55 +3746,72 @@ class MyWindow(QDialog,Ui_Dialog):
 			broadcast=True
 		else:
 			theList=[[fleetOrListOrAll,device]]
-		# if message:
-		timestamp=time.strftime("%b%d %H:%M") # this uses 11 chars plus space, leaving 36 usable for short message
-		# timestamp=time.strftime('%m/%d/%y %H:%M') # this uses 14 chars plus space
-		rprint('message:'+str(message))
-		if broadcast:
-			# portable radios will not attempt to send acknowledgement for broadcast
-			rprint('broadcasting text message to all devices')
-			d='\x02\x460000000'+timestamp+' '+message+'\x03'
-			rprint('com data: '+str(d))
-			suffix=' using one mobile radio'
-			self.firstComPort.write(d.encode())
-			if self.secondComPort:
-				time.sleep(3) # yes, we do want a blocking sleep
-				suffix=' using two mobile radios'
-				self.secondComPort.write(d.encode())
-			# values format for adding a new entry:
-			#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
-			values=["" for n in range(10)]
-			values[0]=time.strftime("%H%M")
-			values[3]='TEXT MESSAGE SENT TO ALL DEVICES'+suffix+': "'+str(message)+'"'
-			values[6]=time.time()
-			self.newEntry(values)
-		else:
-			# recipient portable will send acknowledgement when fleet and device ase specified
-			for [fleet,device] in theList:
-				rprint('sending text message to fleet='+str(fleet)+' device='+str(device))
-				d='\x02\x46'+str(fleet)+str(device)+timestamp+' '+message+'\x03'
+		if message:
+			timestamp=time.strftime("%b%d %H:%M") # this uses 11 chars plus space, leaving 36 usable for short message
+			# timestamp=time.strftime('%m/%d/%y %H:%M') # this uses 14 chars plus space
+			rprint('message:'+str(message))
+			if broadcast:
+				# portable radios will not attempt to send acknowledgement for broadcast
+				rprint('broadcasting text message to all devices')
+				d='\x02\x460000000'+timestamp+' '+message+'\x03'
 				rprint('com data: '+str(d))
-				fsFirstPortToTry=self.fsGetLatestComPort(fleet,device)
-				if fsFirstPortToTry==self.firstComPort:
-					fsSecondPortToTry=self.secondComPort
-				else:
-					fsSecondPortToTry=self.firstComPort
-				fsFirstPortToTry.write(d.encode())
-				# if self.fsSendData(d,fsFirstPortToTry):
-				self.fsAwaitingResponse=[fleet,device,'Text message sent',0,message]
-				[f,dev,t]=self.fsAwaitingResponse[0:3]
-				self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,t+' to '+str(f)+':'+str(dev)+'; awaiting response up to '+str(self.fsAwaitingResponseTimeout)+' seconds...',
-								QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-				self.fsAwaitingResponseMessageBox.show()
-				self.fsAwaitingResponseMessageBox.raise_()
-				self.fsAwaitingResponseMessageBox.exec_()
-				if self.fsFailedFlag: # timed out, or, got a '1' response
-					rprint('failed; need to send again')
-					fsSecondPortToTry.write(d.encode())
-					self.fsAwaitingResponse[3]=0 # reset the timer
-				else:
-					rprint('apparently successful')
-				self.fsAwaitingResponse=None # clear the flag - this will happen after the messagebox is closed (due to valid response, or timeout in fsCheck, or Abort clicked)
+				suffix=' using one mobile radio'
+				self.firstComPort.write(d.encode())
+				if self.secondComPort:
+					time.sleep(3) # yes, we do want a blocking sleep
+					suffix=' using two mobile radios'
+					self.secondComPort.write(d.encode())
+				# values format for adding a new entry:
+				#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+				values=["" for n in range(10)]
+				values[0]=time.strftime("%H%M")
+				values[3]='TEXT MESSAGE SENT TO ALL DEVICES'+suffix+': "'+str(message)+'"'
+				values[6]=time.time()
+				self.newEntry(values)
+			else:
+				# recipient portable will send acknowledgement when fleet and device ase specified
+				for [fleet,device] in theList:
+					rprint('sending text message to fleet='+str(fleet)+' device='+str(device))
+					d='\x02\x46'+str(fleet)+str(device)+timestamp+' '+message+'\x03'
+					rprint('com data: '+str(d))
+					fsFirstPortToTry=self.fsGetLatestComPort(fleet,device)
+					if fsFirstPortToTry==self.firstComPort:
+						self.fsSecondPortToTry=self.secondComPort # could be None; inst var so fsCheck can see it
+					else:
+						self.fsSecondPortToTry=self.firstComPort # could be None; inst var so fsCheck can see it
+					self.fsThereWillBeAnotherTry=False
+					if self.fsSecondPortToTry:
+						self.fsThereWillBeAnotherTry=True
+					fsFirstPortToTry.write(d.encode())
+					# if self.fsSendData(d,fsFirstPortToTry):
+					self.fsAwaitingResponse=[fleet,device,'Text message sent',0,message]
+					[f,dev,t]=self.fsAwaitingResponse[0:3]
+					self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,t+' to '+str(f)+':'+str(dev)+' on preferred COM port; awaiting response up to '+str(self.fsAwaitingResponseTimeout)+' seconds...',
+									QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					self.fsAwaitingResponseMessageBox.show()
+					self.fsAwaitingResponseMessageBox.raise_()
+					self.fsAwaitingResponseMessageBox.exec_()
+					if self.fsFailedFlag: # timed out, or, got a '1' response
+						if self.fsSecondPortToTry:
+							rprint('failed on preferred com port; sending on alternate com port')
+							self.fsFailedFlag=False # clear the flag
+							self.fsThereWillBeAnotherTry=False
+							self.fsSecondPortToTry.write(d.encode())
+							self.fsAwaitingResponse[3]=0 # reset the timer
+							self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,t+' to '+str(f)+':'+str(dev)+' on alternate COM port; awaiting response up to '+str(self.fsAwaitingResponseTimeout)+' seconds...',
+											QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+							self.fsAwaitingResponseMessageBox.show()
+							self.fsAwaitingResponseMessageBox.raise_()
+							self.fsAwaitingResponseMessageBox.exec_()
+							if self.fsFailedFlag: # timed out, or, got a '1' response
+								rprint('failed on alternate com port: message delivery not confirmed')
+							else:
+								rprint('apparently successful on alternate com port')
+						else:
+							rprint('failed on preferred com port; no alternate com port available')
+					else:
+						rprint('apparently successful on preferred com port')
+					self.fsAwaitingResponse=None # clear the flag - this will happen after the messagebox is closed (due to valid response, or timeout in fsCheck, or Abort clicked)
 
 
 	# pollGPS - outgoing serial port data format:
@@ -3814,6 +3834,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		d='\x02\x52\x33'+str(fleet)+str(device)+'\x03'
 		rprint('com data: '+str(d))
 		fsFirstPortToTry=self.fsGetLatestComPort(fleet,device)
+		if fsFirstPortToTry==self.firstComPort:
+			self.fsSecondPortToTry=self.secondComPort # could be None; inst var so fsCheck can see it
+		else:
+			self.fsSecondPortToTry=self.firstComPort # could be None; inst var so fsCheck can see it
+		self.fsThereWillBeAnotherTry=False
+		if self.fsSecondPortToTry:
+			self.fsThereWillBeAnotherTry=True
 		fsFirstPortToTry.write(d.encode())
 		self.fsAwaitingResponse=[fleet,device,'Location request sent',0]
 		[f,dev,t]=self.fsAwaitingResponse[0:3]
@@ -3823,15 +3850,25 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsAwaitingResponseMessageBox.raise_()
 		self.fsAwaitingResponseMessageBox.exec_()
 		if self.fsFailedFlag: # timed out, or, got a '1' response
-			rprint('failed; need to send again')
-			if fsFirstPortToTry==self.firstComPort:
-				fsSecondPortToTry=self.secondComPort
+			if self.fsSecondPortToTry:
+				rprint('failed on preferred com port; sending on alternate com port')
+				self.fsFailedFlag=False # clear the flag
+				self.fsThereWillBeAnotherTry=False
+				self.fsSecondPortToTry.write(d.encode())
+				self.fsAwaitingResponse[3]=0 # reset the timer
+				self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,t+' to '+str(f)+':'+str(dev)+' on alternate COM port; awaiting response up to '+str(self.fsAwaitingResponseTimeout)+' seconds...',
+								QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				self.fsAwaitingResponseMessageBox.show()
+				self.fsAwaitingResponseMessageBox.raise_()
+				self.fsAwaitingResponseMessageBox.exec_()
+				if self.fsFailedFlag: # timed out, or, got a '1' response
+					rprint('failed on alternate com port: message delivery not confirmed')
+				else:
+					rprint('apparently successful on alternate com port')
 			else:
-				fsSecondPortToTry=self.firstComPort
-			fsSecondPortToTry.write(d.encode())
-			self.fsAwaitingResponse[3]=0 # reset the timer
+				rprint('failed on preferred com port; no alternate com port available')
 		else:
-			rprint('apparently successful')
+			rprint('apparently successful on preferred com port')
 		self.fsAwaitingResponse=None # clear the flag - this will happen after the messagebox is closed (due to valid response, or timeout in fsCheck, or Abort clicked)
 
 	def deleteTeamTab(self,teamName,ext=False):
