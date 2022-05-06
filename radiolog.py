@@ -1511,12 +1511,13 @@ class MyWindow(QDialog,Ui_Dialog):
 								if not devTxt.startswith("Radio "):
 									self.getString=self.getString+devTxt
 							# was this a response to a location request for this device?
-							if self.fsAwaitingResponse and [fleet,dev]==self.fsAwaitingResponse[0:2]:
+							if self.fsAwaitingResponse and [int(fleet),int(dev)]==self.fsAwaitingResponse[0:2]:
 								self.fsAwaitingResponseMessageBox.close()
 								# values format for adding a new entry:
 								#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
 								values=["" for n in range(10)]
 								values[0]=time.strftime("%H%M")
+								values[1]='FROM'
 								values[4]=formattedLocString
 								if valid=='A':
 									prefix='SUCCESSFUL RESPONSE'
@@ -1527,6 +1528,7 @@ class MyWindow(QDialog,Ui_Dialog):
 									prefix='UNKNOWN RESPONSE CODE "'+str(valid)+'"'
 									values[4]='!'+values[4]+'!'
 								callsignText=self.getCallsign(fleet,dev)
+								values[2]=callsignText or ''
 								if callsignText:
 									callsignText='('+callsignText+')'
 								else:
@@ -3856,7 +3858,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		fsFirstPortToTry.write(d.encode())
 		self.fsAwaitingResponse=[fleet,device,'Location request sent',0]
 		[f,dev,t]=self.fsAwaitingResponse[0:3]
-		self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,t+' to '+str(f)+':'+str(dev)+'; awaiting response up to five seconds...',
+		self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,t+' to '+str(f)+':'+str(dev)+'; awaiting response up to '+str(self.fsAwaitingResponseTimeout)+' seconds...',
 						QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 		self.fsAwaitingResponseMessageBox.show()
 		self.fsAwaitingResponseMessageBox.raise_()
