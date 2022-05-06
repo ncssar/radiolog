@@ -3602,7 +3602,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						callsignText='('+callsignText+')'
 					else:
 						callsignText='(no callsign)'
-					box=fsSendMessageDialog(self,d[0],d[1],callsignText)
+					box=fsSendMessageDialog(self,[[d[0],d[1],callsignText]])
 					box.show()
 					box.raise_()
 					box.exec_()
@@ -3616,7 +3616,19 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.fsFilterEdit(device[0],device[1],newState)
 				self.fsBuildTeamFilterDict()
 			elif action==fsSendTextToAllAction:
-				self.sendText(devices)
+				theList=[]
+				for device in self.fsGetTeamDevices(extTeamName):
+					callsignText=self.getCallsign(device[0],device[1])
+					if callsignText:
+						callsignText='('+callsignText+')'
+					else:
+						callsignText='(no callsign)'
+					theList.append([device[0],device[1],callsignText])
+				box=fsSendMessageDialog(self,theList)
+				box.show()
+				box.raise_()
+				box.exec_()
+				
 
 ##			if action==relabelTeamTabAction:
 ##				label=QLabel(" abcdefg ")
@@ -5755,17 +5767,24 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 
 
 class fsSendMessageDialog(QDialog,Ui_fsSendMessageDialog):
-	def __init__(self,parent,fleet,device,callsignText):
+	def __init__(self,parent,fdcList): # fdcList is a list of [fleet,dev,callsignText] lists
 		QDialog.__init__(self)
 		self.ui=Ui_fsSendMessageDialog()
 		self.ui.setupUi(self)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.parent=parent
-		self.fleet=fleet
-		self.device=device
+		self.fdcList=fdcList
 		# 36 character max length - see sendText notes
 		self.ui.messageField.setValidator(QRegExpValidator(QRegExp('.{1,36}'),self.ui.messageField))
-		self.ui.theLabel.setText('Message for '+str(fleet)+':'+str(device)+' '+str(callsignText)+':')
+		if len(fdcList)==1:
+			[fleet,device,callsignText]=fdcList[0]
+			self.ui.theLabel.setText('Message for '+str(fleet)+':'+str(device)+' '+str(callsignText)+':')
+		else:
+			label='Message for multiple radios:'
+			for fdc in fdcList:
+				[fleet,device,callsignText]=fdc
+				label+='\n  '+str(fleet)+':'+str(device)+' '+str(callsignText)
+			self.ui.theLabel.setText(label)
 
 	def accept(self):
 		msg=self.ui.messageField.text()
@@ -5776,7 +5795,9 @@ class fsSendMessageDialog(QDialog,Ui_fsSendMessageDialog):
 			box.raise_()
 			box.exec_()
 			return
-		self.parent.sendText(self.fleet,self.device,msg)
+		for fdc in self.fdcList:
+			[fleet,device]=fdc[0:2]
+			self.parent.sendText(fleet,device,msg)
 		super(fsSendMessageDialog,self).accept()
 
 
