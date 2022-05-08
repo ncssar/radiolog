@@ -722,6 +722,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsFilterDialog.ui.tableView.setColumnWidth(1,75)
 		self.fsBuildTooltip()
 		self.fsLatestComPort=None
+		self.fsShowChannelWarning=True
 		
 		self.ui.addNonRadioClueButton.clicked.connect(self.addNonRadioClue)
 
@@ -3775,6 +3776,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			theList=[[fleetOrListOrAll,device]]
 		if message:
+			if self.fsShowChannelWarning:
+				m='WARNING: You are about to send FleetSync data burst noise on one or both mobile radios.\n\nMake sure that neither radio is set to any law or fire channel, or any other channel where FleetSync data bursts would cause problems.'
+				box=QMessageBox(QMessageBox.Warning,'FleetSync Channel Warning',m,
+								QMessageBox.Ok|QMessageBox.Cancel,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				box.show()
+				box.raise_()
+				box.exec_()
+				if box.clickedButton().text()=='Cancel':
+					return
 			timestamp=time.strftime("%b%d %H:%M") # this uses 11 chars plus space, leaving 36 usable for short message
 			# timestamp=time.strftime('%m/%d/%y %H:%M') # this uses 14 chars plus space
 			rprint('message:'+str(message))
@@ -3887,6 +3897,15 @@ class MyWindow(QDialog,Ui_Dialog):
 	# poll 100:1002:  02 52 33 31 30 30 31 30 30 32 32 37 03   R3100100221  (sequence=21)
 	
 	def pollGPS(self,fleet,device):
+		if self.fsShowChannelWarning:
+			m='WARNING: You are about to send FleetSync data burst noise on one or both mobile radios.\n\nMake sure that neither radio is set to any law or fire channel, or any other channel where FleetSync data bursts would cause problems.'
+			box=QMessageBox(QMessageBox.Warning,'FleetSync Channel Warning',m,
+							QMessageBox.Ok|QMessageBox.Cancel,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.show()
+			box.raise_()
+			box.exec_()
+			if box.clickedButton().text()=='Cancel':
+				return
 		rprint('polling GPS for fleet='+str(fleet)+' device='+str(device))
 		d='\x02\x52\x33'+str(fleet)+str(device)+'\x03'
 		rprint('com data: '+str(d))
