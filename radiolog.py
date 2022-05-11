@@ -1232,21 +1232,23 @@ class MyWindow(QDialog,Ui_Dialog):
 					pass
 				# rprint('q1: fsThereWillBeAnotherTry='+str(self.fsThereWillBeAnotherTry))
 				if not self.fsThereWillBeAnotherTry:
-					[f,dev]=self.fsAwaitingResponse[0:2]
-					callsignText=self.getCallsign(f,dev)
-					if callsignText:
-						callsignText='('+callsignText+')'
-					else:
-						callsignText='(no callsign)'
 					# values format for adding a new entry:
 					#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
 					values=["" for n in range(10)]
 					values[0]=time.strftime("%H%M")
 					values[6]=time.time()
+					[f,dev]=self.fsAwaitingResponse[0:2]
+					callsignText=self.getCallsign(f,dev)
+					values[2]=str(callsignText)
+					if callsignText:
+						callsignText='('+callsignText+')'
+					else:
+						callsignText='(no callsign)'
 					if self.fsAwaitingResponse[2]=='Location request sent':
 						values[3]='FLEETSYNC: No response received for location request from '+str(f)+':'+str(dev)+' '+callsignText
 					elif self.fsAwaitingResponse[2]=='Text message sent':
 						msg=self.fsAwaitingResponse[4]
+						values[1]='TO'
 						values[3]='FLEETSYNC: Text message sent to '+str(f)+':'+str(dev)+' '+callsignText+' but delivery was NOT confirmed: "'+msg+'"'
 					else:
 						values[3]='FLEETSYNC: Timeout after unknown command type "'+self.fsAwaitingResponse[2]+'"'
@@ -1431,20 +1433,23 @@ class MyWindow(QDialog,Ui_Dialog):
 						pass
 					recipient=''
 					suffix=''
+					# values format for adding a new entry:
+					#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+					values=["" for n in range(10)]
+					values[0]=time.strftime("%H%M")
+					values[1]='TO'
 					if int(f)==0 and int(dev)==0:
 						recipient='all devices'
+						values[2]='ALL'
 					else:
 						callsignText=self.getCallsign(f,dev)
+						values[2]=str(callsignText)
 						if callsignText:
 							callsignText='('+callsignText+')'
 						else:
 							callsignText='(no callsign)'
 						recipient=str(f)+':'+str(dev)+' '+callsignText
 						suffix=' and delivery was confirmed'
-					# values format for adding a new entry:
-					#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
-					values=["" for n in range(10)]
-					values[0]=time.strftime("%H%M")
 					values[3]='FLEETSYNC: Text message sent to '+recipient+suffix+': "'+msg+'"'
 					values[6]=time.time()
 					self.newEntry(values)
@@ -1454,12 +1459,19 @@ class MyWindow(QDialog,Ui_Dialog):
 				if self.fsAwaitingResponse:
 					# rprint('q2: fsThereWillBeAnotherTry='+str(self.fsThereWillBeAnotherTry))
 					if not self.fsThereWillBeAnotherTry:
-						[f,dev]=self.fsAwaitingResponse[0:2]
 						# values format for adding a new entry:
 						#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
 						values=["" for n in range(10)]
 						values[0]=time.strftime("%H%M")
-						values[3]='FLEETSYNC: NO RESPONSE from '+str(f)+':'+str(dev)
+						[f,dev]=self.fsAwaitingResponse[0:2]
+						callsignText=self.getCallsign(f,dev)
+						values[2]=str(callsignText)
+						if callsignText:
+							callsignText='('+callsignText+')'
+						else:
+							callsignText='(no callsign)'
+						recipient=str(f)+':'+str(dev)+' '+callsignText
+						values[3]='FLEETSYNC: NO RESPONSE from '+recipient
 						values[6]=time.time()
 						self.newEntry(values)
 						self.fsFailedFlag=True
@@ -1468,7 +1480,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						except:
 							pass
 						self.fsAwaitingResponse=None # clear the flag
-						rprint('FLEETSYNC: NO RESPONSE from '+str(f)+':'+str(dev))
+						rprint('FLEETSYNC: NO RESPONSE from '+recipient)
 						return
 			if '$PKLSH' in line:
 				lineParse=line.split(',')
@@ -3821,7 +3833,16 @@ class MyWindow(QDialog,Ui_Dialog):
 			else:
 				# recipient portable will send acknowledgement when fleet and device ase specified
 				for [fleet,device] in self.fsSendList:
-					rprint('sending text message to fleet='+str(fleet)+' device='+str(device))
+					# values format for adding a new entry:
+					#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+					values=["" for n in range(10)]
+					callsignText=self.getCallsign(fleet,device)
+					values[2]=str(callsignText)
+					if callsignText:
+						callsignText='('+callsignText+')'
+					else:
+						callsignText='(no callsign)'
+					rprint('sending text message to fleet='+str(fleet)+' device='+str(device)+' '+callsignText)
 					d='\x02\x46'+str(fleet)+str(device)+timestamp+' '+message+'\x03'
 					rprint('com data: '+str(d))
 					fsFirstPortToTry=self.fsGetLatestComPort(fleet,device)
@@ -3844,15 +3865,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.fsAwaitingResponseMessageBox.exec_()
 					# add a log entry when Abort is pressed
 					if self.fsAwaitingResponse and not self.fsTimedOut:
-						# values format for adding a new entry:
-						#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
-						values=["" for n in range(10)]
 						values[0]=time.strftime("%H%M")
-						callsignText=self.getCallsign(f,dev)
-						if callsignText:
-							callsignText='('+callsignText+')'
-						else:
-							callsignText='(no callsign)'
+						values[1]='TO'
 						values[3]='FLEETSYNC: Text message sent to '+str(f)+':'+str(dev)+' '+callsignText+' but radiolog operator clicked Abort before delivery could be confirmed: "'+str(message)+'"'
 						values[6]=time.time()
 						self.newEntry(values)
@@ -3873,15 +3887,8 @@ class MyWindow(QDialog,Ui_Dialog):
 							self.fsAwaitingResponseMessageBox.exec_()
 							# add a log entry when Abort is pressed
 							if self.fsAwaitingResponse and not self.fsTimedOut:
-								# values format for adding a new entry:
-								#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
-								values=["" for n in range(10)]
 								values[0]=time.strftime("%H%M")
-								callsignText=self.getCallsign(f,dev)
-								if callsignText:
-									callsignText='('+callsignText+')'
-								else:
-									callsignText='(no callsign)'
+								values[1]='TO'
 								values[3]='FLEETSYNC: Text message sent to '+str(f)+':'+str(dev)+' '+callsignText+' but radiolog operator clicked Abort before delivery could be confirmed: "'+str(message)+'"'
 								values[6]=time.time()
 								self.newEntry(values)
@@ -3959,6 +3966,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			values=["" for n in range(10)]
 			values[0]=time.strftime("%H%M")
 			callsignText=self.getCallsign(f,dev)
+			values[2]=str(callsignText)
 			if callsignText:
 				callsignText='('+callsignText+')'
 			else:
@@ -3987,6 +3995,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					values=["" for n in range(10)]
 					values[0]=time.strftime("%H%M")
 					callsignText=self.getCallsign(f,dev)
+					values[2]=str(callsignText)
 					if callsignText:
 						callsignText='('+callsignText+')'
 					else:
