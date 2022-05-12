@@ -1545,7 +1545,7 @@ class MyWindow(QDialog,Ui_Dialog):
 								if not devTxt.startswith("Radio "):
 									self.getString=self.getString+devTxt
 							# was this a response to a location request for this device?
-							if self.fsAwaitingResponse and [int(fleet),int(dev)]==self.fsAwaitingResponse[0:2]:
+							if self.fsAwaitingResponse and [int(fleet),int(dev)]==[int(x) for x in self.fsAwaitingResponse[0:2]]:
 								try:
 									self.fsAwaitingResponseMessageBox.close()
 								except:
@@ -3845,7 +3845,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					rprint('sending text message to fleet='+str(fleet)+' device='+str(device)+' '+callsignText)
 					d='\x02\x46'+str(fleet)+str(device)+timestamp+' '+message+'\x03'
 					rprint('com data: '+str(d))
-					fsFirstPortToTry=self.fsGetLatestComPort(fleet,device)
+					fsFirstPortToTry=self.fsGetLatestComPort(fleet,device) or self.firstComPort
 					if fsFirstPortToTry==self.firstComPort:
 						self.fsSecondPortToTry=self.secondComPort # could be None; inst var so fsCheck can see it
 					else:
@@ -3942,7 +3942,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint('com data: '+str(d))
 		self.fsTimedOut=False
 		self.fsFailedFlag=False
-		fsFirstPortToTry=self.fsGetLatestComPort(fleet,device)
+		fsFirstPortToTry=self.fsGetLatestComPort(fleet,device) or self.firstComPort
 		if fsFirstPortToTry==self.firstComPort:
 			self.fsSecondPortToTry=self.secondComPort # could be None; inst var so fsCheck can see it
 		else:
