@@ -5021,27 +5021,27 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##		self.setWindowTitle("Radio Log - "+tmpTxt+" - "+self.ui.to_fromField.currentText()+" "+self.ui.teamField.text())
 
 	def teamFieldTextChanged(self):
-		# if typed callsign is only a three-or-fewer-digit number, prefix it with 'Team '
-		#  otherwise do not prefix it
-		cs=self.ui.teamField.text()
-		csraw=cs.replace("Team ","")
-# 		rprint("csraw: '"+csraw+"'")
-		if re.match(".*\D.*",csraw) or len(csraw)>3:
-			csout=csraw
-		else:
-			csout="Team "+csraw
-# 		rprint("csout: '"+csout+"'")
-		self.ui.teamField.setText(csout)
+		pass # no longer needed due to better post-edit checking 
 
 	def teamFieldEditingFinished(self):
-# 		rprint("teamFieldEditingFinished")
-		cs=self.ui.teamField.text()
-		if re.match(".*\D.*",cs):
-			# change it to any case-insensitive-matching existing callsign
-			for t in self.parent.allTeamsList:
-				if t.upper()==cs.upper():
-					self.ui.teamField.setText(t)
-					break
+		cs=re.sub(r' +',r' ',self.ui.teamField.text()).strip() # remove leading and trailing spaces, and reduce chains of spaces to single space
+		# rprint('teamFieldEditingFinished: cs="'+cs+'"')
+		if not cs in self.parent.allTeamsList: # if not already an exact case-sensitive match for an existing callsign:
+			if re.match(".*\D.*",cs): # if there are any characters that are not numbers
+				# change it to any case-insensitive-matching existing callsign
+				for t in self.parent.allTeamsList:
+					if t.upper()==cs.upper() or t.upper()==cs.upper().replace('T','TEAM'):
+						self.ui.teamField.setText(t)
+						break
+			else: # only numbers - see if 'Team ' followed by that number (case-insensitive) is an existing callsign
+				found=False
+				for t in self.parent.allTeamsList:
+					if t.upper()=='TEAM '+cs:
+						self.ui.teamField.setText(t)
+						found=True
+						break
+				if not found:
+					self.ui.teamField.setText('Team '+cs)
 		if re.match(".*relay.*",cs,re.IGNORECASE):
 			rprint("relay callsign detected")
 			# if the relay callsign is already in the callsign list, i.e. if
