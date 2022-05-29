@@ -450,7 +450,9 @@ lastClueNumber=0
 def getExtTeamName(teamName):
 	if teamName.lower().startswith("all ") or teamName.lower()=="all":
 		return "ALL TEAMS"
-	name=teamName.replace(' ','')
+	# fix #459 (and other places in the code): remove all leading and trailing spaces, and change all chains of spaces to one space
+	name=re.sub(r' +',r' ',teamName).strip()
+	name=name.replace(' ','') # remove spaces to shorten the name
 	# find index of first number in the name; everything left of that is the 'prefix';
 	# assume that everything after the prefix is a number
 	firstNum=re.search("\d",name)
@@ -5278,7 +5280,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 	def getValues(self):
 		time=self.ui.timeField.text()
 		to_from=self.ui.to_fromField.currentText()
-		team=self.ui.teamField.text().strip() # remove leading and trailing spaces
+		# fix #459 (and other places in the code): remove all leading and trailing spaces, and change all chains of spaces to one space
+		team=re.sub(r' +',r' ',self.ui.teamField.text()).strip()
 		message=self.ui.messageField.text()
 		if self.relayed:
 			locString=""
@@ -5972,7 +5975,8 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		found=False
 		fleet=self.ui.fleetField.text()
 		dev=self.ui.deviceField.text()
-		newCallsign=self.ui.newCallsignField.text()
+		# fix #459 (and other places in the code): remove all leading and trailing spaces, and change all chains of spaces to one space
+		newCallsign=re.sub(r' +',r' ',self.ui.newCallsignField.text()).strip()
 		# change existing device entry if found, otherwise add a new entry
 		for n in range(len(self.parent.parent.fsLookup)):
 			entry=self.parent.parent.fsLookup[n]
