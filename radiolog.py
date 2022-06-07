@@ -3138,7 +3138,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  refresh automatically, allowing newEntryPost to be simplified,
 		#  reducing lag by 90+%
 		i=len(self.radioLog)-1 # i = zero-based list index of the last element
-		while i>-1 and sec<self.radioLog[i][6]:
+		while i>-1 and isinstance(sec,float) and sec<self.radioLog[i][6]:
 			i=i-1
 # 			rprint("new entry sec="+str(sec)+"; prev entry sec="+str(self.radioLog[i+1][6])+"; decrementing: i="+str(i))
 		# at this point, i is the index of the item AFTER which the new entry should be inserted,
@@ -4559,7 +4559,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.parent=parent
 		if amendFlag:
 			row=parent.radioLog[amendRow]
-			self.sec=row[0]
+			self.sec=row[6]
 			self.formattedLocString=row[4]
 ##		newEntryDialog.newEntryDialogUsedPositionList[self.position]=True
 		newEntryWidget.instances.append(self)
@@ -5333,7 +5333,12 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.parent.clueDialogOpen=True
 		clueDialog.openDialogCount+=1
 		self.values=self.parent.getValues()
-		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' button pressed; radio operator is gathering details"
+		amendText=''
+		amendText2=''
+		if self.parent.amendFlag:
+			amendText=' during amendment of previous message'
+			amendText2=', which will appear with that amended message when completed'
+		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' button pressed"+amendText+"; radio operator is gathering details"+amendText2
 ##		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' button pressed for '"+self.values[2]+"'; radio operator is gathering details"
 ##		self.values[2]='' # this message is not actually from a team
 		self.parent.parent.newEntry(self.values)
@@ -5428,7 +5433,10 @@ class clueDialog(QDialog,Ui_clueDialog):
 				global lastClueNumber
 				lastClueNumber=lastClueNumber-1 # only release the clue# if no other clue forms are open
 			self.values=self.parent.getValues()
-			self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'LOCATED A CLUE' form"
+			amendText=''
+			if self.parent.amendFlag:
+				amendText=' during amendment of previous message'
+			self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'LOCATED A CLUE' form"+amendText
 			self.parent.parent.newEntry(self.values)
 		
 		clueDialog.indices[self.i]=False # free up the dialog box location for the next one
@@ -5612,7 +5620,12 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.ui.locationField.setFocus()
 		self.values=self.parent.getValues()
-		self.values[3]="RADIO LOG SOFTWARE: 'SUBJECT LOCATED' button pressed; radio operator is gathering details"
+		amendText=''
+		amendText2=''
+		if self.parent.amendFlag:
+			amendText=' during amendment of previous message'
+			amendText2=', which will appear with that amended message when completed'
+		self.values[3]="RADIO LOG SOFTWARE: 'SUBJECT LOCATED' button pressed"+amendText+"; radio operator is gathering details"+amendText2
 		self.parent.parent.newEntry(self.values)
 		subjectLocatedDialog.openDialogCount+=1
 		self.setFixedSize(self.size())
@@ -5675,7 +5688,10 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 				event.ignore()
 				return
 			self.values=self.parent.getValues()
-			self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'SUBJECT LOCATED' form"
+			amendText=''
+			if self.parent.amendFlag:
+				amendText=' during amendment of previous message'
+			self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'SUBJECT LOCATED' form"+amendText
 			self.parent.parent.newEntry(self.values)
 		self.parent.subjectLocatedDialogOpen=False
 		subjectLocatedDialog.openDialogCount-=1
