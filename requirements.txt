@@ -1,0 +1,7 @@
+pyqt5>=5.4
+reportlab
+pyserial
+requests
+fdfgen
+pypiwin32
+pyproj>=2.6.1

@@ -239,11 +239,6 @@
 #
 # ############################################################################
 #
-# external dependencies:
-#  - installed GISInternals SDK including SDKShell.bat, cs2cs.exe, and grid shift files
-#     (specify paths here using self.GISInternalsSDKRoot, sdkShellBat, cs2csExe variablies)
-#     (download from http://www.gisinternals.com/release.php)
-#
 # core files of this project (until compiled/deployed):
 #  - radiolog.py - this file, invoke with 'python radiolog.py' if not deployed
 #  - radiolog_ui.py - pyuic5 compilation of radiolog.ui from QTDesigner
@@ -354,6 +349,7 @@ from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.units import inch
 from fdfgen import forge_fdf
 from FingerTabs import *
+from pyproj import Transformer
 
 # process command-line arguments
 minMode=False
@@ -670,6 +666,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.csDisplayDict["D.d"]="D.d°"
 		self.csDisplayDict["DM.m"]="D° M.m'"
 		self.csDisplayDict["DMS.s"]="D° M' S.s\""
+
+		self.sourceCRS=0
+		self.targetCRS=0
 		
 		# config file (e.g. ./local/radiolog.cfg) stores the team standards;
 		#  it should be created/modified by hand, and is read at radiolog startup,
@@ -915,7 +914,6 @@ class MyWindow(QDialog,Ui_Dialog):
 	def readConfigFile(self):
 		# specify defaults here
 		self.fillableClueReportPdfFileName="clueReportFillable.pdf"
-		self.GISInternalsSDKRoot="C:\\GISInternals" # avoid spaces in the path - demons be here
 		self.agencyName="Search and Rescue"
 		self.datum="WGS84"
 		self.coordFormatAscii="UTM 5x5"
@@ -982,8 +980,6 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.printLogoFileName=tokens[1]
 			elif tokens[0]=="clueReport":
 				self.fillableClueReportPdfFileName=tokens[1]
-			elif tokens[0]=="gisInternalsDir":
-				self.GISInternalsSDKRoot=tokens[1]
 			elif tokens[0]=="firstWorkingDir":
 				self.firstWorkingDir=tokens[1]
 			elif tokens[0]=="secondWorkingDir":
@@ -1016,16 +1012,6 @@ class MyWindow(QDialog,Ui_Dialog):
 			configErr+="  Supported coordinate format names are: "+str(list(self.csDisplayDict.keys()))+"\n"
 			configErr+="  Will use "+list(self.csDisplayDict.keys())[0]+" for this session.\n\n"
 			self.coordFormatAscii=list(self.csDisplayDict.keys())[0]
-
-		bat=self.GISInternalsSDKRoot+"\\SDKShell.bat"
-		if not os.path.isfile(bat):
-			configErr+="ERROR: invald gisInternalsDir '"+self.GISInternalsSDKRoot+"'\n"
-			configErr+="  Expected file "+bat+" does not exist.\n"
-			configErr+="  Coordinate conversions will be disabled for this session, and all radio coordinates will be displayed as WGS84 decimal degrees.\n\n"
-			self.GISInternalsSDKRoot=None
-			self.datum="WGS84"
-			self.optionsDialog.ui.formatField.setEnabled(False)
-			self.coordFormatAscii="D.d"
 		
 		# process any ~ characters
 		self.firstWorkingDir=os.path.expanduser(self.firstWorkingDir)
@@ -1927,8 +1913,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		easting="0000000"
 		northing="0000000"
 		rprint("convertCoords called: targetDatum="+targetDatum+" targetFormat="+targetFormat+" coords="+str(coords))
-		# coords must be a parsed list of location data from fleetsync in NMEA format;
-		# reformat the coords argument to the format needed by cs2cs
+		# coords must be a parsed list of location data from fleetsync in NMEA format
 		if isinstance(coords,list):
 			latDeg=int(coords[0][0:2]) # first two numbers are degrees
 			latMin=float(coords[0][2:]) # remainder is minutes
@@ -1947,45 +1932,44 @@ class MyWindow(QDialog,Ui_Dialog):
 ##			targetUTMZone=int(lonDeg/6)+30 # do the math: -179.99999deg -> -174deg = zone 1; -173.99999deg -> -168deg = zone 2, etc
 			targetUTMZone=math.floor((lonDd+180)/6)+1 # from http://stackoverflow.com/questions/9186496, since -120.0000deg should be zone 11, not 10
 			rprint("lonDeg="+str(lonDeg)+" lonDd="+str(lonDd)+" targetUTMZone="+str(targetUTMZone))
-			#cs2cs wants longitude first: -121d1' 39d15' works, but 39d15' -121d1' gives an error
-			latlon_cs2cs="{}d{}' {}d{}'".format(lonDeg,lonMin,latDeg,latMin)
-			rprint("Formatted coordinates:"+latlon_cs2cs)
 		else:
 			return("INVALID INPUT FORMAT - MUST BE A LIST")
 
-		# if target datum is WGS84 and target format is anything other than UTM, just do the math,
-		# it's quicker than calling cs2cs; otherwise, call cs2cs
-		if self.GISInternalsSDKRoot and (targetDatum!="WGS84" or re.match("UTM",targetFormat)):
-			sdkShellBat=self.GISInternalsSDKRoot+"\\SDKShell.bat setenv" # must do 'setenv' as argument, otherwise command will terminate; see SDKShell.bat
-			cs2csExe=self.GISInternalsSDKRoot+"\\bin\\proj\\apps\\cs2cs.exe"
+		# relevant CRSes:
+		#  4326 = WGS84 lat/lon
+		#  4267 = NAD27 CONUS lat/lon
+		#  32600+zone = WGS84 UTM (e.g. 32610 = UTM zone 10)
+		#  26700+zone = NAD27 CONUS UTM (e.g. 26710 = UTM zone 10)
 
-			if targetDatum=="WGS84" and re.match("UTM",targetFormat):
-				targetProj4="+init=EPSG:326{0:02d}".format(targetUTMZone) # EPSG:32610 = WGS84 UTM zone 10N, 32611 = zone 11, etc
+		# if target datum is WGS84 and target format is anything other than UTM, just do the math
+		if targetDatum!="WGS84" or re.match("UTM",targetFormat):
+			sourceCRS=4326
+			if targetDatum=="WGS84":
+				targetCRS=32600+targetUTMZone
 			elif targetDatum=="NAD27 CONUS":
 				if re.match("UTM",targetFormat):
-					targetProj4="+init=EPSG:267{0:02d}".format(targetUTMZone) # EPSG:26710 = NAD27 UTM zone 10N, 26711 = zone 11, etc
+					targetCRS=26700+targetUTMZone
 				else:
-					targetProj4="+proj=latlong +init=EPSG:4267"
+					targetCRS=4267
 			else:
-				targetProj4="+proj=latlong +init=EPSG:4326" # fallback to WGS84 latlong
+				targetCRS=sourceCRS # fallback to do a pass-thru transformation
 
-			cs2csArgs="+proj=latlong +init=EPSG:4326 +to "+targetProj4 # assume source is WGS84 latlong
+			# the Transformer object is reusable; only need to recreate it if the CRSes have changed
+			# see examples at
+			# https://pyproj4.github.io/pyproj/stable/api/transformer.html#pyproj.transformer.Transformer.transform
+			if sourceCRS!=self.sourceCRS or targetCRS!=self.targetCRS:
+				self.sourceCRS=sourceCRS
+				self.targetCRS=targetCRS
+				self.transformer=Transformer.from_crs(sourceCRS,targetCRS)
 
-			cmd=sdkShellBat+" & "+cs2csExe+" -f \"%.6f\" "+cs2csArgs # format is not needed for UTM but is needed to return decimal degrees
-			rprint(cmd)
+			############## the actual transformation ################
+			t=self.transformer.transform(latDd,lonDd)
+			#########################################################
 
-			cs2cs=subprocess.check_output(cmd,universal_newlines=True,stderr=subprocess.STDOUT,input=latlon_cs2cs+'\n',timeout=5)
-			for line in cs2cs.split("\n"):
-				line=line.lstrip()
-				rprint("LINE:"+line)
-				if line!='' and line[1].isdigit(): # check the second character, in case the first is '-' (negative degrees)
-					rprint("Found it:"+line)
-					if re.match("UTM",targetFormat):
-						[easting,northing,junk]=line.split()
-						easting=str(int(float(easting))).zfill(7)
-						northing=str(int(float(northing))).zfill(7)
-					else:
-						[lonDd,latDd,junk]=line.split()
+			if re.match("UTM",targetFormat):
+				[easting,northing]=map(int,t)
+			else:
+				[lonDd,latDd]=t
 
 		latDd=float(latDd)
 		latDeg=int(latDd)
@@ -1998,8 +1982,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			lonLetter="E"
 		lon=int(lonDd)
-		lonMin=float((abs(lonDd)-float(abs(lonDeg
-										)))*60.0)
+		lonMin=float((abs(lonDd)-float(abs(lonDeg)))*60.0)
 		lonSec=float((abs(lonMin)-int(abs(lonMin)))*60.0)
 		rprint("lonDd="+str(lonDd))
 		rprint("lonDeg="+str(lonDeg))
@@ -2014,15 +1997,17 @@ class MyWindow(QDialog,Ui_Dialog):
 		if targetFormat=="D.dList":
 			return [latDd,lonDd]
 		if targetFormat=="D.d°":
-			return "{:.6f}° N\n{:.6f}° {}".format(latDd,lonDd,lonLetter)
+			return "{:.6f}°N  {:.6f}°{}".format(latDd,lonDd,lonLetter)
 		if targetFormat=="D° M.m'":
-			return "{}° {:.4f}' N\n{}° {:.4f}' {}".format(latDeg,latMin,abs(lonDeg),lonMin,lonLetter)
+			return "{}° {:.4f}'N  {}° {:.4f}'{}".format(latDeg,latMin,abs(lonDeg),lonMin,lonLetter)
 		if targetFormat=="D° M' S.s\"":
-			return "{}° {}' {:.2f}\" N\n{}° {}' {:.2f}\" {}".format(latDeg,int(latMin),latSec,abs(lonDeg),int(lonMin),lonSec,lonLetter)
+			return "{}° {}' {:.2f}\"N  {}° {}' {:.2f}\"{}".format(latDeg,int(latMin),latSec,abs(lonDeg),int(lonMin),lonSec,lonLetter)
+		eStr="{0:07d}".format(easting)
+		nStr="{0:07d}".format(northing)
 		if targetFormat=="UTM 7x7":
-			return "{} {}\n{} {}".format(easting[0:2],easting[2:],northing[0:2],northing[2:])
+			return "{} {}   {} {}".format(eStr[0:2],eStr[2:],nStr[0:2],nStr[2:])
 		if targetFormat=="UTM 5x5":
-			return "{}  {}".format(easting[2:],northing[2:])
+			return "{}  {}".format(eStr[2:],nStr[2:])
 		return "INVALID - UNKNOWN OUTPUT FORMAT REQUESTED"
 
 	def printLogHeaderFooter(self,canvas,doc,opPeriod="",teams=False):
@@ -5309,7 +5294,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.ui.timeField.setText(t)
 		self.ui.dateField.setText(time.strftime("%x"))
 		self.ui.callsignField.setText(callsign)
-		self.ui.radioLocField.setText(radioLoc)
+		self.ui.radioLocField.setText(re.sub(' +','\n',radioLoc))
 		self.ui.clueNumberField.setText(str(newClueNumber))
 		self.clueQuickTextAddedStack=[]
 		self.parent=parent
@@ -5611,7 +5596,7 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		self.ui.timeField.setText(t)
 		self.ui.dateField.setText(time.strftime("%x"))
 		self.ui.callsignField.setText(callsign)
-		self.ui.radioLocField.setText(radioLoc)
+		self.ui.radioLocField.setText(re.sub(' +','\n',radioLoc))
 		self.parent=parent
 		self.parent.subjectLocatedDialogOpen=True
 		self.parent.childDialogs.append(self)
@@ -5638,7 +5623,7 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		team=self.ui.callsignField.text()
 		subjDate=self.ui.dateField.text()
 		subjTime=self.ui.timeField.text()
-		radioLoc=self.ui.radioLocField.text()
+		radioLoc=self.ui.radioLocField.toPlainText()
 
 		# validation: description, location, instructions fields must all be non-blank
 		vText=""
