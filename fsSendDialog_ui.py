@@ -182,4 +182,4 @@ class Ui_fsSendDialog(object):
         self.deviceLabel.setText(_translate("fsSendDialog", "Device ID(s)"))
         self.label_3.setText(_translate("fsSendDialog", "Message"))
         self.label_4.setText(_translate("fsSendDialog", " 36 characters max; date and time automatically included"))
-        self.label_2.setText(_translate("fsSendDialog", "Note: any of these functions (excecpt \'Send to All\') can also be done by right-clicking a Team Tab"))
+        self.label_2.setText(_translate("fsSendDialog", "Note: any of these functions (except \'Send to All\') can also be done by right-clicking a Team Tab"))

@@ -2303,10 +2303,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			return
 		else:
 			f.close()
-		
-		doc = SimpleDocTemplate(cluePdfName, pagesize=portrait(letter),leftMargin=0.84*inch,rightMargin=0.67*inch,topMargin=0.68*inch,bottomMargin=0.5*inch) # or pagesize=letter
+
+		cluePdfOverlayName=cluePdfName.replace('.pdf','_overlay.pdf')
+		doc = SimpleDocTemplate(cluePdfOverlayName, pagesize=portrait(letter),leftMargin=0.84*inch,rightMargin=0.67*inch,topMargin=0.68*inch,bottomMargin=0.5*inch) # or pagesize=letter
 		QCoreApplication.processEvents()
-		tableWidthInches=6.92
+		tableWidthInches=6.92 # determined from the template pdf, used to draw overlay pdf fields below
 		elements=[]
 		styles = getSampleStyleSheet()
 
@@ -2316,22 +2317,6 @@ class MyWindow(QDialog,Ui_Dialog):
 			imgW,imgH=imgReader.getSize()
 			imgAspect=imgH/float(imgW)
 			img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
-
-		# clueTables - each entry is its own table data, with each table having just one row
-		# clueTables=[
-		# 	[['1','2','3','']],
-		# 	[['','incident','date','op']],
-		# 	[['clue#','datetime','team','']],
-		# 	[['long description long description long description long description long description long description long description long description long description ','','','']],
-		# 	[['','radio location']],
-		# 	[['long location long location long location long location long location long location long location long location long location long location long location ','','','']]
-		# ]
-		# clueTableDicts - list of dictionaries, with each dictionary corresponding to a new reportlab table
-		#  data - list of lists, each sublist corresponding to one row of the reportlab table
-		#  heights - list of row heights (in inches) - the length of this list must equal the length of 'data'
-		#  widths - list of column widths - the length of theis list must equal the length of each element of 'data'
-		#    if sum of values adds up to page width in inches, then units are assumed to be in inches;
-		#    otherwise, units are assumed to be equal parts of total page width
 
 		instructions=clueData[7].lower()
 		# initialize all checkboxes to OFF
@@ -2355,7 +2340,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		instructions=re.sub(r'; *$','',instructions) # also get rid of trailing ';' i.e. when last word is a keyword
 		if instructions != "":
 			instructionsOther='X'
-		instructionsOtherText=instructions
+		instructionsOtherText=re.sub(';+',';',instructions) # reduce multi-semicolon chains from above
 # 		locText=clueData[6]
 		if clueData[8]!="":
 # 			locText=locText+"\n(Radio GPS = "+clueData[8]+")"
@@ -2363,13 +2348,22 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			radioLocText=""
 
+		# define the fields and locations of the overlay pdf; similar to fillable pdf but with more control
+		# clueTableDicts - list of dictionaries, with each dictionary corresponding to a new reportlab table
+		#  data - list of lists, each sublist corresponding to one row of the reportlab table
+		#  heights - list of row heights (in inches) - the length of this list must equal the length of 'data';
+		#    can also be a single number, in which case each row will have the same specified height
+		#  widths - list of column widths - the length of theis list must equal the length of each element of 'data'
+		#    if sum of values adds up to page width in inches, then units are assumed to be in inches;
+		#    otherwise, units are assumed to be equal parts of total page width
 		clueTableDicts=[
 			{ # title bar row
 				'data':[[img,self.agencyNameForPrint,img]],
 				'heights':0.68,
 				'widths':[1,3,1],
 				'hvalign':['center','middle'],
-				'fontSize':32
+				'fontName':'Helvetica-Bold',
+				'fontSize':18
 			},
 			{ # incident name / date / operational period
 				'data':[['',self.incidentName,time.strftime('%x'),str(clueData[5])]],
@@ -2379,19 +2373,19 @@ class MyWindow(QDialog,Ui_Dialog):
 			},
 			{ # clue number / date/time located / team that located the clue
 				'data':[[str(clueData[0]),clueData[4]+'   '+clueData[3],clueData[2]]],
-				'heights':0.37,
+				'heights':0.39,
 				'widths':[67,141,131],
 				'hvalign':['center','bottom']
 			},
 			{ # gap - Name of Individual That Located Clue, plus gap before description text
 				'data':[['']],
-				'heights':0.56,
+				'heights':0.54,
 				'widths':[1]
 			},
 			{ # description of clue
 				'data':[['',clueData[1]]],
-				'heights':0.85,
-				'widths':[1,30], # left indent
+				'heights':0.87,
+				'widths':[1,40], # left indent
 				'hvalign':['left','top']
 			},
 			{ # radio location
@@ -2403,12 +2397,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			{ # location description
 				'data':[['',clueData[6]]],
 				'heights':0.63,
-				'widths':[1,30], # left indent
+				'widths':[1,40], # left indent
 				'hvalign':['left','top']
 			},
 			{ # gap - 'To investigations' and gap before checkboxes
 				'data':[['']],
-				'heights':0.97,
+				'heights':1,
 				'widths':[1]
 			},
 			{ # Instructions checkboxes - to keep it to a single table, each row is [gap,checkbox,gap,othertext]
@@ -2419,7 +2413,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					['',instructionsOther,'',instructionsOtherText]
 				],
 				'heights':0.19,
-				'widths':[1.4,1,3,30]
+				'widths':[1.35,1,3,30]
 				# note: if a cell width is less than required for a single character (plus padding),
 				#  the pdf generation process will throw an exception:
 				# AttributeError: 'Paragraph' object has no attribute 'blPara'
@@ -2430,23 +2424,34 @@ class MyWindow(QDialog,Ui_Dialog):
 		]
 		def ParagraphOrNot(d,style):
 			if isinstance(d,(str,int,float)):
-				rprint('   paragraph')
+				# rprint('   paragraph')
 				return Paragraph(d,style)
 			else:
-				rprint('   NOT paragraph')
+				# rprint('   NOT paragraph')
 				return d
 
 		for td in clueTableDicts:
-			# using Normal style enables word wrap within table cells https://stackoverflow.com/a/10244769/3577105
-			rprint('--- new table ---')
-			rprint('-- raw table data --')
-			try:
-				rprint(json.dumps(td,indent=3))
-			except:
-				rprint(str(td))
+			# rprint('--- new table ---')
+			# rprint('-- raw table data --')
+			# try:
+			# 	rprint(json.dumps(td,indent=3))
+			# except:
+				# rprint(str(td))
+
+			# using Normal paragraph style enables word wrap within table cells https://stackoverflow.com/a/10244769/3577105
 			style=ParagraphStyle('theStyle',parent=styles['Normal'])
+			# style.backColor='#dddddd' # helpful for layout development and debug
+			# style.borderPadding=(5,0,5,0)
+			if 'fontName' in td.keys():
+				style.fontName=td['fontName']
 			if 'fontSize' in td.keys():
 				style.fontSize=td['fontSize']
+			else:
+				style.fontSize=12
+			style.leading=style.fontSize*1.15 # rule of thumb: 20% larger than font size
+
+			# vertical alignment must be specified in the Table style;
+			# horizontal alignment must be specified in the Paragraph style
 			if 'hvalign' in td.keys():
 				[h,v]=td['hvalign']
 				if h=='center':
@@ -2454,258 +2459,59 @@ class MyWindow(QDialog,Ui_Dialog):
 
 			data=[[ParagraphOrNot(d,style) for d in row] for row in td['data']]
 			# data=td['data']
-			rprint('data:'+str(data))
+			# rprint('data:'+str(data))
 			widths=td['widths']
 			wsum=sum(td['widths'])
 			# if width units are not inches, treat them as proportional units
 			if sum(td['widths'])!=tableWidthInches:
 				widths=[(w/wsum)*tableWidthInches for w in widths]
-			rprint('widths='+str(widths))
+			# rprint('widths='+str(widths))
 			heights=td['heights']
 			if isinstance(heights,(int,float)):
 				heightsList=[heights for x in range(len(data))]
 				heights=heightsList
-			rprint('heights='+str(heights))
+			# rprint('heights='+str(heights))
 			t=Table(data,colWidths=[x*inch for x in widths],rowHeights=[x*inch for x in heights])
 			styleList=[
-				('FONT',(0,0),(-1,-1),'Helvetica-Bold'),
-				('FONTSIZE',(0,0),(-1,-1),18),
+				# ('FONT',(0,0),(-1,-1),'Helvetica-Bold'),
+				# ('FONTSIZE',(0,0),(-1,-1),18),
 				# ('LEADING',(1,0),(1,1),20),
 				# ('TOPADDING',(1,0),(1,0),0),
 				# ('BOTTOMPADDING',(1,1),(1,1),4),
 				# ('VALIGN',(0,0),(-1,-1),"MIDDLE"),
 				# ('ALIGN',(1,0),(1,-1),"CENTER"),
 				# ('ALIGN',(0,0),(0,1),"CENTER"),
-				('BOX',(0,0),(-1,-1),1,colors.red),
-				# ('BOX',(2,0),(-1,-1),2,colors.black),
-				# ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
-				('INNERGRID',(0,0),(-1,-1),0.5,colors.red)
+				# ('BOX',(0,0),(-1,-1),1,colors.red), # helpful for layout development and debug
+				# ('INNERGRID',(0,0),(-1,-1),0.5,colors.red) # helpful for layout development and debug
 			]
+			# vertical alignment must be specified in the Table style;
+			# horizontal alignment within paragraphs must be specified in the Paragraph style
+			#  but should be applied in the Table style also, in case the data is not a Paragraph
 			if 'hvalign' in td.keys():
 				[h,v]=td['hvalign']
-				if isinstance(h,str): # apply it to the entire table
-					# rprint('h='+h.upper())
-					styleList.append(('ALIGN',(0,0),(-1,-1),h.upper()))
 				if isinstance(v,str): # apply it to the entire table
-					# rprint('v='+v.upper())
 					styleList.append(('VALIGN',(0,0),(-1,-1),v.upper()))
-			if 'fontSize' in td.keys():
-				styleList.append(('FONTSIZE',(0,0),(-1,-1),td['fontSize']))
+				if isinstance(h,str): # apply it to the entire table
+					styleList.append(('ALIGN',(0,0),(-1,-1),h.upper()))
 			t.setStyle(TableStyle(styleList))
-			rprint('setting table style:'+str(styleList))
+			# rprint('setting table style:'+str(styleList))
 			elements.append(t)
 		doc.build(elements)
 
 		# overlaying on the template https://gist.github.com/vsajip/8166dc0935ee7807c5bd4daa22a20937
 		templatePDF=PdfFileReader(self.clueReportPdfFileName,'rb')
 		templatePage=templatePDF.getPage(0)
-		overlayPDF=PdfFileReader(cluePdfName,'rb')
+		overlayPDF=PdfFileReader(cluePdfOverlayName,'rb')
 		templatePage.mergePage(overlayPDF.getPage(0))
 		outputPDF=PdfFileWriter()
 		outputPDF.addPage(templatePage)
-		with open(cluePdfName.replace('.pdf','_merged.pdf'),'wb') as out_pdf:
+		with open(cluePdfName,'wb') as out_pdf:
 			outputPDF.write(out_pdf)
 
-		# # merge the generated pdf with the template pdf
-		# mergeFile=PdfFileMerger()
-		# mergeFile.append(PdfFileReader(self.fillableClueReportPdfFileName,'rb'))
-		# mergeFile.append(PdfFileReader(cluePdfName,'rb'))
-		# mergeFile.write(cluePdfName.replace('.pdf','_merged.pdf'))
-
-		# self.img=None
-		# if os.path.isfile(self.printLogoFileName):
-		# 	imgReader=utils.ImageReader(self.printLogoFileName)
-		# 	imgW,imgH=imgReader.getSize()
-		# 	imgAspect=imgH/float(imgW)
-		# 	self.img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
-		# 	headerTable=[
-		# 			[self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,"Clue Log - Page "+str(canvas.getPageNumber())],
-		# 			["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
-		# 	t=Table(headerTable,colWidths=[x*inch for x in [0.8,4.2,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
-		# 	t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
-		# 	                       ('FONTSIZE',(1,0),(1,1),18),
-		# 								  ('SPAN',(0,0),(0,1)),
-		# 								  ('SPAN',(1,0),(1,1)),
-		# 								  ('LEADING',(1,0),(1,1),20),
-		# 								  ('TOPADDING',(1,0),(1,0),0),
-		# 								  ('BOTTOMPADDING',(1,1),(1,1),4),
-        #  	                    ('VALIGN',(0,0),(-1,-1),"MIDDLE"),
-        #     	                 ('ALIGN',(1,0),(1,-1),"CENTER"),
-		# 								  ('ALIGN',(0,0),(0,1),"CENTER"),
-		# 								  ('BOX',(0,0),(-1,-1),2,colors.black),
-		# 								  ('BOX',(2,0),(-1,-1),2,colors.black),
-		# 								  ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
-		# else:
-		# 	headerTable=[
-		# 			[self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,"Clue Log - Page "+str(canvas.getPageNumber())],
-		# 			["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
-		# 	t=Table(headerTable,colWidths=[x*inch for x in [0.0,5,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
-		# 	t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
-		# 	                       ('FONTSIZE',(1,0),(1,1),18),
-		# 								  ('SPAN',(0,0),(0,1)),
-		# 								  ('SPAN',(1,0),(1,1)),
-		# 								  ('LEADING',(1,0),(1,1),20),
-        #  	                    ('VALIGN',(1,0),(-1,-1),"MIDDLE"),
-        #     	                 ('ALIGN',(1,0),(1,-1),"CENTER"),
-		# 								  ('BOX',(0,0),(-1,-1),2,colors.black),
-		# 								  ('BOX',(2,0),(-1,-1),2,colors.black),
-		# 								  ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
-
-
-
-
-
-
-
-# 	def printClueReport(self,clueData):
-# 		if not self.fillableClueReportPdfFileName:
-# 			warn=QMessageBox(QMessageBox.Warning,"Clue Report PDF Unavailable","Reminder: no Clue Report form will be printed, since the fillable clue report PDF does not exist.\n\nThe clue report text is stored as part of the radio message text.\n\nThis warning will automatically close in a few seconds.",
-#  							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-# 			warn.show()
-# 			warn.raise_()
-# 			QTimer.singleShot(8000,warn.close)
-# 			warn.exec_()
-# 			return
-		
-# ##		header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
-# 		# do not use ui object here, since this could be called later, when the clueDialog is not open
-# 		cluePdfName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clue"+str(clueData[0]).zfill(2)+".pdf")
-# 		rprint("generating clue report pdf: "+cluePdfName)
-# 		clueFdfName=cluePdfName.replace(".pdf",".fdf")
-
-# # 		self.clueReportMsgBox=QMessageBox(QMessageBox.Information,"Printing Clue #"+clueData[0],"Generating PDF; will send to default printer automatically; please wait...",
-# # 										QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-# # 		self.clueReportMsgBox.show()
-# # 		self.clueReportMsgBox.raise_()
-# # 		QTimer.singleShot(5000,self.clueReportMsgBox.close)
-
-# 		instructions=clueData[7].lower()
-# 		# initialize all checkboxes to OFF
-# 		instructionsCollect=False
-# 		instructionsMarkAndLeave=False
-# 		instructionsDisregard=False
-# 		instructionsOther=False
-# 		# look for keywords in the instructions text
-# 		if "collect" in instructions:
-# 			instructionsCollect=True
-# 		if "mark & leave" in instructions:
-# 			instructionsMarkAndLeave=True
-# 		if "disregard" in instructions:
-# 			instructionsDisregard=True
-# 		# now see if there are any instructions other than the standard ones above; if so, print them in 'other'
-# 		instructions=re.sub(r'collect','',instructions)
-# 		instructions=re.sub(r'mark & leave','',instructions)
-# 		instructions=re.sub(r'disregard','',instructions)
-# 		instructions=re.sub(r'^[; ]+','',instructions) # only get rid of semicolons and spaces before the first word
-# 		instructions=re.sub(r' ; ','',instructions) # also get rid of remaining ' ; ' i.e. when first word is not a keyword
-# 		instructions=re.sub(r'; *$','',instructions) # also get rid of trailing ';' i.e. when last word is a keyword
-# 		if instructions != "":
-# 			instructionsOther=True
-# 		instructionsOtherText=instructions
-
-# # 		locText=clueData[6]
-# 		if clueData[8]!="":
-# # 			locText=locText+"\n(Radio GPS = "+clueData[8]+")"
-# 			radioLocText="(Radio GPS: "+re.sub(r"\n","  x  ",clueData[8])+")"
-# 		else:
-# 			radioLocText=""
-# 		fields={'titleField':self.agencyNameForPrint,
-# 				'incidentNameField':self.incidentName,
-# 				'dateField':time.strftime("%x"),
-# 				'operationalPeriodField':clueData[5],
-# 				'clueNumberField':clueData[0],
-# 				'dateTimeField':clueData[4]+"   "+clueData[3],
-# 				'teamField':clueData[2],
-# 				'descriptionField':clueData[1],
-# 				'locationRadioGPSField':radioLocText,
-# 				'locationField':clueData[6],
-# 				'instructionsCollectField':instructionsCollect,
-# 				'instructionsDisregardField':instructionsDisregard,
-# 				'instructionsMarkAndLeaveField':instructionsMarkAndLeave,
-# 				'instructionsOtherField':instructionsOther,
-# 				'instructionsOtherTextField':instructionsOtherText}
-# 		fdf=forge_fdf("",fields.items(),[],[],[])
-# 		fdf_file=open(clueFdfName,"wb")
-# 		fdf_file.write(fdf)
-# 		fdf_file.close()
-
-# 		cluePdfTkName=cluePdfName.replace('.pdf','_pdftk.pdf')
-# 		pdftk_cmd='pdftk "'+self.fillableClueReportPdfFileName+'" fill_form "'+clueFdfName+'" output "'+cluePdfTkName+'" flatten'
-# 		rprint("Calling pdftk with the following command:")
-# 		rprint(pdftk_cmd)
-# 		os.system(pdftk_cmd)
-
-# 		reader=PdfReader(self.fillableClueReportPdfFileName)
-# 		writer=PdfWriter()
-# 		page=reader.pages[0]
-# 		# rprint('annots:'+json.dumps(page['/Annots'],indent=3))
-# 		pdfFields=reader.get_fields()
-# 		# rprint('fields:'+json.dumps(pdfFields,indent=3))
-# 		writer.add_page(page)
-
-# 		# override PdfWriter.update_page_form_field_values
-# 		#  based on https://stackoverflow.com/a/48412434/3577105
-# 		# - fill text fields and boolean (checkbox '/Btn' fields)
-# 		# - set /AS to the same value, to address not-visible-until-clicked issues
-# 		# - set readonly flag for all fields afterwards
-# 		for j in range(0, len(page['/Annots'])):
-# 			writer_annot = page['/Annots'][j].getObject()
-# 			for field in fields:
-# 				if writer_annot.get('/T') == field:
-# 					val=fields[field]
-# 					valObj=TextStringObject('---')
-# 					className=val.__class__.__name__
-# 					if className=='str':
-# 						valObj=TextStringObject(val)
-# 					elif className=='bool':
-# 						# checkboxes want a NameObject, either /Yes or /Off - seems odd but it works
-# 						if val:
-# 							valObj=NameObject('/Yes')
-# 						else:
-# 							valObj=NameObject('/Off')
-# 					elif className in ['int','float']:
-# 						valObj=TextStringObject(str(val))
-# 					print('updating '+str(field)+' --> '+str(fields[field])+' ['+className+':'+str(valObj)+']')
-# 					writer_annot.update({
-# 						NameObject("/V"): valObj,
-# 						NameObject("/AS"): valObj
-# 						# NameObject('/Ff'): NumberObject(1) # set readonly flag for this field
-# 					})
-# 			ff=writer_annot.get('/Ff')
-# 			if ff: # ff will not exist for all fields
-# 				newff=ff|1 # set readonly flag for this field, without changing the other bits
-# 				rprint('Ff: '+str(ff)+' --> '+str(newff))
-# 				writer_annot.update({NameObject('/Ff'): NumberObject(newff)})
-
-# 		# # iterate over field names; must use the appropriate key for each, from the pdfFields dict
-# 		# for fieldName in pdfFields.keys():
-# 		# 	val=fields[fieldName] # for text fields, use the specified string value
-# 		# 	# rprint(fieldName+':'+str(type(val)))
-# 		# 	if isinstance(val,bool) and pdfFields[fieldName]['/FT']=='/Btn': # for checkboxes, use /On or /Off
-# 		# 		if val:
-# 		# 			val='/On'
-# 		# 		else:
-# 		# 			val='/Off'
-# 		# 	rprint('updating field '+str(fieldName)+' with value "'+str(val)+'"')
-# 		# 	writer.update_page_form_field_values(
-# 		# 		writer.pages[0], {fieldName:val}
-# 		# 	)
-
-
-# 		# writer.update_page_form_field_values(
-# 		# 	writer.pages[0],{list(pdfFields.keys())[0]:'stuff'}
-# 		# )
-
-# 		with open(cluePdfName,'wb') as out:
-# 			writer.write(out)
-
-# 		win32api.ShellExecute(0,"print",cluePdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
-# 		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-# 			rprint("copying clue report pdf to "+self.secondWorkingDir)
-# 			shutil.copy(clueFdfName,self.secondWorkingDir)
-# 			shutil.copy(cluePdfName,self.secondWorkingDir)
-
-
+		win32api.ShellExecute(0,"print",cluePdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
+		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
+			rprint("copying clue report pdf to "+self.secondWorkingDir)
+			shutil.copy(cluePdfName,self.secondWorkingDir)
 
 	def startupOptions(self):
 		self.optionsDialog.show()
@@ -5645,6 +5451,10 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 ##		self.setWindowFlags(Qt.FramelessWindowHint)
 		self.setAttribute(Qt.WA_DeleteOnClose)
+		# # set max length to prevent text overrun in generated pdf
+		# self.ui.descriptionField.setValidator(QRegExpValidator(QRegExp('.{1,36}'),self.ui.descriptionField))
+		# # set max length to prevent text overrun in generated pdf
+		# self.ui.locationField.setValidator(QRegExpValidator(QRegExp('.{1,36}'),self.ui.locationField))
 		self.ui.descriptionField.setFocus()
 ##		self.i=0 # dialog box location index; set at runtime, so we know which index to free on close
 ##		clueDialog.instances.append(self)

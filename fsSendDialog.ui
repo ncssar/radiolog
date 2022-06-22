@@ -277,7 +277,7 @@
       </font>
      </property>
      <property name="text">
-      <string>Note: any of these functions (excecpt 'Send to All') can also be done by right-clicking a Team Tab</string>
+      <string>Note: any of these functions (except 'Send to All') can also be done by right-clicking a Team Tab</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
