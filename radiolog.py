@@ -332,6 +332,7 @@ import serial
 import serial.tools.list_ports
 import csv
 import os.path
+import os
 import requests
 import random
 import subprocess
@@ -2473,14 +2474,6 @@ class MyWindow(QDialog,Ui_Dialog):
 			# rprint('heights='+str(heights))
 			t=Table(data,colWidths=[x*inch for x in widths],rowHeights=[x*inch for x in heights])
 			styleList=[
-				# ('FONT',(0,0),(-1,-1),'Helvetica-Bold'),
-				# ('FONTSIZE',(0,0),(-1,-1),18),
-				# ('LEADING',(1,0),(1,1),20),
-				# ('TOPADDING',(1,0),(1,0),0),
-				# ('BOTTOMPADDING',(1,1),(1,1),4),
-				# ('VALIGN',(0,0),(-1,-1),"MIDDLE"),
-				# ('ALIGN',(1,0),(1,-1),"CENTER"),
-				# ('ALIGN',(0,0),(0,1),"CENTER"),
 				# ('BOX',(0,0),(-1,-1),1,colors.red), # helpful for layout development and debug
 				# ('INNERGRID',(0,0),(-1,-1),0.5,colors.red) # helpful for layout development and debug
 			]
@@ -2512,6 +2505,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
 			rprint("copying clue report pdf to "+self.secondWorkingDir)
 			shutil.copy(cluePdfName,self.secondWorkingDir)
+
+		try:
+			os.remove(cluePdfOverlayName)
+		except:
+			pass
 
 	def startupOptions(self):
 		self.optionsDialog.show()
@@ -5435,6 +5433,9 @@ class clueDialog(QDialog,Ui_clueDialog):
 	dy=20
 	x0=200
 	y0=200
+	# max length values determined by trial and error with a generated PDF
+	descriptionMaxLength=270
+	locationMaxLength=200
 	def __init__(self,parent,t,callsign,radioLoc,newClueNumber):
 		QDialog.__init__(self)
 		self.ui=Ui_clueDialog()
@@ -5451,10 +5452,13 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 ##		self.setWindowFlags(Qt.FramelessWindowHint)
 		self.setAttribute(Qt.WA_DeleteOnClose)
-		# # set max length to prevent text overrun in generated pdf
-		# self.ui.descriptionField.setValidator(QRegExpValidator(QRegExp('.{1,36}'),self.ui.descriptionField))
-		# # set max length to prevent text overrun in generated pdf
-		# self.ui.locationField.setValidator(QRegExpValidator(QRegExp('.{1,36}'),self.ui.locationField))
+
+		# set max length to prevent text overrun in generated pdf
+		# based on https://stackoverflow.com/a/46550977/3577105
+		self.ui.descriptionField.textChanged.connect(self.descriptionTextChanged)
+		# for locationField, we could use maxLength or setValidator since it's a QLineEdit, but that lacks audio and visual feedback
+		self.ui.locationField.textChanged.connect(self.locationTextChanged)
+
 		self.ui.descriptionField.setFocus()
 ##		self.i=0 # dialog box location index; set at runtime, so we know which index to free on close
 ##		clueDialog.instances.append(self)
@@ -5480,6 +5484,40 @@ class clueDialog(QDialog,Ui_clueDialog):
 ##		self.values[2]='' # this message is not actually from a team
 		self.parent.parent.newEntry(self.values)
 		self.setFixedSize(self.size())
+		self.descriptionTooLongHasBeenShown=False
+		self.locationTooLongHasBeenShown=False
+
+	def descriptionTextChanged(self):
+		text=self.ui.descriptionField.toPlainText()
+		if len(text)>clueDialog.descriptionMaxLength:
+			self.ui.descriptionField.setPlainText(text[:clueDialog.descriptionMaxLength])
+			cursor=self.ui.descriptionField.textCursor()
+			cursor.setPosition(clueDialog.descriptionMaxLength)
+			self.ui.descriptionField.setTextCursor(cursor)
+			if not self.descriptionTooLongHasBeenShown: # only show the message box once per clue
+				box=QMessageBox(QMessageBox.Warning,"Warning","You've reached the maximum clue description length.  Consider changing the description to 'see attached' then adding additional notes by hand after the clue form is printed.",
+					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				box.show()
+				box.raise_()
+				box.exec_()
+				self.descriptionTooLongHasBeenShown=True
+			else:
+				QApplication.beep()
+
+	def locationTextChanged(self):
+		text=self.ui.locationField.text()
+		if len(text)>clueDialog.locationMaxLength:
+			self.ui.locationField.setText(text[:clueDialog.locationMaxLength])
+			self.ui.locationField.setCursorPosition(clueDialog.locationMaxLength)
+			if not self.locationTooLongHasBeenShown: # only show the message box once per clue
+				box=QMessageBox(QMessageBox.Warning,"Warning","You've reached the maximum clue location length.  Consider changing the location to 'see attached' then adding additional notes by hand after the clue form is printed.",
+					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				box.show()
+				box.raise_()
+				box.exec_()
+				self.locationTooLongHasBeenShown=True
+			else:
+				QApplication.beep()
 
 	def pickXYI(self):
 		for index in range(len(clueDialog.indices)):
