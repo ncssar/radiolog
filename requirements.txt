@@ -2,6 +2,6 @@ pyqt5>=5.4
 reportlab
 pyserial
 requests
-fdfgen
+pypdf2
 pypiwin32
 pyproj>=2.6.1

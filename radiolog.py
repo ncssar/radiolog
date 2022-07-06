@@ -349,7 +349,6 @@ from reportlab.lib.pagesizes import letter,landscape,portrait
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.units import inch
-# from fdfgen import forge_fdf
 from PyPDF2 import PdfReader,PdfWriter,PdfFileMerger,PdfFileReader,PdfFileWriter
 from PyPDF2.generic import NameObject,TextStringObject,NumberObject
 from FingerTabs import *
@@ -917,7 +916,6 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def readConfigFile(self):
 		# specify defaults here
-		self.fillableClueReportPdfFileName="clueReportFillable.pdf"
 		self.clueReportPdfFileName='clueReport.pdf'
 		self.agencyName="Search and Rescue"
 		self.datum="WGS84"
@@ -983,8 +981,6 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.timeoutMinutes=tokens[1]
 			elif tokens[0]=="logo":
 				self.printLogoFileName=tokens[1]
-			elif tokens[0]=="clueReport":
-				self.fillableClueReportPdfFileName=tokens[1]
 			elif tokens[0]=="firstWorkingDir":
 				self.firstWorkingDir=tokens[1]
 			elif tokens[0]=="secondWorkingDir":
@@ -1052,10 +1048,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.agencyNameForPrint=self.agencyName
 		if not "\n" in self.agencyName:
 			self.agencyNameForPrint="\n".join(textwrap.wrap(self.agencyName.upper(),width=len(self.agencyName)/2+6))
-
-		if not os.path.isfile(self.fillableClueReportPdfFileName):
-			configErr+="ERROR: specified fillable clue report pdf file '"+self.fillableClueReportPdfFileName+"' does not exist.  Clue report forms will NOT be generated for this session.\n\n"
-			self.fillableClueReportPdfFileName=None
 		
 		if not os.path.isfile(self.printLogoFileName):
 			configErr+="ERROR: specified logo file '"+self.printLogoFileName+"' does not exist.  No logo will be included on generated reports.\n\n"
@@ -2409,8 +2401,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			{ # Instructions checkboxes - to keep it to a single table, each row is [gap,checkbox,gap,othertext]
 				'data':[
 					['',instructionsCollect,'',''],
-					['',instructionsDisregard,'',''],
 					['',instructionsMarkAndLeave,'',''],
+					['',instructionsDisregard,'',''],
 					['',instructionsOther,'',instructionsOtherText]
 				],
 				'heights':0.19,
