@@ -399,7 +399,7 @@ FORMAT</string>
        </property>
        <property name="icon">
         <iconset resource="radiolog_ui.qrc">
-         <normaloff>:/radiolog_ui/help_icon.png</normaloff>:/radiolog_ui/help_icon.png</iconset>
+         <normaloff>:/radiolog_ui/icons/help_icon.png</normaloff>:/radiolog_ui/icons/help_icon.png</iconset>
        </property>
        <property name="iconSize">
         <size>
@@ -428,7 +428,7 @@ FORMAT</string>
        </property>
        <property name="icon">
         <iconset resource="radiolog_ui.qrc">
-         <normaloff>:/radiolog_ui/options_icon.png</normaloff>:/radiolog_ui/options_icon.png</iconset>
+         <normaloff>:/radiolog_ui/icons/options_icon.png</normaloff>:/radiolog_ui/icons/options_icon.png</iconset>
        </property>
        <property name="iconSize">
         <size>
@@ -451,7 +451,7 @@ FORMAT</string>
        </property>
        <property name="icon">
         <iconset resource="radiolog_ui.qrc">
-         <normaloff>:/radiolog_ui/empty_filter.png</normaloff>:/radiolog_ui/empty_filter.png</iconset>
+         <normaloff>:/radiolog_ui/icons/empty_filter.png</normaloff>:/radiolog_ui/icons/empty_filter.png</iconset>
        </property>
        <property name="iconSize">
         <size>
@@ -489,7 +489,7 @@ FORMAT</string>
        </property>
        <property name="icon">
         <iconset resource="radiolog_ui.qrc">
-         <normaloff>:/radiolog_ui/print_icon.png</normaloff>:/radiolog_ui/print_icon.png</iconset>
+         <normaloff>:/radiolog_ui/icons/print_icon.png</normaloff>:/radiolog_ui/icons/print_icon.png</iconset>
        </property>
        <property name="iconSize">
         <size>
@@ -510,7 +510,7 @@ FORMAT</string>
       </sizepolicy>
      </property>
      <property name="styleSheet">
-      <string notr="true">QSplitter::handle{image:url(SplitterPanelIcon.png)}</string>
+      <string notr="true">QSplitter::handle{image:url(icons/SplitterPanelIcon.png)}</string>
      </property>
      <property name="frameShape">
       <enum>QFrame::NoFrame</enum>
