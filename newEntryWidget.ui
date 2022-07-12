@@ -1100,31 +1100,31 @@
 
   QCheckBox::indicator:checked
   {
-    image: url(:/radiolog_ui/checkbox_checked_30x30_turquoise.png);
+    image: url(:/radiolog_ui/icons/checkbox_checked_30x30_turquoise.png);
   }
   QCheckBox::indicator:unchecked
   {
-    image: url(:/radiolog_ui/checkbox_unchecked_30x30.png);
+    image: url(:/radiolog_ui/icons/checkbox_unchecked_30x30.png);
   }
   QCheckBox::indicator:checked:hover
   {
-    image: url(:/radiolog_ui/checkbox_checked_30x30_turquoise.png);
+    image: url(:/radiolog_ui/icons/checkbox_checked_30x30_turquoise.png);
   }
   QCheckBox::indicator:unchecked:hover
   {
-    image: url(:/radiolog_ui/checkbox_unchecked_30x30.png);
+    image: url(:/radiolog_ui/icons/checkbox_unchecked_30x30.png);
   }
   QCheckBox::indicator:checked:pressed
   {
-    image: url(:/radiolog_ui/checkbox_checked_30x30_turquoise.png);
+    image: url(:/radiolog_ui/icons/checkbox_checked_30x30_turquoise.png);
   }
   QCheckBox::indicator:unchecked:pressed
   {
-    image: url(:/radiolog_ui/checkbox_unchecked_30x30.png);
+    image: url(:/radiolog_ui/icons/checkbox_unchecked_30x30.png);
   }
   QCheckBox::indicator:checked:disabled
   {
-    image: url(:/radiolog_ui/checkbox_checked_30x30_turquoise.png);
+    image: url(:/radiolog_ui/icons/checkbox_checked_30x30_turquoise.png);
   }</string>
    </property>
    <property name="text">
