@@ -1,0 +1,15 @@
+[bumpver]
+current_version = "3.0.0"
+version_pattern = "MAJOR.MINOR.PATCH"
+commit_message = "bump version {old_version} -> {new_version}"
+commit = true
+tag = true
+push = true
+
+[bumpver.file_patterns]
+"bumpver.toml" = [
+    'current_version = "{version}"',
+]
+"radiolog.py" = [
+    '__version__ = "{version}"'
+]
