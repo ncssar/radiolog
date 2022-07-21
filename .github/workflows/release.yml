@@ -1,0 +1,75 @@
+name: Release radiolog
+on:
+  push:
+    tags:
+      - '*.*.*'
+env:
+  version: '3.0.0'
+
+jobs:
+  build-release:
+    strategy:
+      matrix:
+        # Allow for other OSs in the future.
+        os: [windows-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Pip install requirements and requirements-dev
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Install pywin32 and pefile if on Windows
+        run: |
+          pip install --upgrade pywin32-ctypes
+          pip install --upgrade pefile
+        if: matrix.os == 'windows-latest'
+
+      - name: pyinstaller
+        run: pyinstaller radiolog.spec
+
+      - name: Archive Windows Release Binaries
+        uses: thedoctor0/zip-release@main
+        if: matrix.os == 'windows-latest'
+        with:
+          type: 'zip'
+          filename: radiolog-windows-${{ env.version }}.zip
+          path: radiolog/
+          directory: dist/
+
+      - name: Archive Linux Release Binaries
+        uses: thedoctor0/zip-release@main
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          type: 'zip'
+          filename: radiolog-linux-${{ env.version }}.zip
+          path: radiolog/
+          directory: dist/
+
+      - name: Create Windows Installer
+        if: matrix.os == 'windows-latest'
+        run: iscc.exe radiolog.iss
+
+      - name: Push Windows Release
+        uses: softprops/action-gh-release@v1
+        if: matrix.os == 'windows-latest'
+        with:
+          files: |
+            dist/radiolog-windows-${{ env.version }}.zip
+            dist/radiolog-setup.exe
+
+      - name: Push Linux Release
+        uses: softprops/action-gh-release@v1
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          files: dist/radiolog-linux-${{ env.version }}.zip
