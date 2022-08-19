@@ -13,7 +13,7 @@ push = true
 "radiolog.py" = [
     '__version__ = "{version}"'
 ]
-".github\workflows\release.yml" = [
+".github\\workflows\\release.yml" = [
     "version: '{version}'"
 ]
 
