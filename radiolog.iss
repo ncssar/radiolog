@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "radiolog"
-#define MyAppVersion "3.0.0"
+#define MyAppVersion "3.0.1"
 #define MyAppPublisher "Nevada County Sheriff's Search and Rescue"
 #define MyAppURL "https://www.nevadacountysar.org"
 #define MyAppExeName "radiolog.exe"

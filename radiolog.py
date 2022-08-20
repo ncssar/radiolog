@@ -354,7 +354,7 @@ from PyPDF2.generic import NameObject,TextStringObject,NumberObject
 from FingerTabs import *
 from pyproj import Transformer
 
-__version__ = "3.0.0"
+__version__ = "3.0.1"
 
 # process command-line arguments
 minMode=False
