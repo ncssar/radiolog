@@ -302,26 +302,21 @@
 # #############################################################################
 # #############################################################################
 
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-
-from help_ui import Ui_Help
-from options_ui import Ui_optionsDialog
-from fsSendDialog_ui import Ui_fsSendDialog
-from fsSendMessageDialog_ui import Ui_fsSendMessageDialog
-from newEntryWindow_ui import Ui_newEntryWindow
-from newEntryWidget_ui import Ui_newEntryWidget
-from clueDialog_ui import Ui_clueDialog
-from clueLogDialog_ui import Ui_clueLogDialog
-from printDialog_ui import Ui_printDialog
-from changeCallsignDialog_ui import Ui_changeCallsignDialog
-from fsFilterDialog_ui import Ui_fsFilterDialog
-from opPeriodDialog_ui import Ui_opPeriodDialog
-from printClueLogDialog_ui import Ui_printClueLogDialog
-from nonRadioClueDialog_ui import Ui_nonRadioClueDialog
-from convertDialog_ui import Ui_convertDialog
-from subjectLocatedDialog_ui import Ui_subjectLocatedDialog
+from ui.help_ui import Ui_Help
+from ui.options_ui import Ui_optionsDialog
+from ui.fsSendDialog_ui import Ui_fsSendDialog
+from ui.fsSendMessageDialog_ui import Ui_fsSendMessageDialog
+from ui.newEntryWindow_ui import Ui_newEntryWindow
+from ui.newEntryWidget_ui import Ui_newEntryWidget
+from ui.clueDialog_ui import Ui_clueDialog
+from ui.clueLogDialog_ui import Ui_clueLogDialog
+from ui.printDialog_ui import Ui_printDialog
+from ui.changeCallsignDialog_ui import Ui_changeCallsignDialog
+from ui.fsFilterDialog_ui import Ui_fsFilterDialog
+from ui.opPeriodDialog_ui import Ui_opPeriodDialog
+from ui.printClueLogDialog_ui import Ui_printClueLogDialog
+from ui.nonRadioClueDialog_ui import Ui_nonRadioClueDialog
+from ui.subjectLocatedDialog_ui import Ui_subjectLocatedDialog
 
 import functools
 import sys
@@ -334,7 +329,6 @@ import csv
 import os.path
 import os
 import requests
-import random
 import subprocess
 import win32api
 import win32gui
@@ -343,21 +337,18 @@ import win32con
 import shutil
 import math
 import textwrap
-import json
 from reportlab.lib import colors,utils
 from reportlab.lib.pagesizes import letter,landscape,portrait
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.units import inch
-from PyPDF2 import PdfReader,PdfWriter,PdfFileMerger,PdfFileReader,PdfFileWriter
-from PyPDF2.generic import NameObject,TextStringObject,NumberObject
+from PyPDF2 import PdfFileReader,PdfFileWriter
 from FingerTabs import *
 from pyproj import Transformer
 
 __version__ = "3.0.1"
 
 # process command-line arguments
-minMode=False
 develMode=False
 noSend=False
 if len(sys.argv)>1:
@@ -372,10 +363,7 @@ if len(sys.argv)>1:
 			noSend=True
 			print("Will not send any GET requests for this session.")
 
-if minMode:
-	from radiolog_min_ui import Ui_Dialog # built to look decent at 800x600
-else:
-	from radiolog_ui import Ui_Dialog # normal version, for higher resolution
+from ui.radiolog_ui import Ui_Dialog # normal version, for higher resolution
 
 statusStyleDict={}
 # even though tab labels are created with font-size:20px and the tab sizes and margins are created accordingly,
