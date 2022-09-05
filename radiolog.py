@@ -5795,7 +5795,7 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		team=self.ui.callsignField.text()
 		subjDate=self.ui.dateField.text()
 		subjTime=self.ui.timeField.text()
-		radioLoc=self.ui.radioLocField.toPlainText()
+		radioLoc=self.ui.radioLocField.text()
 
 		# validation: description, location, instructions fields must all be non-blank
 		vText=""
