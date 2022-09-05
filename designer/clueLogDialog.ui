@@ -79,8 +79,8 @@
         <string/>
        </property>
        <property name="icon">
-        <iconset resource="radiolog_ui.qrc">
-         <normaloff>:/radiolog_ui/print_icon.png</normaloff>:/radiolog_ui/print_icon.png</iconset>
+        <iconset resource="../radiolog_ui.qrc">
+         <normaloff>:/radiolog_ui/icons/print_icon.png</normaloff>:/radiolog_ui/icons/print_icon.png</iconset>
        </property>
        <property name="iconSize">
         <size>
@@ -108,7 +108,7 @@
   </layout>
  </widget>
  <resources>
-  <include location="radiolog_ui.qrc"/>
+  <include location="../radiolog_ui.qrc"/>
  </resources>
  <connections/>
 </ui>
