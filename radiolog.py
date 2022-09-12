@@ -328,6 +328,7 @@ import serial.tools.list_ports
 import csv
 import os.path
 import os
+import glob
 import requests
 import subprocess
 import win32api
@@ -592,6 +593,21 @@ class MyWindow(QDialog,Ui_Dialog):
 			rprint("Window Tracking was initially enabled.  Disabling it for radiolog; will re-enable on exit.")
 			win32gui.SystemParametersInfo(win32con.SPI_SETACTIVEWINDOWTRACKING,False)
 		
+		self.firstWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents"
+		if self.firstWorkingDir[1]!=":":
+			self.firstWorkingDir=os.getenv('HOMEDRIVE','C:')+self.firstWorkingDir
+# 		self.secondWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents\\sar"
+
+		# #483: Check for recent radiolog sessions on this computer.  If any sessions are found from the previous 4 days,
+		#  ask the operator if this new session is intended to be a continuation of one of those previous incidents.
+		#  If so:
+		#    - set the incident name to the same as that in the selected previous radiolog csv file;
+		#    - set the OP number to one more than the latest OP# in the previous csv
+		#       (with a reminder that OP# can be changed by hand by clicking the OP button);
+		#    - set the next clue number to one more than the latest clue number in the previous CSV
+		#       (with a reminder that clue# can be changed in the clue dialog the next time it is raised)  
+		self.checkForContinuedIncident()
+
 		self.incidentName="New Incident"
 		self.incidentNameNormalized=normName(self.incidentName)
 		self.opPeriod=1
@@ -622,11 +638,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.enableSendText=True
 		self.enablePollGPS=True
 		self.getString=""
-
-		self.firstWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents"
-		if self.firstWorkingDir[1]!=":":
-			self.firstWorkingDir=os.getenv('HOMEDRIVE','C:')+self.firstWorkingDir
-# 		self.secondWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents\\sar"
 
 ##		# attempt to change to the second working dir and back again, to 'wake up'
 ##		#  any mount points, to hopefully avoid problems of second working dir
@@ -903,6 +914,54 @@ class MyWindow(QDialog,Ui_Dialog):
 			QTimer.singleShot(1000,self.startupOptions)
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
+
+	# Build a nested list of radiolog session data from any sessions in the last n days;
+	#  each list element is [incident_name,last_op#,last_clue#,filename_base]
+	#  then let the user choose from these, or choose to start a new incident
+	# - only show the most recent OP of each incident, i.e. don't show both OP2 and OP1
+	# - add a note that the user can change OP and next clue# afterwards from the GUI
+	def checkForContinuedIncident(self):
+		continuedIncidentWindowDays=4
+		continuedIncidentWindowSec=continuedIncidentWindowDays*24*60*60
+		csvFiles=glob.glob(self.firstWorkingDir+'/*.csv')
+		sortedCsvFiles=sorted(csvFiles,key=os.path.getmtime,reverse=True)
+		now=time.time()
+		choices=[]
+		print('Checking '+str(len(sortedCsvFiles))+' .csv files:')
+		for csv in sortedCsvFiles:
+			print('  '+csv)
+			if now-os.path.getmtime(csv)<continuedIncidentWindowSec:
+				if self.isRadioLogDataFile(csv):
+					filenameBase=csv[:-4] # do this rather than splitext, to preserve entire path name
+					incidentName=None
+					lastOP=1 # if no entries indicate change in OP#, then initial OP is 1 by default
+					lastClue=0
+					with open(csv,'r') as radioLog:
+						lines=radioLog.readlines()
+						for line in lines:
+							if not incidentName and '## Incident Name:' in line:
+								incidentName=': '.join(line.split(': ')[1:]).rstrip() # provide for spaces and ': ' in incident name
+							if 'CLUE#' in line and 'LOCATION:' in line and 'INSTRUCTIONS:' in line:
+								lastClue=re.findall('CLUE#[0-9]+:',line)[-1].split('#')[1][:-1]
+							if 'Operational Period ' in line:
+								lastOP=re.findall('Operational Period [0-9]+ Begins:',line)[-1].split()[2]
+					choices.append([incidentName,lastOP,lastClue,filenameBase])
+			else:
+				break
+		if choices:
+			print('csv files from the last '+str(continuedIncidentWindowDays)+' days:')
+			for csv in choices:
+				print(*csv)
+		else:
+			print('no csv files from the last '+str(continuedIncidentWindowDays)+' days.')
+	
+	def isRadioLogDataFile(self,filename):
+		print('checking '+filename)
+		if filename.endswith('.csv') and os.path.isfile(filename):
+			with open(filename,'r') as f:
+				if '## Radio Log data file' in f.readline():
+					return True
+		return False
 
 	def readConfigFile(self):
 		# specify defaults here
