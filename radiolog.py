@@ -317,6 +317,7 @@ from ui.opPeriodDialog_ui import Ui_opPeriodDialog
 from ui.printClueLogDialog_ui import Ui_printClueLogDialog
 from ui.nonRadioClueDialog_ui import Ui_nonRadioClueDialog
 from ui.subjectLocatedDialog_ui import Ui_subjectLocatedDialog
+from ui.continuedIncidentDialog_ui import Ui_continuedIncidentDialog
 
 import functools
 import sys
@@ -605,8 +606,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		#    - set the OP number to one more than the latest OP# in the previous csv
 		#       (with a reminder that OP# can be changed by hand by clicking the OP button);
 		#    - set the next clue number to one more than the latest clue number in the previous CSV
-		#       (with a reminder that clue# can be changed in the clue dialog the next time it is raised)  
-		self.checkForContinuedIncident()
+		#       (with a reminder that clue# can be changed in the clue dialog the next time it is raised)
+
+		# self.checkForContinuedIncident()
 
 		self.incidentName="New Incident"
 		self.incidentNameNormalized=normName(self.incidentName)
@@ -927,15 +929,29 @@ class MyWindow(QDialog,Ui_Dialog):
 		sortedCsvFiles=sorted(csvFiles,key=os.path.getmtime,reverse=True)
 		now=time.time()
 		choices=[]
-		print('Checking '+str(len(sortedCsvFiles))+' .csv files:')
+		# rprint('Checking '+str(len(sortedCsvFiles))+' .csv files:')
 		for csv in sortedCsvFiles:
-			print('  '+csv)
-			if now-os.path.getmtime(csv)<continuedIncidentWindowSec:
+			# rprint('  '+csv)
+			mtime=os.path.getmtime(csv)
+			age=now-mtime
+			ageStr=''
+			if age<3600:
+				ageStr='< 1 hour'
+			elif age<86400:
+				ageStr='< 1 day'
+			else:
+				ageDays=int(age/86400)
+				ageStr=str(ageDays)+' day'
+				if ageDays>1:
+					ageStr+='s'
+			if ageStr:
+				ageStr+=' ago'
+			if age<continuedIncidentWindowSec:
 				if self.isRadioLogDataFile(csv):
 					filenameBase=csv[:-4] # do this rather than splitext, to preserve entire path name
 					incidentName=None
-					lastOP=1 # if no entries indicate change in OP#, then initial OP is 1 by default
-					lastClue=0
+					lastOP='1' # if no entries indicate change in OP#, then initial OP is 1 by default
+					lastClue='--'
 					with open(csv,'r') as radioLog:
 						lines=radioLog.readlines()
 						for line in lines:
@@ -945,18 +961,30 @@ class MyWindow(QDialog,Ui_Dialog):
 								lastClue=re.findall('CLUE#[0-9]+:',line)[-1].split('#')[1][:-1]
 							if 'Operational Period ' in line:
 								lastOP=re.findall('Operational Period [0-9]+ Begins:',line)[-1].split()[2]
-					choices.append([incidentName,lastOP,lastClue,filenameBase])
+					choices.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase])
 			else:
 				break
 		if choices:
-			print('csv files from the last '+str(continuedIncidentWindowDays)+' days:')
-			for csv in choices:
-				print(*csv)
+			rprint('csv files from the last '+str(continuedIncidentWindowDays)+' days:')
+			for choice in choices:
+				rprint(choice[4])
+			cd=continuedIncidentDialog(self)
+			cd.ui.theTable.setRowCount(len(choices)+1)
+			row=0
+			for choice in choices:
+				cd.ui.theTable.setItem(row,0,QTableWidgetItem(choice[0]))
+				cd.ui.theTable.setItem(row,1,QTableWidgetItem(choice[1]))
+				cd.ui.theTable.setItem(row,2,QTableWidgetItem(choice[2]))
+				cd.ui.theTable.setItem(row,3,QTableWidgetItem(choice[3]))
+				row+=1
+			cd.show()
+			cd.raise_()
+			cd.exec_()
 		else:
-			print('no csv files from the last '+str(continuedIncidentWindowDays)+' days.')
+			rprint('no csv files from the last '+str(continuedIncidentWindowDays)+' days.')
 	
 	def isRadioLogDataFile(self,filename):
-		print('checking '+filename)
+		# rprint('checking '+filename)
 		if filename.endswith('.csv') and os.path.isfile(filename):
 			with open(filename,'r') as f:
 				if '## Radio Log data file' in f.readline():
@@ -5997,6 +6025,43 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 		self.parent.clueLog.append(['',opText,'',time.strftime("%H%M"),'','','','',''])
 		self.parent.printDialog.ui.opPeriodComboBox.addItem(self.ui.newOpPeriodField.text())
 		super(opPeriodDialog,self).accept()
+
+class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
+	def __init__(self,parent):
+		QDialog.__init__(self)
+		self.ui=Ui_continuedIncidentDialog()
+		self.ui.setupUi(self)
+		self.parent=parent
+		self.incidentNameCandidate=''
+		self.lastOPCandidate=0
+		self.lastClueCandidate=0
+		self.setAttribute(Qt.WA_DeleteOnClose)
+		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		# self.setFixedSize(self.size())
+
+	def accept(self): # YES is clicked
+		rprint('YES')
+		super(continuedIncidentDialog,self).accept()
+
+	def reject(self): # NO is clicked
+		rprint('NO')
+		super(continuedIncidentDialog,self).reject()
+
+	def cellClicked(self,row,col):
+		self.ui.yesButton.setEnabled(True)
+		self.incidentNameCandidate=self.ui.theTable.item(row,0).text()
+		self.lastOPCandidate=self.ui.theTable.item(row,1).text()
+		if self.lastOPCandidate.isnumeric():
+			self.lastOPCandidate=int(self.lastOPCandidate)
+		else:
+			self.lastOPCandidate=1
+		self.lastClueCandidate=self.ui.theTable.item(row,2).text()
+		if self.lastClueCandidate.isnumeric():
+			self.lastClueCandidate=int(self.lastClueCandidate)
+		else:
+			self.lastClueCandidate=0
+		self.ui.yesButton.setText('YES: Start a new OP of "'+self.incidentNameCandidate+'"\n(OP = '+str(self.lastOPCandidate+1)+'; next clue# = '+str(self.lastClueCandidate+1)+')')
+
 
 # fleetsync filtering scheme:
 # - maintain a table of all known (received) fleetsync device IDs.  This table is empty at startup.
