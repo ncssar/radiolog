@@ -632,6 +632,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.incidentStartDate=time.strftime("%a %b %d, %Y")
 		self.isContinuedIncident=False
 
+		self.printDialog=printDialog(self)
+		self.printClueLogDialog=printClueLogDialog(self)
+
 		# #483: Check for recent radiolog sessions on this computer.  If any sessions are found from the previous 4 days,
 		#  ask the operator if this new session is intended to be a continuation of one of those previous incidents.
 		#  If so:
@@ -647,7 +650,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			rlInitText='Radio Log Begins - Continued incident "'+self.incidentName+'": Operational Period '+str(self.opPeriod)+' Begins: '
 		else:
 			rlInitText='Radio Log Begins: '
-		self.radioLog=[[time.strftime("%H%M"),'','',rlInitText+self.incidentStartDate,'','',time.time(),'','',''],
+		rlInitText+=self.incidentStartDate
+		if lastClueNumber>0:
+			rlInitText+=' (Last clue number: '+str(lastClueNumber)+')'
+		self.radioLog=[[time.strftime("%H%M"),'','',rlInitText,'','',time.time(),'','',''],
 			['','','','','','',1e10,'','','']] # 1e10 epoch seconds will keep the blank row at the bottom when sorted
 
 		self.clueLog=[]
@@ -725,9 +731,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.helpWindow.ui.fsAllFilteredLabel.setFont(self.helpFont2)		
 		self.helpWindow.ui.fsSomeFilteredLabel.setStyleSheet(statusStyleDict["Working"])
 		self.helpWindow.ui.fsAllFilteredLabel.setStyleSheet(statusStyleDict["Working"])
-
-		self.printDialog=printDialog(self)
-		self.printClueLogDialog=printClueLogDialog(self)
 
 		self.radioLogNeedsPrint=False # set to True with each new log entry; set to False when printed
 		self.clueLogNeedsPrint=False
@@ -965,6 +968,11 @@ class MyWindow(QDialog,Ui_Dialog):
 						for line in lines:
 							if not incidentName and '## Incident Name:' in line:
 								incidentName=': '.join(line.split(': ')[1:]).rstrip() # provide for spaces and ': ' in incident name
+							# last clue# could be determined by an actual clue in the previous OP, but
+							#  should carry forward the last clue number from an earlier OP if no clues
+							#  were found in the most recent OP
+							if 'Radio Log Begins - Continued incident' in line and '(Last clue number:' in line:
+								lastClue=re.findall('(Last clue number: [0-9]+)',line)[-1].split()[3]
 							if 'CLUE#' in line and 'LOCATION:' in line and 'INSTRUCTIONS:' in line:
 								lastClue=re.findall('CLUE#[0-9]+:',line)[-1].split('#')[1][:-1]
 							if 'Operational Period ' in line:
@@ -4424,7 +4432,7 @@ class printDialog(QDialog,Ui_printDialog):
 		self.parent=parent
 		self.ui=Ui_printDialog()
 		self.ui.setupUi(self)
-		self.ui.opPeriodComboBox.addItem("1")
+		self.ui.opPeriodComboBox.addItem(str(self.parent.opPeriod))
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setFixedSize(self.size())
 
@@ -6071,7 +6079,7 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 		self.parent.opPeriod=self.lastOPCandidate+1
 		self.parent.ui.opPeriodButton.setText("OP "+str(self.parent.opPeriod))
 		# radiolog entry and clue log entry are made by init code based on values set here
-		# self.parent.printDialog.ui.opPeriodComboBox.addItem(self.ui.newOpPeriodField.text())
+		self.parent.printDialog.ui.opPeriodComboBox.setItemText(0,str(self.parent.opPeriod))
 		super(continuedIncidentDialog,self).accept()
 
 	def reject(self): # NO is clicked
