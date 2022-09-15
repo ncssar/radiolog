@@ -582,6 +582,21 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.hotkeyPool=["1","2","3","4","5","6","7","8","9","0","q","w","e","r","t","y","u","i","o","p","a","s","d","f","g","h","j","k","l","z","x","c","v","b","n","m"]
 		self.homeDir=os.path.expanduser("~")
 		
+		# coordinate system name translation dictionary:
+		#  key = ASCII name in the config file
+		#  value = utf-8 name used in the rest of this code
+		self.csDisplayDict={}
+		self.csDisplayDict["UTM 5x5"]="UTM 5x5"
+		self.csDisplayDict["UTM 7x7"]="UTM 7x7"
+		self.csDisplayDict["D.d"]="D.d°"
+		self.csDisplayDict["DM.m"]="D° M.m'"
+		self.csDisplayDict["DMS.s"]="D° M' S.s\""
+
+		self.validDatumList=["WGS84","NAD27","NAD27 CONUS"]
+
+		self.timeoutDisplaySecList=[i[1] for i in timeoutDisplayList]
+		self.timeoutDisplayMinList=[int(i/60) for i in self.timeoutDisplaySecList if i>=60]
+		
 		# fix #342 (focus-follows-mouse causes freezes) - disable FFM here;
 		#  restore to initial setting on shutdown (note this would leave it
 		#  disabled after unclean shutdown)
@@ -599,6 +614,24 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.firstWorkingDir=os.getenv('HOMEDRIVE','C:')+self.firstWorkingDir
 # 		self.secondWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents\\sar"
 
+		self.optionsDialog=optionsDialog(self)
+		self.optionsDialog.accepted.connect(self.optionsAccepted)
+		
+		# config file (e.g. ./local/radiolog.cfg) stores the team standards;
+		#  it should be created/modified by hand, and is read at radiolog startup,
+		#  and is not modified by radiolog at any point
+		# resource file / 'rc file' (e.g. ./radiolog_rc.txt) stores the search-specific
+		#  options settings; it is read at radiolog startup, and is written
+		#  whenever the options dialog is accepted
+		self.configFileName="./local/radiolog.cfg"
+		self.readConfigFile() # defaults are set inside readConfigFile
+
+		self.incidentName="New Incident"
+		self.incidentNameNormalized=normName(self.incidentName)
+		self.opPeriod=1
+		self.incidentStartDate=time.strftime("%a %b %d, %Y")
+		self.isContinuedIncident=False
+
 		# #483: Check for recent radiolog sessions on this computer.  If any sessions are found from the previous 4 days,
 		#  ask the operator if this new session is intended to be a continuation of one of those previous incidents.
 		#  If so:
@@ -610,12 +643,11 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		# self.checkForContinuedIncident()
 
-		self.incidentName="New Incident"
-		self.incidentNameNormalized=normName(self.incidentName)
-		self.opPeriod=1
-		self.incidentStartDate=time.strftime("%a %b %d, %Y")
-
-		self.radioLog=[[time.strftime("%H%M"),'','','Radio Log Begins: '+self.incidentStartDate,'','',time.time(),'','',''],
+		if self.isContinuedIncident:
+			rlInitText='Radio Log Begins - Continued incident "'+self.incidentName+'": Operational Period '+str(self.opPeriod)+' Begins: '
+		else:
+			rlInitText='Radio Log Begins: '
+		self.radioLog=[[time.strftime("%H%M"),'','',rlInitText+self.incidentStartDate,'','',time.time(),'','',''],
 			['','','','','','',1e10,'','','']] # 1e10 epoch seconds will keep the blank row at the bottom when sorted
 
 		self.clueLog=[]
@@ -651,39 +683,13 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		rprint("t2")
 ##		os.chdir(self.cwd)
 ##		rprint("t3")
-
-		self.optionsDialog=optionsDialog(self)
-		self.optionsDialog.accepted.connect(self.optionsAccepted)
 		
 		self.fsSendDialog=fsSendDialog(self)
 		self.fsSendList=[[]]
 		self.fsResponseMessage=''
 
-		self.validDatumList=["WGS84","NAD27","NAD27 CONUS"]
-		self.timeoutDisplaySecList=[i[1] for i in timeoutDisplayList]
-		self.timeoutDisplayMinList=[int(i/60) for i in self.timeoutDisplaySecList if i>=60]
-		
-		# coordinate system name translation dictionary:
-		#  key = ASCII name in the config file
-		#  value = utf-8 name used in the rest of this code
-		self.csDisplayDict={}
-		self.csDisplayDict["UTM 5x5"]="UTM 5x5"
-		self.csDisplayDict["UTM 7x7"]="UTM 7x7"
-		self.csDisplayDict["D.d"]="D.d°"
-		self.csDisplayDict["DM.m"]="D° M.m'"
-		self.csDisplayDict["DMS.s"]="D° M' S.s\""
-
 		self.sourceCRS=0
 		self.targetCRS=0
-		
-		# config file (e.g. ./local/radiolog.cfg) stores the team standards;
-		#  it should be created/modified by hand, and is read at radiolog startup,
-		#  and is not modified by radiolog at any point
-		# resource file / 'rc file' (e.g. ./radiolog_rc.txt) stores the search-specific
-		#  options settings; it is read at radiolog startup, and is written
-		#  whenever the options dialog is accepted
-		self.configFileName="./local/radiolog.cfg"
-		self.readConfigFile() # defaults are set inside readConfigFile
 		
 		# set the default lookup name - this must be after readConfigFile
 		#  since that function accepts the options form which updates the
@@ -883,6 +889,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.rcFileName="radiolog_rc.txt"
 		self.previousCleanShutdown=self.loadRcFile()
 		showStartupOptions=True
+		if self.isContinuedIncident:
+			showStartupOptions=False
 		if not self.previousCleanShutdown:
 			self.reallyRestore=QMessageBox(QMessageBox.Critical,"Restore last saved files?","The previous Radio Log session may have shut down incorrectly.  Do you want to restore the last saved files (Radio Log, Clue Log, and FleetSync table)?",
 										QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
@@ -1010,6 +1018,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  else goes in a separate catch-all group; override this in radiolog.cfg
 		defaultTabGroups=[["Numbers","^Team [0-9]+"]]
 		self.tabGroups=defaultTabGroups
+		self.continuedIncidentWindowDays="4"
 		
 		if os.name=="nt":
 			rprint("Operating system is Windows.")
@@ -1070,6 +1079,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.rotateDelimiter=tokens[1]
 			elif tokens[0]=="tabGroups":
 				self.tabGroups=eval(tokens[1])
+			elif tokens[0]=="continuedIncidentWindowDays":
+				self.continuedIncidentWindowDays=tokens[1]
 		configFile.close()
 		
 		# validation and post-processing of each item
@@ -1132,6 +1143,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		if not isinstance(self.tabGroups,list):
 			configErr+="ERROR: specified tab group '"+str(self.tabGroups)+"' is not a list.  Using the default tabGroups group list.\n\n"
 			self.tabGroups=defaultTabGroups
+
+		if not self.continuedIncidentWindowDays.isdigit():
+			configErr+="ERROR: continuedIncidentWindowDays value must be an integer.  Will use 4 days for this session.\n\n"
+			self.continuedIncidentWindowDays=4
+		else:
+			self.continuedIncidentWindowDays=int(self.continuedIncidentWindowDays)
 			 
 		if configErr:
 			self.configErrMsgBox=QMessageBox(QMessageBox.Warning,"Non-fatal Configuration Error(s)","Error(s) encountered in config file "+self.configFileName+":\n\n"+configErr,
@@ -6037,14 +6054,27 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 		self.lastClueCandidate=0
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		ciwd=self.parent.continuedIncidentWindowDays
+		if ciwd==1:
+			dayText='day'
+		else:
+			dayText=str(ciwd)+' days'
+		self.ui.instructionsLabel.setText('If so, select a row from the following list of radiolog sessions that were run on this computer within the last '+dayText+', then click YES.')
 		# self.setFixedSize(self.size())
 
 	def accept(self): # YES is clicked
-		rprint('YES')
+		self.parent.isContinuedIncident=True
+		self.parent.incidentName=self.incidentNameCandidate
+		self.parent.optionsDialog.ui.incidentField.setText(self.parent.incidentName)
+		global lastClueNumber
+		lastClueNumber=self.lastClueCandidate
+		self.parent.opPeriod=self.lastOPCandidate+1
+		self.parent.ui.opPeriodButton.setText("OP "+str(self.parent.opPeriod))
+		# radiolog entry and clue log entry are made by init code based on values set here
+		# self.parent.printDialog.ui.opPeriodComboBox.addItem(self.ui.newOpPeriodField.text())
 		super(continuedIncidentDialog,self).accept()
 
 	def reject(self): # NO is clicked
-		rprint('NO')
 		super(continuedIncidentDialog,self).reject()
 
 	def cellClicked(self,row,col):
