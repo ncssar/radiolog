@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_continuedIncidentDialog(object):
     def setupUi(self, continuedIncidentDialog):
         continuedIncidentDialog.setObjectName("continuedIncidentDialog")
-        continuedIncidentDialog.resize(645, 341)
+        continuedIncidentDialog.resize(682, 435)
         self.verticalLayout = QtWidgets.QVBoxLayout(continuedIncidentDialog)
         self.verticalLayout.setObjectName("verticalLayout")
         self.label = QtWidgets.QLabel(continuedIncidentDialog)
@@ -35,7 +35,6 @@ class Ui_continuedIncidentDialog(object):
         font.setPointSize(12)
         self.instructionsLabel.setFont(font)
         self.instructionsLabel.setTextFormat(QtCore.Qt.PlainText)
-        self.instructionsLabel.setScaledContents(False)
         self.instructionsLabel.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
         self.instructionsLabel.setWordWrap(True)
         self.instructionsLabel.setObjectName("instructionsLabel")
@@ -47,12 +46,20 @@ class Ui_continuedIncidentDialog(object):
         self.horizontalLayout_2.setStretch(2, 1)
         self.verticalLayout.addLayout(self.horizontalLayout_2)
         self.theTable = QtWidgets.QTableWidget(continuedIncidentDialog)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.MinimumExpanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.theTable.sizePolicy().hasHeightForWidth())
+        self.theTable.setSizePolicy(sizePolicy)
+        self.theTable.setMinimumSize(QtCore.QSize(200, 0))
         font = QtGui.QFont()
         font.setPointSize(10)
         self.theTable.setFont(font)
+        self.theTable.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self.theTable.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.theTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.theTable.setShowGrid(True)
+        self.theTable.setCornerButtonEnabled(False)
         self.theTable.setObjectName("theTable")
         self.theTable.setColumnCount(4)
         self.theTable.setRowCount(1)
@@ -66,6 +73,7 @@ class Ui_continuedIncidentDialog(object):
         self.theTable.setHorizontalHeaderItem(2, item)
         item = QtWidgets.QTableWidgetItem()
         self.theTable.setHorizontalHeaderItem(3, item)
+        self.theTable.horizontalHeader().setHighlightSections(False)
         self.theTable.verticalHeader().setVisible(False)
         self.verticalLayout.addWidget(self.theTable)
         self.yesButton = QtWidgets.QPushButton(continuedIncidentDialog)
@@ -107,6 +115,8 @@ class Ui_continuedIncidentDialog(object):
         self.yesButton.clicked.connect(continuedIncidentDialog.accept) # type: ignore
         self.noButton.clicked.connect(continuedIncidentDialog.reject) # type: ignore
         self.theTable.cellClicked['int','int'].connect(continuedIncidentDialog.cellClicked) # type: ignore
+        self.theTable.currentCellChanged['int','int','int','int'].connect(continuedIncidentDialog.currentCellChanged) # type: ignore
+        self.theTable.clicked['QModelIndex'].connect(continuedIncidentDialog.clicked) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(continuedIncidentDialog)
 
     def retranslateUi(self, continuedIncidentDialog):

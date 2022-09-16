@@ -644,7 +644,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		#    - set the next clue number to one more than the latest clue number in the previous CSV
 		#       (with a reminder that clue# can be changed in the clue dialog the next time it is raised)
 
-		# self.checkForContinuedIncident()
+		self.checkForContinuedIncident()
 
 		if self.isContinuedIncident:
 			rlInitText='Radio Log Begins - Continued incident "'+self.incidentName+'": Operational Period '+str(self.opPeriod)+' Begins: '
@@ -940,6 +940,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		sortedCsvFiles=sorted(csvFiles,key=os.path.getmtime,reverse=True)
 		now=time.time()
 		choices=[]
+		opd={} # dictionary of most recent OP#'s per incident name
 		# rprint('Checking '+str(len(sortedCsvFiles))+' .csv files:')
 		for csv in sortedCsvFiles:
 			# rprint('  '+csv)
@@ -965,6 +966,10 @@ class MyWindow(QDialog,Ui_Dialog):
 					lastClue='--'
 					with open(csv,'r') as radioLog:
 						lines=radioLog.readlines()
+						# don't show files that have less than two entries
+						if len(lines)<7:
+							rprint('  not listing empty csv '+csv)
+							continue
 						for line in lines:
 							if not incidentName and '## Incident Name:' in line:
 								incidentName=': '.join(line.split(': ')[1:]).rstrip() # provide for spaces and ': ' in incident name
@@ -977,15 +982,22 @@ class MyWindow(QDialog,Ui_Dialog):
 								lastClue=re.findall('CLUE#[0-9]+:',line)[-1].split('#')[1][:-1]
 							if 'Operational Period ' in line:
 								lastOP=re.findall('Operational Period [0-9]+ Begins:',line)[-1].split()[2]
+					# only show the most recent OP of continued incidents
+					op=opd.get(incidentName)
+					if type(op)==str and op.isdigit() and int(op)>int(lastOP):
+						rprint('  not listing '+incidentName+' OP '+lastOP+' ('+filenameBase+') since OP '+op+' is already listed')
+						continue
 					choices.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase])
+					opd[incidentName]=lastOP
 			else:
 				break
 		if choices:
-			rprint('csv files from the last '+str(continuedIncidentWindowDays)+' days:')
+			rprint('radiolog sessions from the last '+str(continuedIncidentWindowDays)+' days:')
+			rprint(' (hiding empty sessions; only showing the most recent session of continued incidents)')
 			for choice in choices:
 				rprint(choice[4])
 			cd=continuedIncidentDialog(self)
-			cd.ui.theTable.setRowCount(len(choices)+1)
+			cd.ui.theTable.setRowCount(len(choices))
 			row=0
 			for choice in choices:
 				cd.ui.theTable.setItem(row,0,QTableWidgetItem(choice[0]))
@@ -6051,6 +6063,14 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 		self.parent.printDialog.ui.opPeriodComboBox.addItem(self.ui.newOpPeriodField.text())
 		super(opPeriodDialog,self).accept()
 
+# allow different justifications for different columns of qtableview
+# from https://stackoverflow.com/a/52644764
+from PyQt5 import QtCore,QtWidgets
+class alignCenterDelegate(QtWidgets.QStyledItemDelegate):
+	def initStyleOption(self,option,index):
+		super(alignCenterDelegate,self).initStyleOption(option,index)
+		option.displayAlignment=QtCore.Qt.AlignCenter
+
 class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
@@ -6068,6 +6088,17 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 		else:
 			dayText=str(ciwd)+' days'
 		self.ui.instructionsLabel.setText('If so, select a row from the following list of radiolog sessions that were run on this computer within the last '+dayText+', then click YES.')
+		self.ui.theTable.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+		# automatically expand the 'Incident name' column width to fill available space
+		self.ui.theTable.horizontalHeader().setSectionResizeMode(0,QHeaderView.Stretch)
+		centerDelegate=alignCenterDelegate(self.ui.theTable)
+		self.ui.theTable.setItemDelegateForColumn(1,centerDelegate)
+		self.ui.theTable.setItemDelegateForColumn(2,centerDelegate)
+		self.ui.theTable.setItemDelegateForColumn(3,centerDelegate)
+		# clearFocus doesn't remove the focus rectangle from the top-left cell unless
+		#  there is a half second delay (singleshot) before callig it, but changing
+		#  the focus to something else does remove the focus rectangle immediately
+		self.ui.noButton.setFocus()
 		# self.setFixedSize(self.size())
 
 	def accept(self): # YES is clicked
@@ -6080,26 +6111,53 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 		self.parent.ui.opPeriodButton.setText("OP "+str(self.parent.opPeriod))
 		# radiolog entry and clue log entry are made by init code based on values set here
 		self.parent.printDialog.ui.opPeriodComboBox.setItemText(0,str(self.parent.opPeriod))
+		self.changed=False
 		super(continuedIncidentDialog,self).accept()
 
 	def reject(self): # NO is clicked
 		super(continuedIncidentDialog,self).reject()
 
+	# toggle selection behavior is actually a bit tricky;
+	#  the next three functions correspond to the same-named signals
+	#  and work together to keep track of whether the clicked cell
+	#  was already selected; other signals don't fire in the needed sequence
 	def cellClicked(self,row,col):
-		self.ui.yesButton.setEnabled(True)
-		self.incidentNameCandidate=self.ui.theTable.item(row,0).text()
-		self.lastOPCandidate=self.ui.theTable.item(row,1).text()
-		if self.lastOPCandidate.isnumeric():
-			self.lastOPCandidate=int(self.lastOPCandidate)
+		# rprint('row clicked:'+str(row))
+		# rprint('  selected row:'+str(self.ui.theTable.selectedIndexes()[0].row()))
+		if self.changed:
+			self.ui.yesButton.setEnabled(True)
+			self.incidentNameCandidate=self.ui.theTable.item(row,0).text()
+			self.lastOPCandidate=self.ui.theTable.item(row,1).text()
+			if self.lastOPCandidate.isnumeric():
+				self.lastOPCandidate=int(self.lastOPCandidate)
+			else:
+				self.lastOPCandidate=1
+			self.lastClueCandidate=self.ui.theTable.item(row,2).text()
+			if self.lastClueCandidate.isnumeric():
+				self.lastClueCandidate=int(self.lastClueCandidate)
+			else:
+				self.lastClueCandidate=0
+			self.ui.yesButton.setText('YES: Start a new OP of "'+self.incidentNameCandidate+'"\n(OP = '+str(self.lastOPCandidate+1)+'; next clue# = '+str(self.lastClueCandidate+1)+')')
+			self.ui.yesButton.setDefault(True)
+			self.changed=False
 		else:
-			self.lastOPCandidate=1
-		self.lastClueCandidate=self.ui.theTable.item(row,2).text()
-		if self.lastClueCandidate.isnumeric():
-			self.lastClueCandidate=int(self.lastClueCandidate)
-		else:
-			self.lastClueCandidate=0
-		self.ui.yesButton.setText('YES: Start a new OP of "'+self.incidentNameCandidate+'"\n(OP = '+str(self.lastOPCandidate+1)+'; next clue# = '+str(self.lastClueCandidate+1)+')')
+			self.ui.theTable.clearSelection()
+			self.ui.noButton.setDefault(True)
+			self.ui.yesButton.setEnabled(False)
+			self.ui.theTable.clearFocus() # to remove the focus rectangle
 
+	def currentCellChanged(self,r1,c1,r2,c2):
+		# rprint('r1={} c1={}   r2={} c2={}'.format(r1,c1,r2,c2))
+		self.changed=True
+
+	def clicked(self,i):
+		# rprint('clicked row: '+str(i.row()))
+		si=self.ui.theTable.selectedIndexes()
+		if not si: # clicked when already unselected; select it again
+			# rprint('  no row selected when clicked event called')
+			self.changed=True
+		# else:
+			# rprint('  selected row:'+str(self.ui.theTable.selectedIndexes()[0].row()))
 
 # fleetsync filtering scheme:
 # - maintain a table of all known (received) fleetsync device IDs.  This table is empty at startup.

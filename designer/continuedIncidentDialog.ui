@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>645</width>
-    <height>341</height>
+    <width>682</width>
+    <height>435</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -59,9 +59,6 @@
        <property name="textFormat">
         <enum>Qt::PlainText</enum>
        </property>
-       <property name="scaledContents">
-        <bool>false</bool>
-       </property>
        <property name="alignment">
         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
        </property>
@@ -87,10 +84,25 @@
    </item>
    <item>
     <widget class="QTableWidget" name="theTable">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="MinimumExpanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>200</width>
+       <height>0</height>
+      </size>
+     </property>
      <property name="font">
       <font>
        <pointsize>10</pointsize>
       </font>
+     </property>
+     <property name="editTriggers">
+      <set>QAbstractItemView::NoEditTriggers</set>
      </property>
      <property name="selectionMode">
       <enum>QAbstractItemView::SingleSelection</enum>
@@ -101,6 +113,12 @@
      <property name="showGrid">
       <bool>true</bool>
      </property>
+     <property name="cornerButtonEnabled">
+      <bool>false</bool>
+     </property>
+     <attribute name="horizontalHeaderHighlightSections">
+      <bool>false</bool>
+     </attribute>
      <attribute name="verticalHeaderVisible">
       <bool>false</bool>
      </attribute>
@@ -225,7 +243,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>532</x>
-     <y>189</y>
+     <y>237</y>
     </hint>
     <hint type="destinationlabel">
      <x>633</x>
@@ -241,7 +259,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>568</x>
-     <y>251</y>
+     <y>299</y>
     </hint>
     <hint type="destinationlabel">
      <x>603</x>
@@ -265,8 +283,46 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>theTable</sender>
+   <signal>currentCellChanged(int,int,int,int)</signal>
+   <receiver>continuedIncidentDialog</receiver>
+   <slot>currentCellChanged(int,int,int,int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>30</x>
+     <y>181</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>6</x>
+     <y>205</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>theTable</sender>
+   <signal>clicked(QModelIndex)</signal>
+   <receiver>continuedIncidentDialog</receiver>
+   <slot>clicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>65</x>
+     <y>107</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>83</x>
+     <y>38</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>cellClicked(int,int)</slot>
+  <slot>itemSelectionChanged()</slot>
+  <slot>currentCellChanged(int,int,int,int)</slot>
+  <slot>cellPressed(int,int)</slot>
+  <slot>cellEntered(int,int)</slot>
+  <slot>cellActivated(int,int)</slot>
+  <slot>clicked()</slot>
  </slots>
 </ui>
