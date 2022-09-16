@@ -4,4 +4,4 @@ pyserial
 requests
 pypdf2
 pypiwin32
-pyproj>=2.6.1
+pygeodesy

@@ -346,7 +346,7 @@ from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.units import inch
 from PyPDF2 import PdfFileReader,PdfFileWriter
 from FingerTabs import *
-from pyproj import Transformer
+from pygeodesy import utm
 
 __version__ = "3.0.1"
 
@@ -2020,6 +2020,17 @@ class MyWindow(QDialog,Ui_Dialog):
 			rval=self.convertCoords(coords,self.datum,self.coordFormat)
 			rprint("testConvertCoords:"+str(coords)+" --> "+rval)
 
+	# convertCoords
+	#   coords - 4-element list of strings
+	#      [LatString,NS,]LonString,EW]
+	#      LatString - in the format that Kenwood produces: DDMM.mmmm
+	#          (3912.3456 = 39deg 12.3456min)
+	#      NS - North or South hemisphere
+	#      LonString - in the format that Kenwood produces: DDMM.mmmm
+	#      EW - Eeast or West hemisphere
+	#          (W along with a positive LonString means the lon value is actually negative)
+	#          12034.5678 W  --> -120deg 34.5678min
+	#   targetDatum - 'WGS84' or 'NAD27' or 'NAD27 CONUS' (the last two are synonyms in this usage)
 	def convertCoords(self,coords,targetDatum,targetFormat):
 		easting="0000000"
 		northing="0000000"
@@ -2068,19 +2079,22 @@ class MyWindow(QDialog,Ui_Dialog):
 			# the Transformer object is reusable; only need to recreate it if the CRSes have changed
 			# see examples at
 			# https://pyproj4.github.io/pyproj/stable/api/transformer.html#pyproj.transformer.Transformer.transform
-			if sourceCRS!=self.sourceCRS or targetCRS!=self.targetCRS:
-				self.sourceCRS=sourceCRS
-				self.targetCRS=targetCRS
-				self.transformer=Transformer.from_crs(sourceCRS,targetCRS)
+			# if sourceCRS!=self.sourceCRS or targetCRS!=self.targetCRS:
+			# 	self.sourceCRS=sourceCRS
+			# 	self.targetCRS=targetCRS
+			# 	self.transformer=Transformer.from_crs(sourceCRS,targetCRS)
 
 			############## the actual transformation ################
-			t=self.transformer.transform(latDd,lonDd)
+			rprint('latDd='+str(latDd)+'  lonDd='+str(lonDd))
+			tygResponse=utm.toUtm8(latDd,lonDd)
+			tygList=str(tygResponse).split()  # 11 S 0123456 0123456
+			rprint(str(tygList))
 			#########################################################
 
 			if re.match("UTM",targetFormat):
-				[easting,northing]=map(int,t)
+				[easting,northing]=map(int,tygList[2:4])
 			else:
-				[lonDd,latDd]=t
+				[lonDd,latDd]=map(int,str(tygList))
 
 		latDd=float(latDd)
 		latDeg=int(latDd)
