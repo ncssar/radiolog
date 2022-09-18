@@ -346,7 +346,7 @@ from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.units import inch
 from PyPDF2 import PdfFileReader,PdfFileWriter
 from FingerTabs import *
-from pyproj import Transformer
+from pygeodesy import Datums,ellipsoidalBase,dms
 
 __version__ = "3.0.1"
 
@@ -2020,11 +2020,19 @@ class MyWindow(QDialog,Ui_Dialog):
 			rval=self.convertCoords(coords,self.datum,self.coordFormat)
 			rprint("testConvertCoords:"+str(coords)+" --> "+rval)
 
+	# convertCoords
+	#   coords - 4-element list of strings
+	#      [LatString,NS,LonString,EW]  ex. ['3912.2949', 'N', '12104.5526', 'W']
+	#      LatString - in the format that Kenwood produces: DDMM.mmmm
+	#          (3912.2949 = 39deg 12.2949min)
+	#      NS - North or South hemisphere
+	#      LonString - in the format that Kenwood produces: DDMM.mmmm
+	#      EW - Eeast or West hemisphere
+	#          (W along with a positive LonString means the lon value is actually negative)
+	#          12034.5678 W  --> -120deg 34.5678min
+	#   targetDatum - 'WGS84' or 'NAD27' or 'NAD27 CONUS' (the last two are synonyms in this usage)
 	def convertCoords(self,coords,targetDatum,targetFormat):
-		easting="0000000"
-		northing="0000000"
 		rprint("convertCoords called: targetDatum="+targetDatum+" targetFormat="+targetFormat+" coords="+str(coords))
-		# coords must be a parsed list of location data from fleetsync in NMEA format
 		if isinstance(coords,list):
 			latDeg=int(coords[0][0:2]) # first two numbers are degrees
 			latMin=float(coords[0][2:]) # remainder is minutes
@@ -2035,90 +2043,55 @@ class MyWindow(QDialog,Ui_Dialog):
 			lonDd=lonDeg+lonMin/60
 			if coords[1]=="S":
 				latDeg=-latDeg # invert if needed
-				ladDd=-latDd
+				latDd=-latDd
 			if coords[3]=="W":
-				rprint("inverting longitude")
 				lonDeg=-lonDeg # invert if needed
 				lonDd=-lonDd
-##			targetUTMZone=int(lonDeg/6)+30 # do the math: -179.99999deg -> -174deg = zone 1; -173.99999deg -> -168deg = zone 2, etc
-			targetUTMZone=math.floor((lonDd+180)/6)+1 # from http://stackoverflow.com/questions/9186496, since -120.0000deg should be zone 11, not 10
-			rprint("lonDeg="+str(lonDeg)+" lonDd="+str(lonDd)+" targetUTMZone="+str(targetUTMZone))
+			# UTM Zone calculation no longer needed since pygeodesy does it internally - left here as a comment for reference
+			# targetUTMZone=math.floor((lonDd+180)/6)+1 # from http://stackoverflow.com/questions/9186496, since -120.0000deg should be zone 11, not 10
 		else:
 			return("INVALID INPUT FORMAT - MUST BE A LIST")
 
-		# relevant CRSes:
-		#  4326 = WGS84 lat/lon
-		#  4267 = NAD27 CONUS lat/lon
-		#  32600+zone = WGS84 UTM (e.g. 32610 = UTM zone 10)
-		#  26700+zone = NAD27 CONUS UTM (e.g. 26710 = UTM zone 10)
+		# 1. create a LLEB object from the input coordinate pair
+		g=ellipsoidalBase.LatLonEllipsoidalBase(latDd,lonDd,datum=Datums.WGS84)
 
-		# if target datum is WGS84 and target format is anything other than UTM, just do the math
-		if targetDatum!="WGS84" or re.match("UTM",targetFormat):
-			sourceCRS=4326
-			if targetDatum=="WGS84":
-				targetCRS=32600+targetUTMZone
-			elif targetDatum=="NAD27 CONUS":
-				if re.match("UTM",targetFormat):
-					targetCRS=26700+targetUTMZone
-				else:
-					targetCRS=4267
-			else:
-				targetCRS=sourceCRS # fallback to do a pass-thru transformation
+		# 2. convert/reproject datum if needed
+		if 'NAD27' in targetDatum:
+			g=g.toDatum(Datums.NAD27)
 
-			# the Transformer object is reusable; only need to recreate it if the CRSes have changed
-			# see examples at
-			# https://pyproj4.github.io/pyproj/stable/api/transformer.html#pyproj.transformer.Transformer.transform
-			if sourceCRS!=self.sourceCRS or targetCRS!=self.targetCRS:
-				self.sourceCRS=sourceCRS
-				self.targetCRS=targetCRS
-				self.transformer=Transformer.from_crs(sourceCRS,targetCRS)
-
-			############## the actual transformation ################
-			t=self.transformer.transform(latDd,lonDd)
-			#########################################################
-
-			if re.match("UTM",targetFormat):
-				[easting,northing]=map(int,t)
-			else:
-				[lonDd,latDd]=t
-
-		latDd=float(latDd)
-		latDeg=int(latDd)
-		latMin=float((latDd-float(latDeg))*60.0)
-		latSec=float((latMin-int(latMin))*60.0)
-		lonDd=float(lonDd)
-		if lonDd<0 and targetFormat!="D.dList": # leave it negative for D.dList
-			lonDd=-lonDd
-			lonLetter="W"
-		else:
-			lonLetter="E"
-		lon=int(lonDd)
-		lonMin=float((abs(lonDd)-float(abs(lonDeg)))*60.0)
-		lonSec=float((abs(lonMin)-int(abs(lonMin)))*60.0)
-		rprint("lonDd="+str(lonDd))
-		rprint("lonDeg="+str(lonDeg))
-
-		# return the requested format
-		# desired accuracy / digits of precision:
+		# 3. return the requested format
+		# desired accuracy / digits of precision - these match caltopo, except for seconds
 		# at 39 degrees north,
 		# 0.00001 degree latitude = 1.11 meters
 		# 0.001 minute latutude = 1.85 meters
 		# 0.1 second latitude = 3.08 meters
 		# (longitude lengths are about 78% as much as latitude, at 39 degrees north)
 		if targetFormat=="D.dList":
-			return [latDd,lonDd]
+			return [g.lat,g.lon]
 		if targetFormat=="D.d°":
-			return "{:.6f}°N  {:.6f}°{}".format(latDd,lonDd,lonLetter)
+			return g.toStr(dms.F_D,joined='  ',prec=-5)
 		if targetFormat=="D° M.m'":
-			return "{}° {:.4f}'N  {}° {:.4f}'{}".format(latDeg,latMin,abs(lonDeg),lonMin,lonLetter)
+			return g.toStr(dms.F_DM,joined='  ',prec=-3,s_D="° ",s_M="'")
 		if targetFormat=="D° M' S.s\"":
-			return "{}° {}' {:.2f}\"N  {}° {}' {:.2f}\"{}".format(latDeg,int(latMin),latSec,abs(lonDeg),int(lonMin),lonSec,lonLetter)
-		eStr="{0:07d}".format(easting)
-		nStr="{0:07d}".format(northing)
-		if targetFormat=="UTM 7x7":
-			return "{} {}   {} {}".format(eStr[0:2],eStr[2:],nStr[0:2],nStr[2:])
-		if targetFormat=="UTM 5x5":
-			return "{}  {}".format(eStr[2:],nStr[2:])
+			return g.toStr(dms.F_DMS,joined='  ',prec=-1,s_D="° ",s_M="' ",s_S='"')
+		if 'UTM' in targetFormat:
+			g=g.toUtm() # fewer formatting options exist for utm objects; build the strings from components below
+			eStr="{0:07d}".format(round(g.easting))
+			nStr="{0:07d}".format(round(g.northing))
+			zone=g.zone # utm zone
+			band=g.band # latitude band
+			if 'FULL' in targetFormat.upper():
+				if 'SHORT' in targetFormat.upper():
+					return "{}{} {} {}".format(zone,band,eStr,nStr)
+				else:
+					return "{}{} {} {}   {} {}".format(zone,band,eStr[0:2],eStr[2:],nStr[0:2],nStr[2:])
+			if '7x7' in targetFormat:
+				if 'SHORT' in targetFormat.upper():
+					return "{} {}".format(eStr,nStr)
+				else:
+					return "{} {}   {} {}".format(eStr[0:2],eStr[2:],nStr[0:2],nStr[2:])
+			if targetFormat=="UTM 5x5":
+				return "{}  {}".format(eStr[2:],nStr[2:])
 		return "INVALID - UNKNOWN OUTPUT FORMAT REQUESTED"
 
 	def printLogHeaderFooter(self,canvas,doc,opPeriod="",teams=False):
