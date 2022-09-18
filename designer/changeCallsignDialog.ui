@@ -124,7 +124,7 @@
    <property name="placeholderText">
     <string/>
    </property>
-   <property name="clearButtonEnabled" stdset="0">
+   <property name="clearButtonEnabled">
     <bool>false</bool>
    </property>
   </widget>
@@ -245,8 +245,8 @@
     <string notr="true">...</string>
    </property>
    <property name="icon">
-    <iconset resource="radiolog_ui.qrc">
-     <normaloff>:/radiolog_ui/empty_filter.png</normaloff>:/radiolog_ui/empty_filter.png</iconset>
+    <iconset resource="../radiolog_ui.qrc">
+     <normaloff>:/radiolog_ui/icons/empty_filter.png</normaloff>:/radiolog_ui/icons/empty_filter.png</iconset>
    </property>
    <property name="iconSize">
     <size>
@@ -257,7 +257,7 @@
   </widget>
  </widget>
  <resources>
-  <include location="radiolog_ui.qrc"/>
+  <include location="../radiolog_ui.qrc"/>
  </resources>
  <connections>
   <connection>

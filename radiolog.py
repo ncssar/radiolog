@@ -3784,7 +3784,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			newEntryFromAction=menu.addAction("New Entry FROM "+str(niceTeamName))
 			newEntryToAction=menu.addAction("New Entry TO "+str(niceTeamName))
 			menu.addSeparator()
-			printTeamLogAction=menu.addAction(QIcon(QPixmap(":/radiolog_ui/print_icon.png")),"Print "+str(niceTeamName)+" Log")
+			printTeamLogAction=menu.addAction(QIcon(QPixmap(":/radiolog_ui/icons/print_icon.png")),"Print "+str(niceTeamName)+" Log")
 			menu.addSeparator()
 ##			relabelTeamTabAction=menu.addAction("Change Label / Assignment for "+str(niceTeamName))
 ##			menu.addSeparator()
@@ -4311,15 +4311,23 @@ class MyWindow(QDialog,Ui_Dialog):
 			l=QLabel(hotkey)
 			l.setFixedWidth(bar.tabRect(i).width())
 # 			l.setStyleSheet("border:0px solid black;margin:0px;font-style:italic;font-size:14px;border-image:url(:/radiolog_ui/blank-computer-key.png) 0 0 30 30;")
-			l.setStyleSheet("border:0px solid black;margin:0px;font-style:italic;font-size:14px;background-image:url(:/radiolog_ui/blank-computer-key.png) 0 0 30 30;")
+			l.setStyleSheet("border:0px solid black;margin:0px;font-style:italic;font-size:14px;background-image:url(:/radiolog_ui/icons/blank-computer-key.png) 0 0 30 30;")
 			l.setAlignment(Qt.AlignCenter)
 # 			l.setPalette(p)
 # 			w.setPixmap(QPixmap(":/radiolog_ui/blank-computer-key.png").scaled(30,30))
 # 			l.setIconSize(QSize(30, 30))
 			self.ui.teamHotkeysHLayout.addWidget(l)
 		self.ui.teamHotkeysHLayout.addStretch()
+		# #488: make sure standard hotkeys are re-enabled when last team tab is hidden
+		if bar.count()<2:
+			self.ui.teamHotkeysWidget.setVisible(False)
 		
 	def toggleTeamHotkeys(self):
+		# #488: don't try to toggle team hotkeys when count is 0 or 1
+		#  (the dummy tab will still exist after the only team tab has been hidden)
+		#  (should also disable team hotkeys when all team tabs have been hidden)
+		if self.ui.tabWidget.tabBar().count()<2:
+			return
 		vis=self.ui.teamHotkeysWidget.isVisible()
 		if not vis:
 			self.rebuildTeamHotkeys()
@@ -6416,7 +6424,7 @@ class clueTableModel(QAbstractTableModel):
 		QAbstractTableModel.__init__(self,parent,*args)
 		self.arraydata=datain
 		self.printIconPixmap=QPixmap(20,20)
-		self.printIconPixmap.load(":/radiolog_ui/print_icon.png")
+		self.printIconPixmap.load(":/radiolog_ui/icons/print_icon.png")
 ##		self.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
 
@@ -6500,8 +6508,8 @@ class fsTableModel(QAbstractTableModel):
 	def __init__(self, datain, parent=None, *args):
 		QAbstractTableModel.__init__(self, parent, *args)
 		self.arraydata=datain
-		self.filteredIcon=QIcon(QPixmap(":/radiolog_ui/fs_redcircleslash.png"))
-		self.unfilteredIcon=QIcon(QPixmap(":/radiolog_ui/fs_greencheckbox.png"))
+		self.filteredIcon=QIcon(QPixmap(":/radiolog_ui/icons/fs_redcircleslash.png"))
+		self.unfilteredIcon=QIcon(QPixmap(":/radiolog_ui/icons/fs_greencheckbox.png"))
 		
 	def headerData(self,section,orientation,role=Qt.DisplayRole):
 #		print("headerData:",section,",",orientation,",",role)
