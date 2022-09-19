@@ -1180,7 +1180,13 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def rotateCsvBackups(self,filenames):
 		if self.rotateScript and self.rotateDelimiter:
-			cmd=self.rotateScript+' '+self.rotateDelimiter.join(filenames)
+			# #442: wrap each filename in quotes, to allow spaces in filenames
+			#  from https://stackoverflow.com/a/12007707
+			#  wrapping in one or two sets of double quotes still doesn't work
+			#   since the quotes are stripped by powershell; wrapping in three
+			#   double quotes does work:
+			quotedFilenames=[f'"""{filename}"""' for filename in filenames]
+			cmd=self.rotateScript+' '+self.rotateDelimiter.join(quotedFilenames)
 			rprint("Invoking backup rotation script: "+cmd)
 			subprocess.Popen(cmd)
 		else:
