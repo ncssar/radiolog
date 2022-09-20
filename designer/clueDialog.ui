@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>728</width>
-    <height>561</height>
+    <width>751</width>
+    <height>565</height>
    </rect>
   </property>
   <property name="font">
@@ -44,8 +44,8 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>550</x>
-     <y>440</y>
+     <x>570</x>
+     <y>510</y>
      <width>161</width>
      <height>51</height>
     </rect>
@@ -112,7 +112,7 @@
     <rect>
      <x>160</x>
      <y>370</y>
-     <width>551</width>
+     <width>571</width>
      <height>40</height>
     </rect>
    </property>
@@ -128,7 +128,7 @@
     <rect>
      <x>160</x>
      <y>310</y>
-     <width>551</width>
+     <width>571</width>
      <height>39</height>
     </rect>
    </property>
@@ -144,7 +144,7 @@
     <rect>
      <x>270</x>
      <y>20</y>
-     <width>191</width>
+     <width>201</width>
      <height>41</height>
     </rect>
    </property>
@@ -163,7 +163,7 @@
   <widget class="QLineEdit" name="clueNumberField">
    <property name="geometry">
     <rect>
-     <x>640</x>
+     <x>670</x>
      <y>20</y>
      <width>61</width>
      <height>31</height>
@@ -178,7 +178,7 @@
   <widget class="QLabel" name="label_6">
    <property name="geometry">
     <rect>
-     <x>560</x>
+     <x>590</x>
      <y>20</y>
      <width>71</width>
      <height>31</height>
@@ -202,7 +202,7 @@
     <rect>
      <x>30</x>
      <y>70</y>
-     <width>661</width>
+     <width>681</width>
      <height>92</height>
     </rect>
    </property>
@@ -215,9 +215,9 @@
     </property>
     <property name="geometry">
      <rect>
-      <x>240</x>
+      <x>260</x>
       <y>20</y>
-      <width>161</width>
+      <width>171</width>
       <height>31</height>
      </rect>
     </property>
@@ -240,9 +240,9 @@
     </property>
     <property name="geometry">
      <rect>
-      <x>240</x>
+      <x>260</x>
       <y>40</y>
-      <width>161</width>
+      <width>171</width>
       <height>41</height>
      </rect>
     </property>
@@ -265,9 +265,9 @@
     </property>
     <property name="geometry">
      <rect>
-      <x>424</x>
-      <y>59</y>
-      <width>221</width>
+      <x>450</x>
+      <y>60</y>
+      <width>211</width>
       <height>41</height>
      </rect>
     </property>
@@ -290,9 +290,9 @@
     </property>
     <property name="geometry">
      <rect>
-      <x>130</x>
+      <x>140</x>
       <y>40</y>
-      <width>91</width>
+      <width>101</width>
       <height>41</height>
      </rect>
     </property>
@@ -315,9 +315,9 @@
     </property>
     <property name="geometry">
      <rect>
-      <x>130</x>
+      <x>140</x>
       <y>20</y>
-      <width>91</width>
+      <width>101</width>
       <height>31</height>
      </rect>
     </property>
@@ -342,7 +342,7 @@
      <rect>
       <x>20</x>
       <y>20</y>
-      <width>91</width>
+      <width>101</width>
       <height>31</height>
      </rect>
     </property>
@@ -367,7 +367,7 @@
      <rect>
       <x>20</x>
       <y>40</y>
-      <width>91</width>
+      <width>101</width>
       <height>41</height>
      </rect>
     </property>
@@ -390,8 +390,8 @@
     </property>
     <property name="geometry">
      <rect>
-      <x>429</x>
-      <y>6</y>
+      <x>450</x>
+      <y>10</y>
       <width>211</width>
       <height>63</height>
      </rect>
@@ -410,7 +410,7 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>430</y>
+     <y>420</y>
      <width>161</width>
      <height>31</height>
     </rect>
@@ -433,8 +433,8 @@
   <widget class="QPushButton" name="clueQuickTextButton3">
    <property name="geometry">
     <rect>
-     <x>400</x>
-     <y>430</y>
+     <x>590</x>
+     <y>420</y>
      <width>131</width>
      <height>31</height>
     </rect>
@@ -448,17 +448,17 @@
     <enum>Qt::NoFocus</enum>
    </property>
    <property name="text">
-    <string>DISREGARD  [F3]</string>
+    <string>DISREGARD  [F4]</string>
    </property>
    <property name="shortcut">
-    <string>F3</string>
+    <string>F4</string>
    </property>
   </widget>
   <widget class="QPushButton" name="clueQuickTextButton4">
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>470</y>
+     <y>460</y>
      <width>161</width>
      <height>31</height>
     </rect>
@@ -472,17 +472,17 @@
     <enum>Qt::NoFocus</enum>
    </property>
    <property name="text">
-    <string>HOLD POSITION  [F4]</string>
+    <string>HOLD POSITION  [F5]</string>
    </property>
    <property name="shortcut">
-    <string>F4</string>
+    <string>F5</string>
    </property>
   </widget>
   <widget class="QPushButton" name="clueQuickTextButton2">
    <property name="geometry">
     <rect>
      <x>200</x>
-     <y>430</y>
+     <y>420</y>
      <width>181</width>
      <height>31</height>
     </rect>
@@ -551,7 +551,7 @@
    <property name="geometry">
     <rect>
      <x>200</x>
-     <y>470</y>
+     <y>460</y>
      <width>181</width>
      <height>31</height>
     </rect>
@@ -565,10 +565,10 @@
     <enum>Qt::NoFocus</enum>
    </property>
    <property name="text">
-    <string>PROTECT THE CLUE  [F5]</string>
+    <string>PROTECT THE CLUE  [F6]</string>
    </property>
    <property name="shortcut">
-    <string>F5</string>
+    <string>F6</string>
    </property>
   </widget>
   <widget class="QPlainTextEdit" name="descriptionField">
@@ -576,7 +576,7 @@
     <rect>
      <x>160</x>
      <y>170</y>
-     <width>551</width>
+     <width>571</width>
      <height>121</height>
     </rect>
    </property>
@@ -602,8 +602,8 @@
   <widget class="QPushButton" name="clueQuickTextButton6">
    <property name="geometry">
     <rect>
-     <x>400</x>
-     <y>470</y>
+     <x>590</x>
+     <y>460</y>
      <width>131</width>
      <height>31</height>
     </rect>
@@ -619,23 +619,71 @@
     <enum>Qt::NoFocus</enum>
    </property>
    <property name="text">
-    <string>STANDBY [F6]</string>
+    <string>STANDBY [F8]</string>
    </property>
    <property name="shortcut">
-    <string>F6</string>
+    <string>F8</string>
    </property>
   </widget>
   <widget class="Line" name="line">
    <property name="geometry">
     <rect>
      <x>100</x>
-     <y>500</y>
-     <width>531</width>
-     <height>20</height>
+     <y>490</y>
+     <width>551</width>
+     <height>31</height>
     </rect>
    </property>
    <property name="orientation">
     <enum>Qt::Horizontal</enum>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="clueQuickTextButton2_2">
+   <property name="geometry">
+    <rect>
+     <x>400</x>
+     <y>420</y>
+     <width>171</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>9</pointsize>
+    </font>
+   </property>
+   <property name="focusPolicy">
+    <enum>Qt::NoFocus</enum>
+   </property>
+   <property name="text">
+    <string>PHOTOGRAPH  [F3]</string>
+   </property>
+   <property name="shortcut">
+    <string>F3</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="clueQuickTextButton2_3">
+   <property name="geometry">
+    <rect>
+     <x>400</x>
+     <y>460</y>
+     <width>171</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>9</pointsize>
+    </font>
+   </property>
+   <property name="focusPolicy">
+    <enum>Qt::NoFocus</enum>
+   </property>
+   <property name="text">
+    <string>CONTINUE SEARCH  [F7]</string>
+   </property>
+   <property name="shortcut">
+    <string>F7</string>
    </property>
   </widget>
   <zorder>groupBox</zorder>
@@ -658,6 +706,8 @@
   <zorder>descriptionField</zorder>
   <zorder>clueQuickTextButton6</zorder>
   <zorder>line</zorder>
+  <zorder>clueQuickTextButton2_2</zorder>
+  <zorder>clueQuickTextButton2_3</zorder>
  </widget>
  <tabstops>
   <tabstop>clueNumberField</tabstop>
@@ -676,7 +726,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>616</x>
-     <y>391</y>
+     <y>510</y>
     </hint>
     <hint type="destinationlabel">
      <x>614</x>
@@ -692,7 +742,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>710</x>
-     <y>410</y>
+     <y>510</y>
     </hint>
     <hint type="destinationlabel">
      <x>694</x>
@@ -708,7 +758,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>50</x>
-     <y>360</y>
+     <y>420</y>
     </hint>
     <hint type="destinationlabel">
      <x>11</x>
@@ -724,7 +774,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>213</x>
-     <y>360</y>
+     <y>420</y>
     </hint>
     <hint type="destinationlabel">
      <x>256</x>
@@ -739,8 +789,8 @@
    <slot>clueQuickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>419</x>
-     <y>358</y>
+     <x>589</x>
+     <y>420</y>
     </hint>
     <hint type="destinationlabel">
      <x>542</x>
@@ -756,7 +806,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>32</x>
-     <y>409</y>
+     <y>460</y>
     </hint>
     <hint type="destinationlabel">
      <x>111</x>
@@ -788,7 +838,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>298</x>
-     <y>413</y>
+     <y>460</y>
     </hint>
     <hint type="destinationlabel">
      <x>312</x>
@@ -803,12 +853,44 @@
    <slot>clueQuickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>465</x>
-     <y>485</y>
+     <x>635</x>
+     <y>475</y>
     </hint>
     <hint type="destinationlabel">
      <x>363</x>
      <y>280</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>clueQuickTextButton2_2</sender>
+   <signal>clicked()</signal>
+   <receiver>clueDialog</receiver>
+   <slot>clueQuickTextAction()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>478</x>
+     <y>443</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>560</x>
+     <y>474</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>clueQuickTextButton2_3</sender>
+   <signal>clicked()</signal>
+   <receiver>clueDialog</receiver>
+   <slot>clueQuickTextAction()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>444</x>
+     <y>473</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>380</x>
+     <y>464</y>
     </hint>
    </hints>
   </connection>
