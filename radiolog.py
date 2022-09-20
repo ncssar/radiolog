@@ -302,23 +302,6 @@
 # #############################################################################
 # #############################################################################
 
-from ui.help_ui import Ui_Help
-from ui.options_ui import Ui_optionsDialog
-from ui.fsSendDialog_ui import Ui_fsSendDialog
-from ui.fsSendMessageDialog_ui import Ui_fsSendMessageDialog
-from ui.newEntryWindow_ui import Ui_newEntryWindow
-from ui.newEntryWidget_ui import Ui_newEntryWidget
-from ui.clueDialog_ui import Ui_clueDialog
-from ui.clueLogDialog_ui import Ui_clueLogDialog
-from ui.printDialog_ui import Ui_printDialog
-from ui.changeCallsignDialog_ui import Ui_changeCallsignDialog
-from ui.fsFilterDialog_ui import Ui_fsFilterDialog
-from ui.opPeriodDialog_ui import Ui_opPeriodDialog
-from ui.printClueLogDialog_ui import Ui_printClueLogDialog
-from ui.nonRadioClueDialog_ui import Ui_nonRadioClueDialog
-from ui.subjectLocatedDialog_ui import Ui_subjectLocatedDialog
-from ui.continuedIncidentDialog_ui import Ui_continuedIncidentDialog
-
 import functools
 import sys
 import logging
@@ -544,6 +527,57 @@ def rprint(text):
 	logger.info(logText)
 
 ###### LOGGING CODE END ######
+
+# #471: rebuild any modified Qt .ui and .qrc files at runtime
+#   (copied from plans_console repo - could be made into a shared module at some point)
+
+qtDesignerSubDir='designer' # subdir containing Qt Designer source files (*.ui)
+qtUiPySubDir='ui' # target subdir for compiled ui files (*_ui.py)
+qtQrcSubDir='.' # subdir containing Qt qrc resource files (*.qrc)
+qtRcPySubDir='.' # target subdir for compiled resource files
+
+installDir=os.path.dirname(os.path.realpath(__file__))
+qtDesignerDir=os.path.join(installDir,qtDesignerSubDir)
+qtUiPyDir=os.path.join(installDir,qtUiPySubDir)
+qtQrcDir=os.path.join(installDir,qtQrcSubDir)
+qtRcPyDir=os.path.join(installDir,qtRcPySubDir)
+
+# rebuild all _ui.py files from .ui files in the same directory as this script as needed
+#   NOTE - this will overwrite any edits in _ui.py files
+for ui in glob.glob(os.path.join(qtDesignerDir,'*.ui')):
+	uipy=os.path.join(qtUiPyDir,os.path.basename(ui).replace('.ui','_ui.py'))
+	if not (os.path.isfile(uipy) and os.path.getmtime(uipy) > os.path.getmtime(ui)):
+		cmd='pyuic5 -o '+uipy+' '+ui
+		rprint('Building GUI file from '+os.path.basename(ui)+':')
+		rprint('  '+cmd)
+		os.system(cmd)
+
+# rebuild all _rc.py files from .qrc files in the same directory as this script as needed
+#   NOTE - this will overwrite any edits in _rc.py files
+for qrc in glob.glob(os.path.join(qtQrcDir,'*.qrc')):
+	rcpy=os.path.join(qtRcPyDir,os.path.basename(qrc).replace('.qrc','_rc.py'))
+	if not (os.path.isfile(rcpy) and os.path.getmtime(rcpy) > os.path.getmtime(qrc)):
+		cmd='pyrcc5 -o '+rcpy+' '+qrc
+		rprint('Building Qt Resource file from '+os.path.basename(qrc)+':')
+		rprint('  '+cmd)
+		os.system(cmd)
+
+from ui.help_ui import Ui_Help
+from ui.options_ui import Ui_optionsDialog
+from ui.fsSendDialog_ui import Ui_fsSendDialog
+from ui.fsSendMessageDialog_ui import Ui_fsSendMessageDialog
+from ui.newEntryWindow_ui import Ui_newEntryWindow
+from ui.newEntryWidget_ui import Ui_newEntryWidget
+from ui.clueDialog_ui import Ui_clueDialog
+from ui.clueLogDialog_ui import Ui_clueLogDialog
+from ui.printDialog_ui import Ui_printDialog
+from ui.changeCallsignDialog_ui import Ui_changeCallsignDialog
+from ui.fsFilterDialog_ui import Ui_fsFilterDialog
+from ui.opPeriodDialog_ui import Ui_opPeriodDialog
+from ui.printClueLogDialog_ui import Ui_printClueLogDialog
+from ui.nonRadioClueDialog_ui import Ui_nonRadioClueDialog
+from ui.subjectLocatedDialog_ui import Ui_subjectLocatedDialog
+from ui.continuedIncidentDialog_ui import Ui_continuedIncidentDialog
 
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
