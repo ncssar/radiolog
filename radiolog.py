@@ -4272,6 +4272,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		if ext:
 			extTeamName=teamName
 		niceTeamName=getNiceTeamName(extTeamName)
+		# 406: apply the same fix as #393:
+		# if the new entry's extTeamName is a case-insensitive match for an
+		#   existing extTeamName, use that already-existing extTeamName instead
+		for existingExtTeamName in self.extTeamNameList:
+			if extTeamName.lower()==existingExtTeamName.lower():
+				extTeamName=existingExtTeamName
+				break
 # 		self.extTeamNameList.sort()
 		rprint("deleting team tab: teamName="+str(teamName)+"  extTeamName="+str(extTeamName)+"  niceTeamName="+str(niceTeamName))
 		rprint("  teamNameList before deletion:"+str(self.teamNameList))
