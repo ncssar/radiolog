@@ -6619,7 +6619,7 @@ class CustomSortFilterProxyModel(QSortFilterProxyModel):
 					addAllFlag=True
 ###		return(val==target or self.sourceModel().index(row,6,parent).data()==1e10)
 ##		return(val==target) # simple case: match the team name exactly
-		return(val==target or addAllFlag)
+		return(val.lower()==target.lower() or addAllFlag) # #453: perform case-insensitive match
 
 
 # code for CSVFileSortFilterProxyModel partially taken from
