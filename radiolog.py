@@ -2742,6 +2742,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.clock.display(time.strftime("%H:%M"))
 
 	def updateTeamTimers(self):
+		# rprint('timers:'+str(teamTimersDict))
 		# keep track of seconds since contact, rather than seconds remaining til timeout,
 		#  since timeout setting may change but each team's counter should still count
 		# 1. increment each number in teamTimersDict
@@ -3358,7 +3359,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			self.newEntryWidget.ui.datumFormatLabel.setText("")
 	
-	def newEntry(self,values):
+	def newEntry(self,values,amend=False):
 		# values array format: [time,to_from,team,message,locString,status,sec,fleet,dev]
 		#  locString is also stored in the table in a column after dev, unmodified;
 		#  the value in the 5th column is modified in place based on the datum and
@@ -3406,9 +3407,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			model.endInsertRows()
 ##		if not values[3].startswith("RADIO LOG SOFTWARE:"):
 ##			self.newEntryProcessTeam(niceTeamName,status,values[1],values[3])
-		self.newEntryProcessTeam(niceTeamName,status,values[1],values[3])
+		self.newEntryProcessTeam(niceTeamName,status,values[1],values[3],amend)
 
-	def newEntryProcessTeam(self,niceTeamName,status,to_from,msg):
+	def newEntryProcessTeam(self,niceTeamName,status,to_from,msg,amend=False):
+		# rprint('t1: niceTeamName={} status={} to_from={} msg={} amend={}'.format(niceTeamName,status,to_from,msg,amend))
 		extTeamName=getExtTeamName(niceTeamName)
 		# 393: if the new entry's extTeamName is a case-insensitive match for an
 		#   existing extTeamName, use that already-existing extTeamName instead
@@ -3433,8 +3435,34 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
 			# only reset the team timer if it is a 'FROM' message with non-blank message text
 			#  (prevent reset on amend, where to_from can be "AMEND" and msg can be anything)
-			if to_from=="FROM" and msg != "":
+			# if this was an amendment, set team timer based on the team's most recent 'FROM' entry
+			if amend:
+				rprint('t2')
+				found=False
+				for n in range(len(self.radioLog)-1,-1,-1):
+					entry=self.radioLog[n]
+					rprint(' t3:'+str(n)+':'+str(entry))
+					if getExtTeamName(entry[2]).lower()==extTeamName.lower() and entry[1]=='FROM':
+						rprint('  t4:match: now='+str(int(time.time())))
+						rprint('  setting teamTimersDict to '+str(time.time()-entry[6]))
+						teamTimersDict[extTeamName]=int(time.time()-entry[6])
+						found=True
+						break
+				# if there are 'from' entries for the callsign, use the oldest 'to' entry for the callsign
+				if not found:
+					for entry in self.radioLog:
+						rprint(' t3b:'+str(entry))
+						if getExtTeamName(entry[2]).lower()==extTeamName.lower():
+							rprint('t4b:"TO" match: now='+str(int(time.time())))
+							teamTimersDict[extTeamName]=int(time.time()-entry[6])
+							found=True
+							break
+				# this code should never be reached: what does it mean if there are no TO or FROM entries after amend?
+				if not found:
+					rprint('WARNING after amend: team timer may be undetermined because no entries (either TO or FROM) were found for '+str(niceTeamName))
+			elif to_from=="FROM" and msg != "":
 				teamTimersDict[extTeamName]=0
+			# finally, disable timeouts as long as status is AT IC
 			if status=="At IC":
 				teamTimersDict[extTeamName]=-1 # no more timeouts will show up
 		if not self.loadFlag:
@@ -5134,15 +5162,14 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				self.parent.radioLog[self.amendRow][2]=niceTeamName
 				self.parent.radioLog[self.amendRow][3]=self.ui.messageField.text()+"\n[AMENDED "+time.strftime('%H%M')+"; WAS"+tmpTxt+": '"+lastMsg+"']"+olderMsgs
 				self.parent.radioLog[self.amendRow][5]=status
-	
 				# use to_from value "AMEND" and blank msg text to make sure team timer does not reset
-				self.parent.newEntryProcessTeam(niceTeamName,status,"AMEND","")
+				self.parent.newEntryProcessTeam(niceTeamName,status,"AMEND","",self.amendFlag)
 				
 				# reapply the filter on team tables, in case callsign was changed
 				for t in self.parent.ui.tableViewList[1:]:
 					t.model().invalidateFilter()
 			else:
-				self.parent.newEntry(self.getValues())
+				self.parent.newEntry(self.getValues(),self.amendFlag)
 	
 			# make entries for attached callsigns
 			# values array format: [time,to_from,team,message,locString,status,sec,fleet,dev]
@@ -5151,7 +5178,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				v=val[:] # v is a fresh, independent copy of val for each iteration
 				v[2]=getNiceTeamName(attachedCallsign)
 				v[3]="[ATTACHED FROM "+self.ui.teamField.text().strip()+"] "+val[3]
-				self.parent.newEntry(v)
+				self.parent.newEntry(v,self.amendFlag)
 	
 			self.parent.totalEntryCount+=1
 			if self.parent.totalEntryCount%5==0:
