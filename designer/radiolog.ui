@@ -61,7 +61,16 @@
         <property name="spacing">
          <number>2</number>
         </property>
-        <property name="margin">
+        <property name="leftMargin">
+         <number>2</number>
+        </property>
+        <property name="topMargin">
+         <number>2</number>
+        </property>
+        <property name="rightMargin">
+         <number>2</number>
+        </property>
+        <property name="bottomMargin">
          <number>2</number>
         </property>
         <item>
@@ -398,7 +407,7 @@ FORMAT</string>
         <string/>
        </property>
        <property name="icon">
-        <iconset resource="radiolog_ui.qrc">
+        <iconset resource="../radiolog_ui.qrc">
          <normaloff>:/radiolog_ui/icons/help_icon.png</normaloff>:/radiolog_ui/icons/help_icon.png</iconset>
        </property>
        <property name="iconSize">
@@ -427,7 +436,7 @@ FORMAT</string>
         <string/>
        </property>
        <property name="icon">
-        <iconset resource="radiolog_ui.qrc">
+        <iconset resource="../radiolog_ui.qrc">
          <normaloff>:/radiolog_ui/icons/options_icon.png</normaloff>:/radiolog_ui/icons/options_icon.png</iconset>
        </property>
        <property name="iconSize">
@@ -450,7 +459,7 @@ FORMAT</string>
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="radiolog_ui.qrc">
+        <iconset resource="../radiolog_ui.qrc">
          <normaloff>:/radiolog_ui/icons/empty_filter.png</normaloff>:/radiolog_ui/icons/empty_filter.png</iconset>
        </property>
        <property name="iconSize">
@@ -488,7 +497,7 @@ FORMAT</string>
         <string/>
        </property>
        <property name="icon">
-        <iconset resource="radiolog_ui.qrc">
+        <iconset resource="../radiolog_ui.qrc">
          <normaloff>:/radiolog_ui/icons/print_icon.png</normaloff>:/radiolog_ui/icons/print_icon.png</iconset>
        </property>
        <property name="iconSize">
@@ -575,7 +584,16 @@ FORMAT</string>
        <property name="spacing">
         <number>0</number>
        </property>
-       <property name="margin">
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
         <number>0</number>
        </property>
        <item>
@@ -584,7 +602,16 @@ FORMAT</string>
           <property name="spacing">
            <number>0</number>
           </property>
-          <property name="margin">
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
            <number>0</number>
           </property>
           <item>
@@ -646,7 +673,7 @@ FORMAT</string>
   <tabstop>tableView</tabstop>
  </tabstops>
  <resources>
-  <include location="radiolog_ui.qrc"/>
+  <include location="../radiolog_ui.qrc"/>
  </resources>
  <connections>
   <connection>

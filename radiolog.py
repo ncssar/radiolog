@@ -4756,10 +4756,12 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 ##		self.entryContinue=False
 
 	def removeTab(self,caller):
+		# rprint('removeTab called: caller='+str(caller))
 		# determine the current index of the tab that owns the widget that called this function
 		i=self.ui.tabWidget.indexOf(caller)
 		# determine the number of tabs BEFORE removal of the tab in question
 		count=self.ui.tabWidget.count()
+		# rprint('  tab count before removal:'+str(count))
 # 		rprint("removeTab: count="+str(count)+" i="+str(i))
 		# remove that tab
 		self.ui.tabWidget.removeTab(i)
@@ -4770,10 +4772,10 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 		elif i<count-3: # count-1 no longer exists; count-2="OLDEST"; count-3=bottom item of the stack
 			self.ui.tabWidget.setCurrentIndex(count-3)
 
-		if count<4: # lower the window if the stack is empty
-# 			rprint("lowering: count="+str(count))
+		if count<4: # hide the window (don't just lower - #504) if the stack is empty
+			# rprint("lowering: count="+str(count))
 			self.setWindowFlags(self.windowFlags() & ~Qt.WindowStaysOnTopHint) # disable always on top
-			self.lower()
+			self.hide()
 
 ##	def autoCleanupStateChanged(self):
 ##		if self.ui.autoCleanupCheckBox.isChecked():
@@ -4787,9 +4789,10 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 	def autoCleanup(self): # this function is called every second by the timer
 		if self.ui.autoCleanupCheckBox.isChecked():
 			for tab in newEntryWidget.instances:
-# 				rprint("lastModAge:"+str(tab.lastModAge))
+				# rprint("lastModAge:"+str(tab.lastModAge))
 				# note the pause happens in newEntryWidget.updateTimer()
 				if tab.ui.messageField.text()=="" and tab.lastModAge>60:
+					rprint('  closing unused new entry widget for '+str(tab.ui.teamField.text())+' due to inactivity')
 					tab.closeEvent(QEvent(QEvent.Close),accepted=False,force=True)
 ##			if not tab.clueDialogOpen and not tab.subjectLocatedDialogOpen and tab.ui.messageField.text()=="" and time.time()-tab.sec>60:
 
@@ -5272,6 +5275,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			event.ignore()
 			return
 		else:
+			# rprint('newEntryWidget.closeEvent t3')
 			self.timer.stop()
 			# fix #333: stop mid-throb to avert runtime error
 			#  but only if the throbTimer was actually started
