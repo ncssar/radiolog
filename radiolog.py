@@ -1778,6 +1778,23 @@ class MyWindow(QDialog,Ui_Dialog):
 						widget.ui.datumFormatLabel.setText(datumFormatString)
 						widget.formattedLocString=formattedLocString
 						widget.origLocString=origLocString
+				# #509: populate radio location field in any child dialogs that have that field (clue or subject located)
+				for child in widget.childDialogs:
+					rprint('  new entry widget for '+str(callsign)+' has a child dialog; attempting to update radio location in that dialog')
+					try:
+						# need to account for widgets that have .toPlainText() method (in clueDialog)
+						#  and widgets that have .text() method (in subjectLocatedDialog)
+						try:
+							prevLocString=child.ui.radioLocField.toPlainText()
+						except:
+							prevLocString=child.ui.radioLocField.text()
+						#  only populate with the radio location of the first call - don't keep updating with subsequent calls
+						#  (could be changed in the future if needed - basically, should the report include the radio coords of
+						#   the first call of the report, or of the last call of a continued conversation before the report is saved?)
+						if prevLocString=='' and formattedLocString!='' and formattedLocString!='NO FIX':
+							child.ui.radioLocField.setText(formattedLocString)
+					except:
+						pass
 		if fleet and dev:
 			self.fsLogUpdate(int(fleet),int(dev))
 			# only open a new entry widget if the fleet/dev is not being filtered
