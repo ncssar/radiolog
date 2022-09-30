@@ -441,12 +441,16 @@ def getExtTeamName(teamName):
 	# allow shorthand team names (t2) to still be inserted in the same sequence as
 	# full team names (team2) so the tab list could be: team1 t2 team3
 	# but other team names starting with t (tr1, transport1) would be added at the end
-	if prefix=='t':
+	if prefix.lower()=='t':
 		prefix='team'
 	# now force everything other than 'team' to be added alphabetically at the end,
 	# by prefixing the prefix with 'z_' (the underscore makes it unique for easy pruning later)
-	if prefix!='team':
-		prefix="z_"+prefix
+	# if prefix!='team':
+	# 	prefix="z_"+prefix
+
+	# #503 - extTeamName should always start with 'z_' then a capital letter
+	prefix='z_'+prefix.capitalize()
+
 	if firstNum!=None:
 		rest=name[firstNumIndex:].zfill(5)
 	else:
