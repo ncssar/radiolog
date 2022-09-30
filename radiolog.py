@@ -3256,8 +3256,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.timeoutOrangeSec=self.timeoutRedSec-3 # or 3 seconds before for tiny values
 		self.ui.timeoutLabel.setText("TIMEOUT:\n"+timeoutDisplayList[self.optionsDialog.ui.timeoutField.value()][0])
 
-	def openNewEntry(self,key=None,callsign=None,formattedLocString=None,fleet=None,dev=None,origLocString=None,amendFlag=False,amendRow=None):
-		rprint("openNewEntry called:key="+str(key)+" callsign="+str(callsign)+" formattedLocString="+str(formattedLocString)+" fleet="+str(fleet)+" dev="+str(dev)+" origLocString="+str(origLocString)+" amendFlag="+str(amendFlag)+" amendRow="+str(amendRow))
+	def openNewEntry(self,key=None,callsign=None,formattedLocString=None,fleet=None,dev=None,origLocString=None,amendFlag=False,amendRow=None,isMostRecentForCallsign=False):
+		rprint("openNewEntry called:key="+str(key)+" callsign="+str(callsign)+" formattedLocString="+str(formattedLocString)+" fleet="+str(fleet)+" dev="+str(dev)+" origLocString="+str(origLocString)+" amendFlag="+str(amendFlag)+" amendRow="+str(amendRow)+" isMostRecentForCallsign="+str(isMostRecentForCallsign))
 		if clueDialog.openDialogCount==0:
 			self.newEntryWindow.setWindowFlags(Qt.WindowTitleHint|Qt.WindowStaysOnTopHint) # enable always on top
 		else:
@@ -3573,9 +3573,27 @@ class MyWindow(QDialog,Ui_Dialog):
 ##				self.convertDialog=convertDialog(self,rowData,rowHasRadioLoc,rowHasMsgCoords)
 ##				self.convertDialog.show()
 
-	def amendEntry(self,row):
+	def amendEntry(self,row): # row argument is zero-based
 		rprint("Amending row "+str(row))
-		amendDialog=self.openNewEntry(amendFlag=True,amendRow=row)
+		rprint('radioLog len = '+str(len(self.radioLog)))
+		rprint(str(self.radioLog))
+		# #508 - determine if the row being amended is the most recent row regarding the same callsign
+		#    row argument is zero-based, and radiolog always has a dummy row at the end
+		team=self.radioLog[row][2]
+		extTeamName=getExtTeamName(team)
+		found=False
+		for n in range(row+1,len(self.radioLog)):
+			entry=self.radioLog[n]
+			rprint(' t3:'+str(n)+':'+str(entry))
+			if getExtTeamName(entry[2]).lower()==extTeamName.lower():
+				found=True
+				break
+		if found:
+			rprint('found a newer entry for '+team+' than the one being amended')
+		else:
+			rprint('did not find a newer entry for '+team+' than the one being amended')
+		isMostRecent=not found
+		amendDialog=self.openNewEntry(amendFlag=True,amendRow=row,isMostRecentForCallsign=isMostRecent)
 
 	def rebuildTabs(self):
 # 		groupDict=self.rebuildGroupedTabDict()
