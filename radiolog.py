@@ -4916,7 +4916,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		if amendFlag:
 			self.ui.timeField.setText(row[0])
 			self.ui.teamField.setText(row[2])
-			if row[0]=="TO":
+			if row[1]=="TO":
 				self.ui.to_fromField.setCurrentIndex(1)
 			oldMsg=row[3]
 			amendIndex=oldMsg.find('\n[AMENDED')
@@ -4972,6 +4972,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.datumFormatTemp=None
 		
 		self.ui.relayedByComboBox.lineEdit().editingFinished.connect(self.relayedByComboBoxChanged)
+
+		# #502 - if amending, call setStatusFromTeam - otherwise it is only called by typing in the callsign field
+		if self.amendFlag:
+			self.setStatusFromTeam()
 
 ##		# unless an entry is currently being edited, activate the newly added tab
 ##		if newEntryWidgetHold:
