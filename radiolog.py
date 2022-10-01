@@ -349,7 +349,7 @@ from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.units import inch
 from PyPDF2 import PdfFileReader,PdfFileWriter
 from FingerTabs import *
-from pyproj import Transformer
+from pygeodesy import Datums,ellipsoidalBase,dms
 
 __version__ = "3.0.1"
 
@@ -461,12 +461,16 @@ def getExtTeamName(teamName):
 	# allow shorthand team names (t2) to still be inserted in the same sequence as
 	# full team names (team2) so the tab list could be: team1 t2 team3
 	# but other team names starting with t (tr1, transport1) would be added at the end
-	if prefix=='t':
+	if prefix.lower()=='t':
 		prefix='team'
 	# now force everything other than 'team' to be added alphabetically at the end,
 	# by prefixing the prefix with 'z_' (the underscore makes it unique for easy pruning later)
-	if prefix!='team':
-		prefix="z_"+prefix
+	# if prefix!='team':
+	# 	prefix="z_"+prefix
+
+	# #503 - extTeamName should always start with 'z_' then a capital letter
+	prefix='z_'+prefix.capitalize()
+
 	if firstNum!=None:
 		rest=name[firstNumIndex:].zfill(5)
 	else:
@@ -547,6 +551,57 @@ def rprint(text):
 	logger.info(logText)
 
 ###### LOGGING CODE END ######
+
+# #471: rebuild any modified Qt .ui and .qrc files at runtime
+#   (copied from plans_console repo - could be made into a shared module at some point)
+
+qtDesignerSubDir='designer' # subdir containing Qt Designer source files (*.ui)
+qtUiPySubDir='ui' # target subdir for compiled ui files (*_ui.py)
+qtQrcSubDir='.' # subdir containing Qt qrc resource files (*.qrc)
+qtRcPySubDir='.' # target subdir for compiled resource files
+
+installDir=os.path.dirname(os.path.realpath(__file__))
+qtDesignerDir=os.path.join(installDir,qtDesignerSubDir)
+qtUiPyDir=os.path.join(installDir,qtUiPySubDir)
+qtQrcDir=os.path.join(installDir,qtQrcSubDir)
+qtRcPyDir=os.path.join(installDir,qtRcPySubDir)
+
+# rebuild all _ui.py files from .ui files in the same directory as this script as needed
+#   NOTE - this will overwrite any edits in _ui.py files
+for ui in glob.glob(os.path.join(qtDesignerDir,'*.ui')):
+	uipy=os.path.join(qtUiPyDir,os.path.basename(ui).replace('.ui','_ui.py'))
+	if not (os.path.isfile(uipy) and os.path.getmtime(uipy) > os.path.getmtime(ui)):
+		cmd='pyuic5 -o '+uipy+' '+ui
+		rprint('Building GUI file from '+os.path.basename(ui)+':')
+		rprint('  '+cmd)
+		os.system(cmd)
+
+# rebuild all _rc.py files from .qrc files in the same directory as this script as needed
+#   NOTE - this will overwrite any edits in _rc.py files
+for qrc in glob.glob(os.path.join(qtQrcDir,'*.qrc')):
+	rcpy=os.path.join(qtRcPyDir,os.path.basename(qrc).replace('.qrc','_rc.py'))
+	if not (os.path.isfile(rcpy) and os.path.getmtime(rcpy) > os.path.getmtime(qrc)):
+		cmd='pyrcc5 -o '+rcpy+' '+qrc
+		rprint('Building Qt Resource file from '+os.path.basename(qrc)+':')
+		rprint('  '+cmd)
+		os.system(cmd)
+
+from ui.help_ui import Ui_Help
+from ui.options_ui import Ui_optionsDialog
+from ui.fsSendDialog_ui import Ui_fsSendDialog
+from ui.fsSendMessageDialog_ui import Ui_fsSendMessageDialog
+from ui.newEntryWindow_ui import Ui_newEntryWindow
+from ui.newEntryWidget_ui import Ui_newEntryWidget
+from ui.clueDialog_ui import Ui_clueDialog
+from ui.clueLogDialog_ui import Ui_clueLogDialog
+from ui.printDialog_ui import Ui_printDialog
+from ui.changeCallsignDialog_ui import Ui_changeCallsignDialog
+from ui.fsFilterDialog_ui import Ui_fsFilterDialog
+from ui.opPeriodDialog_ui import Ui_opPeriodDialog
+from ui.printClueLogDialog_ui import Ui_printClueLogDialog
+from ui.nonRadioClueDialog_ui import Ui_nonRadioClueDialog
+from ui.subjectLocatedDialog_ui import Ui_subjectLocatedDialog
+from ui.continuedIncidentDialog_ui import Ui_continuedIncidentDialog
 
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
@@ -1159,7 +1214,13 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def rotateCsvBackups(self,filenames):
 		if self.rotateScript and self.rotateDelimiter:
-			cmd=self.rotateScript+' '+self.rotateDelimiter.join(filenames)
+			# #442: wrap each filename in quotes, to allow spaces in filenames
+			#  from https://stackoverflow.com/a/12007707
+			#  wrapping in one or two sets of double quotes still doesn't work
+			#   since the quotes are stripped by powershell; wrapping in three
+			#   double quotes does work:
+			quotedFilenames=[f'"""{filename}"""' for filename in filenames]
+			cmd=self.rotateScript+' '+self.rotateDelimiter.join(quotedFilenames)
 			rprint("Invoking backup rotation script: "+cmd)
 			subprocess.Popen(cmd)
 		else:
@@ -1717,6 +1778,23 @@ class MyWindow(QDialog,Ui_Dialog):
 						widget.ui.datumFormatLabel.setText(datumFormatString)
 						widget.formattedLocString=formattedLocString
 						widget.origLocString=origLocString
+				# #509: populate radio location field in any child dialogs that have that field (clue or subject located)
+				for child in widget.childDialogs:
+					rprint('  new entry widget for '+str(callsign)+' has a child dialog; attempting to update radio location in that dialog')
+					try:
+						# need to account for widgets that have .toPlainText() method (in clueDialog)
+						#  and widgets that have .text() method (in subjectLocatedDialog)
+						try:
+							prevLocString=child.ui.radioLocField.toPlainText()
+						except:
+							prevLocString=child.ui.radioLocField.text()
+						#  only populate with the radio location of the first call - don't keep updating with subsequent calls
+						#  (could be changed in the future if needed - basically, should the report include the radio coords of
+						#   the first call of the report, or of the last call of a continued conversation before the report is saved?)
+						if prevLocString=='' and formattedLocString!='' and formattedLocString!='NO FIX':
+							child.ui.radioLocField.setText(formattedLocString)
+					except:
+						pass
 		if fleet and dev:
 			self.fsLogUpdate(int(fleet),int(dev))
 			# only open a new entry widget if the fleet/dev is not being filtered
@@ -1999,11 +2077,19 @@ class MyWindow(QDialog,Ui_Dialog):
 			rval=self.convertCoords(coords,self.datum,self.coordFormat)
 			rprint("testConvertCoords:"+str(coords)+" --> "+rval)
 
+	# convertCoords
+	#   coords - 4-element list of strings
+	#      [LatString,NS,LonString,EW]  ex. ['3912.2949', 'N', '12104.5526', 'W']
+	#      LatString - in the format that Kenwood produces: DDMM.mmmm
+	#          (3912.2949 = 39deg 12.2949min)
+	#      NS - North or South hemisphere
+	#      LonString - in the format that Kenwood produces: DDMM.mmmm
+	#      EW - Eeast or West hemisphere
+	#          (W along with a positive LonString means the lon value is actually negative)
+	#          12034.5678 W  --> -120deg 34.5678min
+	#   targetDatum - 'WGS84' or 'NAD27' or 'NAD27 CONUS' (the last two are synonyms in this usage)
 	def convertCoords(self,coords,targetDatum,targetFormat):
-		easting="0000000"
-		northing="0000000"
 		rprint("convertCoords called: targetDatum="+targetDatum+" targetFormat="+targetFormat+" coords="+str(coords))
-		# coords must be a parsed list of location data from fleetsync in NMEA format
 		if isinstance(coords,list):
 			latDeg=int(coords[0][0:2]) # first two numbers are degrees
 			latMin=float(coords[0][2:]) # remainder is minutes
@@ -2014,90 +2100,55 @@ class MyWindow(QDialog,Ui_Dialog):
 			lonDd=lonDeg+lonMin/60
 			if coords[1]=="S":
 				latDeg=-latDeg # invert if needed
-				ladDd=-latDd
+				latDd=-latDd
 			if coords[3]=="W":
-				rprint("inverting longitude")
 				lonDeg=-lonDeg # invert if needed
 				lonDd=-lonDd
-##			targetUTMZone=int(lonDeg/6)+30 # do the math: -179.99999deg -> -174deg = zone 1; -173.99999deg -> -168deg = zone 2, etc
-			targetUTMZone=math.floor((lonDd+180)/6)+1 # from http://stackoverflow.com/questions/9186496, since -120.0000deg should be zone 11, not 10
-			rprint("lonDeg="+str(lonDeg)+" lonDd="+str(lonDd)+" targetUTMZone="+str(targetUTMZone))
+			# UTM Zone calculation no longer needed since pygeodesy does it internally - left here as a comment for reference
+			# targetUTMZone=math.floor((lonDd+180)/6)+1 # from http://stackoverflow.com/questions/9186496, since -120.0000deg should be zone 11, not 10
 		else:
 			return("INVALID INPUT FORMAT - MUST BE A LIST")
 
-		# relevant CRSes:
-		#  4326 = WGS84 lat/lon
-		#  4267 = NAD27 CONUS lat/lon
-		#  32600+zone = WGS84 UTM (e.g. 32610 = UTM zone 10)
-		#  26700+zone = NAD27 CONUS UTM (e.g. 26710 = UTM zone 10)
+		# 1. create a LLEB object from the input coordinate pair
+		g=ellipsoidalBase.LatLonEllipsoidalBase(latDd,lonDd,datum=Datums.WGS84)
 
-		# if target datum is WGS84 and target format is anything other than UTM, just do the math
-		if targetDatum!="WGS84" or re.match("UTM",targetFormat):
-			sourceCRS=4326
-			if targetDatum=="WGS84":
-				targetCRS=32600+targetUTMZone
-			elif targetDatum=="NAD27 CONUS":
-				if re.match("UTM",targetFormat):
-					targetCRS=26700+targetUTMZone
-				else:
-					targetCRS=4267
-			else:
-				targetCRS=sourceCRS # fallback to do a pass-thru transformation
+		# 2. convert/reproject datum if needed
+		if 'NAD27' in targetDatum:
+			g=g.toDatum(Datums.NAD27)
 
-			# the Transformer object is reusable; only need to recreate it if the CRSes have changed
-			# see examples at
-			# https://pyproj4.github.io/pyproj/stable/api/transformer.html#pyproj.transformer.Transformer.transform
-			if sourceCRS!=self.sourceCRS or targetCRS!=self.targetCRS:
-				self.sourceCRS=sourceCRS
-				self.targetCRS=targetCRS
-				self.transformer=Transformer.from_crs(sourceCRS,targetCRS)
-
-			############## the actual transformation ################
-			t=self.transformer.transform(latDd,lonDd)
-			#########################################################
-
-			if re.match("UTM",targetFormat):
-				[easting,northing]=map(int,t)
-			else:
-				[lonDd,latDd]=t
-
-		latDd=float(latDd)
-		latDeg=int(latDd)
-		latMin=float((latDd-float(latDeg))*60.0)
-		latSec=float((latMin-int(latMin))*60.0)
-		lonDd=float(lonDd)
-		if lonDd<0 and targetFormat!="D.dList": # leave it negative for D.dList
-			lonDd=-lonDd
-			lonLetter="W"
-		else:
-			lonLetter="E"
-		lon=int(lonDd)
-		lonMin=float((abs(lonDd)-float(abs(lonDeg)))*60.0)
-		lonSec=float((abs(lonMin)-int(abs(lonMin)))*60.0)
-		rprint("lonDd="+str(lonDd))
-		rprint("lonDeg="+str(lonDeg))
-
-		# return the requested format
-		# desired accuracy / digits of precision:
+		# 3. return the requested format
+		# desired accuracy / digits of precision - these match caltopo, except for seconds
 		# at 39 degrees north,
 		# 0.00001 degree latitude = 1.11 meters
 		# 0.001 minute latutude = 1.85 meters
 		# 0.1 second latitude = 3.08 meters
 		# (longitude lengths are about 78% as much as latitude, at 39 degrees north)
 		if targetFormat=="D.dList":
-			return [latDd,lonDd]
+			return [g.lat,g.lon]
 		if targetFormat=="D.d°":
-			return "{:.6f}°N  {:.6f}°{}".format(latDd,lonDd,lonLetter)
+			return g.toStr(dms.F_D,joined='  ',prec=-5)
 		if targetFormat=="D° M.m'":
-			return "{}° {:.4f}'N  {}° {:.4f}'{}".format(latDeg,latMin,abs(lonDeg),lonMin,lonLetter)
+			return g.toStr(dms.F_DM,joined='  ',prec=-3,s_D="° ",s_M="'")
 		if targetFormat=="D° M' S.s\"":
-			return "{}° {}' {:.2f}\"N  {}° {}' {:.2f}\"{}".format(latDeg,int(latMin),latSec,abs(lonDeg),int(lonMin),lonSec,lonLetter)
-		eStr="{0:07d}".format(easting)
-		nStr="{0:07d}".format(northing)
-		if targetFormat=="UTM 7x7":
-			return "{} {}   {} {}".format(eStr[0:2],eStr[2:],nStr[0:2],nStr[2:])
-		if targetFormat=="UTM 5x5":
-			return "{}  {}".format(eStr[2:],nStr[2:])
+			return g.toStr(dms.F_DMS,joined='  ',prec=-1,s_D="° ",s_M="' ",s_S='"')
+		if 'UTM' in targetFormat:
+			g=g.toUtm() # fewer formatting options exist for utm objects; build the strings from components below
+			eStr="{0:07d}".format(round(g.easting))
+			nStr="{0:07d}".format(round(g.northing))
+			zone=g.zone # utm zone
+			band=g.band # latitude band
+			if 'FULL' in targetFormat.upper():
+				if 'SHORT' in targetFormat.upper():
+					return "{}{} {} {}".format(zone,band,eStr,nStr)
+				else:
+					return "{}{} {} {}   {} {}".format(zone,band,eStr[0:2],eStr[2:],nStr[0:2],nStr[2:])
+			if '7x7' in targetFormat:
+				if 'SHORT' in targetFormat.upper():
+					return "{} {}".format(eStr,nStr)
+				else:
+					return "{} {}   {} {}".format(eStr[0:2],eStr[2:],nStr[0:2],nStr[2:])
+			if targetFormat=="UTM 5x5":
+				return "{}  {}".format(eStr[2:],nStr[2:])
 		return "INVALID - UNKNOWN OUTPUT FORMAT REQUESTED"
 
 	def printLogHeaderFooter(self,canvas,doc,opPeriod="",teams=False):

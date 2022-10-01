@@ -1196,7 +1196,7 @@
   <tabstop>standbyField</tabstop>
  </tabstops>
  <resources>
-  <include location="radiolog_ui.qrc"/>
+  <include location="../radiolog_ui.qrc"/>
  </resources>
  <connections>
   <connection>
