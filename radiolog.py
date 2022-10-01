@@ -302,6 +302,8 @@
 # #############################################################################
 # #############################################################################
 
+from PyQt5.QtCore import QSettings, QStandardPaths
+from string import Template
 from ui.help_ui import Ui_Help
 from ui.options_ui import Ui_optionsDialog
 from ui.fsSendDialog_ui import Ui_fsSendDialog
@@ -329,6 +331,7 @@ import serial.tools.list_ports
 import csv
 import os.path
 import os
+import pathlib
 import glob
 import requests
 import subprocess
@@ -558,15 +561,38 @@ def normName(name):
 class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
-		
-		# create the local dir if it doesn't already exist, and populate it
-		#  with files from local_default
-		if not os.path.isdir("local"):
-			rprint("'local' directory not found; copying 'local_default' to 'local'; you may want to edit local/radiolog.cfg")
-			shutil.copytree("local_default","local")
-		if not os.path.isfile("local/radiolog.cfg"):
-			rprint("'local' directory was found but did not contain radiolog.cfg; copying from local_default")
-			shutil.copyfile("local_default/radiolog.cfg","local/radiolog.cfg")
+
+		# Set up the settings.
+		QSettings.setDefaultFormat(QSettings.IniFormat)
+		self.config = QSettings()
+
+		# Create the application's data/config location and copy files to it.
+		self.appDataLocation = pathlib.Path(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation))
+		rprint(f"Applications data location set as {self.appDataLocation}.")
+
+		self.appConfigLocation = pathlib.Path(self.config.fileName())
+		rprint(f"Applications configuration file location set as {self.appConfigLocation}.")
+
+		if not self.appDataLocation.exists():
+			# Source directory held in a platform agnostic path.
+			default_files = pathlib.Path("local_default")
+
+			rprint(f"Creating RadioLog data location at {self.appDataLocation}")
+			self.appDataLocation.mkdir(parents=True)
+
+			rprint(f"Copying default configuration template to {self.appConfigLocation}")
+
+			# Template items to substitute
+			sub_dict = {'appConfigLocation': self.appConfigLocation, 'appDataLocation': self.appDataLocation}
+
+			with open(self.appConfigLocation, 'w') as configLocation:
+				with open(default_files / "RadioLog.ini") as defaultConfig:
+					default = Template(defaultConfig.read())
+					formatted = default.substitute(sub_dict)
+					configLocation.write(formatted)
+
+			rprint(f"Copying radiolog_logo.jpg to {self.appDataLocation}")
+			shutil.copyfile(default_files / "radiolog_logo.jpg", self.appDataLocation / "radiolog_logo.jpg")
 			
 		self.setWindowFlags(self.windowFlags()|Qt.WindowMinMaxButtonsHint)
 		self.parent=parent
@@ -1020,163 +1046,116 @@ class MyWindow(QDialog,Ui_Dialog):
 		return False
 
 	def readConfigFile(self):
-		# specify defaults here
-		self.clueReportPdfFileName='clueReport.pdf'
-		self.agencyName="Search and Rescue"
-		self.datum="WGS84"
-		self.coordFormatAscii="UTM 5x5"
-		self.coordFormat=self.csDisplayDict[self.coordFormatAscii]
-		self.timeoutMinutes="30"
-		self.printLogoFileName="radiolog_logo.jpg"
-		self.firstWorkingDir=self.homeDir+"\\Documents"
-		self.secondWorkingDir=None
-		self.sarsoftServerName="localhost"
-		self.rotateScript=None
-		self.rotateDelimiter=None
+		# Configuration defaults are set here.
+
+		self.config.beginGroup("RadioLog")
+		self.agencyName = self.config.value("agencyName", "Search and Rescue")
+		self.datum = self.config.value("datum", "WGS84")
+		self.coordFormatAscii = self.config.value("coordFormat", "UTM 5x5")
+		self.coordFormat = self.csDisplayDict[self.coordFormatAscii]
+		self.timeoutMinutes = self.config.value("timeoutMinutes", "30")
+		self.printLogoFileName = self.config.value("logo", "radiolog_logo.jpg")
+		self.firstWorkingDir = self.config.value("firstWorkingDir", self.homeDir + "\\Documents")
+		self.secondWorkingDir = self.config.value("secondWorkingDir", None)
+		self.sarsoftServerName = self.config.value("server", "localhost")
+		self.continuedIncidentWindowDays = self.config.value("continuedIncidentWindowDays", "4")
+		self.config.endGroup()
+
+		self.timeoutRedSec = int(self.timeoutMinutes) * 60
+
+		self.clueReportPdfFileName = 'clueReport.pdf'
+		self.rotateScript = None
+		self.rotateDelimiter = None
 		# 		self.tabGroups=[["NCSO","^1[tpsdel][0-9]+"],["CHP","^22s[0-9]+"],["Numbers","^Team [0-9]+"]]
 		# the only default tab group should be number-only callsigns; everything
-		#  else goes in a separate catch-all group; override this in radiolog.cfg
-		defaultTabGroups=[["Numbers","^Team [0-9]+"]]
-		self.tabGroups=defaultTabGroups
-		self.continuedIncidentWindowDays="4"
-		
-		if os.name=="nt":
+		#  else goes in a separate catch-all group; override this in RadioLog.ini
+		self.tabGroups = eval(self.config.value("tabGroups", "[['Numbers','^Team [0-9]+']]"))
+
+		if os.name == "nt":
 			rprint("Operating system is Windows.")
 			if shutil.which("powershell.exe"):
 				rprint("PowerShell.exe is in the path.")
-				self.rotateScript="powershell.exe -ExecutionPolicy Bypass .\\rotateCsvBackups.ps1 -filenames "
-				self.rotateDelimiter=","
+				self.rotateScript = "powershell.exe -ExecutionPolicy Bypass .\\rotateCsvBackups.ps1 -filenames "
+				self.rotateDelimiter = ","
 			else:
 				rprint("PowerShell.exe is not in the path; poweshell-based backup rotation script cannot be used.")
 		else:
 			rprint("Operating system is not Windows.  Powershell-based backup rotation script cannot be used.")
 
-		configFile=QFile(self.configFileName)
-		if not configFile.open(QFile.ReadOnly|QFile.Text):
-			warn=QMessageBox(QMessageBox.Warning,"Error","Cannot read configuration file " + self.configFileName + "; using default settings. "+configFile.errorString(),
-							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			warn.show()
-			warn.raise_()
-			warn.exec_()
-			self.timeoutRedSec=int(self.timeoutMinutes)*60
-			self.updateOptionsDialog()
-			return
-		inStr=QTextStream(configFile)
-		line=inStr.readLine()
-		if line!="[RadioLog]":
-			warn=QMessageBox(QMessageBox.Warning,"Error","Specified configuration file " + self.configFileName + " is not a valid configuration file; using default settings.",
-							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			warn.show()
-			warn.raise_()
-			warn.exec_()
-			configFile.close()
-			self.timeoutRedSec=int(self.timeoutMinutes)*60
-			self.updateOptionsDialog()
-			return
-		
-		while not inStr.atEnd():
-			line=inStr.readLine()
-			tokens=line.split("=")
-			if tokens[0]=="agencyName":
-				self.agencyName=tokens[1]
-			elif tokens[0]=="datum":
-				self.datum=tokens[1]
-			elif tokens[0]=="coordFormat":
-				self.coordFormatAscii=tokens[1]
-			elif tokens[0]=="timeoutMinutes":
-				self.timeoutMinutes=tokens[1]
-			elif tokens[0]=="logo":
-				self.printLogoFileName=tokens[1]
-			elif tokens[0]=="firstWorkingDir":
-				self.firstWorkingDir=tokens[1]
-			elif tokens[0]=="secondWorkingDir":
-				self.secondWorkingDir=tokens[1]
-			elif tokens[0]=="server":
-				self.sarsoftServerName=tokens[1]
-			elif tokens[0]=="rotateScript":
-				self.rotateScript=tokens[1]
-			elif tokens[0]=="rotateDelimiter":
-				self.rotateDelimiter=tokens[1]
-			elif tokens[0]=="tabGroups":
-				self.tabGroups=eval(tokens[1])
-			elif tokens[0]=="continuedIncidentWindowDays":
-				self.continuedIncidentWindowDays=tokens[1]
-		configFile.close()
-		
 		# validation and post-processing of each item
-		configErr=""
-		self.printLogoFileName="./local/"+self.printLogoFileName
-		
+		configErr = ""
+		self.printLogoFileName = self.appDataLocation / self.printLogoFileName
+
 		if self.datum not in self.validDatumList:
-			configErr+="ERROR: invalid datum '"+self.datum+"'\n"
-			configErr+="  Valid choices are: "+str(self.validDatumList)+"\n"
-			configErr+="  Will use "+str(self.validDatumList[0])+" for this session.\n\n"
-			self.datum=self.validDatumList[0]
+			configErr += "ERROR: invalid datum '" + self.datum + "'\n"
+			configErr += "  Valid choices are: " + str(self.validDatumList) + "\n"
+			configErr += "  Will use " + str(self.validDatumList[0]) + " for this session.\n\n"
+			self.datum = self.validDatumList[0]
 		# if specified datum is just NAD27, assume NAD27 CONUS
-		if self.datum=="NAD27":
-			self.datum="NAD27 CONUS"
+		if self.datum == "NAD27":
+			self.datum = "NAD27 CONUS"
 
 		if self.coordFormatAscii not in self.csDisplayDict:
-			configErr+="ERROR: coordinate format '"+self.coordFormatAscii+"'\n"
-			configErr+="  Supported coordinate format names are: "+str(list(self.csDisplayDict.keys()))+"\n"
-			configErr+="  Will use "+list(self.csDisplayDict.keys())[0]+" for this session.\n\n"
-			self.coordFormatAscii=list(self.csDisplayDict.keys())[0]
-		
-		# process any ~ characters
-		self.firstWorkingDir=os.path.expanduser(self.firstWorkingDir)
-		if self.secondWorkingDir:				
-			self.secondWorkingDir=os.path.expanduser(self.secondWorkingDir)				
+			configErr += "ERROR: coordinate format '" + self.coordFormatAscii + "'\n"
+			configErr += "  Supported coordinate format names are: " + str(list(self.csDisplayDict.keys())) + "\n"
+			configErr += "  Will use " + list(self.csDisplayDict.keys())[0] + " for this session.\n\n"
+			self.coordFormatAscii = list(self.csDisplayDict.keys())[0]
 
-		if not os.path.isdir(self.firstWorkingDir):
-			configErr="FATAL ERROR: first working directory '"+self.firstWorkingDir+"' does not exist.  ABORTING."
-			self.configErrMsgBox=QMessageBox(QMessageBox.Critical,"Fatal Configuration Error",configErr,
- 							QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			self.configErrMsgBox.exec_()
-			sys.exit(-1)
-			
-		if self.use2WD and self.secondWorkingDir and not os.path.isdir(self.secondWorkingDir):
-			configErr+="ERROR: second working directory '"+self.secondWorkingDir+"' does not exist.  Maybe it is not mounted yet; radiolog will try to write to it after every entry.\n\n"
-		
-		self.coordFormat=self.csDisplayDict[self.coordFormatAscii]
-		self.ui.datumFormatLabel.setText(self.datum+"\n"+self.coordFormat)
-	
-		if not self.timeoutMinutes.isdigit():
-			configErr+="ERROR: timeout minutes value must be an integer.  Will use 30 minutes for this session.\n\n"
-			self.timeoutMinutes=30
-		self.timeoutRedSec=int(self.timeoutMinutes)*60
-		if not self.timeoutRedSec in self.timeoutDisplaySecList:
-			configErr+="ERROR: invalid timeout period ("+str(self.timeoutMinutes)+" minutes)\n"
-			configErr+="  Valid choices:"+str(self.timeoutDisplayMinList)+"\nWill use 30 minutes for this session.\n\n"
-			self.timeoutRedSec=1800
-		
-		self.updateOptionsDialog()
-		
-		# if agencyName contains newline character(s), use it as-is for print;
-		#  if not, textwrap with max line length that looks best on pdf reports
-		self.agencyNameForPrint=self.agencyName
-		if not "\n" in self.agencyName:
-			self.agencyNameForPrint="\n".join(textwrap.wrap(self.agencyName.upper(),width=len(self.agencyName)/2+6))
-		
-		if not os.path.isfile(self.printLogoFileName):
-			configErr+="ERROR: specified logo file '"+self.printLogoFileName+"' does not exist.  No logo will be included on generated reports.\n\n"
-		
-		if not isinstance(self.tabGroups,list):
-			configErr+="ERROR: specified tab group '"+str(self.tabGroups)+"' is not a list.  Using the default tabGroups group list.\n\n"
-			self.tabGroups=defaultTabGroups
+			# process any ~ characters
+			self.firstWorkingDir = os.path.expanduser(self.firstWorkingDir)
+			if self.secondWorkingDir:
+				self.secondWorkingDir = os.path.expanduser(self.secondWorkingDir)
 
-		if not self.continuedIncidentWindowDays.isdigit():
-			configErr+="ERROR: continuedIncidentWindowDays value must be an integer.  Will use 4 days for this session.\n\n"
-			self.continuedIncidentWindowDays=4
-		else:
-			self.continuedIncidentWindowDays=int(self.continuedIncidentWindowDays)
-			 
-		if configErr:
-			self.configErrMsgBox=QMessageBox(QMessageBox.Warning,"Non-fatal Configuration Error(s)","Error(s) encountered in config file "+self.configFileName+":\n\n"+configErr,
- 							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			self.configErrMsgBox.exec_()
+			if not os.path.isdir(self.firstWorkingDir):
+				configErr = "FATAL ERROR: first working directory '" + self.firstWorkingDir + "' does not exist.  ABORTING."
+				self.configErrMsgBox = QMessageBox(QMessageBox.Critical, "Fatal Configuration Error", configErr,
+				                                   QMessageBox.Close, self,
+				                                   Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.Dialog | Qt.MSWindowsFixedSizeDialogHint | Qt.WindowStaysOnTopHint)
+				self.configErrMsgBox.exec_()
+				sys.exit(-1)
 
-		if develMode:
-			self.sarsoftServerName="localhost" # DEVEL
+			if self.use2WD and self.secondWorkingDir and not os.path.isdir(self.secondWorkingDir):
+				configErr += "ERROR: second working directory '" + self.secondWorkingDir + "' does not exist.  Maybe it is not mounted yet; radiolog will try to write to it after every entry.\n\n"
+
+			self.coordFormat = self.csDisplayDict[self.coordFormatAscii]
+			self.ui.datumFormatLabel.setText(self.datum + "\n" + self.coordFormat)
+
+			if not self.timeoutMinutes.isdigit():
+				configErr += "ERROR: timeout minutes value must be an integer.  Will use 30 minutes for this session.\n\n"
+				self.timeoutMinutes = 30
+			self.timeoutRedSec = int(self.timeoutMinutes) * 60
+			if not self.timeoutRedSec in self.timeoutDisplaySecList:
+				configErr += "ERROR: invalid timeout period (" + str(self.timeoutMinutes) + " minutes)\n"
+				configErr += "  Valid choices:" + str(
+					self.timeoutDisplayMinList) + "\nWill use 30 minutes for this session.\n\n"
+				self.timeoutRedSec = 1800
+
+			self.updateOptionsDialog()
+
+			# if agencyName contains newline character(s), use it as-is for print;
+			#  if not, textwrap with max line length that looks best on pdf reports
+			self.agencyNameForPrint = self.agencyName
+			if not "\n" in self.agencyName:
+				self.agencyNameForPrint = "\n".join(
+					textwrap.wrap(self.agencyName.upper(), width=len(self.agencyName) / 2 + 6))
+
+			if not self.printLogoFileName.is_file():
+				configErr += f"ERROR: specified logo file '{self.printLogoFileName}' does not exist.  No logo will be included on generated reports.\n\n"
+
+			if not isinstance(self.tabGroups, list):
+				configErr += "ERROR: specified tab group '" + str(
+					self.tabGroups) + "' is not a list.  Using the default tabGroups group list.\n\n"
+				self.tabGroups = defaultTabGroups
+
+			if configErr:
+				self.configErrMsgBox = QMessageBox(QMessageBox.Warning, "Non-fatal Configuration Error(s)",
+				                                   "Error(s) encountered in config file " + self.configFileName + ":\n\n" + configErr,
+				                                   QMessageBox.Ok, self,
+				                                   Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.Dialog | Qt.MSWindowsFixedSizeDialogHint | Qt.WindowStaysOnTopHint)
+				self.configErrMsgBox.exec_()
+
+			if develMode:
+				self.sarsoftServerName = "localhost"  # DEVEL
 
 	def rotateCsvBackups(self,filenames):
 		if self.rotateScript and self.rotateDelimiter:
@@ -2131,12 +2110,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		canvas.saveState()
 		styles = getSampleStyleSheet()
 		self.img=None
-		if os.path.isfile(self.printLogoFileName):
-			rprint("valid logo file "+self.printLogoFileName)
-			imgReader=utils.ImageReader(self.printLogoFileName)
+		if self.printLogoFileName.is_file():
+			rprint(f"valid logo file {self.printLogoFileName}")
+			imgReader=utils.ImageReader(str(self.printLogoFileName))
 			imgW,imgH=imgReader.getSize()
 			imgAspect=imgH/float(imgW)
-			self.img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
+			self.img=Image(str(self.printLogoFileName),width=0.54*inch/float(imgAspect),height=0.54*inch)
 			headerTable=[
 					[self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,formNameText+" - Page "+str(canvas.getPageNumber())],
 					["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
@@ -2283,11 +2262,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		canvas.saveState()
 		styles = getSampleStyleSheet()
 		self.img=None
-		if os.path.isfile(self.printLogoFileName):
-			imgReader=utils.ImageReader(self.printLogoFileName)
+		if self.printLogoFileName.is_file():
+			imgReader=utils.ImageReader(str(self.printLogoFileName))
 			imgW,imgH=imgReader.getSize()
 			imgAspect=imgH/float(imgW)
-			self.img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
+			self.img=Image(str(self.printLogoFileName),width=0.54*inch/float(imgAspect),height=0.54*inch)
 			headerTable=[
 					[self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,"Clue Log - Page "+str(canvas.getPageNumber())],
 					["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
@@ -2419,11 +2398,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		styles = getSampleStyleSheet()
 
 		img=''
-		if os.path.isfile(self.printLogoFileName):
-			imgReader=utils.ImageReader(self.printLogoFileName)
+		if self.printLogoFileName.is_file():
+			imgReader=utils.ImageReader(str(self.printLogoFileName))
 			imgW,imgH=imgReader.getSize()
 			imgAspect=imgH/float(imgW)
-			img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
+			img=Image(str(self.printLogoFileName),width=0.54*inch/float(imgAspect),height=0.54*inch)
 
 		instructions=clueData[7].lower()
 		# initialize all checkboxes to OFF
@@ -6649,6 +6628,10 @@ class customEventFilter(QObject):
 
 def main():
 	app = QApplication(sys.argv)
+	app.setApplicationDisplayName("RadioLog")
+	app.setApplicationName("RadioLog")
+	app.setOrganizationName("NCSSAR")
+	app.setOrganizationDomain("nevadacountysar.org")
 	eFilter=customEventFilter()
 	app.installEventFilter(eFilter)
 	w = MyWindow(app)
