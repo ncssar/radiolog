@@ -3,7 +3,7 @@
 ## Binary Installer:
 There is a binary installer located here: https://github.com/ncssar/radiolog/releases
 
-Download and run radiolog-setup.exe
+Download and run radiolog-setup.exe to install on Windows.
 
 ## To Install from Source:
 
@@ -25,32 +25,23 @@ this is, but, we found a stackoverflow thread where someone else had the same is
 know if you are missing it when a generated PDF during print will show up with 
 a bunch of dots instead of letters.
 
-After you have all the files from this repo (download the zip and extract to C:\), 
-and all the above prerequisites are in place, you will need to set up the 'local' 
-directory.  As of 8-1-19 there is no code in place to create the local directory 
-for a fresh installation: you will need to create a dir named 'local' in the 
-radiolog install dir (such as C:\radiolog-master\local) and in that directory 
-you will need to place radiolog.cfg (can be blank) and an optional logo file 
-as spelled out below.
+# RadioLog.ini Optional Settings
+On Windows settings for RadioLog can be configured in an INI file. This file
+on Windows is generally located here:
+<Drive>:\Users\<Current User>\AppData\Roaming\NCSSAR\RadioLog.ini
 
-# RadioLog.ini optional settings
-Optional file local/radiolog.cfg can be used to change various settings.  That 
-file is plain text, and has documentation inside it.
-
-If the 'local' directory does not exist yet, i.e. the first time you run 
-radiolog, it will be created as a copy of the 'local_default' directory included 
-as part of the installation.
-
-If new radiolog versions contain new user-definable options, 
-local_default/radiolog.cfg will contain the new options and documentation.
+If new RadioLog versions contain new user-definable options, 
+local_default/Radiolog.ini will contain the new options and documentation.
 
 # radiolog_logo.jpg
-You can optionally provide a logo image to be incldued on radiolog printouts 
+You can optionally provide a logo image to be included on RadioLog printouts 
 (except for clue reports).  The file will be scaled to print in the pdf files, 
-so a starting size of 200x200 pixels or less should be fine.  Name the file 
-local/radiolog_logo.jpg.  Note that a default logo is included in local_default 
-so will be copied in to place the first time you run radiolog.  You can then 
-delete local/radiolog_logo.jpg or overwrite it with your own logo.
+so a starting size of 200x200 pixels or less should be fine. On Windows this 
+file should be located at: 
+<Drive>:\Users\<Current User>\AppData\Roaming\NCSSAR\RadioLog\
+Name the file radiolog_logo.jpg.  Note that a default logo is included in local_default 
+so will be copied in to place the first time you run RadioLog.  You can then 
+delete radiolog_logo.jpg or overwrite it with your own logo.
 
 
 That should do it!  Just run 'python radiolog.py' to run the program.  You may 

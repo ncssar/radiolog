@@ -586,23 +586,6 @@ for qrc in glob.glob(os.path.join(qtQrcDir,'*.qrc')):
 		rprint('  '+cmd)
 		os.system(cmd)
 
-from ui.help_ui import Ui_Help
-from ui.options_ui import Ui_optionsDialog
-from ui.fsSendDialog_ui import Ui_fsSendDialog
-from ui.fsSendMessageDialog_ui import Ui_fsSendMessageDialog
-from ui.newEntryWindow_ui import Ui_newEntryWindow
-from ui.newEntryWidget_ui import Ui_newEntryWidget
-from ui.clueDialog_ui import Ui_clueDialog
-from ui.clueLogDialog_ui import Ui_clueLogDialog
-from ui.printDialog_ui import Ui_printDialog
-from ui.changeCallsignDialog_ui import Ui_changeCallsignDialog
-from ui.fsFilterDialog_ui import Ui_fsFilterDialog
-from ui.opPeriodDialog_ui import Ui_opPeriodDialog
-from ui.printClueLogDialog_ui import Ui_printClueLogDialog
-from ui.nonRadioClueDialog_ui import Ui_nonRadioClueDialog
-from ui.subjectLocatedDialog_ui import Ui_subjectLocatedDialog
-from ui.continuedIncidentDialog_ui import Ui_continuedIncidentDialog
-
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
 # credit to 'mg.' at http://stackoverflow.com/questions/2556108
@@ -629,7 +612,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint(f"Applications configuration file location set as {self.appConfigLocation}.")
 
 		if not self.appDataLocation.exists():
-			# Source directory held in a platform agnostic path.
+			# Source directory held in a platform-agnostic path.
 			default_files = pathlib.Path("local_default")
 
 			rprint(f"Creating RadioLog data location at {self.appDataLocation}")
@@ -698,13 +681,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.optionsDialog=optionsDialog(self)
 		self.optionsDialog.accepted.connect(self.optionsAccepted)
 		
-		# config file (e.g. ./local/radiolog.cfg) stores the team standards;
-		#  it should be created/modified by hand, and is read at radiolog startup,
+		# config file (Radiolog.ini) stores the team standards;
+		#  it should be modified by hand, and is read at radiolog startup,
 		#  and is not modified by radiolog at any point
 		# resource file / 'rc file' (e.g. ./radiolog_rc.txt) stores the search-specific
 		#  options settings; it is read at radiolog startup, and is written
 		#  whenever the options dialog is accepted
-		self.configFileName="./local/radiolog.cfg"
+		self.configFileName=self.appConfigLocation
 		self.readConfigFile() # defaults are set inside readConfigFile
 
 		self.incidentName="New Incident"
