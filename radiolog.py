@@ -3256,14 +3256,14 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.timeoutOrangeSec=self.timeoutRedSec-3 # or 3 seconds before for tiny values
 		self.ui.timeoutLabel.setText("TIMEOUT:\n"+timeoutDisplayList[self.optionsDialog.ui.timeoutField.value()][0])
 
-	def openNewEntry(self,key=None,callsign=None,formattedLocString=None,fleet=None,dev=None,origLocString=None,amendFlag=False,amendRow=None):
-		rprint("openNewEntry called:key="+str(key)+" callsign="+str(callsign)+" formattedLocString="+str(formattedLocString)+" fleet="+str(fleet)+" dev="+str(dev)+" origLocString="+str(origLocString)+" amendFlag="+str(amendFlag)+" amendRow="+str(amendRow))
+	def openNewEntry(self,key=None,callsign=None,formattedLocString=None,fleet=None,dev=None,origLocString=None,amendFlag=False,amendRow=None,isMostRecentForCallsign=False):
+		rprint("openNewEntry called:key="+str(key)+" callsign="+str(callsign)+" formattedLocString="+str(formattedLocString)+" fleet="+str(fleet)+" dev="+str(dev)+" origLocString="+str(origLocString)+" amendFlag="+str(amendFlag)+" amendRow="+str(amendRow)+" isMostRecentForCallsign="+str(isMostRecentForCallsign))
 		if clueDialog.openDialogCount==0:
 			self.newEntryWindow.setWindowFlags(Qt.WindowTitleHint|Qt.WindowStaysOnTopHint) # enable always on top
 		else:
 			self.newEntryWindow.setWindowFlags(Qt.WindowTitleHint)
 		sec=time.time() # epoch seconds, for sorting purposes; not displayed
-		self.newEntryWidget=newEntryWidget(self,sec,formattedLocString,fleet,dev,origLocString,amendFlag,amendRow)
+		self.newEntryWidget=newEntryWidget(self,sec,formattedLocString,fleet,dev,origLocString,amendFlag,amendRow,isMostRecentForCallsign)
 		# focus rules and timeline:
 		#  openNewEntry
 		#    |-> newEntryWidget.__init__
@@ -3573,9 +3573,27 @@ class MyWindow(QDialog,Ui_Dialog):
 ##				self.convertDialog=convertDialog(self,rowData,rowHasRadioLoc,rowHasMsgCoords)
 ##				self.convertDialog.show()
 
-	def amendEntry(self,row):
+	def amendEntry(self,row): # row argument is zero-based
 		rprint("Amending row "+str(row))
-		amendDialog=self.openNewEntry(amendFlag=True,amendRow=row)
+		rprint('radioLog len = '+str(len(self.radioLog)))
+		rprint(str(self.radioLog))
+		# #508 - determine if the row being amended is the most recent row regarding the same callsign
+		#    row argument is zero-based, and radiolog always has a dummy row at the end
+		team=self.radioLog[row][2]
+		extTeamName=getExtTeamName(team)
+		found=False
+		for n in range(row+1,len(self.radioLog)):
+			entry=self.radioLog[n]
+			rprint(' t3:'+str(n)+':'+str(entry))
+			if getExtTeamName(entry[2]).lower()==extTeamName.lower():
+				found=True
+				break
+		if found:
+			rprint('found a newer entry for '+team+' than the one being amended')
+		else:
+			rprint('did not find a newer entry for '+team+' than the one being amended')
+		isMostRecent=not found
+		amendDialog=self.openNewEntry(amendFlag=True,amendRow=row,isMostRecentForCallsign=isMostRecent)
 
 	def rebuildTabs(self):
 # 		groupDict=self.rebuildGroupedTabDict()
@@ -4857,7 +4875,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##		newEntryDialogPositionList.append([newEntryDialog_x0+n*newEntryDialog_dx,newEntryDialog_y0+n*newEntryDialog_dy])
 ##		newEntryDialogUsedPositionList.append(False)
 ##	def __init__(self,parent,position,sec,formattedLocString='',fleet='',dev='',origLocString='',amendFlag=False,amendRow=None):
-	def __init__(self,parent,sec=0,formattedLocString='',fleet='',dev='',origLocString='',amendFlag=False,amendRow=None):
+	def __init__(self,parent,sec=0,formattedLocString='',fleet='',dev='',origLocString='',amendFlag=False,amendRow=None,isMostRecentForCallsign=False):
 		QDialog.__init__(self)
 
 		self.ui=Ui_newEntryWidget()
@@ -4874,6 +4892,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.needsChangeCallsign=False # can be set to True by openNewEntry
 		self.dev=dev
 		self.parent=parent
+		self.isMostRecentForCallsign=isMostRecentForCallsign
 		if amendFlag:
 			row=parent.radioLog[amendRow]
 			self.sec=row[6]
@@ -4925,8 +4944,18 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			else:
 				self.ui.messageField.setText(row[3])
 			self.ui.label.setText("AMENDED Message:")
+			if not self.isMostRecentForCallsign:
+				# #508 - it would be nice to show a warning when a status button is clicked,
+				#   but that has some complexity - easier to just disable the group box,
+				#   though we can't then catch a button click in that area to show a warning
+				#   without installing an event filter https://stackoverflow.com/questions/8467527
+				self.ui.statusGroupBox.setEnabled(False)
 		else:
 			self.ui.timeField.setText(time.strftime("%H%M"))
+
+		# #508 - keep track of status changes while typing
+		self.tmpNewStatus=None
+
 		self.ui.teamField.textChanged.connect(self.setStatusFromTeam)
 		self.ui.teamField.textChanged.connect(self.updateTabLabel)
 		self.ui.to_fromField.currentIndexChanged.connect(self.updateTabLabel)
@@ -5570,17 +5599,38 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 # 						#  since we want to rebuild the entire list on every keystroke
 # 						self.attachedCallsignList.append(token)
 # 		self.ui.attachedField.setText(" ".join(self.attachedCallsignList))
-# 			
-		# allow it to be set back to blank; must set exclusive to false and iterate over each button
-		self.ui.statusButtonGroup.setExclusive(False)
-		for button in self.ui.statusButtonGroup.buttons():
-# 			rprint("checking button: "+button.text())
-			if button.text()==newStatus:
-				button.setChecked(True)
+# 		
+		# #508 - initialize tmpNewStatus based on the text of the message being amended, not based on the team's current status
+		if not self.tmpNewStatus:
+			self.tmpNewStatus=prevStatus	
+		if newStatus!=prevStatus:
+			# rprint('newStatus='+newStatus+'  prevStatus='+prevStatus+'  tmpNewStatus='+str(self.tmpNewStatus))
+			# #508 - disable status change based on text, and show a warning, if this is an amendment
+			#  for an older (not the most recent) message for the callsign
+			if (not self.amendFlag) or self.isMostRecentForCallsign:
+				# allow it to be set back to blank; must set exclusive to false and iterate over each button
+				self.ui.statusButtonGroup.setExclusive(False)
+				for button in self.ui.statusButtonGroup.buttons():
+		# 			rprint("checking button: "+button.text())
+					if button.text()==newStatus:
+						button.setChecked(True)
+					else:
+						button.setChecked(False)
+				self.ui.statusButtonGroup.setExclusive(True)
 			else:
-				button.setChecked(False)
-		self.ui.statusButtonGroup.setExclusive(True)
+				# #508 - don't show a warning on every keystroke - just once per relevant text change
+				if newStatus!=self.tmpNewStatus:
+					self.warnNoStatusChange()
+					# rprint('setting tmpNewStatus to '+newStatus)
+					self.tmpNewStatus=newStatus
 		self.ui.messageField.deselect()
+
+	def warnNoStatusChange(self):
+		box=QMessageBox(QMessageBox.Warning,"Warning","For safety reasons, changing the status from an older message (not the most recent message for this callsign) is disabled.\n\nTo change the status right now, you would need to create a new entry, or amend the most recent entry for this callsign.",
+			QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		box.show()
+		box.raise_()
+		box.exec_()
 
 	def setCallsignFromComboBox(self,str):
 		self.ui.teamField.setText(str)
