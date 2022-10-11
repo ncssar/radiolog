@@ -2283,6 +2283,10 @@ class MyWindow(QDialog,Ui_Dialog):
 				if row[3].startswith("Operational Period") and row[3].split()[3] == "Begins:":
 					opStartRow=True
 					entryOpPeriod=int(row[3].split()[2])
+				# #523: handled continued incidents
+				if row[3].startswith('Radio Log Begins - Continued incident'):
+					opStartRow=True
+					entryOpPeriod=int(row[3].split(': Operational Period ')[1].split()[0])
 ##				rprint("desired op period="+str(opPeriod)+"; this entry op period="+str(entryOpPeriod))
 				if entryOpPeriod == opPeriod:
 					if team=="" or extTeamNameLower==getExtTeamName(row[2]).lower() or opStartRow: # filter by team name if argument was specified
