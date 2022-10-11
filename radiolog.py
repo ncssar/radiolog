@@ -3172,9 +3172,15 @@ class MyWindow(QDialog,Ui_Dialog):
 					row += [''] * (10-len(row)) # pad the row up to 10 elements if needed, to avoid index errors elsewhere
 					loadedRadioLog.append(row)
 					i=i+1
+					newOp=None
 					if row[3].startswith("Operational Period") and row[3].split()[3]=="Begins:":
-						self.opPeriod=int(row[3].split()[2])
+						newOp=int(row[3].split()[2])
+					if row[3].startswith('Radio Log Begins - Continued incident'):
+						newOp=int(row[3].split(': Operational Period ')[1].split()[0])
+					if newOp:
+						self.opPeriod=newOp
 						self.printDialog.ui.opPeriodComboBox.addItem(str(self.opPeriod))
+						rprint('Setting OP to '+str(self.opPeriod)+' based on loaded entry "'+row[3]+'".')
 					progressBox.setValue(i)
 			csvFile.close()
 
@@ -3221,6 +3227,8 @@ class MyWindow(QDialog,Ui_Dialog):
 						self.clueLog.append(row)
 						if row[0]!="":
 							lastClueNumber=int(row[0])
+						elif '(Last clue number: ' in row[1]:
+							lastClueNumber=int(row[1].split('(Last clue number: ')[1].replace(')',''))
 				csvFile.close()
 
 		self.clueLogDialog.ui.tableView.model().layoutChanged.emit()
