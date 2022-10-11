@@ -693,6 +693,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			rlInitText+=' (Last clue number: '+str(lastClueNumber)+')'
 		self.radioLog=[[time.strftime("%H%M"),'','',rlInitText,'','',time.time(),'','',''],
 			['','','','','','',1e10,'','','']] # 1e10 epoch seconds will keep the blank row at the bottom when sorted
+		rprint('Initial entry: '+rlInitText)
 
 		self.clueLog=[]
 		self.clueLog.append(['',self.radioLog[0][3],'',time.strftime("%H%M"),'','','','',''])
@@ -972,7 +973,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	# - only show the most recent OP of each incident, i.e. don't show both OP2 and OP1
 	# - add a note that the user can change OP and next clue# afterwards from the GUI
 	def checkForContinuedIncident(self):
-		continuedIncidentWindowDays=4
+		continuedIncidentWindowDays=self.continuedIncidentWindowDays
 		continuedIncidentWindowSec=continuedIncidentWindowDays*24*60*60
 		csvFiles=glob.glob(self.firstWorkingDir+'/*.csv')
 		sortedCsvFiles=sorted(csvFiles,key=os.path.getmtime,reverse=True)
@@ -2679,7 +2680,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		QTimer.singleShot(1800,self.optionsDialog.ui.incidentField.setFocus)
 
 	def fontsChanged(self):
-		rprint("1 - begin fontsChanged")
+		# rprint("1 - begin fontsChanged")
 		self.limitedFontSize=self.fontSize
 		if self.limitedFontSize>self.maxLimitedFontSize:
 			self.limitedFontSize=self.maxLimitedFontSize
@@ -2690,12 +2691,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		i=self.ui.tabWidget.currentIndex()
 		self.ui.tableView.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		for n in self.ui.tableViewList[1:]:
-			rprint("n="+str(n))
+			# rprint("n="+str(n))
 			n.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		# don't change tab font size unless you find a good way to dynamically
 		# change tab size and margins as well
 ##		self.ui.tabWidget.tabBar().setStyleSheet("font-size:"+str(self.fontSize)+"pt")
-		rprint("2")
+		# rprint("2")
 		self.redrawTables()
 		self.ui.tabWidget.setCurrentIndex(i)
 		self.ui.incidentNameLabel.setStyleSheet("font-size:"+str(self.limitedFontSize)+"pt;")
@@ -2718,7 +2719,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				font-size:"""+str(self.limitedFontSize*3/4)+"""pt;
 			}
 		""")
-		rprint("3 - end of fontsChanged")
+		# rprint("3 - end of fontsChanged")
 
 	def redrawTables(self):
 		# column sizing rules, in sequence:
@@ -2742,34 +2743,34 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		self.ui.tableView.model().layoutChanged.emit()
 ##		self.ui.tableView.scrollToBottom()
 		self.loadFlag=True
-		rprint("1: start of redrawTables")
+		# rprint("1: start of redrawTables")
 		for i in [2,4]: # hardcode results in significant speedup
 			self.ui.tableView.resizeColumnToContents(i) # zero is the first column
-		rprint("2")
+		# rprint("2")
 		self.ui.tableView.setColumnWidth(0,self.fontSize*5) # wide enough for '2345'
 		self.ui.tableView.setColumnWidth(1,self.fontSize*6) # wide enough for 'FROM'
 		self.ui.tableView.setColumnWidth(5,self.fontSize*10) # wide enough for 'STATUS'
-		rprint("3")
+		# rprint("3")
 ##		self.ui.tableView.resizeRowsToContents()
-		rprint("4")
+		# rprint("4")
 		for n in self.ui.tableViewList[1:]:
-			rprint(" n="+str(n))
+			# rprint(" n="+str(n))
 			for i in [2,4]: # hardcode results in significant speedup, but lag still scales with filtered table length
-				print("    i="+str(i))
+				# rprint("    i="+str(i))
 				n.resizeColumnToContents(i)
-			rprint("    done with i")
+			# rprint("    done with i")
 			n.setColumnWidth(0,self.fontSize*5)
 			n.setColumnWidth(1,self.fontSize*6)
 			n.setColumnWidth(5,self.fontSize*10)
-			rprint("    resizing rows to contents")
+			# rprint("    resizing rows to contents")
 ##			n.resizeRowsToContents()
-		rprint("5")
+		# rprint("5")
 		self.ui.tableView.scrollToBottom()
-		rprint("6")
+		# rprint("6")
 		for i in range(1,self.ui.tabWidget.count()):
 			self.ui.tabWidget.setCurrentIndex(i)
 			self.ui.tableViewList[i].scrollToBottom()
-		rprint("7: end of redrawTables")
+		# rprint("7: end of redrawTables")
 ##		self.resizeRowsToContentsIfNeeded()
 		self.loadFlag=False
 
@@ -3237,11 +3238,11 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		self.clueLogDialog.ui.tableView.model().layoutChanged.emit()
 		# finished
-		rprint("Starting redrawTables")
+		# rprint("Starting redrawTables")
 		self.fontsChanged()
 ##		self.ui.tableView.model().layoutChanged.emit()
 ##		QCoreApplication.processEvents()
-		rprint("Returned from redrawTables")
+		# rprint("Returned from redrawTables")
 		progressBox.close()
 		self.ui.opPeriodButton.setText("OP "+str(self.opPeriod))
 		self.teamTimer.start(1000) #resume
