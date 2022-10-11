@@ -597,14 +597,26 @@ class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
 		
+		self.installDir=os.path.realpath(os.path.dirname(__file__))
+		self.firstWorkingDir=os.path.join(os.getenv('HOMEPATH','C:\\Users\\Default'),'RadioLog')
+		if self.firstWorkingDir[1]!=':':
+			self.firstWorkingDir=os.path.join(os.getenv('HOMEDRIVE','C:'),self.firstWorkingDir)
+
+		# create sessionDir immediately, since this is where logging output will be saved
+		self.sessionDir=os.path.join(self.firstWorkingDir,'NewSession_'+time.strftime('%Y_%m_%d_%H%M%S'))
+
+		self.configDir=os.path.join(self.firstWorkingDir,'config')
+		self.configDefaultDir=os.path.join(self.installDir,'config_default')
 		# create the local dir if it doesn't already exist, and populate it
 		#  with files from local_default
-		if not os.path.isdir("local"):
-			rprint("'local' directory not found; copying 'local_default' to 'local'; you may want to edit local/radiolog.cfg")
-			shutil.copytree("local_default","local")
-		if not os.path.isfile("local/radiolog.cfg"):
-			rprint("'local' directory was found but did not contain radiolog.cfg; copying from local_default")
-			shutil.copyfile("local_default/radiolog.cfg","local/radiolog.cfg")
+		if not os.path.isdir(self.configDir):
+			rprint('config directory not found; copying config_default directory from installation directory ('+self.installDir+') to first working directory ('+self.firstWorkingDir+'); you may want to edit the files in that directory.')
+			shutil.copytree(self.configDefaultDir,self.configDir)
+		self.configFileName=os.path.join(self.configDir,'radiolog.cfg')
+		self.configFileDefaultName=os.path.join(self.configDefaultDir,'radiolog.cfg')
+		if not os.path.isfile(self.configFileName):
+			rprint('config directory was found but did not contain radiolog.cfg; copying from installation directory '+self.installDir+'/config_default')
+			shutil.copyfile(self.configFileDefaultName,self.configFileName)
 			
 		self.setWindowFlags(self.windowFlags()|Qt.WindowMinMaxButtonsHint)
 		self.parent=parent
@@ -646,22 +658,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		if self.initialWindowTracking:
 			rprint("Window Tracking was initially enabled.  Disabling it for radiolog; will re-enable on exit.")
 			win32gui.SystemParametersInfo(win32con.SPI_SETACTIVEWINDOWTRACKING,False)
-		
-		self.firstWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents"
-		if self.firstWorkingDir[1]!=":":
-			self.firstWorkingDir=os.getenv('HOMEDRIVE','C:')+self.firstWorkingDir
+
 # 		self.secondWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents\\sar"
 
 		self.optionsDialog=optionsDialog(self)
 		self.optionsDialog.accepted.connect(self.optionsAccepted)
 		
-		# config file (e.g. ./local/radiolog.cfg) stores the team standards;
+		# config file (e.g. <firstWorkingDir>/config/radiolog.cfg) stores the team standards;
 		#  it should be created/modified by hand, and is read at radiolog startup,
 		#  and is not modified by radiolog at any point
-		# resource file / 'rc file' (e.g. ./radiolog_rc.txt) stores the search-specific
+		# resource file / 'rc file' (e.g. <firstWorkingDir>/radiolog_rc.txt) stores the search-specific
 		#  options settings; it is read at radiolog startup, and is written
 		#  whenever the options dialog is accepted
-		self.configFileName="./local/radiolog.cfg"
 		self.readConfigFile() # defaults are set inside readConfigFile
 
 		self.incidentName="New Incident"
@@ -739,7 +747,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# set the default lookup name - this must be after readConfigFile
 		#  since that function accepts the options form which updates the
 		#  lookup filename based on the current incedent name and time
-		self.fsFileName="radiolog_fleetsync.csv"
+		self.fsFileName=os.path.join(self.firstWorkingDir,'config','radiolog_fleetsync.csv')
 		
 		self.helpFont1=QFont()
 		self.helpFont1.setFamily("Segoe UI")
@@ -928,7 +936,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.newEntryWindow=newEntryWindow(self) # create the window but don't show it until needed
 
 		# load resource file; process default values and resource file values
-		self.rcFileName="radiolog_rc.txt"
+		self.rcFileName=os.path.join(self.firstWorkingDir,'radiolog_rc.txt')
 		self.previousCleanShutdown=self.loadRcFile()
 		showStartupOptions=True
 		if self.isContinuedIncident:
