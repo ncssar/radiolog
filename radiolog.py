@@ -2289,7 +2289,12 @@ class MyWindow(QDialog,Ui_Dialog):
 						radioLogPrint.append([row[0],row[1],row[2],Paragraph(row[3],styles['Normal']),Paragraph(row[4],styles['Normal']),Paragraph(row[5],styles['Normal'])])
 ##						hits=True
 			if not teams:
-				radioLogPrint[1][4]=self.datum
+				# #523: avoid exception	
+				try:
+					radioLogPrint[1][4]=self.datum
+				except:
+					rprint('Nothing to print for specified operational period '+str(opPeriod))
+					return
 			rprint("length:"+str(len(radioLogPrint)))
 			if not teams or len(radioLogPrint)>2: # don't make a table for teams that have no entries during the requested op period
 				t=Table(radioLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.5,0.6,1.25,5.5,1.25,0.9]])
@@ -2400,7 +2405,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			rprint("clue: opPeriod="+str(opPeriod)+"; row="+str(row))
 			if (str(row[5])==str(opPeriod) or row[1].startswith("Operational Period "+str(opPeriod)+" Begins:") or (opPeriod==1 and row[1].startswith("Radio Log Begins:"))):
 				clueLogPrint.append([row[0],Paragraph(row[1],styles['Normal']),row[2],row[3],row[4],Paragraph(row[6],styles['Normal']),Paragraph(row[7],styles['Normal'])])
-		clueLogPrint[1][5]=self.datum
+		# #523: avoid exception	
+		try:
+			clueLogPrint[1][5]=self.datum
+		except:
+			rprint('Nothing to print for specified operational period '+str(opPeriod))
+			return
 		if len(clueLogPrint)>2:
 ##			t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.6,3.75,.9,0.5,1.25,3]])
 			t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.5]])
