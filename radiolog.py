@@ -610,6 +610,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.parent=parent
 		self.ui=Ui_Dialog()
 		self.ui.setupUi(self)
+		# #520 - show version number in main window banner
+		versionText='RadioLog '+str(__version__)
+		# determine if this is being run from a pyinstaller executable, or from 'python radiolog.py'
+		# https://stackoverflow.com/a/35514032
+		if '.py' in sys.argv[0]:
+			versionText+='dev'
+		self.setWindowTitle(versionText)
+		rprint(versionText)
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.loadFlag=False # set this to true during load, to prevent save on each newEntry
 		self.totalEntryCount=0 # rotate backups after every 5 entries; see newEntryWidget.accept
