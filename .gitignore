@@ -8,7 +8,6 @@ radiolog.log_childSubjLocCrash
 .pydevproject
 *.project
 .settings/org.eclipse.core.resources.prefs
-radiolog_fleetsync.csv
 local
 local_bak/radiolog.cfg
 local_bak/radiolog_logo.jpg

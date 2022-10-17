@@ -1,0 +1,7 @@
+# FleetSync default callsign lookup table
+#  modify this file in the config directory;
+#  it will be used by default for each new session
+#  changes during a session are saved to the session directory
+
+# Fleet,Device,Callsign
+123,4567,Default
