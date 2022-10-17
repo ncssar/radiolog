@@ -502,16 +502,21 @@ class LoggingFilter(logging.Filter):
 	def filter(self,record):
 		return record.levelno < logging.ERROR
 
-logFileName=getFileNameBase("radiolog_log")+".txt"
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-fh=logging.FileHandler(logFileName)
-fh.setLevel(logging.INFO)
+# fh=logging.FileHandler(logFileName)
+# fh.setLevel(logging.INFO)
 ch=logging.StreamHandler(stream=sys.stdout)
 ch.setLevel(logging.INFO)
 ch.addFilter(LoggingFilter())
-logger.addHandler(fh)
+# logger.addHandler(fh)
 logger.addHandler(ch)
+
+def startLoggingToDir(dir):
+	logFileName=os.path.join(dir,getFileNameBase("radiolog_log")+".txt")
+	fh=logging.FileHandler(logFileName)
+	fh.setLevel(logging.INFO)
+	logger.addHandler(fh)
 
 # redirect stderr to stdout here by overriding excepthook
 # from https://stackoverflow.com/a/16993115/3577105
@@ -596,26 +601,65 @@ def normName(name):
 class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
-		
-		self.installDir=os.path.realpath(os.path.dirname(__file__))
+		self.newWorkingDir=False # is this the first time using a newly created working dir?  (if so, suppress some warnings)
+		msg='RadioLog '+str(__version__)
 		self.firstWorkingDir=os.path.join(os.getenv('HOMEPATH','C:\\Users\\Default'),'RadioLog')
 		if self.firstWorkingDir[1]!=':':
 			self.firstWorkingDir=os.path.join(os.getenv('HOMEDRIVE','C:'),self.firstWorkingDir)
+		if not os.path.isdir(self.firstWorkingDir):
+			try:
+				os.makedirs(self.firstWorkingDir)
+				msg+='\nWorking directory "'+self.firstWorkingDir+'" was not found; creating it now.'
+				self.newWorkingDir=True
+			except:
+				err='FATAL ERROR: working directory "'+self.firstWorkingDir+'" was not found and could not be created.  ABORTING.'
+				msg+=err
+				self.configErrMsgBox=QMessageBox(QMessageBox.Critical,"Fatal Configuration Error",err,
+								QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				self.configErrMsgBox.exec_()
+				print(msg)
+				sys.exit(-1)
+		else:
+			msg+='\nWorking directory found at "'+self.firstWorkingDir+'".'
 
 		# create sessionDir immediately, since this is where logging output will be saved
 		self.sessionDir=os.path.join(self.firstWorkingDir,'NewSession_'+time.strftime('%Y_%m_%d_%H%M%S'))
+		try:
+			os.mkdir(self.sessionDir)
+			msg+='\nInitial session directory created at "'+self.sessionDir+'".'
+		except:
+			err='FATAL ERROR: initial session directory "'+self.sessionDir+'" could not be created.  ABORTING.'
+			msg+=err
+			self.configErrMsgBox=QMessageBox(QMessageBox.Critical,"Fatal Configuration Error",err,
+							QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			self.configErrMsgBox.exec_()
+			print(msg)
+			sys.exit(-1)
+		
+		# if everything was created successfully, set the log file location and start logging
+		if os.path.isdir(self.sessionDir):
+			startLoggingToDir(self.sessionDir)
+			rprint(msg)
+		else:
+			err='FATAL ERROR: initial session directory "'+self.sessionDir+'" was not created.  ABORTING.'
+			msg+=err
+			self.configErrMsgBox=QMessageBox(QMessageBox.Critical,"Fatal Configuration Error",err,
+							QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			self.configErrMsgBox.exec_()
+			print(msg)
+			sys.exit(-1)
 
 		self.configDir=os.path.join(self.firstWorkingDir,'config')
-		self.configDefaultDir=os.path.join(self.installDir,'config_default')
-		# create the local dir if it doesn't already exist, and populate it
-		#  with files from local_default
+		self.configDefaultDir=os.path.join(installDir,'config_default')
+		# create the config dir if it doesn't already exist, and populate it
+		#  with files from config_default
 		if not os.path.isdir(self.configDir):
-			rprint('config directory not found; copying config_default directory from installation directory ('+self.installDir+') to first working directory ('+self.firstWorkingDir+'); you may want to edit the files in that directory.')
+			rprint('config directory not found; copying config_default directory from installation directory ('+installDir+') to first working directory ('+self.firstWorkingDir+'); you may want to edit the files in that directory.')
 			shutil.copytree(self.configDefaultDir,self.configDir)
 		self.configFileName=os.path.join(self.configDir,'radiolog.cfg')
 		self.configFileDefaultName=os.path.join(self.configDefaultDir,'radiolog.cfg')
 		if not os.path.isfile(self.configFileName):
-			rprint('config directory was found but did not contain radiolog.cfg; copying from installation directory '+self.installDir+'/config_default')
+			rprint('config directory was found but did not contain radiolog.cfg; copying from default config directory '+self.configDefaultDir)
 			shutil.copyfile(self.configFileDefaultName,self.configFileName)
 			
 		self.setWindowFlags(self.windowFlags()|Qt.WindowMinMaxButtonsHint)
@@ -941,7 +985,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		showStartupOptions=True
 		if self.isContinuedIncident:
 			showStartupOptions=False
-		if not self.previousCleanShutdown:
+		if not self.previousCleanShutdown and not self.newWorkingDir:
 			self.reallyRestore=QMessageBox(QMessageBox.Critical,"Restore last saved files?","The previous Radio Log session may have shut down incorrectly.  Do you want to restore the last saved files (Radio Log, Clue Log, and FleetSync table)?",
 										QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			self.reallyRestore.show()
@@ -1074,8 +1118,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.coordFormatAscii="UTM 5x5"
 		self.coordFormat=self.csDisplayDict[self.coordFormatAscii]
 		self.timeoutMinutes="30"
-		self.printLogoFileName="radiolog_logo.jpg"
-		self.firstWorkingDir=self.homeDir+"\\Documents"
+		self.printLogoFileName="radiolog_logo.jpg" # relative to config dir
+		# self.firstWorkingDir=self.homeDir+"\\Documents"
 		self.secondWorkingDir=None
 		self.sarsoftServerName="localhost"
 		self.rotateScript=None
@@ -1152,7 +1196,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		
 		# validation and post-processing of each item
 		configErr=""
-		self.printLogoFileName="./local/"+self.printLogoFileName
+		self.printLogoFileName=os.path.join(self.configDir,self.printLogoFileName)
 		
 		if self.datum not in self.validDatumList:
 			configErr+="ERROR: invalid datum '"+self.datum+"'\n"
@@ -1943,7 +1987,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.fsLookup=[]
 				csvReader=csv.reader(fsFile)
 				for row in csvReader:
-					if not row[0].startswith("#"):
+					if row and not row[0].startswith("#"): # allow blank lines and comment lines
 						self.fsLookup.append(row)
 				if not startupFlag: # suppress message box on startup
 					self.fsMsgBox=QMessageBox(QMessageBox.Information,"Information","FleetSync ID table has been re-loaded from file "+fsFileName+".",
@@ -3018,11 +3062,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  be taken from the config file.
 		rcFile=QFile(self.rcFileName)
 		if not rcFile.open(QFile.ReadOnly|QFile.Text):
-			warn=QMessageBox(QMessageBox.Warning,"Error","Cannot read resource file " + self.rcFileName + "; using default settings. "+rcFile.errorString(),
+			if not self.newWorkingDir: # don't show the warning, but still return, if this is the first run in a new working dir
+				warn=QMessageBox(QMessageBox.Warning,"Error","Cannot read resource file " + self.rcFileName + "; using default settings. "+rcFile.errorString(),
 							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			warn.show()
-			warn.raise_()
-			warn.exec_()
+				warn.show()
+				warn.raise_()
+				warn.exec_()
 			return
 		inStr=QTextStream(rcFile)
 		line=inStr.readLine()
