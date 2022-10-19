@@ -504,6 +504,7 @@ class LoggingFilter(logging.Filter):
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+logFileLeafName=getFileNameBase('radiolog_log')+'.txt'
 
 def setLogHandlers(dir=None):
 	# remove all existing handlers before adding the new ones
@@ -511,7 +512,8 @@ def setLogHandlers(dir=None):
 		logger.removeHandler(h)
 	# add a filehandler if dir is specified
 	if dir:
-		logFileName=os.path.join(dir,getFileNameBase("radiolog_log")+".txt")
+		# logFileName=os.path.join(dir,getFileNameBase("radiolog_log")+".txt")
+		logFileName=os.path.join(dir,logFileLeafName)
 		fh=logging.FileHandler(logFileName)
 		fh.setLevel(logging.INFO)
 		logger.addHandler(fh)
@@ -709,6 +711,12 @@ class MyWindow(QDialog,Ui_Dialog):
 
 # 		self.secondWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents\\sar"
 
+		self.incidentName="New Incident"
+		self.incidentNameNormalized=normName(self.incidentName)
+		self.opPeriod=1
+		self.incidentStartDate=time.strftime("%a %b %d, %Y")
+		self.isContinuedIncident=False
+
 		self.optionsDialog=optionsDialog(self)
 		self.optionsDialog.accepted.connect(self.optionsAccepted)
 		
@@ -719,12 +727,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  options settings; it is read at radiolog startup, and is written
 		#  whenever the options dialog is accepted
 		self.readConfigFile() # defaults are set inside readConfigFile
-
-		self.incidentName="New Incident"
-		self.incidentNameNormalized=normName(self.incidentName)
-		self.opPeriod=1
-		self.incidentStartDate=time.strftime("%a %b %d, %Y")
-		self.isContinuedIncident=False
 
 		self.printDialog=printDialog(self)
 		self.printClueLogDialog=printClueLogDialog(self)
@@ -3319,30 +3321,35 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  - get rid of all spaces -  no need to be able to reproduce the
 		#    incident name's spaces from the filename
 		self.incidentNameNormalized=normName(self.incidentName)
-		sessionDirAttempt=os.path.join(self.firstWorkingDir,self.incidentNameNormalized)
+		sessionDirAttempt=os.path.join(self.firstWorkingDir,self.incidentNameNormalized)+'_'+time.strftime('%Y_%m_%d_%H%M%S')
 		if sessionDirAttempt is not self.sessionDir:
 			if not os.path.isdir(sessionDirAttempt):
+				setLogHandlers() # open log file handler prevents dir rename; close it now
 				try:
 					os.rename(self.sessionDir,sessionDirAttempt)
 				except Exception as e:
 					err='ERROR: session directory could not be renamed from\n\n'+self.sessionDir+'\n\nto\n\n'+sessionDirAttempt+'.\n\nUsing existing session directory.\n\n'+repr(e)
+					setLogHandlers(self.sessionDir) # resume log file in new location, regardless of rename outcome
 					rprint(err.replace('\n',' '))
 					self.errMsgBox=QMessageBox(QMessageBox.Critical,"Session Directory Error",err,
 									QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 					self.errMsgBox.exec_()
 				else:
-					rprint('Renamed session directory to "'+self.sessionDir+'"')
 					self.sessionDir=sessionDirAttempt
-					setLogHandlers(self.sessionDir)
+					setLogHandlers(self.sessionDir) # resume log file in new location, regardless of rename outcome
+					rprint('Renamed session directory to "'+self.sessionDir+'"')
 		self.csvFileName=getFileNameBase(self.incidentNameNormalized)+".csv"
 		self.pdfFileName=getFileNameBase(self.incidentNameNormalized)+".pdf"
 		self.fsFileName=self.csvFileName.replace('.csv','_fleetsync.csv')
 
 	def optionsAccepted(self):
-		self.incidentName=self.optionsDialog.ui.incidentField.text()
-		self.updateFileNames()
-		# don't change the rc file at this point - wait until a log entry is actually saved
-		self.ui.incidentNameLabel.setText(self.incidentName)
+		tmp=self.optionsDialog.ui.incidentField.text()
+		if self.incidentName is not tmp:
+			rprint('Incident name changed to "'+tmp+'" from options dialog.')
+			self.incidentName=self.optionsDialog.ui.incidentField.text()
+			self.updateFileNames()
+			# don't change the rc file at this point - wait until a log entry is actually saved
+			self.ui.incidentNameLabel.setText(self.incidentName)
 		self.datum=self.optionsDialog.ui.datumField.currentText()
 		self.coordFormat=self.optionsDialog.ui.formatField.currentText()
 		# TMG 4-22-15: do not try to convert coords right now: it fails due to space in radioLoc i.e. "NO FIX"
