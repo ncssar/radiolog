@@ -504,19 +504,23 @@ class LoggingFilter(logging.Filter):
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-# fh=logging.FileHandler(logFileName)
-# fh.setLevel(logging.INFO)
-ch=logging.StreamHandler(stream=sys.stdout)
-ch.setLevel(logging.INFO)
-ch.addFilter(LoggingFilter())
-# logger.addHandler(fh)
-logger.addHandler(ch)
 
-def startLoggingToDir(dir):
-	logFileName=os.path.join(dir,getFileNameBase("radiolog_log")+".txt")
-	fh=logging.FileHandler(logFileName)
-	fh.setLevel(logging.INFO)
-	logger.addHandler(fh)
+def setLogHandlers(dir=None):
+	# remove all existing handlers before adding the new ones
+	for h in logger.handlers[:]:
+		logger.removeHandler(h)
+	# add a filehandler if dir is specified
+	if dir:
+		logFileName=os.path.join(dir,getFileNameBase("radiolog_log")+".txt")
+		fh=logging.FileHandler(logFileName)
+		fh.setLevel(logging.INFO)
+		logger.addHandler(fh)
+	ch=logging.StreamHandler(stream=sys.stdout)
+	ch.setLevel(logging.INFO)
+	ch.addFilter(LoggingFilter())
+	logger.addHandler(ch)
+
+setLogHandlers()
 
 # redirect stderr to stdout here by overriding excepthook
 # from https://stackoverflow.com/a/16993115/3577105
@@ -638,7 +642,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		
 		# if everything was created successfully, set the log file location and start logging
 		if os.path.isdir(self.sessionDir):
-			startLoggingToDir(self.sessionDir)
+			setLogHandlers(self.sessionDir)
 			rprint(msg)
 		else:
 			err='FATAL ERROR: initial session directory "'+self.sessionDir+'" was not created.  ABORTING.'
@@ -791,7 +795,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		# set the default lookup name - this must be after readConfigFile
 		#  since that function accepts the options form which updates the
 		#  lookup filename based on the current incedent name and time
-		self.fsFileName=os.path.join(self.firstWorkingDir,'config','radiolog_fleetsync.csv')
+		# self.fsFileName=os.path.join(self.firstWorkingDir,'config','radiolog_fleetsync.csv')
+		self.fsFileName='radiolog_fleetsync.csv'
 		
 		self.helpFont1=QFont()
 		self.helpFont1.setFamily("Segoe UI")
@@ -997,13 +1002,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		# make sure x/y/w/h from resource file will fit on the available display
 		d=QApplication.desktop()
 		if (self.x+self.w > d.width()) or (self.y+self.h > d.height()):
-			rprint("\nThe resource file specifies a main window geometry that is\n  bigger than (or not on) the available desktop.\n  Using default sizes for this session.\n\n")
+			rprint("The resource file specifies a main window geometry that is bigger than (or not on) the available desktop.  Using default sizes for this session.")
 			self.x=50
 			self.y=50
 			self.w=d.availableGeometry(self).width()-100
 			self.h=d.availableGeometry(self).height()-100
 		if (self.clueLog_x+self.clueLog_w > d.width()) or (self.clueLog_y+self.clueLog_h > d.height()):
-			rprint("\nThe resource file specifies a clue log window geometry that is\n  bigger than (or not on) the available desktop.\n  Using default sizes for this session.\n\n")
+			rprint("The resource file specifies a clue log window geometry that is bigger than (or not on) the available desktop.  Using default sizes for this session.")
 			self.clueLog_x=75
 			self.clueLog_y=75
 			self.clueLog_w=d.availableGeometry(self).width()-100
@@ -1980,17 +1985,23 @@ class MyWindow(QDialog,Ui_Dialog):
 			fsEmptyFlag=True
 		if not fsFileName:
 			fsFileName=self.fsFileName
+			if startupFlag:
+				fsDir=self.configDir
+			else:
+				fsDir=self.sessionDir
+		# rprint('t1: fsDir='+fsDir+'  fsFileName='+fsFileName)
+		fsFullPath=os.path.join(fsDir,fsFileName)
 		try:
-			rprint("  trying "+fsFileName)
-			with open(fsFileName,'r') as fsFile:
-				rprint("Loading FleetSync Lookup Table from file "+fsFileName)
+			rprint("  trying "+fsFullPath)
+			with open(fsFullPath,'r') as fsFile:
+				rprint("Loading FleetSync Lookup Table from file "+fsFullPath)
 				self.fsLookup=[]
 				csvReader=csv.reader(fsFile)
 				for row in csvReader:
 					if row and not row[0].startswith("#"): # allow blank lines and comment lines
 						self.fsLookup.append(row)
 				if not startupFlag: # suppress message box on startup
-					self.fsMsgBox=QMessageBox(QMessageBox.Information,"Information","FleetSync ID table has been re-loaded from file "+fsFileName+".",
+					self.fsMsgBox=QMessageBox(QMessageBox.Information,"Information","FleetSync ID table has been re-loaded from file "+fsFullPath+".",
 											QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 					self.fsMsgBox.show()
 					QCoreApplication.processEvents()
@@ -1998,10 +2009,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		except:
 			if not hideWarnings:
 				if fsEmptyFlag:
-					warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot read FleetSync ID table file '"+fsFileName+"' and no FleetSync ID table has yet been loaded.  Callsigns for incoming FleetSync calls will be of the format 'KW-<fleet>-<device>'.\n\nThis warning will automatically close in a few seconds.",
+					warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot read FleetSync ID table file '"+fsFullPath+"' and no FleetSync ID table has yet been loaded.  Callsigns for incoming FleetSync calls will be of the format 'KW-<fleet>-<device>'.\n\nThis warning will automatically close in a few seconds.",
 									QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 				else:
-					warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot read FleetSync ID table file '"+fsFileName+"'!  Using existing settings.\n\nThis warning will automatically close in a few seconds.",
+					warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot read FleetSync ID table file '"+fsFullPath+"'!  Using existing settings.\n\nThis warning will automatically close in a few seconds.",
 									QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 				warn.show()
 				warn.raise_()
@@ -2011,11 +2022,10 @@ class MyWindow(QDialog,Ui_Dialog):
 	# save to fsFileName in the working dir each time, but on startup, load from the default dir;
 	#  would only need to load from the working dir if restoring
 	def fsSaveLookup(self):
-		fsName=self.firstWorkingDir+"\\"+self.csvFileName
-		fsName=fsName.replace(".csv","_fleetsync.csv")
+		fsFullPath=os.path.join(self.sessionDir,self.fsFileName)
 		try:
-			with open(fsName,'w',newline='') as fsFile:
-				rprint("Writing file "+fsName)
+			with open(fsFullPath,'w',newline='') as fsFile:
+				rprint("Writing file "+fsFullPath)
 				csvWriter=csv.writer(fsFile)
 				csvWriter.writerow(["## Radio Log FleetSync lookup table"])
 				csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
@@ -2024,7 +2034,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					csvWriter.writerow(row)
 				csvWriter.writerow(["## end"])
 		except:
-			warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot write FleetSync ID table file "+fsName+"!  Any modified FleetSync Callsign associations will be lost.",
+			warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot write FleetSync ID table file "+fsFullPath+"!  Any modified FleetSync Callsign associations will be lost.",
 							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			warn.show()
 			warn.raise_()
@@ -3038,7 +3048,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  but also need to be able to auto-recover from .rc file
 		# issue 322: use self.lastSavedFileName instead of self.csvFileName to
 		#  make sure the initial rc file doesn't point to a file that does not yet exist
-		out << "lastFileName=" << self.lastSavedFileName << "\n"
+		out << "lastFileName=" << os.path.join(self.sessionDir,self.lastSavedFileName) << "\n"
 		out << "font-size=" << self.fontSize << "pt\n"
 		out << "x=" << x << "\n"
 		out << "y=" << y << "\n"
@@ -3131,9 +3141,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		return cleanShutdownFlag
 
 	def save(self,finalize=False):
-		csvFileNameList=[self.firstWorkingDir+"\\"+self.csvFileName]
+		csvFileNameList=[os.path.join(self.sessionDir,self.csvFileName)]
 		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-			csvFileNameList.append(self.secondWorkingDir+"\\"+self.csvFileName)
+			csvFileNameList.append(os.path.join(self.secondWorkingDir,self.csvFileName))
 		for fileName in csvFileNameList:
 			rprint("  writing "+fileName)
 			with open(fileName,'w',newline='') as csvFile:
@@ -3309,6 +3319,21 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  - get rid of all spaces -  no need to be able to reproduce the
 		#    incident name's spaces from the filename
 		self.incidentNameNormalized=normName(self.incidentName)
+		sessionDirAttempt=os.path.join(self.firstWorkingDir,self.incidentNameNormalized)
+		if sessionDirAttempt is not self.sessionDir:
+			if not os.path.isdir(sessionDirAttempt):
+				try:
+					os.rename(self.sessionDir,sessionDirAttempt)
+				except Exception as e:
+					err='ERROR: session directory could not be renamed from\n\n'+self.sessionDir+'\n\nto\n\n'+sessionDirAttempt+'.\n\nUsing existing session directory.\n\n'+repr(e)
+					rprint(err.replace('\n',' '))
+					self.errMsgBox=QMessageBox(QMessageBox.Critical,"Session Directory Error",err,
+									QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					self.errMsgBox.exec_()
+				else:
+					rprint('Renamed session directory to "'+self.sessionDir+'"')
+					self.sessionDir=sessionDirAttempt
+					setLogHandlers(self.sessionDir)
 		self.csvFileName=getFileNameBase(self.incidentNameNormalized)+".csv"
 		self.pdfFileName=getFileNameBase(self.incidentNameNormalized)+".pdf"
 		self.fsFileName=self.csvFileName.replace('.csv','_fleetsync.csv')
@@ -4541,7 +4566,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.crit1.raise_()
 			self.crit1.exec_()
 			return
-		fileToLoad=self.firstWorkingDir+"\\"+self.lastFileName
+		# fileToLoad=self.firstWorkingDir+"\\"+self.lastFileName
+		fileToLoad=os.path.join(self.firstWorkingDir,self.lastFileName)
+		# allSessionDirs=[os.path.join(self.firstWorkingDir,d) for d in os.listdir(self.firstWorkingDir) if os.path.isdir(os.path.join(self.firstWorkingDir,d))]
+		# lastSessionDir=max(allSessionDirs,key=os.path.getmtime)
 		if not os.path.isfile(fileToLoad): # prevent error if dialog is canceled
 			self.crit2=QMessageBox(QMessageBox.Critical,"Cannot Restore","The file "+fileToLoad+" (specified in the resource file) does not exist.  You will need to load the files directly [F4].",
 							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
@@ -4551,7 +4579,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			return
 		self.load(fileToLoad) # loads the radio log and the clue log
 		# hide warnings about missing fleetsync file, since it does not get saved until clean shutdown time
-		self.fsLoadLookup(fsFileName=self.firstWorkingDir+"\\"+self.lastFileName.replace(".csv","_fleetsync.csv"),hideWarnings=True)
+		self.fsLoadLookup(fsFileName=fileToLoad.replace('.csv','_fleetsync.csv'),hideWarnings=True)
 		self.updateFileNames()
 		self.fsSaveLookup()
 		self.save()
