@@ -1034,7 +1034,15 @@ class MyWindow(QDialog,Ui_Dialog):
 	def checkForContinuedIncident(self):
 		continuedIncidentWindowDays=self.continuedIncidentWindowDays
 		continuedIncidentWindowSec=continuedIncidentWindowDays*24*60*60
-		csvFiles=glob.glob(self.firstWorkingDir+'/*.csv')
+		# list all csv files nested in session dirs
+		#  note that a session dir could have multiple csv files of different names
+		#  if the incident name was changed during the session
+		csvFiles=glob.glob(self.firstWorkingDir+'/*/*.csv') # files nested in session dirs
+		# backwards compatibility: also list csv files saved flat in the working dir
+		csvFiles+=glob.glob(self.firstWorkingDir+'/*.csv')
+		# remove _fleetsync and _clueLog files
+		csvFiles=[f for f in csvFiles if '_clueLog' not in f and '_fleetsync' not in f]
+		rprint('pre-sorted csv files list:'+str(csvFiles))
 		sortedCsvFiles=sorted(csvFiles,key=os.path.getmtime,reverse=True)
 		now=time.time()
 		choices=[]
@@ -3348,7 +3356,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	def optionsAccepted(self):
 		tmp=self.optionsDialog.ui.incidentField.text()
 		if self.incidentName is not tmp:
-			rprint('Incident name changed to "'+tmp+'" from options dialog.')
+			rprint('Incident name changed to "'+tmp+'".') # note that this gets called from code as well as GUI
 			self.incidentName=self.optionsDialog.ui.incidentField.text()
 			self.updateFileNames()
 			# don't change the rc file at this point - wait until a log entry is actually saved
