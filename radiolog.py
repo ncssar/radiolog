@@ -1987,12 +1987,15 @@ class MyWindow(QDialog,Ui_Dialog):
 			fsEmptyFlag=True
 		if not fsFileName:
 			fsFileName=self.fsFileName
+		if os.path.isfile(fsFileName):
+			fsFullPath=fsFileName
+		else:
 			if startupFlag:
 				fsDir=self.configDir
 			else:
 				fsDir=self.sessionDir
-		# rprint('t1: fsDir='+fsDir+'  fsFileName='+fsFileName)
-		fsFullPath=os.path.join(fsDir,fsFileName)
+			# rprint('t1: fsDir='+fsDir+'  fsFileName='+fsFileName)
+			fsFullPath=os.path.join(fsDir,fsFileName)
 		try:
 			rprint("  trying "+fsFullPath)
 			with open(fsFullPath,'r') as fsFile:
@@ -3145,7 +3148,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	def save(self,finalize=False):
 		csvFileNameList=[os.path.join(self.sessionDir,self.csvFileName)]
 		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-			csvFileNameList.append(os.path.join(self.secondWorkingDir,self.csvFileName))
+			csvFileNameList.append(os.path.join(self.secondWorkingDir,self.csvFileName)) # save flat in second working dir
 		for fileName in csvFileNameList:
 			rprint("  writing "+fileName)
 			with open(fileName,'w',newline='') as csvFile:
@@ -4574,7 +4577,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.crit1.exec_()
 			return
 		# fileToLoad=self.firstWorkingDir+"\\"+self.lastFileName
-		fileToLoad=os.path.join(self.firstWorkingDir,self.lastFileName)
+		# fileToLoad=os.path.join(self.firstWorkingDir,self.lastFileName)
+		fileToLoad=self.lastFileName # full filename with dir is saved in rc file
 		# allSessionDirs=[os.path.join(self.firstWorkingDir,d) for d in os.listdir(self.firstWorkingDir) if os.path.isdir(os.path.join(self.firstWorkingDir,d))]
 		# lastSessionDir=max(allSessionDirs,key=os.path.getmtime)
 		if not os.path.isfile(fileToLoad): # prevent error if dialog is canceled
@@ -4584,6 +4588,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.crit2.raise_()
 			self.crit2.exec_()
 			return
+		rprint('Restoring previous session after unclean shutdown:')
 		self.load(fileToLoad) # loads the radio log and the clue log
 		# hide warnings about missing fleetsync file, since it does not get saved until clean shutdown time
 		self.fsLoadLookup(fsFileName=fileToLoad.replace('.csv','_fleetsync.csv'),hideWarnings=True)
@@ -4591,7 +4596,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsSaveLookup()
 		self.save()
 		self.saveRcFile()
-
 
 class helpWindow(QDialog,Ui_Help):
 	def __init__(self, *args):
@@ -5354,14 +5358,14 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				#  entry interval could be off during fast entries since the
 				#  rotate script is called asynchronously (i.e. backgrounded)
 				filesToBackup=[
-						self.parent.firstWorkingDir+"\\"+self.parent.csvFileName,
-						self.parent.firstWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"),
-						self.parent.firstWorkingDir+"\\"+self.parent.fsFileName]
+						os.path.join(self.parent.sessionDir,self.parent.csvFileName),
+						os.path.join(self.parent.sessionDir,self.parent.csvFileName.replace(".csv","_clueLog.csv")),
+						os.path.join(self.parent.sessionDir,self.parent.fsFileName)]
 				if self.parent.use2WD and self.parent.secondWorkingDir:
 					filesToBackup=filesToBackup+[
-							self.parent.secondWorkingDir+"\\"+self.parent.csvFileName,
-							self.parent.secondWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"),
-							self.parent.secondWorkingDir+"\\"+self.parent.fsFileName]
+							os.path.join(self.parent.secondWorkingDir,self.parent.csvFileName),
+							os.path.join(self.parent.secondWorkingDir,self.parent.csvFileName.replace(".csv","_clueLog.csv")),
+							os.path.join(self.parent.secondWorkingDir,self.parent.fsFileName)]
 				self.parent.rotateCsvBackups(filesToBackup)	
 			rprint("Accepted2")
 		self.closeEvent(QEvent(QEvent.Close),True)
