@@ -593,6 +593,7 @@ from ui.printClueLogDialog_ui import Ui_printClueLogDialog
 from ui.nonRadioClueDialog_ui import Ui_nonRadioClueDialog
 from ui.subjectLocatedDialog_ui import Ui_subjectLocatedDialog
 from ui.continuedIncidentDialog_ui import Ui_continuedIncidentDialog
+from ui.loadDialog_ui import Ui_loadDialog
 
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
@@ -1026,6 +1027,62 @@ class MyWindow(QDialog,Ui_Dialog):
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
 
+	def getSessions(self,sort='chronological',reverse=False):
+		csvFiles=glob.glob(self.firstWorkingDir+'/*/*.csv') # files nested in session dirs
+		# backwards compatibility: also list csv files saved flat in the working dir
+		csvFiles+=glob.glob(self.firstWorkingDir+'/*.csv')
+		# remove _fleetsync and _clueLog files
+		csvFiles=[f for f in csvFiles if '_clueLog' not in f and '_fleetsync' not in f]
+		rprint('pre-sorted csv files list:'+str(csvFiles))
+		if sort is 'chronological':
+			sortedCsvFiles=sorted(csvFiles,key=os.path.getmtime,reverse=reverse)
+		elif sort is 'alphabetical':
+			sortedCsvFiles=sorted(csvFiles,reverse=reverse)
+		else:
+			soretdCsvFiles=csvFiles
+		rval=[]
+		now=time.time()
+		for f in sortedCsvFiles:
+			if self.isRadioLogDataFile(f):
+				mtime=os.path.getmtime(f)
+				age=now-mtime
+				ageStr=''
+				if age<3600:
+					ageStr='< 1 hour'
+				elif age<86400:
+					ageStr='< 1 day'
+				else:
+					ageDays=int(age/86400)
+					ageStr=str(ageDays)+' day'
+					if ageDays>1:
+						ageStr+='s'
+				if ageStr:
+					ageStr+=' ago'
+				filenameBase=f[:-4] # do this rather than splitext, to preserve entire path name
+				incidentName=None
+				lastOP='1' # if no entries indicate change in OP#, then initial OP is 1 by default
+				lastClue='--'
+				with open(f,'r') as radioLog:
+					lines=radioLog.readlines()
+					# don't show files that have less than two entries
+					if len(lines)<7:
+						rprint('  not listing empty csv '+f)
+						continue
+					for line in lines:
+						if not incidentName and '## Incident Name:' in line:
+							incidentName=': '.join(line.split(': ')[1:]).rstrip() # provide for spaces and ': ' in incident name
+						# last clue# could be determined by an actual clue in the previous OP, but
+						#  should carry forward the last clue number from an earlier OP if no clues
+						#  were found in the most recent OP
+						if 'Radio Log Begins - Continued incident' in line and '(Last clue number:' in line:
+							lastClue=re.findall('(Last clue number: [0-9]+)',line)[-1].split()[3]
+						if 'CLUE#' in line and 'LOCATION:' in line and 'INSTRUCTIONS:' in line:
+							lastClue=re.findall('CLUE#[0-9]+:',line)[-1].split('#')[1][:-1]
+						if 'Operational Period ' in line:
+							lastOP=re.findall('Operational Period [0-9]+ Begins:',line)[-1].split()[2]
+				rval.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase,mtime])
+		return rval
+
 	# Build a nested list of radiolog session data from any sessions in the last n days;
 	#  each list element is [incident_name,last_op#,last_clue#,filename_base]
 	#  then let the user choose from these, or choose to start a new incident
@@ -1034,67 +1091,18 @@ class MyWindow(QDialog,Ui_Dialog):
 	def checkForContinuedIncident(self):
 		continuedIncidentWindowDays=self.continuedIncidentWindowDays
 		continuedIncidentWindowSec=continuedIncidentWindowDays*24*60*60
-		# list all csv files nested in session dirs
-		#  note that a session dir could have multiple csv files of different names
-		#  if the incident name was changed during the session
-		csvFiles=glob.glob(self.firstWorkingDir+'/*/*.csv') # files nested in session dirs
-		# backwards compatibility: also list csv files saved flat in the working dir
-		csvFiles+=glob.glob(self.firstWorkingDir+'/*.csv')
-		# remove _fleetsync and _clueLog files
-		csvFiles=[f for f in csvFiles if '_clueLog' not in f and '_fleetsync' not in f]
-		rprint('pre-sorted csv files list:'+str(csvFiles))
-		sortedCsvFiles=sorted(csvFiles,key=os.path.getmtime,reverse=True)
 		now=time.time()
-		choices=[]
 		opd={} # dictionary of most recent OP#'s per incident name
-		# rprint('Checking '+str(len(sortedCsvFiles))+' .csv files:')
-		for csv in sortedCsvFiles:
-			# rprint('  '+csv)
-			mtime=os.path.getmtime(csv)
-			age=now-mtime
-			ageStr=''
-			if age<3600:
-				ageStr='< 1 hour'
-			elif age<86400:
-				ageStr='< 1 day'
-			else:
-				ageDays=int(age/86400)
-				ageStr=str(ageDays)+' day'
-				if ageDays>1:
-					ageStr+='s'
-			if ageStr:
-				ageStr+=' ago'
-			if age<continuedIncidentWindowSec:
-				if self.isRadioLogDataFile(csv):
-					filenameBase=csv[:-4] # do this rather than splitext, to preserve entire path name
-					incidentName=None
-					lastOP='1' # if no entries indicate change in OP#, then initial OP is 1 by default
-					lastClue='--'
-					with open(csv,'r') as radioLog:
-						lines=radioLog.readlines()
-						# don't show files that have less than two entries
-						if len(lines)<7:
-							rprint('  not listing empty csv '+csv)
-							continue
-						for line in lines:
-							if not incidentName and '## Incident Name:' in line:
-								incidentName=': '.join(line.split(': ')[1:]).rstrip() # provide for spaces and ': ' in incident name
-							# last clue# could be determined by an actual clue in the previous OP, but
-							#  should carry forward the last clue number from an earlier OP if no clues
-							#  were found in the most recent OP
-							if 'Radio Log Begins - Continued incident' in line and '(Last clue number:' in line:
-								lastClue=re.findall('(Last clue number: [0-9]+)',line)[-1].split()[3]
-							if 'CLUE#' in line and 'LOCATION:' in line and 'INSTRUCTIONS:' in line:
-								lastClue=re.findall('CLUE#[0-9]+:',line)[-1].split('#')[1][:-1]
-							if 'Operational Period ' in line:
-								lastOP=re.findall('Operational Period [0-9]+ Begins:',line)[-1].split()[2]
-					# only show the most recent OP of continued incidents
-					op=opd.get(incidentName)
-					if type(op)==str and op.isdigit() and int(op)>int(lastOP):
-						rprint('  not listing '+incidentName+' OP '+lastOP+' ('+filenameBase+') since OP '+op+' is already listed')
-						continue
-					choices.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase])
+		choices=[]
+		for session in self.getSessions(reverse=True):
+			[incidentName,lastOP,lastClue,ageStr,filenameBase,mtime]=session
+			rprint('session:'+str(session))
+			if now-mtime<continuedIncidentWindowSec:
+				if type(lastOP)==str and lastOP.isdigit() and int(lastOP)>int(opd.get(incidentName,0)):
+					choices.append(session)
 					opd[incidentName]=lastOP
+				else:
+					rprint('  not listing '+incidentName+' OP '+lastOP+' ('+filenameBase+') since OP '+str(opd.get(incidentName,0))+' is already listed')
 			else:
 				break
 		if choices:
@@ -1106,10 +1114,18 @@ class MyWindow(QDialog,Ui_Dialog):
 			cd.ui.theTable.setRowCount(len(choices))
 			row=0
 			for choice in choices:
-				cd.ui.theTable.setItem(row,0,QTableWidgetItem(choice[0]))
-				cd.ui.theTable.setItem(row,1,QTableWidgetItem(choice[1]))
-				cd.ui.theTable.setItem(row,2,QTableWidgetItem(choice[2]))
-				cd.ui.theTable.setItem(row,3,QTableWidgetItem(choice[3]))
+				q0=QTableWidgetItem(choice[0])
+				q1=QTableWidgetItem(choice[1])
+				q2=QTableWidgetItem(choice[2])
+				q3=QTableWidgetItem(choice[3])
+				# q0.setToolTip(choice[4])
+				# q1.setToolTip(choice[4])
+				# q2.setToolTip(choice[4])
+				q3.setToolTip(choice[4])
+				cd.ui.theTable.setItem(row,0,q0)
+				cd.ui.theTable.setItem(row,1,q1)
+				cd.ui.theTable.setItem(row,2,q2)
+				cd.ui.theTable.setItem(row,3,q3)
 				row+=1
 			cd.show()
 			cd.raise_()
@@ -3198,85 +3214,113 @@ class MyWindow(QDialog,Ui_Dialog):
 		# loading scheme:
 		# always merge instead of overwrite; always use the loaded Begins line since it will be earlier by definition
 		# maybe provide some way to force overwrite later, but, for now that can be done just by exiting and restarting
-		if not fileName:
-			fileDialog=QFileDialog()
-			fileDialog.setOption(QFileDialog.DontUseNativeDialog)
-			fileDialog.setProxyModel(CSVFileSortFilterProxyModel(self))
-			fileDialog.setNameFilter("CSV Radio Log Data Files (*.csv)")
-			fileDialog.setDirectory(self.firstWorkingDir)
-			if fileDialog.exec_():
-				fileName=fileDialog.selectedFiles()[0]
-			else: # user pressed cancel on the file browser dialog
-				return
-# 			print("fileName="+fileName)
-# 			if not os.path.isfile(fileName): # prevent error if dialog is canceled
+# 		if not fileName:
+# 			fileDialog=QFileDialog()
+# 			fileDialog.setOption(QFileDialog.DontUseNativeDialog)
+# 			fileDialog.setProxyModel(CSVFileSortFilterProxyModel(self))
+# 			fileDialog.setNameFilter("CSV Radio Log Data Files (*.csv)")
+# 			fileDialog.setDirectory(self.firstWorkingDir)
+# 			if fileDialog.exec_():
+# 				fileName=fileDialog.selectedFiles()[0]
+# 			else: # user pressed cancel on the file browser dialog
 # 				return
-		if "_clueLog" in fileName or "_fleetsync" in fileName:
-			crit=QMessageBox(QMessageBox.Critical,"Invalid File Selected","Do not load a Clue Log or FleetSync file directly.  Load the parent radiolog.csv file directly, and the Clue Log and FleetSync files will automatically be loaded with it.",
-							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			crit.show()
-			crit.raise_()
-			crit.exec_() # make sure it's modal
-			return
-		progressBox=QProgressDialog("Loading, please wait...","Abort",0,100)
-		progressBox.setWindowModality(Qt.WindowModal)
-		progressBox.setWindowTitle("Loading")
-		progressBox.show()
-		QCoreApplication.processEvents()
-		self.teamTimer.start(10000) # pause
+# # 			print("fileName="+fileName)
+# # 			if not os.path.isfile(fileName): # prevent error if dialog is canceled
+# # 				return
+# 		if "_clueLog" in fileName or "_fleetsync" in fileName:
+# 			crit=QMessageBox(QMessageBox.Critical,"Invalid File Selected","Do not load a Clue Log or FleetSync file directly.  Load the parent radiolog.csv file directly, and the Clue Log and FleetSync files will automatically be loaded with it.",
+# 							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+# 			crit.show()
+# 			crit.raise_()
+# 			crit.exec_() # make sure it's modal
+# 			return
 
-		rprint("Loading:"+fileName)
-		# pass 1: count total entries for the progress box, and read incident name
-		with open(fileName,'r') as csvFile:
-			csvReader=csv.reader(csvFile)
-			totalEntries=0
-			for row in csvReader:
-				if row[0].startswith("## Incident Name:"):
-					self.incidentName=row[0][18:]
-					self.optionsDialog.ui.incidentField.setText(self.incidentName)
-					rprint("loaded incident name: '"+self.incidentName+"'")
-					self.incidentNameNormalized=normName(self.incidentName)
-					rprint("normalized loaded incident name: '"+self.incidentNameNormalized+"'")
-					self.ui.incidentNameLabel.setText(self.incidentName)
-				if not row[0].startswith('#'): # prune comment lines
-					totalEntries=totalEntries+1
-			progressBox.setMaximum(totalEntries*2)
 
-		# pass 2: read and process the file
-		with open(fileName,'r') as csvFile:
-			csvReader=csv.reader(csvFile)
-			loadedRadioLog=[]
-			i=0
-			for row in csvReader:
-				if not row[0].startswith('#'): # prune comment lines
-					row[6]=float(row[6]) # convert epoch seconds back to float, for sorting
-					row += [''] * (10-len(row)) # pad the row up to 10 elements if needed, to avoid index errors elsewhere
-					loadedRadioLog.append(row)
-					i=i+1
-					newOp=None
-					if row[3].startswith("Operational Period") and row[3].split()[3]=="Begins:":
-						newOp=int(row[3].split()[2])
-					if row[3].startswith('Radio Log Begins - Continued incident'):
-						newOp=int(row[3].split(': Operational Period ')[1].split()[0])
-					if newOp:
-						self.opPeriod=newOp
-						self.printDialog.ui.opPeriodComboBox.addItem(str(self.opPeriod))
-						rprint('Setting OP to '+str(self.opPeriod)+' based on loaded entry "'+row[3]+'".')
-					progressBox.setValue(i)
-			csvFile.close()
+		if not fileName:
+			sessions=self.getSessions(reverse=True)
+			if not sessions:
+				rprint('There are no available sessions to load.')
+				return
+			ld=loadDialog(self)
+			ld.ui.theTable.setRowCount(len(sessions))
+			row=0
+			for [incidentName,lastOP,lastClue,ageStr,filenameBase,mtime] in sessions:
+				q0=QTableWidgetItem(incidentName)
+				q1=QTableWidgetItem(lastOP)
+				q2=QTableWidgetItem(lastClue)
+				q3=QTableWidgetItem(time.strftime("%m/%d/%Y %H:%M:%S",time.localtime(mtime)))
+				q0.setToolTip(filenameBase)
+				q1.setToolTip(filenameBase)
+				q2.setToolTip(filenameBase)
+				q3.setToolTip(filenameBase)
+				ld.ui.theTable.setItem(row,0,q0)
+				ld.ui.theTable.setItem(row,1,q1)
+				ld.ui.theTable.setItem(row,2,q2)
+				ld.ui.theTable.setItem(row,3,q3)
+				row+=1
+			ld.show()
+			ld.raise_()
+			rval=ld.exec_()
 
-		# now add entries, sort, and prune any Begins lines after the first line
-		# edit: don't prune Begins lines - those are needed to indicate start of operational periods
-		# move loadFlag True then False closer in to the newEntry commands, to
-		#  minimize opportunity for failed entries due to self.loadFlag being
-		#  left at True, probably due to early return above (see #340)
-		self.loadFlag=True
-		for row in loadedRadioLog:
-			self.newEntry(row)
-			i=i+1
-			progressBox.setValue(i)
-		self.loadFlag=False
-		self.radioLog.sort(key=lambda entry: entry[6]) # sort by epoch seconds
+		else: # entry point when session is selected from load dialog
+			rprint("Loading: "+fileName)
+			progressBox=QProgressDialog("Loading, please wait...","Abort",0,100)
+			progressBox.setWindowModality(Qt.WindowModal)
+			progressBox.setWindowTitle("Loading")
+			progressBox.show()
+			QCoreApplication.processEvents()
+			self.teamTimer.start(10000) # pause
+			# pass 1: count total entries for the progress box, and read incident name
+			with open(fileName,'r') as csvFile:
+				csvReader=csv.reader(csvFile)
+				totalEntries=0
+				for row in csvReader:
+					if row[0].startswith("## Incident Name:"):
+						self.incidentName=row[0][18:]
+						self.optionsDialog.ui.incidentField.setText(self.incidentName)
+						rprint("loaded incident name: '"+self.incidentName+"'")
+						self.incidentNameNormalized=normName(self.incidentName)
+						rprint("normalized loaded incident name: '"+self.incidentNameNormalized+"'")
+						self.ui.incidentNameLabel.setText(self.incidentName)
+					if not row[0].startswith('#'): # prune comment lines
+						totalEntries=totalEntries+1
+				progressBox.setMaximum(totalEntries*2)
+
+			# pass 2: read and process the file
+			with open(fileName,'r') as csvFile:
+				csvReader=csv.reader(csvFile)
+				loadedRadioLog=[]
+				i=0
+				for row in csvReader:
+					if not row[0].startswith('#'): # prune comment lines
+						row[6]=float(row[6]) # convert epoch seconds back to float, for sorting
+						row += [''] * (10-len(row)) # pad the row up to 10 elements if needed, to avoid index errors elsewhere
+						loadedRadioLog.append(row)
+						i=i+1
+						newOp=None
+						if row[3].startswith("Operational Period") and row[3].split()[3]=="Begins:":
+							newOp=int(row[3].split()[2])
+						if row[3].startswith('Radio Log Begins - Continued incident'):
+							newOp=int(row[3].split(': Operational Period ')[1].split()[0])
+						if newOp:
+							self.opPeriod=newOp
+							self.printDialog.ui.opPeriodComboBox.addItem(str(self.opPeriod))
+							rprint('Setting OP to '+str(self.opPeriod)+' based on loaded entry "'+row[3]+'".')
+						progressBox.setValue(i)
+				csvFile.close()
+
+			# now add entries, sort, and prune any Begins lines after the first line
+			# edit: don't prune Begins lines - those are needed to indicate start of operational periods
+			# move loadFlag True then False closer in to the newEntry commands, to
+			#  minimize opportunity for failed entries due to self.loadFlag being
+			#  left at True, probably due to early return above (see #340)
+			self.loadFlag=True
+			for row in loadedRadioLog:
+				self.newEntry(row)
+				i=i+1
+				progressBox.setValue(i)
+			self.loadFlag=False
+			self.radioLog.sort(key=lambda entry: entry[6]) # sort by epoch seconds
 ##		self.radioLog[1:]=[x for x in self.radioLog[1:] if not x[3].startswith('Radio Log Begins:')]
 
 		# take care of the newEntry cleanup functions that have been put off due to loadFlag
@@ -3286,45 +3330,45 @@ class MyWindow(QDialog,Ui_Dialog):
 # they could be put inside redrawTables, but, there's no need to put them inside that
 #  function which is called from other places, unless another syptom shows up; so, leave
 #  them here for now.
-		self.ui.tableView.model().layoutChanged.emit()
-		self.ui.tableView.scrollToBottom()
-##		self.ui.tableView.resizeRowsToContents()
-##		for i in range(self.ui.tabWidget.count()):
-##			self.ui.tabWidget.setCurrentIndex(i)
-##			self.ui.tableViewList[i].scrollToBottom()
-##			self.ui.tableViewList[i].resizeRowsToContents()
+			self.ui.tableView.model().layoutChanged.emit()
+			self.ui.tableView.scrollToBottom()
+	##		self.ui.tableView.resizeRowsToContents()
+	##		for i in range(self.ui.tabWidget.count()):
+	##			self.ui.tabWidget.setCurrentIndex(i)
+	##			self.ui.tableViewList[i].scrollToBottom()
+	##			self.ui.tableViewList[i].resizeRowsToContents()
 
-##		self.ui.tableView.model().layoutChanged.emit()
+	##		self.ui.tableView.model().layoutChanged.emit()
 
-		# now load the clue log (same filename appended by .clueLog) if it exists
-		clueLogFileName=fileName.replace(".csv","_clueLog.csv")
-		global lastClueNumber
-		if os.path.isfile(clueLogFileName):
-			with open(clueLogFileName,'r') as csvFile:
-				csvReader=csv.reader(csvFile)
-##				self.clueLog=[] # uncomment this line to overwrite instead of combine
-				for row in csvReader:
-					if not row[0].startswith('#'): # prune comment lines
-						self.clueLog.append(row)
-						if row[0]!="":
-							lastClueNumber=int(row[0])
-						elif '(Last clue number: ' in row[1]:
-							lastClueNumber=int(row[1].split('(Last clue number: ')[1].replace(')',''))
-				csvFile.close()
+			# now load the clue log (same filename appended by .clueLog) if it exists
+			clueLogFileName=fileName.replace(".csv","_clueLog.csv")
+			global lastClueNumber
+			if os.path.isfile(clueLogFileName):
+				with open(clueLogFileName,'r') as csvFile:
+					csvReader=csv.reader(csvFile)
+	##				self.clueLog=[] # uncomment this line to overwrite instead of combine
+					for row in csvReader:
+						if not row[0].startswith('#'): # prune comment lines
+							self.clueLog.append(row)
+							if row[0]!="":
+								lastClueNumber=int(row[0])
+							elif '(Last clue number: ' in row[1]:
+								lastClueNumber=int(row[1].split('(Last clue number: ')[1].replace(')',''))
+					csvFile.close()
 
-		self.clueLogDialog.ui.tableView.model().layoutChanged.emit()
-		# finished
-		# rprint("Starting redrawTables")
-		self.fontsChanged()
-##		self.ui.tableView.model().layoutChanged.emit()
-##		QCoreApplication.processEvents()
-		# rprint("Returned from redrawTables")
-		progressBox.close()
-		self.ui.opPeriodButton.setText("OP "+str(self.opPeriod))
-		self.teamTimer.start(1000) #resume
-		self.lastSavedFileName="NONE"
-		self.updateFileNames() # note, no file will be saved until the next entry is made
-		self.saveRcFile()
+			self.clueLogDialog.ui.tableView.model().layoutChanged.emit()
+			# finished
+			# rprint("Starting redrawTables")
+			self.fontsChanged()
+	##		self.ui.tableView.model().layoutChanged.emit()
+	##		QCoreApplication.processEvents()
+			# rprint("Returned from redrawTables")
+			progressBox.close()
+			self.ui.opPeriodButton.setText("OP "+str(self.opPeriod))
+			self.teamTimer.start(1000) #resume
+			self.lastSavedFileName="NONE"
+			self.updateFileNames() # note, no file will be saved until the next entry is made
+			self.saveRcFile()
 
 	def updateFileNames(self):
 		# update the filenames based on current incident name and current date/time
@@ -6415,6 +6459,39 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 			self.changed=True
 		# else:
 			# rprint('  selected row:'+str(self.ui.theTable.selectedIndexes()[0].row()))
+
+class loadDialog(QDialog,Ui_loadDialog):
+	def __init__(self,parent):
+		QDialog.__init__(self)
+		self.ui=Ui_loadDialog()
+		self.ui.setupUi(self)
+		self.parent=parent
+		self.setAttribute(Qt.WA_DeleteOnClose)
+		# self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		self.ui.theTable.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+		# automatically expand the 'Incident name' column width to fill available space
+		self.ui.theTable.horizontalHeader().setSectionResizeMode(0,QHeaderView.Stretch)
+		centerDelegate=alignCenterDelegate(self.ui.theTable)
+		self.ui.theTable.setItemDelegateForColumn(1,centerDelegate)
+		self.ui.theTable.setItemDelegateForColumn(2,centerDelegate)
+		self.ui.theTable.setItemDelegateForColumn(3,centerDelegate)
+		# clearFocus doesn't remove the focus rectangle from the top-left cell unless
+		#  there is a half second delay (singleshot) before callig it, but changing
+		#  the focus to something else does remove the focus rectangle immediately
+		self.ui.buttonBox.setFocus()
+		self.filenameBase=None
+		self.setFixedSize(self.size())
+
+	def accept(self):
+		if self.filenameBase:
+			self.parent.load(self.filenameBase+'.csv')
+			super(loadDialog,self).accept()
+
+	def reject(self):
+		super(loadDialog,self).reject()
+
+	def cellClicked(self,row,col):
+		self.filenameBase=self.ui.theTable.item(row,col).toolTip()
 
 # fleetsync filtering scheme:
 # - maintain a table of all known (received) fleetsync device IDs.  This table is empty at startup.
