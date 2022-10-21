@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>682</width>
+    <width>823</width>
     <height>502</height>
    </rect>
   </property>
@@ -108,7 +108,7 @@
         </font>
        </property>
        <property name="text">
-        <string>Use File Browser instead</string>
+        <string>Use Browser</string>
        </property>
       </widget>
      </item>
@@ -179,6 +179,22 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>pushButton</sender>
+   <signal>clicked()</signal>
+   <receiver>loadDialog</receiver>
+   <slot>useBrowserClicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>53</x>
+     <y>468</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>110</x>
+     <y>458</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>cellClicked(int,int)</slot>
@@ -188,5 +204,6 @@
   <slot>cellEntered(int,int)</slot>
   <slot>cellActivated(int,int)</slot>
   <slot>clicked()</slot>
+  <slot>useBrowserClicked()</slot>
  </slots>
 </ui>

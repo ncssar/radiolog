@@ -6471,6 +6471,7 @@ class loadDialog(QDialog,Ui_loadDialog):
 		self.ui.theTable.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
 		# automatically expand the 'Incident name' column width to fill available space
 		self.ui.theTable.horizontalHeader().setSectionResizeMode(0,QHeaderView.Stretch)
+		self.ui.theTable.horizontalHeader().setSectionResizeMode(3,QHeaderView.Stretch)
 		centerDelegate=alignCenterDelegate(self.ui.theTable)
 		self.ui.theTable.setItemDelegateForColumn(1,centerDelegate)
 		self.ui.theTable.setItemDelegateForColumn(2,centerDelegate)
@@ -6492,6 +6493,16 @@ class loadDialog(QDialog,Ui_loadDialog):
 
 	def cellClicked(self,row,col):
 		self.filenameBase=self.ui.theTable.item(row,col).toolTip()
+
+	def useBrowserClicked(self,*args):
+		fileDialog=QFileDialog()
+		fileDialog.setOption(QFileDialog.DontUseNativeDialog)
+		fileDialog.setProxyModel(CSVFileSortFilterProxyModel(self))
+		fileDialog.setNameFilter("CSV Radio Log Data Files (*.csv)")
+		fileDialog.setDirectory(self.parent.firstWorkingDir)
+		if fileDialog.exec_():
+			self.parent.load(fileDialog.selectedFiles()[0])
+			self.close()
 
 # fleetsync filtering scheme:
 # - maintain a table of all known (received) fleetsync device IDs.  This table is empty at startup.

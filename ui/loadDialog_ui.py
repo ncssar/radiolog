@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_loadDialog(object):
     def setupUi(self, loadDialog):
         loadDialog.setObjectName("loadDialog")
-        loadDialog.resize(682, 502)
+        loadDialog.resize(823, 502)
         self.verticalLayout = QtWidgets.QVBoxLayout(loadDialog)
         self.verticalLayout.setObjectName("verticalLayout")
         self.label = QtWidgets.QLabel(loadDialog)
@@ -79,6 +79,7 @@ class Ui_loadDialog(object):
         self.theTable.cellClicked['int','int'].connect(loadDialog.cellClicked) # type: ignore
         self.buttonBox.accepted.connect(loadDialog.accept) # type: ignore
         self.buttonBox.rejected.connect(loadDialog.reject) # type: ignore
+        self.pushButton.clicked.connect(loadDialog.useBrowserClicked) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(loadDialog)
 
     def retranslateUi(self, loadDialog):
@@ -95,4 +96,4 @@ class Ui_loadDialog(object):
         item.setText(_translate("loadDialog", "Last Clue"))
         item = self.theTable.horizontalHeaderItem(3)
         item.setText(_translate("loadDialog", "Last Edited"))
-        self.pushButton.setText(_translate("loadDialog", "Use File Browser instead"))
+        self.pushButton.setText(_translate("loadDialog", "Use Browser"))
