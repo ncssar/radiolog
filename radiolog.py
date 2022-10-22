@@ -658,17 +658,67 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		self.configDir=os.path.join(self.firstWorkingDir,'config')
 		self.configDefaultDir=os.path.join(installDir,'config_default')
+
+#####  BEGIN config dir migration code #522
+
 		# create the config dir if it doesn't already exist, and populate it
 		#  with files from config_default
 		if not os.path.isdir(self.configDir):
-			rprint('config directory not found; copying config_default directory from installation directory ('+installDir+') to first working directory ('+self.firstWorkingDir+'); you may want to edit the files in that directory.')
-			shutil.copytree(self.configDefaultDir,self.configDir)
+			msg='Local configuration directory was not found.  It looks like the is the first time running RadioLog '+str(__version__)+' on this computer.\n\n'
+			msg+='You can import the local configuration files from a previous version.\n\nIf you skip this step, RadioLog will use the defaults, '
+			msg+='but any important local settings will be lost, including:\n\n  - local server IP address (for GPS locators)\n  - second working directory (for other tools like Plans Console)\n  - agency name and logo (for generated PDFs)\n\n'
+			msg+='This is a one-time offer.  This question will not show up again for new versions in the future.  Importing now will apply the imported settings immediately.  If you choose to use the defaults for now, you can always copy the configuration files into place by hand later.'
+			box=QMessageBox(QMessageBox.Question,'Import configuration files',msg,
+					QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.button(QMessageBox.Yes).setText('Yes - Browse for directory')
+			box.button(QMessageBox.No).setText('No - use defaults')
+			srcDir=None
+			if box.exec_()==QMessageBox.Yes:
+				ok=False
+				notValidSrcDir=False
+				while not ok:
+					msg=''
+					if notValidSrcDir:
+						msg='The specified directory '+notValidSrcDir+' does not contain radiolog.cfg.  Try again, or click Cancel to stop trying to find a previous configuration directory and use the defaults instead.\n\n'
+					msg+='The file browser will be shown next.  Select a directory that contains one or more of these files:\n\n'
+					msg+='  - radiolog.cfg [required]\n  - radiolog_logo.jpg\n  - radiolog_fleetsync.csv'
+					msg+='\n\nIn previous versions, the configuration directory name was "local".'
+					box=QMessageBox(QMessageBox.Information,'Import configuration files',msg,
+							QMessageBox.Ok|QMessageBox.Cancel,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					if box.exec_()==QMessageBox.Ok:
+						# srcDir=QFileDialog.getExistingDirectory(box,'Choose previous configuration directory','C:\\')
+						fd=QFileDialog(self,'Choose previous configuration directory','C:\\')
+						fd.setFileMode(QFileDialog.Directory)
+						if fd.exec_():
+							srcDir=fd.selectedFiles()[0]
+							contents=os.listdir(srcDir)
+							if 'radiolog.cfg' in contents:
+								ok=True
+							else:
+								notValidSrcDir=srcDir
+								srcDir=None
+					else:
+						break
+			if not srcDir:
+				srcDir=self.configDefaultDir
+			msg='Copying configuration directory from directory\n\n"'+srcDir+'"\n\nto\n\n"'+self.configDir+'"\n\nYou may want to edit the files in that directory.'
+			rprint(msg)
+			box=QMessageBox(QMessageBox.Information,'Copying configuration directory',msg,
+					QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.exec_()
+			shutil.copytree(srcDir,self.configDir)
 		self.configFileName=os.path.join(self.configDir,'radiolog.cfg')
 		self.configFileDefaultName=os.path.join(self.configDefaultDir,'radiolog.cfg')
 		if not os.path.isfile(self.configFileName):
-			rprint('config directory was found but did not contain radiolog.cfg; copying from default config directory '+self.configDefaultDir)
+			msg='config directory was found but did not contain radiolog.cfg; copying from default config directory '+self.configDefaultDir+'; this could disable important features like GPS locators, the second working directory, and more.'
+			rprint(msg)
+			box=QMessageBox(QMessageBox.Information,'Copying radiolog.cfg',msg,
+					QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.exec_()
 			shutil.copyfile(self.configFileDefaultName,self.configFileName)
-			
+
+#####  END config dir migration code #522
+
 		self.setWindowFlags(self.windowFlags()|Qt.WindowMinMaxButtonsHint)
 		self.parent=parent
 		self.ui=Ui_Dialog()
@@ -1045,9 +1095,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		# remove _fleetsync and _clueLog files
 		csvFiles=[f for f in csvFiles if '_clueLog' not in f and '_fleetsync' not in f and self.isRadioLogDataFile(f)]
 		rprint('Found '+str(len(csvFiles))+' .csv files (excluding _clueLog.csv and _fleetsync.csv files)')
-		if sort is 'chronological':
+		if sort=='chronological':
 			sortedCsvFiles=sorted(csvFiles,key=os.path.getmtime,reverse=reverse)
-		elif sort is 'alphabetical':
+		elif sort=='alphabetical':
 			sortedCsvFiles=sorted(csvFiles,reverse=reverse)
 		else:
 			soretdCsvFiles=csvFiles
