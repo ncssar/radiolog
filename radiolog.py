@@ -302,6 +302,25 @@
 # #############################################################################
 # #############################################################################
 
+from PyQt5.QtCore import QSettings, QStandardPaths
+from string import Template
+from ui.help_ui import Ui_Help
+from ui.options_ui import Ui_optionsDialog
+from ui.fsSendDialog_ui import Ui_fsSendDialog
+from ui.fsSendMessageDialog_ui import Ui_fsSendMessageDialog
+from ui.newEntryWindow_ui import Ui_newEntryWindow
+from ui.newEntryWidget_ui import Ui_newEntryWidget
+from ui.clueDialog_ui import Ui_clueDialog
+from ui.clueLogDialog_ui import Ui_clueLogDialog
+from ui.printDialog_ui import Ui_printDialog
+from ui.changeCallsignDialog_ui import Ui_changeCallsignDialog
+from ui.fsFilterDialog_ui import Ui_fsFilterDialog
+from ui.opPeriodDialog_ui import Ui_opPeriodDialog
+from ui.printClueLogDialog_ui import Ui_printClueLogDialog
+from ui.nonRadioClueDialog_ui import Ui_nonRadioClueDialog
+from ui.subjectLocatedDialog_ui import Ui_subjectLocatedDialog
+from ui.continuedIncidentDialog_ui import Ui_continuedIncidentDialog
+
 import functools
 import sys
 import logging
@@ -312,6 +331,7 @@ import serial.tools.list_ports
 import csv
 import os.path
 import os
+import pathlib
 import glob
 import requests
 import subprocess
@@ -566,23 +586,6 @@ for qrc in glob.glob(os.path.join(qtQrcDir,'*.qrc')):
 		rprint('  '+cmd)
 		os.system(cmd)
 
-from ui.help_ui import Ui_Help
-from ui.options_ui import Ui_optionsDialog
-from ui.fsSendDialog_ui import Ui_fsSendDialog
-from ui.fsSendMessageDialog_ui import Ui_fsSendMessageDialog
-from ui.newEntryWindow_ui import Ui_newEntryWindow
-from ui.newEntryWidget_ui import Ui_newEntryWidget
-from ui.clueDialog_ui import Ui_clueDialog
-from ui.clueLogDialog_ui import Ui_clueLogDialog
-from ui.printDialog_ui import Ui_printDialog
-from ui.changeCallsignDialog_ui import Ui_changeCallsignDialog
-from ui.fsFilterDialog_ui import Ui_fsFilterDialog
-from ui.opPeriodDialog_ui import Ui_opPeriodDialog
-from ui.printClueLogDialog_ui import Ui_printClueLogDialog
-from ui.nonRadioClueDialog_ui import Ui_nonRadioClueDialog
-from ui.subjectLocatedDialog_ui import Ui_subjectLocatedDialog
-from ui.continuedIncidentDialog_ui import Ui_continuedIncidentDialog
-
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
 # credit to 'mg.' at http://stackoverflow.com/questions/2556108
@@ -596,15 +599,38 @@ def normName(name):
 class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
-		
-		# create the local dir if it doesn't already exist, and populate it
-		#  with files from local_default
-		if not os.path.isdir("local"):
-			rprint("'local' directory not found; copying 'local_default' to 'local'; you may want to edit local/radiolog.cfg")
-			shutil.copytree("local_default","local")
-		if not os.path.isfile("local/radiolog.cfg"):
-			rprint("'local' directory was found but did not contain radiolog.cfg; copying from local_default")
-			shutil.copyfile("local_default/radiolog.cfg","local/radiolog.cfg")
+
+		# Set up the settings.
+		QSettings.setDefaultFormat(QSettings.IniFormat)
+		self.config = QSettings()
+
+		# Create the application's data/config location and copy files to it.
+		self.appDataLocation = pathlib.Path(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation))
+		rprint(f"Applications data location set as {self.appDataLocation}.")
+
+		self.appConfigLocation = pathlib.Path(self.config.fileName())
+		rprint(f"Applications configuration file location set as {self.appConfigLocation}.")
+
+		if not self.appDataLocation.exists():
+			# Source directory held in a platform-agnostic path.
+			default_files = pathlib.Path("local_default")
+
+			rprint(f"Creating RadioLog data location at {self.appDataLocation}")
+			self.appDataLocation.mkdir(parents=True)
+
+			rprint(f"Copying default configuration template to {self.appConfigLocation}")
+
+			# Template items to substitute
+			sub_dict = {'appConfigLocation': self.appConfigLocation, 'appDataLocation': self.appDataLocation}
+
+			with open(self.appConfigLocation, 'w') as configLocation:
+				with open(default_files / "RadioLog.ini") as defaultConfig:
+					default = Template(defaultConfig.read())
+					formatted = default.substitute(sub_dict)
+					configLocation.write(formatted)
+
+			rprint(f"Copying radiolog_logo.jpg to {self.appDataLocation}")
+			shutil.copyfile(default_files / "radiolog_logo.jpg", self.appDataLocation / "radiolog_logo.jpg")
 			
 		self.setWindowFlags(self.windowFlags()|Qt.WindowMinMaxButtonsHint)
 		self.parent=parent
@@ -663,13 +689,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.optionsDialog=optionsDialog(self)
 		self.optionsDialog.accepted.connect(self.optionsAccepted)
 		
-		# config file (e.g. ./local/radiolog.cfg) stores the team standards;
-		#  it should be created/modified by hand, and is read at radiolog startup,
+		# config file (Radiolog.ini) stores the team standards;
+		#  it should be modified by hand, and is read at radiolog startup,
 		#  and is not modified by radiolog at any point
 		# resource file / 'rc file' (e.g. ./radiolog_rc.txt) stores the search-specific
 		#  options settings; it is read at radiolog startup, and is written
 		#  whenever the options dialog is accepted
-		self.configFileName="./local/radiolog.cfg"
+		self.configFileName=self.appConfigLocation
 		self.readConfigFile() # defaults are set inside readConfigFile
 
 		self.incidentName="New Incident"
@@ -1067,163 +1093,116 @@ class MyWindow(QDialog,Ui_Dialog):
 		return False
 
 	def readConfigFile(self):
-		# specify defaults here
-		self.clueReportPdfFileName='clueReport.pdf'
-		self.agencyName="Search and Rescue"
-		self.datum="WGS84"
-		self.coordFormatAscii="UTM 5x5"
-		self.coordFormat=self.csDisplayDict[self.coordFormatAscii]
-		self.timeoutMinutes="30"
-		self.printLogoFileName="radiolog_logo.jpg"
-		self.firstWorkingDir=self.homeDir+"\\Documents"
-		self.secondWorkingDir=None
-		self.sarsoftServerName="localhost"
-		self.rotateScript=None
-		self.rotateDelimiter=None
+		# Configuration defaults are set here.
+
+		self.config.beginGroup("RadioLog")
+		self.agencyName = self.config.value("agencyName", "Search and Rescue")
+		self.datum = self.config.value("datum", "WGS84")
+		self.coordFormatAscii = self.config.value("coordFormat", "UTM 5x5")
+		self.coordFormat = self.csDisplayDict[self.coordFormatAscii]
+		self.timeoutMinutes = self.config.value("timeoutMinutes", "30")
+		self.printLogoFileName = self.config.value("logo", "radiolog_logo.jpg")
+		self.firstWorkingDir = self.config.value("firstWorkingDir", self.homeDir + "\\Documents")
+		self.secondWorkingDir = self.config.value("secondWorkingDir", None)
+		self.sarsoftServerName = self.config.value("server", "localhost")
+		self.continuedIncidentWindowDays = self.config.value("continuedIncidentWindowDays", "4")
+		self.config.endGroup()
+
+		self.timeoutRedSec = int(self.timeoutMinutes) * 60
+
+		self.clueReportPdfFileName = 'clueReport.pdf'
+		self.rotateScript = None
+		self.rotateDelimiter = None
 		# 		self.tabGroups=[["NCSO","^1[tpsdel][0-9]+"],["CHP","^22s[0-9]+"],["Numbers","^Team [0-9]+"]]
 		# the only default tab group should be number-only callsigns; everything
-		#  else goes in a separate catch-all group; override this in radiolog.cfg
-		defaultTabGroups=[["Numbers","^Team [0-9]+"]]
-		self.tabGroups=defaultTabGroups
-		self.continuedIncidentWindowDays="4"
-		
-		if os.name=="nt":
+		#  else goes in a separate catch-all group; override this in RadioLog.ini
+		self.tabGroups = eval(self.config.value("tabGroups", "[['Numbers','^Team [0-9]+']]"))
+
+		if os.name == "nt":
 			rprint("Operating system is Windows.")
 			if shutil.which("powershell.exe"):
 				rprint("PowerShell.exe is in the path.")
-				self.rotateScript="powershell.exe -ExecutionPolicy Bypass .\\rotateCsvBackups.ps1 -filenames "
-				self.rotateDelimiter=","
+				self.rotateScript = "powershell.exe -ExecutionPolicy Bypass .\\rotateCsvBackups.ps1 -filenames "
+				self.rotateDelimiter = ","
 			else:
 				rprint("PowerShell.exe is not in the path; poweshell-based backup rotation script cannot be used.")
 		else:
 			rprint("Operating system is not Windows.  Powershell-based backup rotation script cannot be used.")
 
-		configFile=QFile(self.configFileName)
-		if not configFile.open(QFile.ReadOnly|QFile.Text):
-			warn=QMessageBox(QMessageBox.Warning,"Error","Cannot read configuration file " + self.configFileName + "; using default settings. "+configFile.errorString(),
-							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			warn.show()
-			warn.raise_()
-			warn.exec_()
-			self.timeoutRedSec=int(self.timeoutMinutes)*60
-			self.updateOptionsDialog()
-			return
-		inStr=QTextStream(configFile)
-		line=inStr.readLine()
-		if line!="[RadioLog]":
-			warn=QMessageBox(QMessageBox.Warning,"Error","Specified configuration file " + self.configFileName + " is not a valid configuration file; using default settings.",
-							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			warn.show()
-			warn.raise_()
-			warn.exec_()
-			configFile.close()
-			self.timeoutRedSec=int(self.timeoutMinutes)*60
-			self.updateOptionsDialog()
-			return
-		
-		while not inStr.atEnd():
-			line=inStr.readLine()
-			tokens=line.split("=")
-			if tokens[0]=="agencyName":
-				self.agencyName=tokens[1]
-			elif tokens[0]=="datum":
-				self.datum=tokens[1]
-			elif tokens[0]=="coordFormat":
-				self.coordFormatAscii=tokens[1]
-			elif tokens[0]=="timeoutMinutes":
-				self.timeoutMinutes=tokens[1]
-			elif tokens[0]=="logo":
-				self.printLogoFileName=tokens[1]
-			elif tokens[0]=="firstWorkingDir":
-				self.firstWorkingDir=tokens[1]
-			elif tokens[0]=="secondWorkingDir":
-				self.secondWorkingDir=tokens[1]
-			elif tokens[0]=="server":
-				self.sarsoftServerName=tokens[1]
-			elif tokens[0]=="rotateScript":
-				self.rotateScript=tokens[1]
-			elif tokens[0]=="rotateDelimiter":
-				self.rotateDelimiter=tokens[1]
-			elif tokens[0]=="tabGroups":
-				self.tabGroups=eval(tokens[1])
-			elif tokens[0]=="continuedIncidentWindowDays":
-				self.continuedIncidentWindowDays=tokens[1]
-		configFile.close()
-		
 		# validation and post-processing of each item
-		configErr=""
-		self.printLogoFileName="./local/"+self.printLogoFileName
-		
+		configErr = ""
+		self.printLogoFileName = self.appDataLocation / self.printLogoFileName
+
 		if self.datum not in self.validDatumList:
-			configErr+="ERROR: invalid datum '"+self.datum+"'\n"
-			configErr+="  Valid choices are: "+str(self.validDatumList)+"\n"
-			configErr+="  Will use "+str(self.validDatumList[0])+" for this session.\n\n"
-			self.datum=self.validDatumList[0]
+			configErr += "ERROR: invalid datum '" + self.datum + "'\n"
+			configErr += "  Valid choices are: " + str(self.validDatumList) + "\n"
+			configErr += "  Will use " + str(self.validDatumList[0]) + " for this session.\n\n"
+			self.datum = self.validDatumList[0]
 		# if specified datum is just NAD27, assume NAD27 CONUS
-		if self.datum=="NAD27":
-			self.datum="NAD27 CONUS"
+		if self.datum == "NAD27":
+			self.datum = "NAD27 CONUS"
 
 		if self.coordFormatAscii not in self.csDisplayDict:
-			configErr+="ERROR: coordinate format '"+self.coordFormatAscii+"'\n"
-			configErr+="  Supported coordinate format names are: "+str(list(self.csDisplayDict.keys()))+"\n"
-			configErr+="  Will use "+list(self.csDisplayDict.keys())[0]+" for this session.\n\n"
-			self.coordFormatAscii=list(self.csDisplayDict.keys())[0]
-		
-		# process any ~ characters
-		self.firstWorkingDir=os.path.expanduser(self.firstWorkingDir)
-		if self.secondWorkingDir:				
-			self.secondWorkingDir=os.path.expanduser(self.secondWorkingDir)				
+			configErr += "ERROR: coordinate format '" + self.coordFormatAscii + "'\n"
+			configErr += "  Supported coordinate format names are: " + str(list(self.csDisplayDict.keys())) + "\n"
+			configErr += "  Will use " + list(self.csDisplayDict.keys())[0] + " for this session.\n\n"
+			self.coordFormatAscii = list(self.csDisplayDict.keys())[0]
 
-		if not os.path.isdir(self.firstWorkingDir):
-			configErr="FATAL ERROR: first working directory '"+self.firstWorkingDir+"' does not exist.  ABORTING."
-			self.configErrMsgBox=QMessageBox(QMessageBox.Critical,"Fatal Configuration Error",configErr,
- 							QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			self.configErrMsgBox.exec_()
-			sys.exit(-1)
-			
-		if self.use2WD and self.secondWorkingDir and not os.path.isdir(self.secondWorkingDir):
-			configErr+="ERROR: second working directory '"+self.secondWorkingDir+"' does not exist.  Maybe it is not mounted yet; radiolog will try to write to it after every entry.\n\n"
-		
-		self.coordFormat=self.csDisplayDict[self.coordFormatAscii]
-		self.ui.datumFormatLabel.setText(self.datum+"\n"+self.coordFormat)
-	
-		if not self.timeoutMinutes.isdigit():
-			configErr+="ERROR: timeout minutes value must be an integer.  Will use 30 minutes for this session.\n\n"
-			self.timeoutMinutes=30
-		self.timeoutRedSec=int(self.timeoutMinutes)*60
-		if not self.timeoutRedSec in self.timeoutDisplaySecList:
-			configErr+="ERROR: invalid timeout period ("+str(self.timeoutMinutes)+" minutes)\n"
-			configErr+="  Valid choices:"+str(self.timeoutDisplayMinList)+"\nWill use 30 minutes for this session.\n\n"
-			self.timeoutRedSec=1800
-		
-		self.updateOptionsDialog()
-		
-		# if agencyName contains newline character(s), use it as-is for print;
-		#  if not, textwrap with max line length that looks best on pdf reports
-		self.agencyNameForPrint=self.agencyName
-		if not "\n" in self.agencyName:
-			self.agencyNameForPrint="\n".join(textwrap.wrap(self.agencyName.upper(),width=len(self.agencyName)/2+6))
-		
-		if not os.path.isfile(self.printLogoFileName):
-			configErr+="ERROR: specified logo file '"+self.printLogoFileName+"' does not exist.  No logo will be included on generated reports.\n\n"
-		
-		if not isinstance(self.tabGroups,list):
-			configErr+="ERROR: specified tab group '"+str(self.tabGroups)+"' is not a list.  Using the default tabGroups group list.\n\n"
-			self.tabGroups=defaultTabGroups
+			# process any ~ characters
+			self.firstWorkingDir = os.path.expanduser(self.firstWorkingDir)
+			if self.secondWorkingDir:
+				self.secondWorkingDir = os.path.expanduser(self.secondWorkingDir)
 
-		if not self.continuedIncidentWindowDays.isdigit():
-			configErr+="ERROR: continuedIncidentWindowDays value must be an integer.  Will use 4 days for this session.\n\n"
-			self.continuedIncidentWindowDays=4
-		else:
-			self.continuedIncidentWindowDays=int(self.continuedIncidentWindowDays)
-			 
-		if configErr:
-			self.configErrMsgBox=QMessageBox(QMessageBox.Warning,"Non-fatal Configuration Error(s)","Error(s) encountered in config file "+self.configFileName+":\n\n"+configErr,
- 							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			self.configErrMsgBox.exec_()
+			if not os.path.isdir(self.firstWorkingDir):
+				configErr = "FATAL ERROR: first working directory '" + self.firstWorkingDir + "' does not exist.  ABORTING."
+				self.configErrMsgBox = QMessageBox(QMessageBox.Critical, "Fatal Configuration Error", configErr,
+				                                   QMessageBox.Close, self,
+				                                   Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.Dialog | Qt.MSWindowsFixedSizeDialogHint | Qt.WindowStaysOnTopHint)
+				self.configErrMsgBox.exec_()
+				sys.exit(-1)
 
-		if develMode:
-			self.sarsoftServerName="localhost" # DEVEL
+			if self.use2WD and self.secondWorkingDir and not os.path.isdir(self.secondWorkingDir):
+				configErr += "ERROR: second working directory '" + self.secondWorkingDir + "' does not exist.  Maybe it is not mounted yet; radiolog will try to write to it after every entry.\n\n"
+
+			self.coordFormat = self.csDisplayDict[self.coordFormatAscii]
+			self.ui.datumFormatLabel.setText(self.datum + "\n" + self.coordFormat)
+
+			if not self.timeoutMinutes.isdigit():
+				configErr += "ERROR: timeout minutes value must be an integer.  Will use 30 minutes for this session.\n\n"
+				self.timeoutMinutes = 30
+			self.timeoutRedSec = int(self.timeoutMinutes) * 60
+			if not self.timeoutRedSec in self.timeoutDisplaySecList:
+				configErr += "ERROR: invalid timeout period (" + str(self.timeoutMinutes) + " minutes)\n"
+				configErr += "  Valid choices:" + str(
+					self.timeoutDisplayMinList) + "\nWill use 30 minutes for this session.\n\n"
+				self.timeoutRedSec = 1800
+
+			self.updateOptionsDialog()
+
+			# if agencyName contains newline character(s), use it as-is for print;
+			#  if not, textwrap with max line length that looks best on pdf reports
+			self.agencyNameForPrint = self.agencyName
+			if not "\n" in self.agencyName:
+				self.agencyNameForPrint = "\n".join(
+					textwrap.wrap(self.agencyName.upper(), width=len(self.agencyName) / 2 + 6))
+
+			if not self.printLogoFileName.is_file():
+				configErr += f"ERROR: specified logo file '{self.printLogoFileName}' does not exist.  No logo will be included on generated reports.\n\n"
+
+			if not isinstance(self.tabGroups, list):
+				configErr += "ERROR: specified tab group '" + str(
+					self.tabGroups) + "' is not a list.  Using the default tabGroups group list.\n\n"
+				self.tabGroups = defaultTabGroups
+
+			if configErr:
+				self.configErrMsgBox = QMessageBox(QMessageBox.Warning, "Non-fatal Configuration Error(s)",
+				                                   "Error(s) encountered in config file " + self.configFileName + ":\n\n" + configErr,
+				                                   QMessageBox.Ok, self,
+				                                   Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.Dialog | Qt.MSWindowsFixedSizeDialogHint | Qt.WindowStaysOnTopHint)
+				self.configErrMsgBox.exec_()
+
+			if develMode:
+				self.sarsoftServerName = "localhost"  # DEVEL
 
 	def rotateCsvBackups(self,filenames):
 		if self.rotateScript and self.rotateDelimiter:
@@ -2174,12 +2153,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		canvas.saveState()
 		styles = getSampleStyleSheet()
 		self.img=None
-		if os.path.isfile(self.printLogoFileName):
-			rprint("valid logo file "+self.printLogoFileName)
-			imgReader=utils.ImageReader(self.printLogoFileName)
+		if self.printLogoFileName.is_file():
+			rprint(f"valid logo file {self.printLogoFileName}")
+			imgReader=utils.ImageReader(str(self.printLogoFileName))
 			imgW,imgH=imgReader.getSize()
 			imgAspect=imgH/float(imgW)
-			self.img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
+			self.img=Image(str(self.printLogoFileName),width=0.54*inch/float(imgAspect),height=0.54*inch)
 			headerTable=[
 					[self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,formNameText+" - Page "+str(canvas.getPageNumber())],
 					["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
@@ -2335,11 +2314,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		canvas.saveState()
 		styles = getSampleStyleSheet()
 		self.img=None
-		if os.path.isfile(self.printLogoFileName):
-			imgReader=utils.ImageReader(self.printLogoFileName)
+		if self.printLogoFileName.is_file():
+			imgReader=utils.ImageReader(str(self.printLogoFileName))
 			imgW,imgH=imgReader.getSize()
 			imgAspect=imgH/float(imgW)
-			self.img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
+			self.img=Image(str(self.printLogoFileName),width=0.54*inch/float(imgAspect),height=0.54*inch)
 			headerTable=[
 					[self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,"Clue Log - Page "+str(canvas.getPageNumber())],
 					["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
@@ -2476,11 +2455,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		styles = getSampleStyleSheet()
 
 		img=''
-		if os.path.isfile(self.printLogoFileName):
-			imgReader=utils.ImageReader(self.printLogoFileName)
+		if self.printLogoFileName.is_file():
+			imgReader=utils.ImageReader(str(self.printLogoFileName))
 			imgW,imgH=imgReader.getSize()
 			imgAspect=imgH/float(imgW)
-			img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
+			img=Image(str(self.printLogoFileName),width=0.54*inch/float(imgAspect),height=0.54*inch)
 
 		instructions=clueData[7].lower()
 		# initialize all checkboxes to OFF
@@ -2786,7 +2765,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.clock.display(time.strftime("%H:%M"))
 
 	def updateTeamTimers(self):
-		# rprint('timers:'+str(teamTimersDict))
 		# keep track of seconds since contact, rather than seconds remaining til timeout,
 		#  since timeout setting may change but each team's counter should still count
 		# 1. increment each number in teamTimersDict
@@ -3411,7 +3389,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			self.newEntryWidget.ui.datumFormatLabel.setText("")
 	
-	def newEntry(self,values,amend=False):
+	def newEntry(self,values):
 		# values array format: [time,to_from,team,message,locString,status,sec,fleet,dev]
 		#  locString is also stored in the table in a column after dev, unmodified;
 		#  the value in the 5th column is modified in place based on the datum and
@@ -3459,10 +3437,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			model.endInsertRows()
 ##		if not values[3].startswith("RADIO LOG SOFTWARE:"):
 ##			self.newEntryProcessTeam(niceTeamName,status,values[1],values[3])
-		self.newEntryProcessTeam(niceTeamName,status,values[1],values[3],amend)
+		self.newEntryProcessTeam(niceTeamName,status,values[1],values[3])
 
-	def newEntryProcessTeam(self,niceTeamName,status,to_from,msg,amend=False):
-		# rprint('t1: niceTeamName={} status={} to_from={} msg={} amend={}'.format(niceTeamName,status,to_from,msg,amend))
+	def newEntryProcessTeam(self,niceTeamName,status,to_from,msg):
 		extTeamName=getExtTeamName(niceTeamName)
 		# 393: if the new entry's extTeamName is a case-insensitive match for an
 		#   existing extTeamName, use that already-existing extTeamName instead
@@ -3487,34 +3464,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
 			# only reset the team timer if it is a 'FROM' message with non-blank message text
 			#  (prevent reset on amend, where to_from can be "AMEND" and msg can be anything)
-			# if this was an amendment, set team timer based on the team's most recent 'FROM' entry
-			if amend:
-				rprint('t2')
-				found=False
-				for n in range(len(self.radioLog)-1,-1,-1):
-					entry=self.radioLog[n]
-					rprint(' t3:'+str(n)+':'+str(entry))
-					if getExtTeamName(entry[2]).lower()==extTeamName.lower() and entry[1]=='FROM':
-						rprint('  t4:match: now='+str(int(time.time())))
-						rprint('  setting teamTimersDict to '+str(time.time()-entry[6]))
-						teamTimersDict[extTeamName]=int(time.time()-entry[6])
-						found=True
-						break
-				# if there are 'from' entries for the callsign, use the oldest 'to' entry for the callsign
-				if not found:
-					for entry in self.radioLog:
-						rprint(' t3b:'+str(entry))
-						if getExtTeamName(entry[2]).lower()==extTeamName.lower():
-							rprint('t4b:"TO" match: now='+str(int(time.time())))
-							teamTimersDict[extTeamName]=int(time.time()-entry[6])
-							found=True
-							break
-				# this code should never be reached: what does it mean if there are no TO or FROM entries after amend?
-				if not found:
-					rprint('WARNING after amend: team timer may be undetermined because no entries (either TO or FROM) were found for '+str(niceTeamName))
-			elif to_from=="FROM" and msg != "":
+			if to_from=="FROM" and msg != "":
 				teamTimersDict[extTeamName]=0
-			# finally, disable timeouts as long as status is AT IC
 			if status=="At IC":
 				teamTimersDict[extTeamName]=-1 # no more timeouts will show up
 		if not self.loadFlag:
@@ -3922,7 +3873,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			newEntryFromAction=menu.addAction("New Entry FROM "+str(niceTeamName))
 			newEntryToAction=menu.addAction("New Entry TO "+str(niceTeamName))
 			menu.addSeparator()
-			printTeamLogAction=menu.addAction(QIcon(QPixmap(":/radiolog_ui/icons/print_icon.png")),"Print "+str(niceTeamName)+" Log")
+			printTeamLogAction=menu.addAction(QIcon(QPixmap(":/radiolog_ui/print_icon.png")),"Print "+str(niceTeamName)+" Log")
 			menu.addSeparator()
 ##			relabelTeamTabAction=menu.addAction("Change Label / Assignment for "+str(niceTeamName))
 ##			menu.addSeparator()
@@ -4370,13 +4321,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		if ext:
 			extTeamName=teamName
 		niceTeamName=getNiceTeamName(extTeamName)
-		# 406: apply the same fix as #393:
-		# if the new entry's extTeamName is a case-insensitive match for an
-		#   existing extTeamName, use that already-existing extTeamName instead
-		for existingExtTeamName in self.extTeamNameList:
-			if extTeamName.lower()==existingExtTeamName.lower():
-				extTeamName=existingExtTeamName
-				break
 # 		self.extTeamNameList.sort()
 		rprint("deleting team tab: teamName="+str(teamName)+"  extTeamName="+str(extTeamName)+"  niceTeamName="+str(niceTeamName))
 		rprint("  teamNameList before deletion:"+str(self.teamNameList))
@@ -4456,23 +4400,15 @@ class MyWindow(QDialog,Ui_Dialog):
 			l=QLabel(hotkey)
 			l.setFixedWidth(bar.tabRect(i).width())
 # 			l.setStyleSheet("border:0px solid black;margin:0px;font-style:italic;font-size:14px;border-image:url(:/radiolog_ui/blank-computer-key.png) 0 0 30 30;")
-			l.setStyleSheet("border:0px solid black;margin:0px;font-style:italic;font-size:14px;background-image:url(:/radiolog_ui/icons/blank-computer-key.png) 0 0 30 30;")
+			l.setStyleSheet("border:0px solid black;margin:0px;font-style:italic;font-size:14px;background-image:url(:/radiolog_ui/blank-computer-key.png) 0 0 30 30;")
 			l.setAlignment(Qt.AlignCenter)
 # 			l.setPalette(p)
 # 			w.setPixmap(QPixmap(":/radiolog_ui/blank-computer-key.png").scaled(30,30))
 # 			l.setIconSize(QSize(30, 30))
 			self.ui.teamHotkeysHLayout.addWidget(l)
 		self.ui.teamHotkeysHLayout.addStretch()
-		# #488: make sure standard hotkeys are re-enabled when last team tab is hidden
-		if bar.count()<2:
-			self.ui.teamHotkeysWidget.setVisible(False)
 		
 	def toggleTeamHotkeys(self):
-		# #488: don't try to toggle team hotkeys when count is 0 or 1
-		#  (the dummy tab will still exist after the only team tab has been hidden)
-		#  (should also disable team hotkeys when all team tabs have been hidden)
-		if self.ui.tabWidget.tabBar().count()<2:
-			return
 		vis=self.ui.teamHotkeysWidget.isVisible()
 		if not vis:
 			self.rebuildTeamHotkeys()
@@ -4826,12 +4762,10 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 ##		self.entryContinue=False
 
 	def removeTab(self,caller):
-		# rprint('removeTab called: caller='+str(caller))
 		# determine the current index of the tab that owns the widget that called this function
 		i=self.ui.tabWidget.indexOf(caller)
 		# determine the number of tabs BEFORE removal of the tab in question
 		count=self.ui.tabWidget.count()
-		# rprint('  tab count before removal:'+str(count))
 # 		rprint("removeTab: count="+str(count)+" i="+str(i))
 		# remove that tab
 		self.ui.tabWidget.removeTab(i)
@@ -4842,10 +4776,10 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 		elif i<count-3: # count-1 no longer exists; count-2="OLDEST"; count-3=bottom item of the stack
 			self.ui.tabWidget.setCurrentIndex(count-3)
 
-		if count<4: # hide the window (don't just lower - #504) if the stack is empty
-			# rprint("lowering: count="+str(count))
+		if count<4: # lower the window if the stack is empty
+# 			rprint("lowering: count="+str(count))
 			self.setWindowFlags(self.windowFlags() & ~Qt.WindowStaysOnTopHint) # disable always on top
-			self.hide()
+			self.lower()
 
 ##	def autoCleanupStateChanged(self):
 ##		if self.ui.autoCleanupCheckBox.isChecked():
@@ -4859,10 +4793,9 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 	def autoCleanup(self): # this function is called every second by the timer
 		if self.ui.autoCleanupCheckBox.isChecked():
 			for tab in newEntryWidget.instances:
-				# rprint("lastModAge:"+str(tab.lastModAge))
+# 				rprint("lastModAge:"+str(tab.lastModAge))
 				# note the pause happens in newEntryWidget.updateTimer()
 				if tab.ui.messageField.text()=="" and tab.lastModAge>60:
-					rprint('  closing unused new entry widget for '+str(tab.ui.teamField.text())+' due to inactivity')
 					tab.closeEvent(QEvent(QEvent.Close),accepted=False,force=True)
 ##			if not tab.clueDialogOpen and not tab.subjectLocatedDialogOpen and tab.ui.messageField.text()=="" and time.time()-tab.sec>60:
 
@@ -4966,7 +4899,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		if amendFlag:
 			self.ui.timeField.setText(row[0])
 			self.ui.teamField.setText(row[2])
-			if row[1]=="TO":
+			if row[0]=="TO":
 				self.ui.to_fromField.setCurrentIndex(1)
 			oldMsg=row[3]
 			amendIndex=oldMsg.find('\n[AMENDED')
@@ -5032,10 +4965,6 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.datumFormatTemp=None
 		
 		self.ui.relayedByComboBox.lineEdit().editingFinished.connect(self.relayedByComboBoxChanged)
-
-		# #502 - if amending, call setStatusFromTeam - otherwise it is only called by typing in the callsign field
-		if self.amendFlag:
-			self.setStatusFromTeam()
 
 ##		# unless an entry is currently being edited, activate the newly added tab
 ##		if newEntryWidgetHold:
@@ -5250,14 +5179,15 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				self.parent.radioLog[self.amendRow][2]=niceTeamName
 				self.parent.radioLog[self.amendRow][3]=self.ui.messageField.text()+"\n[AMENDED "+time.strftime('%H%M')+"; WAS"+tmpTxt+": '"+lastMsg+"']"+olderMsgs
 				self.parent.radioLog[self.amendRow][5]=status
+	
 				# use to_from value "AMEND" and blank msg text to make sure team timer does not reset
-				self.parent.newEntryProcessTeam(niceTeamName,status,"AMEND","",self.amendFlag)
+				self.parent.newEntryProcessTeam(niceTeamName,status,"AMEND","")
 				
 				# reapply the filter on team tables, in case callsign was changed
 				for t in self.parent.ui.tableViewList[1:]:
 					t.model().invalidateFilter()
 			else:
-				self.parent.newEntry(self.getValues(),self.amendFlag)
+				self.parent.newEntry(self.getValues())
 	
 			# make entries for attached callsigns
 			# values array format: [time,to_from,team,message,locString,status,sec,fleet,dev]
@@ -5266,7 +5196,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				v=val[:] # v is a fresh, independent copy of val for each iteration
 				v[2]=getNiceTeamName(attachedCallsign)
 				v[3]="[ATTACHED FROM "+self.ui.teamField.text().strip()+"] "+val[3]
-				self.parent.newEntry(v,self.amendFlag)
+				self.parent.newEntry(v)
 	
 			self.parent.totalEntryCount+=1
 			if self.parent.totalEntryCount%5==0:
@@ -5360,7 +5290,6 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			event.ignore()
 			return
 		else:
-			# rprint('newEntryWidget.closeEvent t3')
 			self.timer.stop()
 			# fix #333: stop mid-throb to avert runtime error
 			#  but only if the throbTimer was actually started
@@ -6608,7 +6537,7 @@ class clueTableModel(QAbstractTableModel):
 		QAbstractTableModel.__init__(self,parent,*args)
 		self.arraydata=datain
 		self.printIconPixmap=QPixmap(20,20)
-		self.printIconPixmap.load(":/radiolog_ui/icons/print_icon.png")
+		self.printIconPixmap.load(":/radiolog_ui/print_icon.png")
 ##		self.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
 
@@ -6692,8 +6621,8 @@ class fsTableModel(QAbstractTableModel):
 	def __init__(self, datain, parent=None, *args):
 		QAbstractTableModel.__init__(self, parent, *args)
 		self.arraydata=datain
-		self.filteredIcon=QIcon(QPixmap(":/radiolog_ui/icons/fs_redcircleslash.png"))
-		self.unfilteredIcon=QIcon(QPixmap(":/radiolog_ui/icons/fs_greencheckbox.png"))
+		self.filteredIcon=QIcon(QPixmap(":/radiolog_ui/fs_redcircleslash.png"))
+		self.unfilteredIcon=QIcon(QPixmap(":/radiolog_ui/fs_greencheckbox.png"))
 		
 	def headerData(self,section,orientation,role=Qt.DisplayRole):
 #		print("headerData:",section,",",orientation,",",role)
@@ -6763,7 +6692,7 @@ class CustomSortFilterProxyModel(QSortFilterProxyModel):
 					addAllFlag=True
 ###		return(val==target or self.sourceModel().index(row,6,parent).data()==1e10)
 ##		return(val==target) # simple case: match the team name exactly
-		return(val.lower()==target.lower() or addAllFlag) # #453: perform case-insensitive match
+		return(val==target or addAllFlag)
 
 
 # code for CSVFileSortFilterProxyModel partially taken from
@@ -6814,6 +6743,10 @@ class customEventFilter(QObject):
 
 def main():
 	app = QApplication(sys.argv)
+	app.setApplicationDisplayName("RadioLog")
+	app.setApplicationName("RadioLog")
+	app.setOrganizationName("NCSSAR")
+	app.setOrganizationDomain("nevadacountysar.org")
 	eFilter=customEventFilter()
 	app.installEventFilter(eFilter)
 	w = MyWindow(app)
