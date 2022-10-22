@@ -1031,9 +1031,20 @@ class MyWindow(QDialog,Ui_Dialog):
 		csvFiles=glob.glob(self.firstWorkingDir+'/*/*.csv') # files nested in session dirs
 		# backwards compatibility: also list csv files saved flat in the working dir
 		csvFiles+=glob.glob(self.firstWorkingDir+'/*.csv')
+
+		# backwards compatibility: look in the old working directory too
+		#  copied code from radiolog.py before #522 dir structure overhaul;
+		#  could consider removing this in the future, since it grabs all .csv
+		#  files from ~\Documents
+		oldWD=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents"
+		if oldWD[1]!=":":
+			oldWD=os.getenv('HOMEDRIVE','C:')+oldWD
+
+		csvFiles+=glob.glob(oldWD+'/*.csv')
+
 		# remove _fleetsync and _clueLog files
-		csvFiles=[f for f in csvFiles if '_clueLog' not in f and '_fleetsync' not in f]
-		rprint('pre-sorted csv files list:'+str(csvFiles))
+		csvFiles=[f for f in csvFiles if '_clueLog' not in f and '_fleetsync' not in f and self.isRadioLogDataFile(f)]
+		rprint('Found '+str(len(csvFiles))+' .csv files (excluding _clueLog.csv and _fleetsync.csv files)')
 		if sort is 'chronological':
 			sortedCsvFiles=sorted(csvFiles,key=os.path.getmtime,reverse=reverse)
 		elif sort is 'alphabetical':
@@ -1043,44 +1054,43 @@ class MyWindow(QDialog,Ui_Dialog):
 		rval=[]
 		now=time.time()
 		for f in sortedCsvFiles:
-			if self.isRadioLogDataFile(f):
-				mtime=os.path.getmtime(f)
-				age=now-mtime
-				ageStr=''
-				if age<3600:
-					ageStr='< 1 hour'
-				elif age<86400:
-					ageStr='< 1 day'
-				else:
-					ageDays=int(age/86400)
-					ageStr=str(ageDays)+' day'
-					if ageDays>1:
-						ageStr+='s'
-				if ageStr:
-					ageStr+=' ago'
-				filenameBase=f[:-4] # do this rather than splitext, to preserve entire path name
-				incidentName=None
-				lastOP='1' # if no entries indicate change in OP#, then initial OP is 1 by default
-				lastClue='--'
-				with open(f,'r') as radioLog:
-					lines=radioLog.readlines()
-					# don't show files that have less than two entries
-					if len(lines)<7:
-						rprint('  not listing empty csv '+f)
-						continue
-					for line in lines:
-						if not incidentName and '## Incident Name:' in line:
-							incidentName=': '.join(line.split(': ')[1:]).rstrip() # provide for spaces and ': ' in incident name
-						# last clue# could be determined by an actual clue in the previous OP, but
-						#  should carry forward the last clue number from an earlier OP if no clues
-						#  were found in the most recent OP
-						if 'Radio Log Begins - Continued incident' in line and '(Last clue number:' in line:
-							lastClue=re.findall('(Last clue number: [0-9]+)',line)[-1].split()[3]
-						if 'CLUE#' in line and 'LOCATION:' in line and 'INSTRUCTIONS:' in line:
-							lastClue=re.findall('CLUE#[0-9]+:',line)[-1].split('#')[1][:-1]
-						if 'Operational Period ' in line:
-							lastOP=re.findall('Operational Period [0-9]+ Begins:',line)[-1].split()[2]
-				rval.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase,mtime])
+			mtime=os.path.getmtime(f)
+			age=now-mtime
+			ageStr=''
+			if age<3600:
+				ageStr='< 1 hour'
+			elif age<86400:
+				ageStr='< 1 day'
+			else:
+				ageDays=int(age/86400)
+				ageStr=str(ageDays)+' day'
+				if ageDays>1:
+					ageStr+='s'
+			if ageStr:
+				ageStr+=' ago'
+			filenameBase=f[:-4] # do this rather than splitext, to preserve entire path name
+			incidentName=None
+			lastOP='1' # if no entries indicate change in OP#, then initial OP is 1 by default
+			lastClue='--'
+			with open(f,'r') as radioLog:
+				lines=radioLog.readlines()
+				# don't show files that have less than two entries
+				if len(lines)<7:
+					rprint('  not listing empty csv '+f)
+					continue
+				for line in lines:
+					if not incidentName and '## Incident Name:' in line:
+						incidentName=': '.join(line.split(': ')[1:]).rstrip() # provide for spaces and ': ' in incident name
+					# last clue# could be determined by an actual clue in the previous OP, but
+					#  should carry forward the last clue number from an earlier OP if no clues
+					#  were found in the most recent OP
+					if 'Radio Log Begins - Continued incident' in line and '(Last clue number:' in line:
+						lastClue=re.findall('(Last clue number: [0-9]+)',line)[-1].split()[3]
+					if 'CLUE#' in line and 'LOCATION:' in line and 'INSTRUCTIONS:' in line:
+						lastClue=re.findall('CLUE#[0-9]+:',line)[-1].split('#')[1][:-1]
+					if 'Operational Period ' in line:
+						lastOP=re.findall('Operational Period [0-9]+ Begins:',line)[-1].split()[2]
+			rval.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase,mtime])
 		return rval
 
 	# Build a nested list of radiolog session data from any sessions in the last n days;
