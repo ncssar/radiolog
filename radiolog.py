@@ -664,10 +664,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		# create the config dir if it doesn't already exist, and populate it
 		#  with files from config_default
 		if not os.path.isdir(self.configDir):
-			msg='Local configuration directory was not found.  It looks like the is the first time running RadioLog '+str(__version__)+' on this computer.\n\n'
+			msg='Local configuration directory was not found.  It looks like this is the first time running RadioLog '+str(__version__)+' on this computer.\n\n'
 			msg+='You can import the local configuration files from a previous version.\n\nIf you skip this step, RadioLog will use the defaults, '
 			msg+='but any important local settings will be lost, including:\n\n  - local server IP address (for GPS locators)\n  - second working directory (for other tools like Plans Console)\n  - agency name and logo (for generated PDFs)\n\n'
-			msg+='This is a one-time offer.  This question will not show up again for new versions in the future.  Importing now will apply the imported settings immediately.  If you choose to use the defaults for now, you can always copy the configuration files into place by hand later.'
+			msg+='This is a one-time offer.  This question will not show up again when you install newer versions.  Importing now will apply the imported settings immediately.  If you choose to use the defaults for now, you can always copy the configuration files into place by hand later.'
 			box=QMessageBox(QMessageBox.Question,'Import configuration files',msg,
 					QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			box.button(QMessageBox.Yes).setText('Yes - Browse for directory')
@@ -701,19 +701,19 @@ class MyWindow(QDialog,Ui_Dialog):
 						break
 			if not srcDir:
 				srcDir=self.configDefaultDir
-			msg='Copying configuration directory from directory\n\n"'+srcDir+'"\n\nto\n\n"'+self.configDir+'"\n\nYou may want to edit the files in that directory.'
+			msg='About to copy configuration directory from\n\n"'+srcDir+'"\n\nto\n\n"'+self.configDir+'"\n\nAfter the copy operation, you may want to edit the copied files in that directory to suit your needs.'
 			rprint(msg)
 			box=QMessageBox(QMessageBox.Information,'Copying configuration directory',msg,
-					QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			box.exec_()
 			shutil.copytree(srcDir,self.configDir)
 		self.configFileName=os.path.join(self.configDir,'radiolog.cfg')
 		self.configFileDefaultName=os.path.join(self.configDefaultDir,'radiolog.cfg')
 		if not os.path.isfile(self.configFileName):
-			msg='config directory was found but did not contain radiolog.cfg; copying from default config directory '+self.configDefaultDir+'; this could disable important features like GPS locators, the second working directory, and more.'
+			msg='config directory was found but did not contain radiolog.cfg; about to copy from default config directory '+self.configDefaultDir+'; this could disable important features like GPS locators, the second working directory, and more.'
 			rprint(msg)
 			box=QMessageBox(QMessageBox.Information,'Copying radiolog.cfg',msg,
-					QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			box.exec_()
 			shutil.copyfile(self.configFileDefaultName,self.configFileName)
 
