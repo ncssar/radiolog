@@ -8,7 +8,7 @@ a = Analysis(
     ['radiolog.py'],
     pathex=[],
     binaries=[],
-    datas=[('LICENSE.txt', '.'), ('local_default/', 'local_default/'), ('radiolog_fleetsync.csv', '.'), ('clueReport.pdf', '.')],
+    datas=[('LICENSE.txt', '.'), ('config_default/', 'config_default/'), ('clueReport.pdf', '.'), ('radio.ico','.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

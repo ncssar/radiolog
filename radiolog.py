@@ -502,16 +502,27 @@ class LoggingFilter(logging.Filter):
 	def filter(self,record):
 		return record.levelno < logging.ERROR
 
-logFileName=getFileNameBase("radiolog_log")+".txt"
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-fh=logging.FileHandler(logFileName)
-fh.setLevel(logging.INFO)
-ch=logging.StreamHandler(stream=sys.stdout)
-ch.setLevel(logging.INFO)
-ch.addFilter(LoggingFilter())
-logger.addHandler(fh)
-logger.addHandler(ch)
+logFileLeafName=getFileNameBase('radiolog_log')+'.txt'
+
+def setLogHandlers(dir=None):
+	# remove all existing handlers before adding the new ones
+	for h in logger.handlers[:]:
+		logger.removeHandler(h)
+	# add a filehandler if dir is specified
+	if dir:
+		# logFileName=os.path.join(dir,getFileNameBase("radiolog_log")+".txt")
+		logFileName=os.path.join(dir,logFileLeafName)
+		fh=logging.FileHandler(logFileName)
+		fh.setLevel(logging.INFO)
+		logger.addHandler(fh)
+	ch=logging.StreamHandler(stream=sys.stdout)
+	ch.setLevel(logging.INFO)
+	ch.addFilter(LoggingFilter())
+	logger.addHandler(ch)
+
+setLogHandlers()
 
 # redirect stderr to stdout here by overriding excepthook
 # from https://stackoverflow.com/a/16993115/3577105
@@ -582,6 +593,7 @@ from ui.printClueLogDialog_ui import Ui_printClueLogDialog
 from ui.nonRadioClueDialog_ui import Ui_nonRadioClueDialog
 from ui.subjectLocatedDialog_ui import Ui_subjectLocatedDialog
 from ui.continuedIncidentDialog_ui import Ui_continuedIncidentDialog
+from ui.loadDialog_ui import Ui_loadDialog
 
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
@@ -596,16 +608,117 @@ def normName(name):
 class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
+		self.newWorkingDir=False # is this the first time using a newly created working dir?  (if so, suppress some warnings)
+		msg='RadioLog '+str(__version__)
+		self.firstWorkingDir=os.path.join(os.getenv('HOMEPATH','C:\\Users\\Default'),'RadioLog')
+		if self.firstWorkingDir[1]!=':':
+			self.firstWorkingDir=os.path.join(os.getenv('HOMEDRIVE','C:'),self.firstWorkingDir)
+		if not os.path.isdir(self.firstWorkingDir):
+			try:
+				os.makedirs(self.firstWorkingDir)
+				msg+='\nWorking directory "'+self.firstWorkingDir+'" was not found; creating it now.'
+				self.newWorkingDir=True
+			except:
+				err='FATAL ERROR: working directory "'+self.firstWorkingDir+'" was not found and could not be created.  ABORTING.'
+				msg+=err
+				self.configErrMsgBox=QMessageBox(QMessageBox.Critical,"Fatal Configuration Error",err,
+								QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				self.configErrMsgBox.exec_()
+				print(msg)
+				sys.exit(-1)
+		else:
+			msg+='\nWorking directory found at "'+self.firstWorkingDir+'".'
+
+		# create sessionDir immediately, since this is where logging output will be saved
+		self.sessionDir=os.path.join(self.firstWorkingDir,'NewSession_'+time.strftime('%Y_%m_%d_%H%M%S'))
+		try:
+			os.mkdir(self.sessionDir)
+			msg+='\nInitial session directory created at "'+self.sessionDir+'".'
+		except:
+			err='FATAL ERROR: initial session directory "'+self.sessionDir+'" could not be created.  ABORTING.'
+			msg+=err
+			self.configErrMsgBox=QMessageBox(QMessageBox.Critical,"Fatal Configuration Error",err,
+							QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			self.configErrMsgBox.exec_()
+			print(msg)
+			sys.exit(-1)
 		
-		# create the local dir if it doesn't already exist, and populate it
-		#  with files from local_default
-		if not os.path.isdir("local"):
-			rprint("'local' directory not found; copying 'local_default' to 'local'; you may want to edit local/radiolog.cfg")
-			shutil.copytree("local_default","local")
-		if not os.path.isfile("local/radiolog.cfg"):
-			rprint("'local' directory was found but did not contain radiolog.cfg; copying from local_default")
-			shutil.copyfile("local_default/radiolog.cfg","local/radiolog.cfg")
-			
+		# if everything was created successfully, set the log file location and start logging
+		if os.path.isdir(self.sessionDir):
+			setLogHandlers(self.sessionDir)
+			rprint(msg)
+		else:
+			err='FATAL ERROR: initial session directory "'+self.sessionDir+'" was not created.  ABORTING.'
+			msg+=err
+			self.configErrMsgBox=QMessageBox(QMessageBox.Critical,"Fatal Configuration Error",err,
+							QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			self.configErrMsgBox.exec_()
+			print(msg)
+			sys.exit(-1)
+
+		self.configDir=os.path.join(self.firstWorkingDir,'.config')
+		self.configDefaultDir=os.path.join(installDir,'config_default')
+
+#####  BEGIN config dir migration code #522
+
+		# create the config dir if it doesn't already exist, and populate it
+		#  with files from config_default
+		if not os.path.isdir(self.configDir):
+			msg='Local configuration directory was not found.  It looks like this is the first time running RadioLog '+str(__version__)+' on this computer.\n\n'
+			msg+='You can import the local configuration files from a previous version.\n\nIf you skip this step, RadioLog will use the defaults, '
+			msg+='but any important local settings will be lost, including:\n\n  - local server IP address (for GPS locators)\n  - second working directory (for other tools like Plans Console)\n  - agency name and logo (for generated PDFs)\n\n'
+			msg+='This is a one-time offer.  This question will not show up again when you install newer versions.  Importing now will apply the imported settings immediately.  If you choose to use the defaults for now, you can always copy the configuration files into place by hand later.'
+			box=QMessageBox(QMessageBox.Question,'Import configuration files',msg,
+					QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.button(QMessageBox.Yes).setText('Yes - Browse for directory')
+			box.button(QMessageBox.No).setText('No - use defaults')
+			srcDir=None
+			if box.exec_()==QMessageBox.Yes:
+				ok=False
+				notValidSrcDir=False
+				while not ok:
+					msg=''
+					if notValidSrcDir:
+						msg='The specified directory '+notValidSrcDir+' does not contain radiolog.cfg.  Try again, or click Cancel to stop trying to find a previous configuration directory and use the defaults instead.\n\n'
+					msg+='The file browser will be shown next.  Select a directory that contains one or more of these files:\n\n'
+					msg+='  - radiolog.cfg [required]\n  - radiolog_logo.jpg\n  - radiolog_fleetsync.csv'
+					msg+='\n\nIn previous versions, the configuration directory name was "local".'
+					box=QMessageBox(QMessageBox.Information,'Import configuration files',msg,
+							QMessageBox.Ok|QMessageBox.Cancel,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					if box.exec_()==QMessageBox.Ok:
+						# srcDir=QFileDialog.getExistingDirectory(box,'Choose previous configuration directory','C:\\')
+						fd=QFileDialog(self,'Choose previous configuration directory','C:\\')
+						fd.setFileMode(QFileDialog.Directory)
+						if fd.exec_():
+							srcDir=fd.selectedFiles()[0]
+							contents=os.listdir(srcDir)
+							if 'radiolog.cfg' in contents:
+								ok=True
+							else:
+								notValidSrcDir=srcDir
+								srcDir=None
+					else:
+						break
+			if not srcDir:
+				srcDir=self.configDefaultDir
+			msg='About to copy configuration directory from\n\n"'+srcDir+'"\n\nto\n\n"'+self.configDir+'"\n\nAfter the copy operation, you may want to edit the copied files in that directory to suit your needs.'
+			rprint(msg)
+			box=QMessageBox(QMessageBox.Information,'Copying configuration directory',msg,
+					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.exec_()
+			shutil.copytree(srcDir,self.configDir)
+		self.configFileName=os.path.join(self.configDir,'radiolog.cfg')
+		self.configFileDefaultName=os.path.join(self.configDefaultDir,'radiolog.cfg')
+		if not os.path.isfile(self.configFileName):
+			msg='config directory was found but did not contain radiolog.cfg; about to copy from default config directory '+self.configDefaultDir+'; this could disable important features like GPS locators, the second working directory, and more.'
+			rprint(msg)
+			box=QMessageBox(QMessageBox.Information,'Copying radiolog.cfg',msg,
+					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.exec_()
+			shutil.copyfile(self.configFileDefaultName,self.configFileName)
+
+#####  END config dir migration code #522
+
 		self.setWindowFlags(self.windowFlags()|Qt.WindowMinMaxButtonsHint)
 		self.parent=parent
 		self.ui=Ui_Dialog()
@@ -654,29 +767,25 @@ class MyWindow(QDialog,Ui_Dialog):
 		if self.initialWindowTracking:
 			rprint("Window Tracking was initially enabled.  Disabling it for radiolog; will re-enable on exit.")
 			win32gui.SystemParametersInfo(win32con.SPI_SETACTIVEWINDOWTRACKING,False)
-		
-		self.firstWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents"
-		if self.firstWorkingDir[1]!=":":
-			self.firstWorkingDir=os.getenv('HOMEDRIVE','C:')+self.firstWorkingDir
-# 		self.secondWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents\\sar"
 
-		self.optionsDialog=optionsDialog(self)
-		self.optionsDialog.accepted.connect(self.optionsAccepted)
-		
-		# config file (e.g. ./local/radiolog.cfg) stores the team standards;
-		#  it should be created/modified by hand, and is read at radiolog startup,
-		#  and is not modified by radiolog at any point
-		# resource file / 'rc file' (e.g. ./radiolog_rc.txt) stores the search-specific
-		#  options settings; it is read at radiolog startup, and is written
-		#  whenever the options dialog is accepted
-		self.configFileName="./local/radiolog.cfg"
-		self.readConfigFile() # defaults are set inside readConfigFile
+# 		self.secondWorkingDir=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents\\sar"
 
 		self.incidentName="New Incident"
 		self.incidentNameNormalized=normName(self.incidentName)
 		self.opPeriod=1
 		self.incidentStartDate=time.strftime("%a %b %d, %Y")
 		self.isContinuedIncident=False
+
+		self.optionsDialog=optionsDialog(self)
+		self.optionsDialog.accepted.connect(self.optionsAccepted)
+		
+		# config file (e.g. <firstWorkingDir>/.config/radiolog.cfg) stores the team standards;
+		#  it should be created/modified by hand, and is read at radiolog startup,
+		#  and is not modified by radiolog at any point
+		# resource file / 'rc file' (e.g. <firstWorkingDir>/radiolog_rc.txt) stores the search-specific
+		#  options settings; it is read at radiolog startup, and is written
+		#  whenever the options dialog is accepted
+		self.readConfigFile() # defaults are set inside readConfigFile
 
 		self.printDialog=printDialog(self)
 		self.printClueLogDialog=printClueLogDialog(self)
@@ -747,7 +856,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		# set the default lookup name - this must be after readConfigFile
 		#  since that function accepts the options form which updates the
 		#  lookup filename based on the current incedent name and time
-		self.fsFileName="radiolog_fleetsync.csv"
+		# self.fsFileName=os.path.join(self.firstWorkingDir,'config','radiolog_fleetsync.csv')
+		self.fsFileName='radiolog_fleetsync.csv'
 		
 		self.helpFont1=QFont()
 		self.helpFont1.setFamily("Segoe UI")
@@ -936,12 +1046,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.newEntryWindow=newEntryWindow(self) # create the window but don't show it until needed
 
 		# load resource file; process default values and resource file values
-		self.rcFileName="radiolog_rc.txt"
+		self.rcFileName=os.path.join(self.firstWorkingDir,'radiolog_rc.txt')
 		self.previousCleanShutdown=self.loadRcFile()
 		showStartupOptions=True
 		if self.isContinuedIncident:
 			showStartupOptions=False
-		if not self.previousCleanShutdown:
+		if not self.previousCleanShutdown and not self.newWorkingDir:
 			self.reallyRestore=QMessageBox(QMessageBox.Critical,"Restore last saved files?","The previous Radio Log session may have shut down incorrectly.  Do you want to restore the last saved files (Radio Log, Clue Log, and FleetSync table)?",
 										QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			self.reallyRestore.show()
@@ -953,13 +1063,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		# make sure x/y/w/h from resource file will fit on the available display
 		d=QApplication.desktop()
 		if (self.x+self.w > d.width()) or (self.y+self.h > d.height()):
-			rprint("\nThe resource file specifies a main window geometry that is\n  bigger than (or not on) the available desktop.\n  Using default sizes for this session.\n\n")
+			rprint("The resource file specifies a main window geometry that is bigger than (or not on) the available desktop.  Using default sizes for this session.")
 			self.x=50
 			self.y=50
 			self.w=d.availableGeometry(self).width()-100
 			self.h=d.availableGeometry(self).height()-100
 		if (self.clueLog_x+self.clueLog_w > d.width()) or (self.clueLog_y+self.clueLog_h > d.height()):
-			rprint("\nThe resource file specifies a clue log window geometry that is\n  bigger than (or not on) the available desktop.\n  Using default sizes for this session.\n\n")
+			rprint("The resource file specifies a clue log window geometry that is bigger than (or not on) the available desktop.  Using default sizes for this session.")
 			self.clueLog_x=75
 			self.clueLog_y=75
 			self.clueLog_w=d.availableGeometry(self).width()-100
@@ -975,23 +1085,34 @@ class MyWindow(QDialog,Ui_Dialog):
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
 
-	# Build a nested list of radiolog session data from any sessions in the last n days;
-	#  each list element is [incident_name,last_op#,last_clue#,filename_base]
-	#  then let the user choose from these, or choose to start a new incident
-	# - only show the most recent OP of each incident, i.e. don't show both OP2 and OP1
-	# - add a note that the user can change OP and next clue# afterwards from the GUI
-	def checkForContinuedIncident(self):
-		continuedIncidentWindowDays=self.continuedIncidentWindowDays
-		continuedIncidentWindowSec=continuedIncidentWindowDays*24*60*60
-		csvFiles=glob.glob(self.firstWorkingDir+'/*.csv')
-		sortedCsvFiles=sorted(csvFiles,key=os.path.getmtime,reverse=True)
+	def getSessions(self,sort='chronological',reverse=False):
+		csvFiles=glob.glob(self.firstWorkingDir+'/*/*.csv') # files nested in session dirs
+		# backwards compatibility: also list csv files saved flat in the working dir
+		csvFiles+=glob.glob(self.firstWorkingDir+'/*.csv')
+
+		# backwards compatibility: look in the old working directory too
+		#  copied code from radiolog.py before #522 dir structure overhaul;
+		#  could consider removing this in the future, since it grabs all .csv
+		#  files from ~\Documents
+		oldWD=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents"
+		if oldWD[1]!=":":
+			oldWD=os.getenv('HOMEDRIVE','C:')+oldWD
+
+		csvFiles+=glob.glob(oldWD+'/*.csv')
+
+		# remove _fleetsync and _clueLog files
+		csvFiles=[f for f in csvFiles if '_clueLog' not in f and '_fleetsync' not in f and self.isRadioLogDataFile(f)]
+		rprint('Found '+str(len(csvFiles))+' .csv files (excluding _clueLog.csv and _fleetsync.csv files)')
+		if sort=='chronological':
+			sortedCsvFiles=sorted(csvFiles,key=os.path.getmtime,reverse=reverse)
+		elif sort=='alphabetical':
+			sortedCsvFiles=sorted(csvFiles,reverse=reverse)
+		else:
+			soretdCsvFiles=csvFiles
+		rval=[]
 		now=time.time()
-		choices=[]
-		opd={} # dictionary of most recent OP#'s per incident name
-		# rprint('Checking '+str(len(sortedCsvFiles))+' .csv files:')
-		for csv in sortedCsvFiles:
-			# rprint('  '+csv)
-			mtime=os.path.getmtime(csv)
+		for f in sortedCsvFiles:
+			mtime=os.path.getmtime(f)
 			age=now-mtime
 			ageStr=''
 			if age<3600:
@@ -1005,37 +1126,51 @@ class MyWindow(QDialog,Ui_Dialog):
 					ageStr+='s'
 			if ageStr:
 				ageStr+=' ago'
-			if age<continuedIncidentWindowSec:
-				if self.isRadioLogDataFile(csv):
-					filenameBase=csv[:-4] # do this rather than splitext, to preserve entire path name
-					incidentName=None
-					lastOP='1' # if no entries indicate change in OP#, then initial OP is 1 by default
-					lastClue='--'
-					with open(csv,'r') as radioLog:
-						lines=radioLog.readlines()
-						# don't show files that have less than two entries
-						if len(lines)<7:
-							rprint('  not listing empty csv '+csv)
-							continue
-						for line in lines:
-							if not incidentName and '## Incident Name:' in line:
-								incidentName=': '.join(line.split(': ')[1:]).rstrip() # provide for spaces and ': ' in incident name
-							# last clue# could be determined by an actual clue in the previous OP, but
-							#  should carry forward the last clue number from an earlier OP if no clues
-							#  were found in the most recent OP
-							if 'Radio Log Begins - Continued incident' in line and '(Last clue number:' in line:
-								lastClue=re.findall('(Last clue number: [0-9]+)',line)[-1].split()[3]
-							if 'CLUE#' in line and 'LOCATION:' in line and 'INSTRUCTIONS:' in line:
-								lastClue=re.findall('CLUE#[0-9]+:',line)[-1].split('#')[1][:-1]
-							if 'Operational Period ' in line:
-								lastOP=re.findall('Operational Period [0-9]+ Begins:',line)[-1].split()[2]
-					# only show the most recent OP of continued incidents
-					op=opd.get(incidentName)
-					if type(op)==str and op.isdigit() and int(op)>int(lastOP):
-						rprint('  not listing '+incidentName+' OP '+lastOP+' ('+filenameBase+') since OP '+op+' is already listed')
-						continue
-					choices.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase])
+			filenameBase=f[:-4] # do this rather than splitext, to preserve entire path name
+			incidentName=None
+			lastOP='1' # if no entries indicate change in OP#, then initial OP is 1 by default
+			lastClue='--'
+			with open(f,'r') as radioLog:
+				lines=radioLog.readlines()
+				# don't show files that have less than two entries
+				if len(lines)<7:
+					rprint('  not listing empty csv '+f)
+					continue
+				for line in lines:
+					if not incidentName and '## Incident Name:' in line:
+						incidentName=': '.join(line.split(': ')[1:]).rstrip() # provide for spaces and ': ' in incident name
+					# last clue# could be determined by an actual clue in the previous OP, but
+					#  should carry forward the last clue number from an earlier OP if no clues
+					#  were found in the most recent OP
+					if 'Radio Log Begins - Continued incident' in line and '(Last clue number:' in line:
+						lastClue=re.findall('(Last clue number: [0-9]+)',line)[-1].split()[3]
+					if 'CLUE#' in line and 'LOCATION:' in line and 'INSTRUCTIONS:' in line:
+						lastClue=re.findall('CLUE#[0-9]+:',line)[-1].split('#')[1][:-1]
+					if 'Operational Period ' in line:
+						lastOP=re.findall('Operational Period [0-9]+ Begins:',line)[-1].split()[2]
+			rval.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase,mtime])
+		return rval
+
+	# Build a nested list of radiolog session data from any sessions in the last n days;
+	#  each list element is [incident_name,last_op#,last_clue#,filename_base]
+	#  then let the user choose from these, or choose to start a new incident
+	# - only show the most recent OP of each incident, i.e. don't show both OP2 and OP1
+	# - add a note that the user can change OP and next clue# afterwards from the GUI
+	def checkForContinuedIncident(self):
+		continuedIncidentWindowDays=self.continuedIncidentWindowDays
+		continuedIncidentWindowSec=continuedIncidentWindowDays*24*60*60
+		now=time.time()
+		opd={} # dictionary of most recent OP#'s per incident name
+		choices=[]
+		for session in self.getSessions(reverse=True):
+			[incidentName,lastOP,lastClue,ageStr,filenameBase,mtime]=session
+			rprint('session:'+str(session))
+			if now-mtime<continuedIncidentWindowSec:
+				if type(lastOP)==str and lastOP.isdigit() and int(lastOP)>int(opd.get(incidentName,0)):
+					choices.append(session)
 					opd[incidentName]=lastOP
+				else:
+					rprint('  not listing '+incidentName+' OP '+lastOP+' ('+filenameBase+') since OP '+str(opd.get(incidentName,0))+' is already listed')
 			else:
 				break
 		if choices:
@@ -1047,10 +1182,18 @@ class MyWindow(QDialog,Ui_Dialog):
 			cd.ui.theTable.setRowCount(len(choices))
 			row=0
 			for choice in choices:
-				cd.ui.theTable.setItem(row,0,QTableWidgetItem(choice[0]))
-				cd.ui.theTable.setItem(row,1,QTableWidgetItem(choice[1]))
-				cd.ui.theTable.setItem(row,2,QTableWidgetItem(choice[2]))
-				cd.ui.theTable.setItem(row,3,QTableWidgetItem(choice[3]))
+				q0=QTableWidgetItem(choice[0])
+				q1=QTableWidgetItem(choice[1])
+				q2=QTableWidgetItem(choice[2])
+				q3=QTableWidgetItem(choice[3])
+				# q0.setToolTip(choice[4])
+				# q1.setToolTip(choice[4])
+				# q2.setToolTip(choice[4])
+				q3.setToolTip(choice[4])
+				cd.ui.theTable.setItem(row,0,q0)
+				cd.ui.theTable.setItem(row,1,q1)
+				cd.ui.theTable.setItem(row,2,q2)
+				cd.ui.theTable.setItem(row,3,q3)
 				row+=1
 			cd.show()
 			cd.raise_()
@@ -1074,8 +1217,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.coordFormatAscii="UTM 5x5"
 		self.coordFormat=self.csDisplayDict[self.coordFormatAscii]
 		self.timeoutMinutes="30"
-		self.printLogoFileName="radiolog_logo.jpg"
-		self.firstWorkingDir=self.homeDir+"\\Documents"
+		self.printLogoFileName="radiolog_logo.jpg" # relative to config dir
+		# self.firstWorkingDir=self.homeDir+"\\Documents"
 		self.secondWorkingDir=None
 		self.sarsoftServerName="localhost"
 		self.rotateScript=None
@@ -1152,7 +1295,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		
 		# validation and post-processing of each item
 		configErr=""
-		self.printLogoFileName="./local/"+self.printLogoFileName
+		self.printLogoFileName=os.path.join(self.configDir,self.printLogoFileName)
 		
 		if self.datum not in self.validDatumList:
 			configErr+="ERROR: invalid datum '"+self.datum+"'\n"
@@ -1936,17 +2079,26 @@ class MyWindow(QDialog,Ui_Dialog):
 			fsEmptyFlag=True
 		if not fsFileName:
 			fsFileName=self.fsFileName
+		if os.path.isfile(fsFileName):
+			fsFullPath=fsFileName
+		else:
+			if startupFlag:
+				fsDir=self.configDir
+			else:
+				fsDir=self.sessionDir
+			# rprint('t1: fsDir='+fsDir+'  fsFileName='+fsFileName)
+			fsFullPath=os.path.join(fsDir,fsFileName)
 		try:
-			rprint("  trying "+fsFileName)
-			with open(fsFileName,'r') as fsFile:
-				rprint("Loading FleetSync Lookup Table from file "+fsFileName)
+			rprint("  trying "+fsFullPath)
+			with open(fsFullPath,'r') as fsFile:
+				rprint("Loading FleetSync Lookup Table from file "+fsFullPath)
 				self.fsLookup=[]
 				csvReader=csv.reader(fsFile)
 				for row in csvReader:
-					if not row[0].startswith("#"):
+					if row and not row[0].startswith("#"): # allow blank lines and comment lines
 						self.fsLookup.append(row)
 				if not startupFlag: # suppress message box on startup
-					self.fsMsgBox=QMessageBox(QMessageBox.Information,"Information","FleetSync ID table has been re-loaded from file "+fsFileName+".",
+					self.fsMsgBox=QMessageBox(QMessageBox.Information,"Information","FleetSync ID table has been re-loaded from file "+fsFullPath+".",
 											QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 					self.fsMsgBox.show()
 					QCoreApplication.processEvents()
@@ -1954,10 +2106,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		except:
 			if not hideWarnings:
 				if fsEmptyFlag:
-					warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot read FleetSync ID table file '"+fsFileName+"' and no FleetSync ID table has yet been loaded.  Callsigns for incoming FleetSync calls will be of the format 'KW-<fleet>-<device>'.\n\nThis warning will automatically close in a few seconds.",
+					warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot read FleetSync ID table file '"+fsFullPath+"' and no FleetSync ID table has yet been loaded.  Callsigns for incoming FleetSync calls will be of the format 'KW-<fleet>-<device>'.\n\nThis warning will automatically close in a few seconds.",
 									QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 				else:
-					warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot read FleetSync ID table file '"+fsFileName+"'!  Using existing settings.\n\nThis warning will automatically close in a few seconds.",
+					warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot read FleetSync ID table file '"+fsFullPath+"'!  Using existing settings.\n\nThis warning will automatically close in a few seconds.",
 									QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 				warn.show()
 				warn.raise_()
@@ -1967,11 +2119,10 @@ class MyWindow(QDialog,Ui_Dialog):
 	# save to fsFileName in the working dir each time, but on startup, load from the default dir;
 	#  would only need to load from the working dir if restoring
 	def fsSaveLookup(self):
-		fsName=self.firstWorkingDir+"\\"+self.csvFileName
-		fsName=fsName.replace(".csv","_fleetsync.csv")
+		fsFullPath=os.path.join(self.sessionDir,self.fsFileName)
 		try:
-			with open(fsName,'w',newline='') as fsFile:
-				rprint("Writing file "+fsName)
+			with open(fsFullPath,'w',newline='') as fsFile:
+				rprint("Writing file "+fsFullPath)
 				csvWriter=csv.writer(fsFile)
 				csvWriter.writerow(["## Radio Log FleetSync lookup table"])
 				csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
@@ -1980,7 +2131,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					csvWriter.writerow(row)
 				csvWriter.writerow(["## end"])
 		except:
-			warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot write FleetSync ID table file "+fsName+"!  Any modified FleetSync Callsign associations will be lost.",
+			warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot write FleetSync ID table file "+fsFullPath+"!  Any modified FleetSync Callsign associations will be lost.",
 							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			warn.show()
 			warn.raise_()
@@ -2994,7 +3145,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  but also need to be able to auto-recover from .rc file
 		# issue 322: use self.lastSavedFileName instead of self.csvFileName to
 		#  make sure the initial rc file doesn't point to a file that does not yet exist
-		out << "lastFileName=" << self.lastSavedFileName << "\n"
+		out << "lastFileName=" << os.path.join(self.sessionDir,self.lastSavedFileName) << "\n"
 		out << "font-size=" << self.fontSize << "pt\n"
 		out << "x=" << x << "\n"
 		out << "y=" << y << "\n"
@@ -3018,11 +3169,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  be taken from the config file.
 		rcFile=QFile(self.rcFileName)
 		if not rcFile.open(QFile.ReadOnly|QFile.Text):
-			warn=QMessageBox(QMessageBox.Warning,"Error","Cannot read resource file " + self.rcFileName + "; using default settings. "+rcFile.errorString(),
+			if not self.newWorkingDir: # don't show the warning, but still return, if this is the first run in a new working dir
+				warn=QMessageBox(QMessageBox.Warning,"Error","Cannot read resource file " + self.rcFileName + "; using default settings. "+rcFile.errorString(),
 							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			warn.show()
-			warn.raise_()
-			warn.exec_()
+				warn.show()
+				warn.raise_()
+				warn.exec_()
 			return
 		inStr=QTextStream(rcFile)
 		line=inStr.readLine()
@@ -3086,9 +3238,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		return cleanShutdownFlag
 
 	def save(self,finalize=False):
-		csvFileNameList=[self.firstWorkingDir+"\\"+self.csvFileName]
+		csvFileNameList=[os.path.join(self.sessionDir,self.csvFileName)]
 		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-			csvFileNameList.append(self.secondWorkingDir+"\\"+self.csvFileName)
+			csvFileNameList.append(os.path.join(self.secondWorkingDir,self.csvFileName)) # save flat in second working dir
 		for fileName in csvFileNameList:
 			rprint("  writing "+fileName)
 			with open(fileName,'w',newline='') as csvFile:
@@ -3130,85 +3282,113 @@ class MyWindow(QDialog,Ui_Dialog):
 		# loading scheme:
 		# always merge instead of overwrite; always use the loaded Begins line since it will be earlier by definition
 		# maybe provide some way to force overwrite later, but, for now that can be done just by exiting and restarting
-		if not fileName:
-			fileDialog=QFileDialog()
-			fileDialog.setOption(QFileDialog.DontUseNativeDialog)
-			fileDialog.setProxyModel(CSVFileSortFilterProxyModel(self))
-			fileDialog.setNameFilter("CSV Radio Log Data Files (*.csv)")
-			fileDialog.setDirectory(self.firstWorkingDir)
-			if fileDialog.exec_():
-				fileName=fileDialog.selectedFiles()[0]
-			else: # user pressed cancel on the file browser dialog
-				return
-# 			print("fileName="+fileName)
-# 			if not os.path.isfile(fileName): # prevent error if dialog is canceled
+# 		if not fileName:
+# 			fileDialog=QFileDialog()
+# 			fileDialog.setOption(QFileDialog.DontUseNativeDialog)
+# 			fileDialog.setProxyModel(CSVFileSortFilterProxyModel(self))
+# 			fileDialog.setNameFilter("CSV Radio Log Data Files (*.csv)")
+# 			fileDialog.setDirectory(self.firstWorkingDir)
+# 			if fileDialog.exec_():
+# 				fileName=fileDialog.selectedFiles()[0]
+# 			else: # user pressed cancel on the file browser dialog
 # 				return
-		if "_clueLog" in fileName or "_fleetsync" in fileName:
-			crit=QMessageBox(QMessageBox.Critical,"Invalid File Selected","Do not load a Clue Log or FleetSync file directly.  Load the parent radiolog.csv file directly, and the Clue Log and FleetSync files will automatically be loaded with it.",
-							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			crit.show()
-			crit.raise_()
-			crit.exec_() # make sure it's modal
-			return
-		progressBox=QProgressDialog("Loading, please wait...","Abort",0,100)
-		progressBox.setWindowModality(Qt.WindowModal)
-		progressBox.setWindowTitle("Loading")
-		progressBox.show()
-		QCoreApplication.processEvents()
-		self.teamTimer.start(10000) # pause
+# # 			print("fileName="+fileName)
+# # 			if not os.path.isfile(fileName): # prevent error if dialog is canceled
+# # 				return
+# 		if "_clueLog" in fileName or "_fleetsync" in fileName:
+# 			crit=QMessageBox(QMessageBox.Critical,"Invalid File Selected","Do not load a Clue Log or FleetSync file directly.  Load the parent radiolog.csv file directly, and the Clue Log and FleetSync files will automatically be loaded with it.",
+# 							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+# 			crit.show()
+# 			crit.raise_()
+# 			crit.exec_() # make sure it's modal
+# 			return
 
-		rprint("Loading:"+fileName)
-		# pass 1: count total entries for the progress box, and read incident name
-		with open(fileName,'r') as csvFile:
-			csvReader=csv.reader(csvFile)
-			totalEntries=0
-			for row in csvReader:
-				if row[0].startswith("## Incident Name:"):
-					self.incidentName=row[0][18:]
-					self.optionsDialog.ui.incidentField.setText(self.incidentName)
-					rprint("loaded incident name: '"+self.incidentName+"'")
-					self.incidentNameNormalized=normName(self.incidentName)
-					rprint("normalized loaded incident name: '"+self.incidentNameNormalized+"'")
-					self.ui.incidentNameLabel.setText(self.incidentName)
-				if not row[0].startswith('#'): # prune comment lines
-					totalEntries=totalEntries+1
-			progressBox.setMaximum(totalEntries*2)
 
-		# pass 2: read and process the file
-		with open(fileName,'r') as csvFile:
-			csvReader=csv.reader(csvFile)
-			loadedRadioLog=[]
-			i=0
-			for row in csvReader:
-				if not row[0].startswith('#'): # prune comment lines
-					row[6]=float(row[6]) # convert epoch seconds back to float, for sorting
-					row += [''] * (10-len(row)) # pad the row up to 10 elements if needed, to avoid index errors elsewhere
-					loadedRadioLog.append(row)
-					i=i+1
-					newOp=None
-					if row[3].startswith("Operational Period") and row[3].split()[3]=="Begins:":
-						newOp=int(row[3].split()[2])
-					if row[3].startswith('Radio Log Begins - Continued incident'):
-						newOp=int(row[3].split(': Operational Period ')[1].split()[0])
-					if newOp:
-						self.opPeriod=newOp
-						self.printDialog.ui.opPeriodComboBox.addItem(str(self.opPeriod))
-						rprint('Setting OP to '+str(self.opPeriod)+' based on loaded entry "'+row[3]+'".')
-					progressBox.setValue(i)
-			csvFile.close()
+		if not fileName:
+			sessions=self.getSessions(reverse=True)
+			if not sessions:
+				rprint('There are no available sessions to load.')
+				return
+			ld=loadDialog(self)
+			ld.ui.theTable.setRowCount(len(sessions))
+			row=0
+			for [incidentName,lastOP,lastClue,ageStr,filenameBase,mtime] in sessions:
+				q0=QTableWidgetItem(incidentName)
+				q1=QTableWidgetItem(lastOP)
+				q2=QTableWidgetItem(lastClue)
+				q3=QTableWidgetItem(time.strftime("%m/%d/%Y %H:%M:%S",time.localtime(mtime)))
+				q0.setToolTip(filenameBase)
+				q1.setToolTip(filenameBase)
+				q2.setToolTip(filenameBase)
+				q3.setToolTip(filenameBase)
+				ld.ui.theTable.setItem(row,0,q0)
+				ld.ui.theTable.setItem(row,1,q1)
+				ld.ui.theTable.setItem(row,2,q2)
+				ld.ui.theTable.setItem(row,3,q3)
+				row+=1
+			ld.show()
+			ld.raise_()
+			rval=ld.exec_()
 
-		# now add entries, sort, and prune any Begins lines after the first line
-		# edit: don't prune Begins lines - those are needed to indicate start of operational periods
-		# move loadFlag True then False closer in to the newEntry commands, to
-		#  minimize opportunity for failed entries due to self.loadFlag being
-		#  left at True, probably due to early return above (see #340)
-		self.loadFlag=True
-		for row in loadedRadioLog:
-			self.newEntry(row)
-			i=i+1
-			progressBox.setValue(i)
-		self.loadFlag=False
-		self.radioLog.sort(key=lambda entry: entry[6]) # sort by epoch seconds
+		else: # entry point when session is selected from load dialog
+			rprint("Loading: "+fileName)
+			progressBox=QProgressDialog("Loading, please wait...","Abort",0,100)
+			progressBox.setWindowModality(Qt.WindowModal)
+			progressBox.setWindowTitle("Loading")
+			progressBox.show()
+			QCoreApplication.processEvents()
+			self.teamTimer.start(10000) # pause
+			# pass 1: count total entries for the progress box, and read incident name
+			with open(fileName,'r') as csvFile:
+				csvReader=csv.reader(csvFile)
+				totalEntries=0
+				for row in csvReader:
+					if row[0].startswith("## Incident Name:"):
+						self.incidentName=row[0][18:]
+						self.optionsDialog.ui.incidentField.setText(self.incidentName)
+						rprint("loaded incident name: '"+self.incidentName+"'")
+						self.incidentNameNormalized=normName(self.incidentName)
+						rprint("normalized loaded incident name: '"+self.incidentNameNormalized+"'")
+						self.ui.incidentNameLabel.setText(self.incidentName)
+					if not row[0].startswith('#'): # prune comment lines
+						totalEntries=totalEntries+1
+				progressBox.setMaximum(totalEntries*2)
+
+			# pass 2: read and process the file
+			with open(fileName,'r') as csvFile:
+				csvReader=csv.reader(csvFile)
+				loadedRadioLog=[]
+				i=0
+				for row in csvReader:
+					if not row[0].startswith('#'): # prune comment lines
+						row[6]=float(row[6]) # convert epoch seconds back to float, for sorting
+						row += [''] * (10-len(row)) # pad the row up to 10 elements if needed, to avoid index errors elsewhere
+						loadedRadioLog.append(row)
+						i=i+1
+						newOp=None
+						if row[3].startswith("Operational Period") and row[3].split()[3]=="Begins:":
+							newOp=int(row[3].split()[2])
+						if row[3].startswith('Radio Log Begins - Continued incident'):
+							newOp=int(row[3].split(': Operational Period ')[1].split()[0])
+						if newOp:
+							self.opPeriod=newOp
+							self.printDialog.ui.opPeriodComboBox.addItem(str(self.opPeriod))
+							rprint('Setting OP to '+str(self.opPeriod)+' based on loaded entry "'+row[3]+'".')
+						progressBox.setValue(i)
+				csvFile.close()
+
+			# now add entries, sort, and prune any Begins lines after the first line
+			# edit: don't prune Begins lines - those are needed to indicate start of operational periods
+			# move loadFlag True then False closer in to the newEntry commands, to
+			#  minimize opportunity for failed entries due to self.loadFlag being
+			#  left at True, probably due to early return above (see #340)
+			self.loadFlag=True
+			for row in loadedRadioLog:
+				self.newEntry(row)
+				i=i+1
+				progressBox.setValue(i)
+			self.loadFlag=False
+			self.radioLog.sort(key=lambda entry: entry[6]) # sort by epoch seconds
 ##		self.radioLog[1:]=[x for x in self.radioLog[1:] if not x[3].startswith('Radio Log Begins:')]
 
 		# take care of the newEntry cleanup functions that have been put off due to loadFlag
@@ -3218,45 +3398,45 @@ class MyWindow(QDialog,Ui_Dialog):
 # they could be put inside redrawTables, but, there's no need to put them inside that
 #  function which is called from other places, unless another syptom shows up; so, leave
 #  them here for now.
-		self.ui.tableView.model().layoutChanged.emit()
-		self.ui.tableView.scrollToBottom()
-##		self.ui.tableView.resizeRowsToContents()
-##		for i in range(self.ui.tabWidget.count()):
-##			self.ui.tabWidget.setCurrentIndex(i)
-##			self.ui.tableViewList[i].scrollToBottom()
-##			self.ui.tableViewList[i].resizeRowsToContents()
+			self.ui.tableView.model().layoutChanged.emit()
+			self.ui.tableView.scrollToBottom()
+	##		self.ui.tableView.resizeRowsToContents()
+	##		for i in range(self.ui.tabWidget.count()):
+	##			self.ui.tabWidget.setCurrentIndex(i)
+	##			self.ui.tableViewList[i].scrollToBottom()
+	##			self.ui.tableViewList[i].resizeRowsToContents()
 
-##		self.ui.tableView.model().layoutChanged.emit()
+	##		self.ui.tableView.model().layoutChanged.emit()
 
-		# now load the clue log (same filename appended by .clueLog) if it exists
-		clueLogFileName=fileName.replace(".csv","_clueLog.csv")
-		global lastClueNumber
-		if os.path.isfile(clueLogFileName):
-			with open(clueLogFileName,'r') as csvFile:
-				csvReader=csv.reader(csvFile)
-##				self.clueLog=[] # uncomment this line to overwrite instead of combine
-				for row in csvReader:
-					if not row[0].startswith('#'): # prune comment lines
-						self.clueLog.append(row)
-						if row[0]!="":
-							lastClueNumber=int(row[0])
-						elif '(Last clue number: ' in row[1]:
-							lastClueNumber=int(row[1].split('(Last clue number: ')[1].replace(')',''))
-				csvFile.close()
+			# now load the clue log (same filename appended by .clueLog) if it exists
+			clueLogFileName=fileName.replace(".csv","_clueLog.csv")
+			global lastClueNumber
+			if os.path.isfile(clueLogFileName):
+				with open(clueLogFileName,'r') as csvFile:
+					csvReader=csv.reader(csvFile)
+	##				self.clueLog=[] # uncomment this line to overwrite instead of combine
+					for row in csvReader:
+						if not row[0].startswith('#'): # prune comment lines
+							self.clueLog.append(row)
+							if row[0]!="":
+								lastClueNumber=int(row[0])
+							elif '(Last clue number: ' in row[1]:
+								lastClueNumber=int(row[1].split('(Last clue number: ')[1].replace(')',''))
+					csvFile.close()
 
-		self.clueLogDialog.ui.tableView.model().layoutChanged.emit()
-		# finished
-		# rprint("Starting redrawTables")
-		self.fontsChanged()
-##		self.ui.tableView.model().layoutChanged.emit()
-##		QCoreApplication.processEvents()
-		# rprint("Returned from redrawTables")
-		progressBox.close()
-		self.ui.opPeriodButton.setText("OP "+str(self.opPeriod))
-		self.teamTimer.start(1000) #resume
-		self.lastSavedFileName="NONE"
-		self.updateFileNames() # note, no file will be saved until the next entry is made
-		self.saveRcFile()
+			self.clueLogDialog.ui.tableView.model().layoutChanged.emit()
+			# finished
+			# rprint("Starting redrawTables")
+			self.fontsChanged()
+	##		self.ui.tableView.model().layoutChanged.emit()
+	##		QCoreApplication.processEvents()
+			# rprint("Returned from redrawTables")
+			progressBox.close()
+			self.ui.opPeriodButton.setText("OP "+str(self.opPeriod))
+			self.teamTimer.start(1000) #resume
+			self.lastSavedFileName="NONE"
+			self.updateFileNames() # note, no file will be saved until the next entry is made
+			self.saveRcFile()
 
 	def updateFileNames(self):
 		# update the filenames based on current incident name and current date/time
@@ -3264,15 +3444,35 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  - get rid of all spaces -  no need to be able to reproduce the
 		#    incident name's spaces from the filename
 		self.incidentNameNormalized=normName(self.incidentName)
+		sessionDirAttempt=os.path.join(self.firstWorkingDir,self.incidentNameNormalized)+'_'+time.strftime('%Y_%m_%d_%H%M%S')
+		if sessionDirAttempt is not self.sessionDir:
+			if not os.path.isdir(sessionDirAttempt):
+				setLogHandlers() # open log file handler prevents dir rename; close it now
+				try:
+					os.rename(self.sessionDir,sessionDirAttempt)
+				except Exception as e:
+					err='ERROR: session directory could not be renamed from\n\n'+self.sessionDir+'\n\nto\n\n'+sessionDirAttempt+'.\n\nUsing existing session directory.\n\n'+repr(e)
+					setLogHandlers(self.sessionDir) # resume log file in new location, regardless of rename outcome
+					rprint(err.replace('\n',' '))
+					self.errMsgBox=QMessageBox(QMessageBox.Critical,"Session Directory Error",err,
+									QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					self.errMsgBox.exec_()
+				else:
+					self.sessionDir=sessionDirAttempt
+					setLogHandlers(self.sessionDir) # resume log file in new location, regardless of rename outcome
+					rprint('Renamed session directory to "'+self.sessionDir+'"')
 		self.csvFileName=getFileNameBase(self.incidentNameNormalized)+".csv"
 		self.pdfFileName=getFileNameBase(self.incidentNameNormalized)+".pdf"
 		self.fsFileName=self.csvFileName.replace('.csv','_fleetsync.csv')
 
 	def optionsAccepted(self):
-		self.incidentName=self.optionsDialog.ui.incidentField.text()
-		self.updateFileNames()
-		# don't change the rc file at this point - wait until a log entry is actually saved
-		self.ui.incidentNameLabel.setText(self.incidentName)
+		tmp=self.optionsDialog.ui.incidentField.text()
+		if self.incidentName is not tmp:
+			rprint('Incident name changed to "'+tmp+'".') # note that this gets called from code as well as GUI
+			self.incidentName=self.optionsDialog.ui.incidentField.text()
+			self.updateFileNames()
+			# don't change the rc file at this point - wait until a log entry is actually saved
+			self.ui.incidentNameLabel.setText(self.incidentName)
 		self.datum=self.optionsDialog.ui.datumField.currentText()
 		self.coordFormat=self.optionsDialog.ui.formatField.currentText()
 		# TMG 4-22-15: do not try to convert coords right now: it fails due to space in radioLoc i.e. "NO FIX"
@@ -4496,7 +4696,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.crit1.raise_()
 			self.crit1.exec_()
 			return
-		fileToLoad=self.firstWorkingDir+"\\"+self.lastFileName
+		# fileToLoad=self.firstWorkingDir+"\\"+self.lastFileName
+		# fileToLoad=os.path.join(self.firstWorkingDir,self.lastFileName)
+		fileToLoad=self.lastFileName # full filename with dir is saved in rc file
+		# allSessionDirs=[os.path.join(self.firstWorkingDir,d) for d in os.listdir(self.firstWorkingDir) if os.path.isdir(os.path.join(self.firstWorkingDir,d))]
+		# lastSessionDir=max(allSessionDirs,key=os.path.getmtime)
 		if not os.path.isfile(fileToLoad): # prevent error if dialog is canceled
 			self.crit2=QMessageBox(QMessageBox.Critical,"Cannot Restore","The file "+fileToLoad+" (specified in the resource file) does not exist.  You will need to load the files directly [F4].",
 							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
@@ -4504,14 +4708,14 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.crit2.raise_()
 			self.crit2.exec_()
 			return
+		rprint('Restoring previous session after unclean shutdown:')
 		self.load(fileToLoad) # loads the radio log and the clue log
 		# hide warnings about missing fleetsync file, since it does not get saved until clean shutdown time
-		self.fsLoadLookup(fsFileName=self.firstWorkingDir+"\\"+self.lastFileName.replace(".csv","_fleetsync.csv"),hideWarnings=True)
+		self.fsLoadLookup(fsFileName=fileToLoad.replace('.csv','_fleetsync.csv'),hideWarnings=True)
 		self.updateFileNames()
 		self.fsSaveLookup()
 		self.save()
 		self.saveRcFile()
-
 
 class helpWindow(QDialog,Ui_Help):
 	def __init__(self, *args):
@@ -5274,14 +5478,14 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				#  entry interval could be off during fast entries since the
 				#  rotate script is called asynchronously (i.e. backgrounded)
 				filesToBackup=[
-						self.parent.firstWorkingDir+"\\"+self.parent.csvFileName,
-						self.parent.firstWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"),
-						self.parent.firstWorkingDir+"\\"+self.parent.fsFileName]
+						os.path.join(self.parent.sessionDir,self.parent.csvFileName),
+						os.path.join(self.parent.sessionDir,self.parent.csvFileName.replace(".csv","_clueLog.csv")),
+						os.path.join(self.parent.sessionDir,self.parent.fsFileName)]
 				if self.parent.use2WD and self.parent.secondWorkingDir:
 					filesToBackup=filesToBackup+[
-							self.parent.secondWorkingDir+"\\"+self.parent.csvFileName,
-							self.parent.secondWorkingDir+"\\"+self.parent.csvFileName.replace(".csv","_clueLog.csv"),
-							self.parent.secondWorkingDir+"\\"+self.parent.fsFileName]
+							os.path.join(self.parent.secondWorkingDir,self.parent.csvFileName),
+							os.path.join(self.parent.secondWorkingDir,self.parent.csvFileName.replace(".csv","_clueLog.csv")),
+							os.path.join(self.parent.secondWorkingDir,self.parent.fsFileName)]
 				self.parent.rotateCsvBackups(filesToBackup)	
 			rprint("Accepted2")
 		self.closeEvent(QEvent(QEvent.Close),True)
@@ -6323,6 +6527,50 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 			self.changed=True
 		# else:
 			# rprint('  selected row:'+str(self.ui.theTable.selectedIndexes()[0].row()))
+
+class loadDialog(QDialog,Ui_loadDialog):
+	def __init__(self,parent):
+		QDialog.__init__(self)
+		self.ui=Ui_loadDialog()
+		self.ui.setupUi(self)
+		self.parent=parent
+		self.setAttribute(Qt.WA_DeleteOnClose)
+		# self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		self.ui.theTable.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+		# automatically expand the 'Incident name' column width to fill available space
+		self.ui.theTable.horizontalHeader().setSectionResizeMode(0,QHeaderView.Stretch)
+		self.ui.theTable.horizontalHeader().setSectionResizeMode(3,QHeaderView.Stretch)
+		centerDelegate=alignCenterDelegate(self.ui.theTable)
+		self.ui.theTable.setItemDelegateForColumn(1,centerDelegate)
+		self.ui.theTable.setItemDelegateForColumn(2,centerDelegate)
+		self.ui.theTable.setItemDelegateForColumn(3,centerDelegate)
+		# clearFocus doesn't remove the focus rectangle from the top-left cell unless
+		#  there is a half second delay (singleshot) before callig it, but changing
+		#  the focus to something else does remove the focus rectangle immediately
+		self.ui.buttonBox.setFocus()
+		self.filenameBase=None
+		self.setFixedSize(self.size())
+
+	def accept(self):
+		if self.filenameBase:
+			self.parent.load(self.filenameBase+'.csv')
+			super(loadDialog,self).accept()
+
+	def reject(self):
+		super(loadDialog,self).reject()
+
+	def cellClicked(self,row,col):
+		self.filenameBase=self.ui.theTable.item(row,col).toolTip()
+
+	def useBrowserClicked(self,*args):
+		fileDialog=QFileDialog()
+		fileDialog.setOption(QFileDialog.DontUseNativeDialog)
+		fileDialog.setProxyModel(CSVFileSortFilterProxyModel(self))
+		fileDialog.setNameFilter("CSV Radio Log Data Files (*.csv)")
+		fileDialog.setDirectory(self.parent.firstWorkingDir)
+		if fileDialog.exec_():
+			self.parent.load(fileDialog.selectedFiles()[0])
+			self.close()
 
 # fleetsync filtering scheme:
 # - maintain a table of all known (received) fleetsync device IDs.  This table is empty at startup.
