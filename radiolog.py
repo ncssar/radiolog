@@ -656,7 +656,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			print(msg)
 			sys.exit(-1)
 
-		self.configDir=os.path.join(self.firstWorkingDir,'config')
+		self.configDir=os.path.join(self.firstWorkingDir,'.config')
 		self.configDefaultDir=os.path.join(installDir,'config_default')
 
 #####  BEGIN config dir migration code #522
@@ -771,7 +771,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.optionsDialog=optionsDialog(self)
 		self.optionsDialog.accepted.connect(self.optionsAccepted)
 		
-		# config file (e.g. <firstWorkingDir>/config/radiolog.cfg) stores the team standards;
+		# config file (e.g. <firstWorkingDir>/.config/radiolog.cfg) stores the team standards;
 		#  it should be created/modified by hand, and is read at radiolog startup,
 		#  and is not modified by radiolog at any point
 		# resource file / 'rc file' (e.g. <firstWorkingDir>/radiolog_rc.txt) stores the search-specific
