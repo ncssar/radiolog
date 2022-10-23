@@ -331,7 +331,7 @@ from PyPDF2 import PdfFileReader,PdfFileWriter
 from FingerTabs import *
 from pygeodesy import Datums,ellipsoidalBase,dms
 
-__version__ = "3.1.1"
+__version__ = "3.2.0"
 
 # process command-line arguments
 develMode=False
