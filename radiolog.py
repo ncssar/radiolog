@@ -1094,15 +1094,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  copied code from radiolog.py before #522 dir structure overhaul;
 		#  could consider removing this in the future, since it grabs all .csv
 		#  files from ~\Documents
-		oldWD=os.getenv('HOMEPATH','C:\\Users\\Default')+"\\Documents"
+		oldWD=os.path.join(os.getenv('HOMEPATH','C:\\Users\\Default'),'Documents')
 		if oldWD[1]!=":":
 			oldWD=os.getenv('HOMEDRIVE','C:')+oldWD
 
 		csvFiles+=glob.glob(oldWD+'/*.csv')
 
 		# remove _fleetsync and _clueLog files
-		csvFiles=[f for f in csvFiles if '_clueLog' not in f and '_fleetsync' not in f and self.isRadioLogDataFile(f)]
-		rprint('Found '+str(len(csvFiles))+' .csv files (excluding _clueLog.csv and _fleetsync.csv files)')
+		csvFiles=[f for f in csvFiles if '_clueLog' not in f and '_fleetsync' not in f and '_bak' not in f and self.isRadioLogDataFile(f)]
+		rprint('Found '+str(len(csvFiles))+' .csv files (excluding _clueLog, _fleetsync, and _bak csv files)')
 		if sort=='chronological':
 			sortedCsvFiles=sorted(csvFiles,key=os.path.getmtime,reverse=reverse)
 		elif sort=='alphabetical':
@@ -2383,7 +2383,8 @@ class MyWindow(QDialog,Ui_Dialog):
 	# if 'teams' is an array of team names, just print those team log(s)
 	def printLog(self,opPeriod,teams=False):
 		opPeriod=int(opPeriod)
-		pdfName=self.firstWorkingDir+"\\"+self.pdfFileName
+		# pdfName=self.firstWorkingDir+"\\"+self.pdfFileName
+		pdfName=os.path.join(self.sessionDir,self.pdfFileName)
 		teamFilterList=[""] # by default, print print all entries; if teams=True, add a filter for each team
 		msgAdder=""
 		if teams:
@@ -2538,7 +2539,8 @@ class MyWindow(QDialog,Ui_Dialog):
 	def printClueLog(self,opPeriod):
 ##      header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
 		opPeriod=int(opPeriod)
-		clueLogPdfFileName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clueLog_OP"+str(opPeriod)+".pdf")
+		# clueLogPdfFileName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clueLog_OP"+str(opPeriod)+".pdf")
+		clueLogPdfFileName=os.path.join(self.sessionDir,self.pdfFileName.replace(".pdf","_clueLog_OP"+str(opPeriod)+".pdf"))
 		rprint("generating clue log pdf: "+clueLogPdfFileName)
 		try:
 			f=open(clueLogPdfFileName,"wb")
@@ -2603,7 +2605,8 @@ class MyWindow(QDialog,Ui_Dialog):
 	#  see https://stackoverflow.com/questions/72625568
 	# so, use reportlab instead
 	def printClueReport(self,clueData):
-		cluePdfName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clue"+str(clueData[0]).zfill(2)+".pdf")
+		# cluePdfName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clue"+str(clueData[0]).zfill(2)+".pdf")
+		cluePdfName=os.path.join(self.sessionDir,self.pdfFileName.replace(".pdf","_clue"+str(clueData[0]).zfill(2)+".pdf"))
 		rprint("generating clue report pdf: "+cluePdfName)
 		
 		try:
