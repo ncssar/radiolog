@@ -2551,7 +2551,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		for row in self.clueLog:
 			if (str(row[5])==str(opPeriod) or row[1].startswith("Operational Period "+str(opPeriod)+" Begins:") or row[1].startswith("Radio Log Begins")):
 				rowsToPrint.append(row)
-		if len(rowsToPrint)<3:
+				rprint('appending: '+str(row))
+		if len(rowsToPrint)<2:
 			rprint('Nothing to print for specified operational period '+str(opPeriod))
 			return
 		else:
@@ -2584,12 +2585,15 @@ class MyWindow(QDialog,Ui_Dialog):
 			clueLogPrint=[]
 			clueLogPrint.append(clueTableModel.header_labels[0:5]+clueTableModel.header_labels[6:8]) # omit operational period
 			for row in rowsToPrint:
-				clueLogPrint.append([row[0],Paragraph(row[1],styles['Normal']),row[2],row[3],row[4],Paragraph(row[6],styles['Normal']),Paragraph(row[7],styles['Normal'])])
+				locationText=row[6]
+				if row[8]:
+					locationText='[Radio GPS:\n'+(row[8].replace('\n',' '))+'] '+row[6]
+				clueLogPrint.append([row[0],Paragraph(row[1],styles['Normal']),row[2],row[3],row[4],Paragraph(locationText,styles['Normal']),Paragraph(row[7],styles['Normal'])])
 			# #523: avoid exception	
 			try:
 				clueLogPrint[1][5]=self.datum
 			except:
-				rprint('Nothing to print for specified operational period '+str(opPeriod))
+				rprint('Nothing to print for specified Operational Period '+str(opPeriod))
 				return
 			if len(clueLogPrint)>2:
 	##			t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.6,3.75,.9,0.5,1.25,3]])
