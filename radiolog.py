@@ -779,6 +779,16 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.optionsDialog=optionsDialog(self)
 		self.optionsDialog.accepted.connect(self.optionsAccepted)
 		
+		self.fontSize=10
+		self.x=100
+		self.y=100
+		self.w=600
+		self.h=400
+		self.clueLog_x=200
+		self.clueLog_y=200
+		self.clueLog_w=1000
+		self.clueLog_h=400
+		
 		# config file (e.g. <firstWorkingDir>/.config/radiolog.cfg) stores the team standards;
 		#  it should be created/modified by hand, and is read at radiolog startup,
 		#  and is not modified by radiolog at any point
@@ -790,6 +800,21 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.printDialog=printDialog(self)
 		self.printClueLogDialog=printClueLogDialog(self)
 
+		# load resource file; process default values and resource file values
+		self.lastFileName="" # to force error in restore, in the event the resource file doesn't specify the lastFileName
+		self.rcFileName=os.path.join(self.firstWorkingDir,'radiolog_rc.txt')
+		self.previousCleanShutdown=self.loadRcFile()
+		showStartupOptions=True
+		restoreFlag=False
+		if not self.previousCleanShutdown and not self.newWorkingDir:
+			self.reallyRestore=QMessageBox(QMessageBox.Critical,"Restore last saved files?","The previous Radio Log session may have shut down incorrectly.  Do you want to restore the last saved files (Radio Log, Clue Log, and FleetSync table)?",
+										QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			self.reallyRestore.show()
+			self.reallyRestore.raise_()
+			if self.reallyRestore.exec_()==QMessageBox.Yes:
+				restoreFlag=True
+				showStartupOptions=False
+
 		# #483: Check for recent radiolog sessions on this computer.  If any sessions are found from the previous 4 days,
 		#  ask the operator if this new session is intended to be a continuation of one of those previous incidents.
 		#  If so:
@@ -799,10 +824,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		#    - set the next clue number to one more than the latest clue number in the previous CSV
 		#       (with a reminder that clue# can be changed in the clue dialog the next time it is raised)
 
-		self.checkForContinuedIncident()
+		if not restoreFlag:
+			self.checkForContinuedIncident()
 
 		if self.isContinuedIncident:
+			showStartupOptions=False
 			rlInitText='Radio Log Begins - Continued incident "'+self.incidentName+'": Operational Period '+str(self.opPeriod)+' Begins: '
+		elif restoreFlag:
+			rlInitText='Restored after crash: '
 		else:
 			rlInitText='Radio Log Begins: '
 		rlInitText+=self.incidentStartDate
@@ -815,7 +844,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.clueLog=[]
 		self.clueLog.append(['',self.radioLog[0][3],'',time.strftime("%H%M"),'','','','',''])
 
-		self.lastFileName="" # to force error in restore, in the event the resource file doesn't specify the lastFileName
 # 		self.csvFileName=getFileNameBase(self.incidentNameNormalized)+".csv"
 # 		self.pdfFileName=getFileNameBase(self.incidentNameNormalized)+".pdf"
 		self.updateFileNames()
@@ -918,18 +946,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		
 ##		self.newEntryDialogList=[]
 		self.blinkToggle=0
-		self.fontSize=10
 		# font size is constrained to min and max for several items
 		self.minLimitedFontSize=8
 		self.maxLimitedFontSize=20
-		self.x=100
-		self.y=100
-		self.w=600
-		self.h=400
-		self.clueLog_x=200
-		self.clueLog_y=200
-		self.clueLog_w=1000
-		self.clueLog_h=400
 		self.firstComPortAlive=False
 		self.secondComPortAlive=False
 		self.firstComPortFound=False
@@ -1045,20 +1064,8 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		self.newEntryWindow=newEntryWindow(self) # create the window but don't show it until needed
 
-		# load resource file; process default values and resource file values
-		self.rcFileName=os.path.join(self.firstWorkingDir,'radiolog_rc.txt')
-		self.previousCleanShutdown=self.loadRcFile()
-		showStartupOptions=True
-		if self.isContinuedIncident:
-			showStartupOptions=False
-		if not self.previousCleanShutdown and not self.newWorkingDir:
-			self.reallyRestore=QMessageBox(QMessageBox.Critical,"Restore last saved files?","The previous Radio Log session may have shut down incorrectly.  Do you want to restore the last saved files (Radio Log, Clue Log, and FleetSync table)?",
-										QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			self.reallyRestore.show()
-			self.reallyRestore.raise_()
-			if self.reallyRestore.exec_()==QMessageBox.Yes:
-				self.restore()
-				showStartupOptions=False
+		if restoreFlag:
+			self.restore()
 			
 		# make sure x/y/w/h from resource file will fit on the available display
 		d=QApplication.desktop()
