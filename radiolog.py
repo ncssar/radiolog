@@ -2546,67 +2546,74 @@ class MyWindow(QDialog,Ui_Dialog):
 	def printClueLog(self,opPeriod):
 ##      header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
 		opPeriod=int(opPeriod)
-		# clueLogPdfFileName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clueLog_OP"+str(opPeriod)+".pdf")
-		clueLogPdfFileName=os.path.join(self.sessionDir,self.pdfFileName.replace(".pdf","_clueLog_OP"+str(opPeriod)+".pdf"))
-		rprint("generating clue log pdf: "+clueLogPdfFileName)
-		try:
-			f=open(clueLogPdfFileName,"wb")
-		except:
-			self.printClueLogErrMsgBox=QMessageBox(QMessageBox.Critical,"Error","PDF could not be generated:\n\n"+clueLogPdfFileName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.",
-				QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			self.printClueLogErrMsgBox.show()
-			self.printClueLogErrMsgBox.raise_()
-			QTimer.singleShot(10000,self.printClueLogErrMsgBox.close)
-			self.printClueLogErrMsgBox.exec_()
-			return
-		else:
-			f.close()
-# 		self.clueLogMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF; will send to default printer automatically; please wait...",
-# 							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-# 		self.clueLogMsgBox.setInformativeText("Initializing...")
-		# note the topMargin is based on what looks good; you would think that a 0.6 table plus a 0.5 hard
-		# margin (see t.drawOn above) would require a 1.1 margin here, but, not so.
-		doc = SimpleDocTemplate(clueLogPdfFileName, pagesize=landscape(letter),leftMargin=0.5*inch,rightMargin=0.5*inch,topMargin=1.03*inch,bottomMargin=0.5*inch) # or pagesize=letter
-# 		self.clueLogMsgBox.show()
-# 		QTimer.singleShot(5000,self.clueLogMsgBox.close)
-		QCoreApplication.processEvents()
-		elements=[]
-		styles = getSampleStyleSheet()
-		clueLogPrint=[]
-		clueLogPrint.append(clueTableModel.header_labels[0:5]+clueTableModel.header_labels[6:8]) # omit operational period
+		# first, determine if there are any clues to print for this OP; if not, return before generating the pdf
+		rowsToPrint=[]
 		for row in self.clueLog:
-			rprint("clue: opPeriod="+str(opPeriod)+"; row="+str(row))
-			if (str(row[5])==str(opPeriod) or row[1].startswith("Operational Period "+str(opPeriod)+" Begins:") or (opPeriod==1 and row[1].startswith("Radio Log Begins:"))):
-				clueLogPrint.append([row[0],Paragraph(row[1],styles['Normal']),row[2],row[3],row[4],Paragraph(row[6],styles['Normal']),Paragraph(row[7],styles['Normal'])])
-		# #523: avoid exception	
-		try:
-			clueLogPrint[1][5]=self.datum
-		except:
+			if (str(row[5])==str(opPeriod) or row[1].startswith("Operational Period "+str(opPeriod)+" Begins:") or row[1].startswith("Radio Log Begins")):
+				rowsToPrint.append(row)
+		if len(rowsToPrint)<3:
 			rprint('Nothing to print for specified operational period '+str(opPeriod))
 			return
-		if len(clueLogPrint)>2:
-##			t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.6,3.75,.9,0.5,1.25,3]])
-			t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.5]])
-			t.setStyle(TableStyle([('F/generating clue llONT',(0,0),(-1,-1),'Helvetica'),
-				                    ('FONT',(0,0),(-1,1),'Helvetica-Bold'),
-				                    ('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
-			                       ('BOX', (0,0), (-1,-1), 2, colors.black),
-			                       ('BOX', (0,0), (6,0), 2, colors.black)]))
-			elements.append(t)
-			doc.build(elements,onFirstPage=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod),onLaterPages=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod))
-# 			self.clueLogMsgBox.setInformativeText("Finalizing and Printing...")
-			win32api.ShellExecute(0,"print",clueLogPdfFileName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
-			if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-				rprint("copying clue log pdf to "+self.secondWorkingDir)
-				shutil.copy(clueLogPdfFileName,self.secondWorkingDir)
-# 		else:
-# 			self.clueLogMsgBox.setText("No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.")
-# 			self.clueLogMsgBox.setInformativeText("")
-# 			self.clueLogMsgBox.setStandardButtons(QMessageBox.Ok)
-# 			self.msgBox.close()
-# 			self.msgBox=QMessageBox(QMessageBox.Information,"Printing","No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.",QMessageBox.Ok)
-# 			QTimer.singleShot(500,self.msgBox.show)
-		self.clueLogNeedsPrint=False
+		else:
+			# clueLogPdfFileName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clueLog_OP"+str(opPeriod)+".pdf")
+			clueLogPdfFileName=os.path.join(self.sessionDir,self.pdfFileName.replace(".pdf","_clueLog_OP"+str(opPeriod)+".pdf"))
+			rprint("generating clue log pdf: "+clueLogPdfFileName)
+			try:
+				f=open(clueLogPdfFileName,"wb")
+			except:
+				self.printClueLogErrMsgBox=QMessageBox(QMessageBox.Critical,"Error","PDF could not be generated:\n\n"+clueLogPdfFileName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.",
+					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				self.printClueLogErrMsgBox.show()
+				self.printClueLogErrMsgBox.raise_()
+				QTimer.singleShot(10000,self.printClueLogErrMsgBox.close)
+				self.printClueLogErrMsgBox.exec_()
+				return
+			else:
+				f.close()
+	# 		self.clueLogMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF; will send to default printer automatically; please wait...",
+	# 							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+	# 		self.clueLogMsgBox.setInformativeText("Initializing...")
+			# note the topMargin is based on what looks good; you would think that a 0.6 table plus a 0.5 hard
+			# margin (see t.drawOn above) would require a 1.1 margin here, but, not so.
+			doc = SimpleDocTemplate(clueLogPdfFileName, pagesize=landscape(letter),leftMargin=0.5*inch,rightMargin=0.5*inch,topMargin=1.03*inch,bottomMargin=0.5*inch) # or pagesize=letter
+	# 		self.clueLogMsgBox.show()
+	# 		QTimer.singleShot(5000,self.clueLogMsgBox.close)
+			QCoreApplication.processEvents()
+			elements=[]
+			styles = getSampleStyleSheet()
+			clueLogPrint=[]
+			clueLogPrint.append(clueTableModel.header_labels[0:5]+clueTableModel.header_labels[6:8]) # omit operational period
+			for row in rowsToPrint:
+				clueLogPrint.append([row[0],Paragraph(row[1],styles['Normal']),row[2],row[3],row[4],Paragraph(row[6],styles['Normal']),Paragraph(row[7],styles['Normal'])])
+			# #523: avoid exception	
+			try:
+				clueLogPrint[1][5]=self.datum
+			except:
+				rprint('Nothing to print for specified operational period '+str(opPeriod))
+				return
+			if len(clueLogPrint)>2:
+	##			t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.6,3.75,.9,0.5,1.25,3]])
+				t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.5]])
+				t.setStyle(TableStyle([('F/generating clue llONT',(0,0),(-1,-1),'Helvetica'),
+										('FONT',(0,0),(-1,1),'Helvetica-Bold'),
+										('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
+									('BOX', (0,0), (-1,-1), 2, colors.black),
+									('BOX', (0,0), (6,0), 2, colors.black)]))
+				elements.append(t)
+				doc.build(elements,onFirstPage=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod),onLaterPages=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod))
+	# 			self.clueLogMsgBox.setInformativeText("Finalizing and Printing...")
+				win32api.ShellExecute(0,"print",clueLogPdfFileName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
+				if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
+					rprint("copying clue log pdf to "+self.secondWorkingDir)
+					shutil.copy(clueLogPdfFileName,self.secondWorkingDir)
+	# 		else:
+	# 			self.clueLogMsgBox.setText("No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.")
+	# 			self.clueLogMsgBox.setInformativeText("")
+	# 			self.clueLogMsgBox.setStandardButtons(QMessageBox.Ok)
+	# 			self.msgBox.close()
+	# 			self.msgBox=QMessageBox(QMessageBox.Information,"Printing","No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.",QMessageBox.Ok)
+	# 			QTimer.singleShot(500,self.msgBox.show)
+			self.clueLogNeedsPrint=False
 
 	# fillable pdf works well with pdftk external dependency, but is problematic in pure python
 	#  see https://stackoverflow.com/questions/72625568
