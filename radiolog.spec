@@ -27,6 +27,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name='radiolog',
+    icon='radio.ico',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
