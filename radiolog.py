@@ -2089,7 +2089,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	def fsLoadLookup(self,startupFlag=False,fsFileName=None,hideWarnings=False):
 		rprint("fsLoadLookup called: startupFlag="+str(startupFlag)+"  fsFileName="+str(fsFileName)+"  hideWarnings="+str(hideWarnings))
 		if not startupFlag and not fsFileName: # don't ask for confirmation on startup or on restore
-			really=QMessageBox(QMessageBox.Warning,'Please Confirm','Are you sure you want to reload the default FleetSync lookup table?  This will overwrite any callsign changes you have made.',
+			really=QMessageBox(QMessageBox.Warning,'Please Confirm','Are you sure you want to reload the FleetSync lookup table for this session?  This may overwrite any recent callsign changes you have made.',
 				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			really.setDefaultButton(QMessageBox.No)
 			really.show()
@@ -3101,7 +3101,6 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.load()
 				elif event.key()==Qt.Key_F5:
 					self.fsLoadLookup()
-					self.ui.teamHotkeysWidget.setVisible(not self.ui.teamHotkeysWidget.isVisible())
 				elif event.key()==Qt.Key_F6:
 					q=QMessageBox(QMessageBox.Question,"Please Confirm","Restore the last saved files (Radio Log, Clue Log, and FleetSync table)?",
 							QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
