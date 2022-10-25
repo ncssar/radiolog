@@ -1049,6 +1049,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.teamTimer.timeout.connect(self.updateClock)
 		self.teamTimer.start(1000)
 
+		self.slowTimer=QTimer(self)
+		self.slowTimer.timeout.connect(self.saveRcIfNeeded)
+		self.slowTimer.start(5000)
+
 		self.fastTimer=QTimer(self)
 		self.fastTimer.timeout.connect(self.resizeRowsToContentsIfNeeded)
 		self.fastTimer.start(100)
@@ -3195,6 +3199,17 @@ class MyWindow(QDialog,Ui_Dialog):
 			out << "cleanShutdown=True\n"
 		rcFile.close()
 
+	def saveRcIfNeeded(self):
+		# this is probably cleaner, lighter, and more robust than using resizeEvent
+		(x,y,w,h)=self.geometry().getRect()
+		if x!=self.x or y!=self.y or w!=self.w or h!=self.h:
+			rprint('resize detected; saving rc file')
+			self.x=x
+			self.y=y
+			self.w=w
+			self.h=h
+			self.saveRcFile()
+		
 	def loadRcFile(self):
 		# this function gets called at startup (whether it's a clean fresh start
 		#  or an auto-recover) but timeout, datum, and coordFormat should only
