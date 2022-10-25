@@ -2003,10 +2003,21 @@ class MyWindow(QDialog,Ui_Dialog):
 	#  if the entry does not yet exist, add it
 	def fsLogUpdate(self,fleet,dev,callsign=False):
 		# row structure: [fleet,dev,callsign,filtered,last_received,com port]
-		rprint("fsLogUpdate called: fleet="+str(fleet)+" dev="+str(dev)+" callsign="+(callsign or "<None>")+"  COM port="+self.fsLatestComPort.name)
+		# don't process the dummy default entry
+		if callsign=='Default':
+			return
+		try:
+			fleet=int(fleet)
+			dev=int(dev)
+		except:
+			rprint('ERROR in call to fsLogUpdate: fleet and dev must both be integers or integer-strings: fleet='+str(fleet)+'  dev='+str(dev))
+			return
+		com='<None>'
+		if self.fsLatestComPort:
+			com=str(self.fsLatestComPort.name)
+		rprint("fsLogUpdate called: fleet="+str(fleet)+" dev="+str(dev)+" callsign="+(callsign or "<None>")+"  COM port="+com)
 		found=False
 		t=time.strftime("%a %H:%M:%S")
-		com=str(self.fsLatestComPort.name)
 		for row in self.fsLog:
 			if row[0]==fleet and row[1]==dev:
 				found=True
@@ -2104,12 +2115,13 @@ class MyWindow(QDialog,Ui_Dialog):
 				for row in csvReader:
 					if row and not row[0].startswith("#"): # allow blank lines and comment lines
 						self.fsLookup.append(row)
+						self.fsLogUpdate(row[0],row[1],row[2])
 				if not startupFlag: # suppress message box on startup
 					self.fsMsgBox=QMessageBox(QMessageBox.Information,"Information","FleetSync ID table has been re-loaded from file "+fsFullPath+".",
 											QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 					self.fsMsgBox.show()
 					QCoreApplication.processEvents()
-					QTimer.singleShot(2000,self.fsMsgBox.close)
+					QTimer.singleShot(5000,self.fsMsgBox.close)
 		except:
 			if not hideWarnings:
 				if fsEmptyFlag:
@@ -2120,7 +2132,7 @@ class MyWindow(QDialog,Ui_Dialog):
 									QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 				warn.show()
 				warn.raise_()
-				QTimer.singleShot(8000,warn.close)
+				QTimer.singleShot(15000,warn.close)
 				warn.exec_()
 
 	# save to fsFileName in the working dir each time, but on startup, load from the default dir;
