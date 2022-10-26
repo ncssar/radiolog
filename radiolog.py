@@ -1096,7 +1096,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
 
-	def getSessions(self,sort='chronological',reverse=False):
+	def getSessions(self,sort='chronological',reverse=False,omitCurrentSession=False):
 		csvFiles=glob.glob(self.firstWorkingDir+'/*/*.csv') # files nested in session dirs
 		# backwards compatibility: also list csv files saved flat in the working dir
 		csvFiles+=glob.glob(self.firstWorkingDir+'/*.csv')
@@ -1113,6 +1113,11 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		# remove _fleetsync and _clueLog files
 		csvFiles=[f for f in csvFiles if '_clueLog' not in f and '_fleetsync' not in f and '_bak' not in f and self.isRadioLogDataFile(f)]
+
+		#552 remove current session from the list
+		if omitCurrentSession:
+			csvFiles=[f for f in csvFiles if self.csvFileName not in f]
+
 		rprint('Found '+str(len(csvFiles))+' .csv files (excluding _clueLog, _fleetsync, and _bak csv files)')
 		if sort=='chronological':
 			sortedCsvFiles=sorted(csvFiles,key=os.path.getmtime,reverse=reverse)
@@ -1144,7 +1149,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			with open(f,'r') as radioLog:
 				lines=radioLog.readlines()
 				# don't show files that have less than two entries
-				if len(lines)<7:
+				if len(lines)<6:
 					rprint('  not listing empty csv '+f)
 					continue
 				for line in lines:
@@ -3352,7 +3357,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 
 		if not fileName:
-			sessions=self.getSessions(reverse=True)
+			sessions=self.getSessions(reverse=True,omitCurrentSession=True)
 			if not sessions:
 				rprint('There are no available sessions to load.')
 				return
