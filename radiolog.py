@@ -5457,19 +5457,36 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			# getValues return value: [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
 			rprint("Accepted")
 			val=self.getValues()
-			
-			# validation: callsign field must be non-blank
-			vText=""
-			if val[2]=="":
-				vText+="\nCallsign cannot be blank."
-			rprint("vText:"+vText)
-			if vText!="":
-				self.entryMsgBox=QMessageBox(QMessageBox.Critical,"Error","Please complete the form and try again:\n"+vText,
-					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-				self.entryMsgBox.show()
-				self.entryMsgBox.raise_()
-				self.entryMsgBox.exec_()
-				return
+
+			#479 - improve validation
+			# If 'not allowed' is in the message text, do not accept the entry and prompt the user to fix the problem;
+			#  otherwise, ask the user whether they want to accept the callsign as entered, or if they want to revise it.
+			cs=val[2]
+			cse=getExtTeamName(cs)
+			msg=''
+			if cs=='':
+				msg='Empty callsign field is not allowed.'
+			elif cs.replace(' ','').lower()=='team':
+				msg='Callsign "Team" without any other name or number is not allowed.'
+			elif cs.replace('.','').replace('-','').isdigit() and cse not in self.parent.extTeamNameList:
+				msg='Callsign appears to be only a number, with no words or letters.'
+			if msg:
+				if 'not allowed' in msg:
+					box=QMessageBox(QMessageBox.Critical,"Callsign error","Invalid callsign.  Please change the callsign and try again:\n\n"+msg,
+						QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					box.show()
+					box.raise_()
+					box.exec_()
+					return
+				else:
+					box=QMessageBox(QMessageBox.Warning,"Callsign warning","The specified callsign looks odd:\n\n"+msg+'\n\nDo you want to keep the callsign, or change it?',
+						QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					box.button(QMessageBox.Yes).setText('Keep callsign as-is')
+					box.button(QMessageBox.No).setText('Modify callsign')
+					box.show()
+					box.raise_()
+					if box.exec_()==QMessageBox.No:
+						return
 				
 			if self.amendFlag:
 				prevToFrom=self.parent.radioLog[self.amendRow][1]
