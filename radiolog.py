@@ -6177,7 +6177,14 @@ class clueDialog(QDialog,Ui_clueDialog):
 			self.clueQuickTextAddedStack.append(quickText)
 			self.ui.instructionsField.setText(quickText)
 		else:
-			textToAdd="; "+quickText
+			textToAdd=quickText
+			# if existing text already ends in a delimiter (possibly followed by one or more spaces), don't add another
+			if re.match('.*[;,] *$',existingText):
+				# if it does end in a space (after comma or semicolon), don't add any padding
+				if existingText[-1]!=' ':
+					textToAdd=' '+quickText
+			else:
+				textToAdd='; '+quickText
 			self.clueQuickTextAddedStack.append(textToAdd)
 			self.ui.instructionsField.setText(existingText+textToAdd)
 		self.ui.instructionsField.setFocus()
