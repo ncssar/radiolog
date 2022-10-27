@@ -2681,23 +2681,24 @@ class MyWindow(QDialog,Ui_Dialog):
 		instructionsMarkAndLeave=''
 		instructionsDisregard=''
 		instructionsOther=''
+		# parse to a list of tokens - split on comma or semicolon with space(s) before and/or after
+		instructions=re.sub(r' *[,;] *','|',instructions).split('|')
+		# remove any empty elements, probably due to back-to-back delimiters
+		instructions=[x for x in instructions if x]
+		rprint('parsed instructions:'+str(instructions))
 		# look for keywords in the instructions text
 		if "collect" in instructions:
 			instructionsCollect='X'
+			instructions.remove('collect')
 		if "mark & leave" in instructions:
 			instructionsMarkAndLeave='X'
+			instructions.remove('mark & leave')
 		if "disregard" in instructions:
 			instructionsDisregard='X'
-		# now see if there are any instructions other than the standard ones above; if so, print them in 'other'
-		instructions=re.sub(r'collect','',instructions)
-		instructions=re.sub(r'mark & leave','',instructions)
-		instructions=re.sub(r'disregard','',instructions)
-		instructions=re.sub(r'^[; ]+','',instructions) # only get rid of semicolons and spaces before the first word
-		instructions=re.sub(r' ; ','',instructions) # also get rid of remaining ' ; ' i.e. when first word is not a keyword
-		instructions=re.sub(r'; *$','',instructions) # also get rid of trailing ';' i.e. when last word is a keyword
-		if instructions != "":
+			instructions.remove('disregard')
+		if instructions: # is there anything left in the parsed list?
 			instructionsOther='X'
-		instructionsOtherText=re.sub(';+',';',instructions) # reduce multi-semicolon chains from above
+			instructionsOtherText=', '.join(instructions)
 # 		locText=clueData[6]
 		if clueData[8]!="":
 # 			locText=locText+"\n(Radio GPS = "+clueData[8]+")"
