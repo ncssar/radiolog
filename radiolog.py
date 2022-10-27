@@ -1578,6 +1578,12 @@ class MyWindow(QDialog,Ui_Dialog):
 					else:
 						self.fsResponseMessage+='\n\n'+str(f)+':'+str(dev)+' '+callsignText+':'+msg
 			else:
+				remaining=self.fsAwaitingResponseTimeout-self.fsAwaitingResponse[3]
+				suffix=''
+				if remaining!=1:
+					suffix='s'
+				msg=re.sub('[0-9]+ more seconds',str(remaining)+' more second'+suffix,self.fsAwaitingResponseMessageBox.text())
+				self.fsAwaitingResponseMessageBox.setText(msg)
 				self.fsAwaitingResponse[3]+=1
 		if not (self.firstComPortFound and self.secondComPortFound): # correct com ports not yet found; scan for waiting fleetsync data
 			if not self.comPortScanInProgress: # but not if this scan is already in progress (taking longer than 1 second)
@@ -4480,7 +4486,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					# if self.fsSendData(d,fsFirstPortToTry):
 					self.fsAwaitingResponse=[fleet,device,'Text message sent',0,message]
 					[f,dev,t]=self.fsAwaitingResponse[0:3]
-					self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.NoIcon,t,t+' to '+str(f)+':'+str(dev)+' on preferred COM port; awaiting response up to '+str(self.fsAwaitingResponseTimeout)+' seconds...',
+					self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.NoIcon,t,t+' to '+str(f)+':'+str(dev)+' on preferred COM port; awaiting response for '+str(self.fsAwaitingResponseTimeout)+' more seconds...',
 									QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 					self.fsAwaitingResponseMessageBox.show()
 					self.fsAwaitingResponseMessageBox.raise_()
