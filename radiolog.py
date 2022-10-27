@@ -5395,16 +5395,19 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		quickText=re.sub(r' +\[.*$','',quickText) # prune one or more spaces followed by open bracket, thru end
 		existingText=self.ui.messageField.text()
 		if existingText=="":
-			textToAdd=quickText
-		elif existingText.endswith("]"):
-			textToAdd=" "+quickText
-		elif existingText.endswith("] "):
-			textToAdd=quickText
+			self.quickTextAddedStack.append(quickText)
+			self.ui.messageField.setText(quickText)
 		else:
-			textToAdd="; "+quickText
-		self.quickTextAddedStack.append(textToAdd)
-		self.quickTextJustAdded=1
-		self.ui.messageField.setText(existingText+textToAdd)
+			textToAdd=quickText
+			# if existing text already ends in a delimiter (possibly followed by one or more spaces), don't add another
+			if re.match('.*[;,] *$',existingText):
+				# if it does end in a space (after comma or semicolon), don't add any padding
+				if existingText[-1]!=' ':
+					textToAdd=' '+quickText
+			else:
+				textToAdd='; '+quickText
+			self.quickTextAddedStack.append(textToAdd)
+			self.ui.messageField.setText(existingText+textToAdd)
 		self.ui.messageField.setFocus()
 
 	def quickTextUndo(self):
