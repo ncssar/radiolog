@@ -5181,6 +5181,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.dev=dev
 		self.parent=parent
 		self.isMostRecentForCallsign=isMostRecentForCallsign
+		self.quickTextJustAdded=0 # two-step counter used to insert space after quick text - see messageTextChanged
 		if amendFlag:
 			row=parent.radioLog[amendRow]
 			self.sec=row[6]
@@ -5394,15 +5395,19 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		quickText=re.sub(r' +\[.*$','',quickText) # prune one or more spaces followed by open bracket, thru end
 		existingText=self.ui.messageField.text()
 		if existingText=="":
-			textToAdd=quickText
-		elif existingText.endswith("]"):
-			textToAdd=" "+quickText
-		elif existingText.endswith("] "):
-			textToAdd=quickText
+			self.quickTextAddedStack.append(quickText)
+			self.ui.messageField.setText(quickText)
 		else:
-			textToAdd="; "+quickText
-		self.quickTextAddedStack.append(textToAdd)
-		self.ui.messageField.setText(existingText+textToAdd)
+			textToAdd=quickText
+			# if existing text already ends in a delimiter (possibly followed by one or more spaces), don't add another
+			if re.match('.*[;,] *$',existingText):
+				# if it does end in a space (after comma or semicolon), don't add any padding
+				if existingText[-1]!=' ':
+					textToAdd=' '+quickText
+			else:
+				textToAdd='; '+quickText
+			self.quickTextAddedStack.append(textToAdd)
+			self.ui.messageField.setText(existingText+textToAdd)
 		self.ui.messageField.setFocus()
 
 	def quickTextUndo(self):
@@ -5809,6 +5814,17 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			
 	def messageTextChanged(self): # gets called after every keystroke or button press, so, should be fast
 ##		self.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
+		#506 - if the most recent thing entered was a quick text, insert a space before the next thing typed;
+		#  since this function gets called by quick text too, we need to keep a counter so that the space
+		#  is insterted on the subsequent call to this function
+		if self.quickTextJustAdded>0: # don't  - add it on the next keystroke after quick text
+			if self.quickTextJustAdded==2:
+				# rprint('  the most recent action was a quick text - adding a space')
+				self.quickTextJustAdded=0
+				prev=self.ui.messageField.text()
+				self.ui.messageField.setText(prev[:-1]+' '+prev[-1])
+			else:
+				self.quickTextJustAdded+=1
 		message=self.ui.messageField.text().lower()
 		extTeamName=getExtTeamName(self.ui.teamField.text())
 		prevStatus=""
