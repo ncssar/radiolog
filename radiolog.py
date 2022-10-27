@@ -929,10 +929,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		
 		self.ui.addNonRadioClueButton.clicked.connect(self.addNonRadioClue)
 
-		self.ui.helpButton.clicked.connect(self.helpWindow.show)
-		self.ui.optionsButton.clicked.connect(self.optionsDialog.show)
-		self.ui.fsFilterButton.clicked.connect(self.fsFilterDialog.show)
-		self.ui.printButton.clicked.connect(self.printDialog.show)
+		self.ui.helpButton.clicked.connect(self.helpWindow.toggleShow)
+		self.ui.optionsButton.clicked.connect(self.optionsDialog.toggleShow)
+		self.ui.fsFilterButton.clicked.connect(self.fsFilterDialog.toggleShow)
+		self.ui.printButton.clicked.connect(self.printDialog.toggleShow)
 ##		self.ui.printButton.clicked.connect(self.testConvertCoords)
 
 		self.ui.tabList=["dummy"]
@@ -969,8 +969,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.clueLogDialog=clueLogDialog(self)
 
 		self.ui.pushButton.clicked.connect(self.openNewEntry)
-		self.ui.opPeriodButton.clicked.connect(self.openOpPeriodDialog)
-		self.ui.clueLogButton.clicked.connect(self.clueLogDialog.show) # never actually close this dialog
+		self.ui.opPeriodButton.clicked.connect(self.opPeriodDialog.toggleShow)
+		self.ui.clueLogButton.clicked.connect(self.clueLogDialog.toggleRaise) # never actually close this dialog
 
 		self.ui.splitter.setSizes([250,150]) # any remainder is distributed based on this ratio
 		self.ui.splitter.splitterMoved.connect(self.ui.tableView.scrollToBottom)
@@ -4731,10 +4731,6 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.rebuildTeamHotkeys()
 		self.ui.teamHotkeysWidget.setVisible(not vis)
 
-	def openOpPeriodDialog(self):
-		self.opPeriodDialog=opPeriodDialog(self)
-		self.opPeriodDialog.show()
-
 	def addNonRadioClue(self):
 		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
 		self.newNonRadioClueDialog.show()
@@ -4778,7 +4774,13 @@ class helpWindow(QDialog,Ui_Help):
 		self.setWindowFlags(Qt.WindowStaysOnTopHint)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setFixedSize(self.size())
-		
+
+	def toggleShow(self):
+		if self.isVisible():
+			self.close()
+		else:
+			self.show()
+			self.raise_()
 
 class optionsDialog(QDialog,Ui_optionsDialog):
 	def __init__(self,parent):
@@ -4820,6 +4822,13 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		#  is called during init, before the values are ready to save
 		self.parent.saveRcFile()
 		super(optionsDialog,self).accept()
+		
+	def toggleShow(self):
+		if self.isVisible():
+			self.close()
+		else:
+			self.show()
+			self.raise_()
 
 class printDialog(QDialog,Ui_printDialog):
 	def __init__(self,parent):
@@ -4865,6 +4874,13 @@ class printDialog(QDialog,Ui_printDialog):
 # 		rprint("  printDialog.accept.end.trace1")
 		super(printDialog,self).accept()
 # 		rprint("  printDialog.accept.end.trace2")
+
+	def toggleShow(self):
+		if self.isVisible():
+			self.close()
+		else:
+			self.show()
+			self.raise_()
 
 # newEntryWindow is the window that has a QTabWidget;
 #  each tab's widget (except the first and last which are just labels) is a newEntryWidget
@@ -6344,6 +6360,13 @@ class clueLogDialog(QDialog,Ui_clueLogDialog):
 		else:
 			self.parent.printClueLogDialog.show()
 
+	def toggleRaise(self):
+		if self.isVisible():
+			self.hide()
+		else:
+			self.show()
+			self.raise_()
+
 
 class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 	openDialogCount=0
@@ -6502,7 +6525,7 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 		self.parent=parent
 		self.ui.currentOpPeriodField.setText(str(parent.opPeriod))
 		self.ui.newOpPeriodField.setText(str(parent.opPeriod+1))
-		self.setAttribute(Qt.WA_DeleteOnClose)
+		# self.setAttribute(Qt.WA_DeleteOnClose)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setFixedSize(self.size())
 
@@ -6524,6 +6547,16 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 		self.parent.clueLog.append(['',opText,'',time.strftime("%H%M"),'','','','',''])
 		self.parent.printDialog.ui.opPeriodComboBox.addItem(self.ui.newOpPeriodField.text())
 		super(opPeriodDialog,self).accept()
+		
+	def toggleShow(self):
+		rprint(' ts1')
+		if self.isVisible():
+			rprint(' ts2a')
+			self.hide()
+		else:
+			rprint(' ts2b')
+			self.show()
+			self.raise_()
 
 # allow different justifications for different columns of qtableview
 # from https://stackoverflow.com/a/52644764
@@ -6704,6 +6737,13 @@ class fsFilterDialog(QDialog,Ui_fsFilterDialog):
 			
 	def closeEvent(self,event):
 		rprint("closing fsFilterDialog")
+			
+	def toggleShow(self):
+		if self.isVisible():
+			self.close()
+		else:
+			self.show()
+			self.raise_()
 
 
 class fsSendDialog(QDialog,Ui_fsSendDialog):
