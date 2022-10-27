@@ -4447,6 +4447,11 @@ class MyWindow(QDialog,Ui_Dialog):
 				values[3]='TEXT MESSAGE SENT TO ALL DEVICES'+suffix+': "'+str(message)+'"'
 				values[6]=time.time()
 				self.newEntry(values)
+				box=QMessageBox(QMessageBox.Information,'FleetSync Broadcast Sent',values[3]+'\n\nNo confirmation signal is expected.  This only indicates that instructions were sent from the computer to the mobile radio, and is not a guarantee that the message was actually transmitted.',
+								QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				box.show()
+				box.raise_()
+				box.exec_()
 			else:
 				# recipient portable will send acknowledgement when fleet and device ase specified
 				for [fleet,device] in self.fsSendList:
