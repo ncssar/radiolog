@@ -3868,8 +3868,8 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def amendEntry(self,row): # row argument is zero-based
 		rprint("Amending row "+str(row))
-		rprint('radioLog len = '+str(len(self.radioLog)))
-		rprint(str(self.radioLog))
+		# rprint('radioLog len = '+str(len(self.radioLog)))
+		# rprint(str(self.radioLog))
 		# #508 - determine if the row being amended is the most recent row regarding the same callsign
 		#    row argument is zero-based, and radiolog always has a dummy row at the end
 		team=self.radioLog[row][2]
@@ -5533,7 +5533,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 						rprint("number of entries for the previous team:"+str(prevEntryCount))
 						if prevEntryCount==1:
 							prevExtTeamName=getExtTeamName(prevTeam)
-							self.parent.deleteTeamTab(prevExtTeamName)
+							self.parent.deleteTeamTab(prevExtTeamName,ext=True) #478: add ext=True
 				else:
 					tmpTxt=""
 				# oldMsg = entire message value before the amendment is accepted; may have previous amendments
