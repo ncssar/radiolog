@@ -1565,7 +1565,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					else:
 						values[3]='FLEETSYNC: Timeout after unknown command type "'+self.fsAwaitingResponse[2]+'"'
 					self.newEntry(values)
-					msg='FleetSync did not respond within the expected timeframe.'
+					msg='No FleetSync response: unable to confirm that the message was received by the target device(s).'
 					if self.fsAwaitingResponse[2]=='Location request sent':
 						msg+='\n\nThis could happen after a location request for one of several reasons:\n  - The radio in question was off\n  - The radio in question was on, but not set to this channel\n  - The radio in question was on and set to this channel, but had no GPS fix'
 					self.fsAwaitingResponse=None # clear the flag
