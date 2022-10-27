@@ -3137,18 +3137,23 @@ class MyWindow(QDialog,Ui_Dialog):
 			event.ignore()
 
 	def closeEvent(self,event):
+		# rprint('closeEvent called.  radioLogNeedsPrint='+str(self.radioLogNeedsPrint)+'  clueLogNeedsPrint='+str(self.clueLogNeedsPrint))
 		self.exitClicked=True
-		
+		msg=''
 		# if radioLogNeedsPrint or clueLogNeedsPrint is True, bring up the print dialog
 		if self.radioLogNeedsPrint or self.clueLogNeedsPrint:
 			rprint("needs print!")
 			self.printDialog.exec_()
+			# rprint('-->inside closeEvent, after printDialog exec: radioLogNeedsPrint='+str(self.radioLogNeedsPrint)+'  clueLogNeedsPrint='+str(self.clueLogNeedsPrint))
+			if self.radioLogNeedsPrint or self.clueLogNeedsPrint:
+				msg='\n\n(There is unprinted data.)'
 		else:
 			rprint("no print needed")
+			msg='\n\n(No printing is required.)'
 		# note, this type of messagebox is needed to show above all other dialogs for this application,
 		#  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
 		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
-		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Exit the Radio Log program?",
+		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Exit the Radio Log program?"+msg,
 			QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 		really.setDefaultButton(QMessageBox.No)
 		really.show()
@@ -6153,7 +6158,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 			self.clueMsgBox.exec_()
 			return
 
-		self.parent.clueLogNeedsPrint=True
+		self.parent.parent.clueLogNeedsPrint=True
 		textToAdd=''
 		existingText=self.parent.ui.messageField.text()
 		if existingText!='':
