@@ -4083,6 +4083,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		"""
 
 	def addTab(self,extTeamName):
+		if extTeamName in self.hiddenTeamTabsList:
+			self.hiddenTeamTabsList=[x for x in self.hiddenTeamTabsList if extTeamName!=x]
+			self.showTeamTabsMoreButtonIfNeeded()
 		niceTeamName=getNiceTeamName(extTeamName)
 		shortNiceTeamName=getShortNiceTeamName(niceTeamName)
 # 		rprint("new team: extTeamName="+extTeamName+" niceTeamName="+niceTeamName+" shortNiceTeamName="+shortNiceTeamName)
@@ -4713,7 +4716,7 @@ class MyWindow(QDialog,Ui_Dialog):
 							rprint("  does not have a hotkey; using the freed hotkey '"+hotkey+"'")
 							self.hotkeyDict[hotkey]=callsign
 							taken=True
-		self.hiddenTeamTabsList.append(teamName)
+		self.hiddenTeamTabsList.append(extTeamName)
 		self.showTeamTabsMoreButtonIfNeeded()
 		self.rebuildTeamHotkeys()
 		rprint("  extTeamNameList after delete: "+str(self.extTeamNameList))
