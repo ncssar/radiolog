@@ -751,7 +751,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.teamTabsMoreButton.setIcon(icon)
 		self.ui.teamTabsMoreButton.setIconSize(QtCore.QSize(20, 20))
 		self.ui.teamTabsMoreButton.setObjectName("teamTabsMoreButton")
+		self.ui.teamTabsMoreButton.clicked.connect(self.teamTabsMoreButtonClicked)
 		self.hiddenTeamTabsList=[]
+		self.teamTabsMoreMenu=None
 
 		# coordinate system name translation dictionary:
 		#  key = ASCII name in the config file
@@ -4788,6 +4790,45 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			self.ui.teamTabsMoreButton.setVisible(False)
 			self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:0px;}')
+
+	def teamTabsMoreButtonClicked(self,e):
+		if self.teamTabsMoreMenu:
+			self.teamTabsMoreMenu.close()
+			del(self.teamTabsMoreMenu)
+			self.teamTabsMoreMenu=None
+		else:
+			self.teamTabsMoreMenu=QMenu()
+			self.teamTabsMoreMenu.addAction('Hidden team tabs').setEnabled(False)
+			self.teamTabsMoreMenu.addAction('Select a team to unhide:').setEnabled(False)
+			self.teamTabsMoreMenu.addSeparator()
+			for extTeamName in self.hiddenTeamTabsList:
+				self.teamTabsMoreMenu.addAction(extTeamName)
+			action=self.teamTabsMoreMenu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(QPoint(0,0)))
+			rprint('action:'+str(action.text()))
+			if action:
+				# self.hiddenTeamTabsList.remove(str(action.text()))
+				# self.rebuildTabs()
+				t=action.text()
+				# Adding a new entry takes care of a lot of tasks; reproducing them without adding a
+				#  new entry is cryptic and therefore error-prone.  Safer to just add a new entry.
+				values=["" for n in range(10)]
+				values[0]=time.strftime("%H%M")
+				values[6]=time.time()
+				values[2]=getNiceTeamName(t)
+				values[3]='[RADIOLOG: operator is unhiding hidden team tab for "'+t+'"]'
+				self.newEntry(values)
+				# rprint('  t1: teamNameList='+str(self.teamNameList))
+				# rprint('      extTeamNameList='+str(self.extTeamNameList))
+				# if t not in self.extTeamNameList:
+				# 	self.extTeamNameList.append(t)
+				# if getNiceTeamName(t) not in self.teamNameList:
+				# 	self.teamNameList.append(getNiceTeamName(t))
+				# rprint('  t2: teamNameList='+str(self.teamNameList))
+				# rprint('      extTeamNameList='+str(self.extTeamNameList))
+				# self.rebuildGroupedTabDict()
+				# rprint('  t2: teamNameList='+str(self.teamNameList))
+				# rprint('      extTeamNameList='+str(self.extTeamNameList))
+				# self.addTab(t)
 
 	def addNonRadioClue(self):
 		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
