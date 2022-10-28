@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="radiolog_ui">
+    <file>icons/3dots.png</file>
     <file>icons/checkbox_checked_30x30_turquoise.png</file>
     <file>icons/checkbox_unchecked_30x30.png</file>
     <file>icons/blank-computer-key.png</file>
