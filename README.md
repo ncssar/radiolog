@@ -1,8 +1,12 @@
-# radiolog
 
+[Click Here](https://github.com/ncssar/radiolog/releases/latest) for the latest release, including a Windows Installer.
+
+
+# radiolog
+------------
 [![radiolog screen shot](/doc/radiolog_screenshot.png)](https://www.youtube.com/watch?v=pTk-0i6uYUQ)
 
-We've put together the 28-minute screencast video above, covering the key features.
+The 28-minute screencast video above, from December 2016, covers most of the key features.
 
 Click any of the quick links in the 'Key Features' section below to start watching at that section, or at that section's demo.
 
@@ -20,9 +24,9 @@ January 2018: here's a new 4-minute summary screencast video on using Radiolog w
 
 Nevada County Sheriff's Search and Rescue (ncssar-nc.org) has been using this radio log tool on every callout since early 2015.
 
-This open-source project is mainly intended for use by other Search and Rescue teams.  While it's not currently (Nov. 10 2016) in an easily installable state, one of our biggest issues will be to make a clean installer.  Until then, please contact the author if your team is interested in using this software.
+This open-source project is mainly intended for use by other Search and Rescue teams.
 
-See the latest installation procedure [here](INSTALL.md).
+Prior to mid-2022, there was no downloadable installer available, and radiolog was not available as a Windows executable.  Installation was a much more manual process.  See those installation guidelines [here](INSTALL.md).  Thanks to user @erinn for creating the release workflow including the radiolog Windows executable, and the executable installer.
 
 See guidelines for contributing to this project [here](CONTRIBUTING.md).
 
