@@ -4807,7 +4807,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.teamTabsMoreMenu.addAction('Select a team to unhide:').setEnabled(False)
 			self.teamTabsMoreMenu.addSeparator()
 			for extTeamName in self.hiddenTeamTabsList:
-				self.teamTabsMoreMenu.addAction(extTeamName)
+				self.teamTabsMoreMenu.addAction(getNiceTeamName(extTeamName))
 			self.teamTabsMoreMenu.setStyleSheet('QMenu::item:disabled{background-color:rgb(220,220,220);color:black;font-weight:bold}')
 			action=self.teamTabsMoreMenu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(QPoint(0,0)))
 			# clicking outside the menu will close it and will return None; capture this in order to toggle visibility
@@ -4816,13 +4816,18 @@ class MyWindow(QDialog,Ui_Dialog):
 				# self.hiddenTeamTabsList.remove(str(action.text()))
 				# self.rebuildTabs()
 				t=action.text()
+				extTeamName=getExtTeamName(t)
 				# Adding a new entry takes care of a lot of tasks; reproducing them without adding a
 				#  new entry is cryptic and therefore error-prone.  Safer to just add a new entry.
+				# values format for adding a new entry:
+				#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
 				values=["" for n in range(10)]
 				values[0]=time.strftime("%H%M")
 				values[6]=time.time()
-				values[2]=getNiceTeamName(t)
+				values[2]=t
 				values[3]='[RADIOLOG: operator is unhiding hidden team tab for "'+t+'"]'
+				if (extTeamName in teamStatusDict) and (teamStatusDict[extTeamName]!=''):
+					values[5]=teamStatusDict[extTeamName]
 				self.newEntry(values)
 				# rprint('  t1: teamNameList='+str(self.teamNameList))
 				# rprint('      extTeamNameList='+str(self.extTeamNameList))
