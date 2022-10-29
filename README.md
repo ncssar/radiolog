@@ -1,5 +1,6 @@
 
 [Click Here](https://github.com/ncssar/radiolog/releases/latest) for the latest release, including a Windows Installer.
+The Windows Installer is self-contained, and does not require internet access at runtime.
 
 
 # radiolog
