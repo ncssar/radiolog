@@ -742,6 +742,19 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.hotkeyPool=["1","2","3","4","5","6","7","8","9","0","q","w","e","r","t","y","u","i","o","p","a","s","d","f","g","h","j","k","l","z","x","c","v","b","n","m"]
 		self.homeDir=os.path.expanduser("~")
 		
+		self.ui.teamTabsMoreButton=QtWidgets.QPushButton(self.ui.frame)
+		self.ui.teamTabsMoreButton.setVisible(False)
+		self.ui.teamTabsMoreButton.setGeometry(1,6,14,26)
+		from PyQt5 import QtGui
+		icon = QtGui.QIcon()
+		icon.addPixmap(QtGui.QPixmap(":/radiolog_ui/icons/3dots.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+		self.ui.teamTabsMoreButton.setIcon(icon)
+		self.ui.teamTabsMoreButton.setIconSize(QtCore.QSize(20, 20))
+		self.ui.teamTabsMoreButton.setStyleSheet('border:0px')
+		self.ui.teamTabsMoreButton.pressed.connect(self.teamTabsMoreButtonPressed) # see comments at the function
+		self.hiddenTeamTabsList=[]
+		self.teamTabsMoreMenu=None
+
 		# coordinate system name translation dictionary:
 		#  key = ASCII name in the config file
 		#  value = utf-8 name used in the rest of this code
@@ -1000,6 +1013,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  the stylesheets of the label widgets of each tab in order to change status; don't
 		#  change these numbers unless you want to spend a while on trial and error to get
 		#  them looking good again!
+			# QTabWidget::tab-bar[shifted=true] {
+			# 	left:20px;
+			# }
+			# QTabWidget::tab-bar[shifted=false] {
+			# 	left:0px;
+			# }
 		self.ui.tabWidget.setStyleSheet("""
 			QTabBar::tab {
 				margin:0px;
@@ -1028,6 +1047,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				padding-bottom:3px;
 			}
 		""")
+		self.tabWidgetStyleSheetBase=self.ui.tabWidget.styleSheet()
 
 		#NOTE if you do this section before the model is assigned to the tableView,
 		# python will crash every time!
@@ -3846,6 +3866,7 @@ class MyWindow(QDialog,Ui_Dialog):
 # 					rprint("  e")
 # 		rprint("6")
 		self.save()
+		self.showTeamTabsMoreButtonIfNeeded()
 ##		self.redrawTables()
 ##		QCoreApplication.processEvents()
 # 		rprint("7: finished newEntryPost")
@@ -4064,6 +4085,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		"""
 
 	def addTab(self,extTeamName):
+		if extTeamName in self.hiddenTeamTabsList:
+			self.hiddenTeamTabsList=[x for x in self.hiddenTeamTabsList if extTeamName!=x]
+			self.showTeamTabsMoreButtonIfNeeded()
 		niceTeamName=getNiceTeamName(extTeamName)
 		shortNiceTeamName=getShortNiceTeamName(niceTeamName)
 # 		rprint("new team: extTeamName="+extTeamName+" niceTeamName="+niceTeamName+" shortNiceTeamName="+shortNiceTeamName)
@@ -4185,6 +4209,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint("tab context menu requested: pos="+str(pos))
 ##		menu.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		bar=self.ui.tabWidget.tabBar()
+		pos-=bar.pos() # account for positional shift as set by stylesheet (when 'more' button is shown)
 		i=bar.tabAt(pos) # returns -1 if not a valid tab
 		rprint("  i="+str(i)+"  tabRect="+str(bar.tabRect(i).bottomLeft())+":"+str(bar.tabRect(i).topRight()))
 		extTeamName=self.extTeamNameList[i]
@@ -4693,6 +4718,8 @@ class MyWindow(QDialog,Ui_Dialog):
 							rprint("  does not have a hotkey; using the freed hotkey '"+hotkey+"'")
 							self.hotkeyDict[hotkey]=callsign
 							taken=True
+		self.hiddenTeamTabsList.append(extTeamName)
+		self.showTeamTabsMoreButtonIfNeeded()
 		self.rebuildTeamHotkeys()
 		rprint("  extTeamNameList after delete: "+str(self.extTeamNameList))
 		# if there are two adjacent spacers, delete the second one
@@ -4755,6 +4782,71 @@ class MyWindow(QDialog,Ui_Dialog):
 		if not vis:
 			self.rebuildTeamHotkeys()
 		self.ui.teamHotkeysWidget.setVisible(not vis)
+
+	def showTeamTabsMoreButtonIfNeeded(self):
+		if self.hiddenTeamTabsList:
+			self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:14px;}')
+			self.ui.teamTabsMoreButton.setVisible(True)
+		else:
+			self.ui.teamTabsMoreButton.setVisible(False)
+			self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:0px;}')
+
+	# need to run this slot on pressed, instead of clicked which causes redisplay with every click
+	#  due to interaction with return value from QMenu
+	def teamTabsMoreButtonPressed(self):
+		if self.teamTabsMoreMenu:
+			del(self.teamTabsMoreMenu)
+			self.teamTabsMoreMenu=None
+		else:
+			# disconnect the slot until after the action has been processed,
+			#  to allow toggling the menu by clicking the button again
+			self.ui.teamTabsMoreButton.pressed.disconnect(self.teamTabsMoreButtonPressed)
+			self.teamTabsMoreMenu=QMenu('Hidden team tabs')
+			# self.teamTabsMoreMenu.addAction('Hidden team tabs').setObjectName('action1')
+			self.teamTabsMoreMenu.addAction('Hidden team tabs').setEnabled(False)
+			self.teamTabsMoreMenu.addAction('Select a team to unhide:').setEnabled(False)
+			self.teamTabsMoreMenu.addSeparator()
+			for extTeamName in self.hiddenTeamTabsList:
+				self.teamTabsMoreMenu.addAction(getNiceTeamName(extTeamName))
+			self.teamTabsMoreMenu.setStyleSheet('QMenu::item:disabled{background-color:rgb(220,220,220);color:black;font-weight:bold}')
+			action=self.teamTabsMoreMenu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(QPoint(0,0)))
+			# clicking outside the menu will close it and will return None; capture this in order to toggle visibility
+			#  clicking the menu button while the menu is open will also return None, but the clicked signal will fire too!
+			if action is not None:
+				# self.hiddenTeamTabsList.remove(str(action.text()))
+				# self.rebuildTabs()
+				t=action.text()
+				extTeamName=getExtTeamName(t)
+				# Adding a new entry takes care of a lot of tasks; reproducing them without adding a
+				#  new entry is cryptic and therefore error-prone.  Safer to just add a new entry.
+				# values format for adding a new entry:
+				#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+				values=["" for n in range(10)]
+				values[0]=time.strftime("%H%M")
+				values[6]=time.time()
+				values[2]=t
+				values[3]='[RADIOLOG: operator is unhiding hidden team tab for "'+t+'"]'
+				if (extTeamName in teamStatusDict) and (teamStatusDict[extTeamName]!=''):
+					values[5]=teamStatusDict[extTeamName]
+				self.newEntry(values)
+				# rprint('  t1: teamNameList='+str(self.teamNameList))
+				# rprint('      extTeamNameList='+str(self.extTeamNameList))
+				# if t not in self.extTeamNameList:
+				# 	self.extTeamNameList.append(t)
+				# if getNiceTeamName(t) not in self.teamNameList:
+				# 	self.teamNameList.append(getNiceTeamName(t))
+				# rprint('  t2: teamNameList='+str(self.teamNameList))
+				# rprint('      extTeamNameList='+str(self.extTeamNameList))
+				# self.rebuildGroupedTabDict()
+				# rprint('  t2: teamNameList='+str(self.teamNameList))
+				# rprint('      extTeamNameList='+str(self.extTeamNameList))
+				# self.addTab(t)
+			# process events then reconnect the slot after the menu has been closed
+			self.teamTabsMoreMenu.close()
+			del(self.teamTabsMoreMenu)
+			self.teamTabsMoreMenu=None
+			QApplication.processEvents()
+			self.ui.teamTabsMoreButton.pressed.connect(self.teamTabsMoreButtonPressed)
 
 	def addNonRadioClue(self):
 		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
@@ -6571,12 +6663,9 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 		super(opPeriodDialog,self).accept()
 		
 	def toggleShow(self):
-		rprint(' ts1')
 		if self.isVisible():
-			rprint(' ts2a')
 			self.hide()
 		else:
-			rprint(' ts2b')
 			self.show()
 			self.raise_()
 
