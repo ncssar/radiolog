@@ -750,8 +750,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		icon.addPixmap(QtGui.QPixmap(":/radiolog_ui/icons/3dots.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
 		self.ui.teamTabsMoreButton.setIcon(icon)
 		self.ui.teamTabsMoreButton.setIconSize(QtCore.QSize(20, 20))
-		self.ui.teamTabsMoreButton.setObjectName("teamTabsMoreButton")
-		self.ui.teamTabsMoreButton.clicked.connect(self.teamTabsMoreButtonClicked)
+		self.ui.teamTabsMoreButton.pressed.connect(self.teamTabsMoreButtonPressed) # see comments at the function
 		self.hiddenTeamTabsList=[]
 		self.teamTabsMoreMenu=None
 
@@ -4791,21 +4790,32 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.ui.teamTabsMoreButton.setVisible(False)
 			self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:0px;}')
 
-	def teamTabsMoreButtonClicked(self,e):
+	# need to run this slot on pressed, instead of clicked which causes redisplay with every click
+	#  due to interaction with return value from QMenu
+	def teamTabsMoreButtonPressed(self):
 		if self.teamTabsMoreMenu:
-			self.teamTabsMoreMenu.close()
 			del(self.teamTabsMoreMenu)
 			self.teamTabsMoreMenu=None
 		else:
-			self.teamTabsMoreMenu=QMenu()
+			# disconnect the slot until after the action has been processed,
+			#  to allow toggling the menu by clicking the button again
+			self.ui.teamTabsMoreButton.pressed.disconnect(self.teamTabsMoreButtonPressed)
+			self.teamTabsMoreMenu=QMenu('Hidden team tabs')
+			# self.teamTabsMoreMenu.addAction('Hidden team tabs').setObjectName('action1')
 			self.teamTabsMoreMenu.addAction('Hidden team tabs').setEnabled(False)
 			self.teamTabsMoreMenu.addAction('Select a team to unhide:').setEnabled(False)
 			self.teamTabsMoreMenu.addSeparator()
 			for extTeamName in self.hiddenTeamTabsList:
 				self.teamTabsMoreMenu.addAction(extTeamName)
+			self.teamTabsMoreMenu.setStyleSheet('QMenu::item:disabled{background-color:rgb(220,220,220);color:black;font-weight:bold}')
 			action=self.teamTabsMoreMenu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(QPoint(0,0)))
-			rprint('action:'+str(action.text()))
-			if action:
+			# clicking outside the menu will close it and will return None; capture this in order to toggle visibility
+			#  clicking the menu button while the menu is open will also return None, but the clicked signal will fire too!
+			if action is None:
+				self.teamTabsMoreMenu.close()
+				del(self.teamTabsMoreMenu)
+				self.teamTabsMoreMenu=None
+			else:
 				# self.hiddenTeamTabsList.remove(str(action.text()))
 				# self.rebuildTabs()
 				t=action.text()
@@ -4829,6 +4839,9 @@ class MyWindow(QDialog,Ui_Dialog):
 				# rprint('  t2: teamNameList='+str(self.teamNameList))
 				# rprint('      extTeamNameList='+str(self.extTeamNameList))
 				# self.addTab(t)
+			# process events then reconnect the slot after the menu has been closed
+			QApplication.processEvents()
+			self.ui.teamTabsMoreButton.pressed.connect(self.teamTabsMoreButtonPressed)
 
 	def addNonRadioClue(self):
 		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
