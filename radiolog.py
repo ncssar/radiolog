@@ -744,12 +744,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		
 		self.ui.teamTabsMoreButton=QtWidgets.QPushButton(self.ui.frame)
 		self.ui.teamTabsMoreButton.setVisible(False)
-		self.ui.teamTabsMoreButton.setGeometry(2,2,16,26)
+		self.ui.teamTabsMoreButton.setGeometry(1,6,14,26)
 		from PyQt5 import QtGui
 		icon = QtGui.QIcon()
 		icon.addPixmap(QtGui.QPixmap(":/radiolog_ui/icons/3dots.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
 		self.ui.teamTabsMoreButton.setIcon(icon)
 		self.ui.teamTabsMoreButton.setIconSize(QtCore.QSize(20, 20))
+		self.ui.teamTabsMoreButton.setStyleSheet('border:0px')
 		self.ui.teamTabsMoreButton.pressed.connect(self.teamTabsMoreButtonPressed) # see comments at the function
 		self.hiddenTeamTabsList=[]
 		self.teamTabsMoreMenu=None
@@ -4784,7 +4785,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def showTeamTabsMoreButtonIfNeeded(self):
 		if self.hiddenTeamTabsList:
-			self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:20px;}')
+			self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:14px;}')
 			self.ui.teamTabsMoreButton.setVisible(True)
 		else:
 			self.ui.teamTabsMoreButton.setVisible(False)
@@ -4811,11 +4812,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			action=self.teamTabsMoreMenu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(QPoint(0,0)))
 			# clicking outside the menu will close it and will return None; capture this in order to toggle visibility
 			#  clicking the menu button while the menu is open will also return None, but the clicked signal will fire too!
-			if action is None:
-				self.teamTabsMoreMenu.close()
-				del(self.teamTabsMoreMenu)
-				self.teamTabsMoreMenu=None
-			else:
+			if action is not None:
 				# self.hiddenTeamTabsList.remove(str(action.text()))
 				# self.rebuildTabs()
 				t=action.text()
@@ -4840,6 +4837,9 @@ class MyWindow(QDialog,Ui_Dialog):
 				# rprint('      extTeamNameList='+str(self.extTeamNameList))
 				# self.addTab(t)
 			# process events then reconnect the slot after the menu has been closed
+			self.teamTabsMoreMenu.close()
+			del(self.teamTabsMoreMenu)
+			self.teamTabsMoreMenu=None
 			QApplication.processEvents()
 			self.ui.teamTabsMoreButton.pressed.connect(self.teamTabsMoreButtonPressed)
 
