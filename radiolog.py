@@ -4094,11 +4094,16 @@ class MyWindow(QDialog,Ui_Dialog):
 		i=self.extTeamNameList.index(extTeamName) # i is zero-based
 		self.ui.tabList.insert(i,QWidget())
 		self.ui.tabGridLayoutList.insert(i,QGridLayout(self.ui.tabList[i]))
-		self.ui.tableViewList.insert(i,QTableView(self.ui.tabList[i]))
+		tv=customTableView(self.ui.tabList[i])
+		# tv.setEditTriggers(QAbstractItemView.AllEditTriggers)
+		self.ui.tableViewList.insert(i,tv)
 		self.ui.tableViewList[i].verticalHeader().setVisible(False)
 		self.ui.tableViewList[i].setTextElideMode(Qt.ElideNone)
-		self.ui.tableViewList[i].setFocusPolicy(Qt.NoFocus)
-		self.ui.tableViewList[i].setSelectionMode(QAbstractItemView.NoSelection)
+		# self.ui.tableViewList[i].setFocusPolicy(Qt.NoFocus)
+		# self.ui.tableViewList[i].setSelectionMode(QAbstractItemView.NoSelection)
+		# self.ui.tableViewList[i].setEditable(True)
+		self.ui.tableViewList[i].setFocusPolicy(Qt.ClickFocus)
+		self.ui.tableViewList[i].setSelectionMode(QAbstractItemView.ContiguousSelection)
 		self.ui.tableViewList[i].setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		self.ui.tabGridLayoutList[i].addWidget(self.ui.tableViewList[i],0,0,1,1)
 		self.ui.tabWidget.insertTab(i,self.ui.tabList[i],'')
@@ -7163,9 +7168,11 @@ class MyTableModel(QAbstractTableModel):
 		return len(self.arraydata[0])
 
 	def data(self, index, role):
+		if role==Qt.EditRole:
+			rprint('data called with edit role: index='+str(index)+' role='+str(role))
 		if not index.isValid():
 			return QVariant()
-		elif role != Qt.DisplayRole:
+		elif role not in [Qt.DisplayRole,Qt.EditRole]:
 			return QVariant()
 		try:
 			rval=QVariant(self.arraydata[index.row()][index.column()])
@@ -7178,6 +7185,30 @@ class MyTableModel(QAbstractTableModel):
 		else:
 			return rval
 
+	def flags(self,index):
+		return Qt.ItemIsEnabled|Qt.ItemIsSelectable|Qt.ItemIsEditable
+
+class CustomTableItemDelegate(QStyledItemDelegate):
+	def __init__(self,parent=None):
+		super(CustomTableDelegate,self).__init__(parent)
+
+	def eventFilter(self,target,event):
+		if event.type()==QEvent.KeyPress:
+			if event.key()==Qt.Key_Escape: # allow Esc but kill all other keypresses
+				return False
+			else:
+				rprint('CustomTableItemDelegate keypress killed')
+				return True
+		else:
+			return False
+
+class CustomTableView(QTableView):
+	def __init__(self,*args,**kwargs):
+		QTableView.__init__(self,*args,**kwargs)
+		self.setItemDelegate(CustomTableItemDelegate(self))
+	# def keyPressEvent(self,event):
+	# 	rprint('customTableView key pressed')
+	# 	return
 
 class fsTableModel(QAbstractTableModel):
 	header_labels=['Fleet','Device','Callsign','Filtered?','Last Received']
