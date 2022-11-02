@@ -4094,7 +4094,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		i=self.extTeamNameList.index(extTeamName) # i is zero-based
 		self.ui.tabList.insert(i,QWidget())
 		self.ui.tabGridLayoutList.insert(i,QGridLayout(self.ui.tabList[i]))
-		tv=customTableView(self.ui.tabList[i])
+		tv=CustomTableView(self.ui.tabList[i])
 		# tv.setEditTriggers(QAbstractItemView.AllEditTriggers)
 		self.ui.tableViewList.insert(i,tv)
 		self.ui.tableViewList[i].verticalHeader().setVisible(False)
@@ -7190,11 +7190,19 @@ class MyTableModel(QAbstractTableModel):
 
 class CustomTableItemDelegate(QStyledItemDelegate):
 	def __init__(self,parent=None):
-		super(CustomTableDelegate,self).__init__(parent)
+		self.parent=parent
+		super(CustomTableItemDelegate,self).__init__(parent)
 
+	# it would be nice to have the very first mouse-down (start of a drag-select)
+	#  open the editor and actually start the drag; then, single-left-click could cancel
 	def eventFilter(self,target,event):
 		if event.type()==QEvent.KeyPress:
 			if event.key()==Qt.Key_Escape: # allow Esc but kill all other keypresses
+				# rprint('esc')
+				# from https://stackoverflow.com/a/60778294/3577105
+				#  this exits the editor and unselects all cells as desired,
+				#  but the first time it also draws a dotted box around cell 0,0, which isn't desired
+				self.parent.setCurrentIndex(QModelIndex())
 				return False
 			else:
 				rprint('CustomTableItemDelegate keypress killed')
