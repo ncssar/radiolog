@@ -7200,9 +7200,8 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 			if event.key()==Qt.Key_Escape: # allow Esc but kill all other keypresses
 				# rprint('esc')
 				# from https://stackoverflow.com/a/60778294/3577105
-				#  this exits the editor and unselects all cells as desired,
-				#  but the first time it also draws a dotted box around cell 0,0, which isn't desired
 				self.parent.setCurrentIndex(QModelIndex())
+				self.parent.clearFocus() # to get rid of dotted focus box around cell 0,0
 				return False
 			else:
 				rprint('CustomTableItemDelegate keypress killed')
