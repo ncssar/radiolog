@@ -7203,6 +7203,8 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 				self.parent.setCurrentIndex(QModelIndex())
 				self.parent.clearFocus() # to get rid of dotted focus box around cell 0,0
 				return False
+			elif event.key()==Qt.Key_C and event.modifiers()==Qt.ControlModifier:
+				return False
 			else:
 				rprint('CustomTableItemDelegate keypress killed')
 				return True
