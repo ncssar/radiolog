@@ -4094,7 +4094,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		i=self.extTeamNameList.index(extTeamName) # i is zero-based
 		self.ui.tabList.insert(i,QWidget())
 		self.ui.tabGridLayoutList.insert(i,QGridLayout(self.ui.tabList[i]))
-		tv=CustomTableView(self.ui.tabList[i])
+		tv=CustomTableView(self,self.ui.tabList[i])
 		# tv.setEditTriggers(QAbstractItemView.AllEditTriggers)
 		self.ui.tableViewList.insert(i,tv)
 		self.ui.tableViewList[i].verticalHeader().setVisible(False)
@@ -7197,25 +7197,40 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 	#  open the editor and actually start the drag; then, single-left-click could cancel
 	def eventFilter(self,target,event):
 		if event.type()==QEvent.KeyPress:
-			if event.key()==Qt.Key_Escape: # allow Esc but kill all other keypresses
-				# rprint('esc')
-				# from https://stackoverflow.com/a/60778294/3577105
-				self.parent.setCurrentIndex(QModelIndex())
-				self.parent.clearFocus() # to get rid of dotted focus box around cell 0,0
-				return False
-			elif event.key()==Qt.Key_Control or (event.key()==Qt.Key_C and event.modifiers()==Qt.ControlModifier):
+			# if event.key()==Qt.Key_Escape: # allow Esc but kill all other keypresses
+			# 	# rprint('esc')
+			# 	# from https://stackoverflow.com/a/60778294/3577105
+			# 	self.parent.setCurrentIndex(QModelIndex())
+			# 	self.parent.clearFocus() # to get rid of dotted focus box around cell 0,0
+			# 	return False
+			# elif event.key()==Qt.Key_Control or (event.key()==Qt.Key_C and event.modifiers()==Qt.ControlModifier):
+			# 	return False
+			# else:
+			# 	rprint('CustomTableItemDelegate keypress killed')
+			# 	# for any other key, cancel the selection and clear focus, but also kill the keystroke
+			# 	self.parent.setCurrentIndex(QModelIndex())
+			# 	self.parent.clearFocus() # to get rid of dotted focus box around cell 0,0
+			# 	self.parent.parent.keyPressEvent(event) # pass the keystroke to the main window
+			# 	return True
+			key=event.key()
+			if key==Qt.Key_Control or (key==Qt.Key_C and event.modifiers()==Qt.ControlModifier):
 				return False
 			else:
 				rprint('CustomTableItemDelegate keypress killed')
 				# for any other key, cancel the selection and clear focus, but also kill the keystroke
 				self.parent.setCurrentIndex(QModelIndex())
 				self.parent.clearFocus() # to get rid of dotted focus box around cell 0,0
-				return True
+				if key==Qt.Key_Escape:
+					return False
+				else:
+					self.parent.parent.keyPressEvent(event) # pass the keystroke to the main window
+					return True
 		else:
 			return False
 
 class CustomTableView(QTableView):
-	def __init__(self,*args,**kwargs):
+	def __init__(self,parent,*args,**kwargs):
+		self.parent=parent
 		QTableView.__init__(self,*args,**kwargs)
 		self.setItemDelegate(CustomTableItemDelegate(self))
 	# def keyPressEvent(self,event):
