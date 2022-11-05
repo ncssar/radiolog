@@ -7228,11 +7228,34 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 		else:
 			return False
 
+	# def mousePressEvent(self,e):
+	# 	rprint('mousePress delegate')
+	# 	# self.setCursorPosition(3)
+
 class CustomTableView(QTableView):
 	def __init__(self,parent,*args,**kwargs):
 		self.parent=parent
 		QTableView.__init__(self,*args,**kwargs)
 		self.setItemDelegate(CustomTableItemDelegate(self))
+
+	# def eventFilter(self,target,event):
+	# 	rprint('event: target='+str(target)+'  event='+str(event.type()))
+	# 	return False
+
+	# #568 - When the mouse is pressed over the table, first stop any editor and clear the selection,
+	#  then open the editor on the clicked cell, with all text selected by default;
+	#  this is definitely easier to implement than trying to start the drag-select on the
+	#  first mouse press, and probably makes more sense to the user anyway.
+	def mousePressEvent(self,e):
+		# rprint('mousePress CustomTableView: pos='+str(e.pos()))
+		# self.setCurrentIndex(self.indexAt(e.pos()))
+		self.setCurrentIndex(QModelIndex())
+		self.clearFocus()
+		self.setCurrentIndex(self.indexAt(e.pos()))
+		self.edit(self.indexAt(e.pos()))
+		# self.editor().setCursorPosition(3)
+		# QApplication.sendEvent(self.itemAt(e.pos()),e)
+		
 	# def keyPressEvent(self,event):
 	# 	rprint('customTableView key pressed')
 	# 	return
