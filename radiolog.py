@@ -7192,17 +7192,17 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 	def __init__(self,parent=None):
 		self.parent=parent
 		super(CustomTableItemDelegate,self).__init__(parent)
-		# define the action here, so that it exists without the custom context menu,
-		#  and so we can also use if from the custom context menu
-		self.copyAction=QAction('Copy')
-		self.copyAction.setShortcut(QKeySequence(Qt.CTRL+Qt.Key_B))
-		self.copyAction.setShortcutContext(Qt.WidgetWithChildrenShortcut)
-		# self.copyAction.setShortcutContext(Qt.ApplicationShortcut)
-		self.copyAction.triggered.connect(self.parent.copyText)
-		# add the action to the parent widget
-		self.parent.addAction(self.copyAction)
-		# self.setContextMenuPolicy(Qt.CustomContextMenu)
-		# self.customContextMenuRequested.connect(self.parent.teamTableContextMenu)
+		# # define the action here, so that it exists without the custom context menu,
+		# #  and so we can also use if from the custom context menu
+		# self.copyAction=QAction('Copy')
+		# self.copyAction.setShortcut(QKeySequence(Qt.CTRL+Qt.Key_B))
+		# self.copyAction.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+		# # self.copyAction.setShortcutContext(Qt.ApplicationShortcut)
+		# self.copyAction.triggered.connect(self.parent.copyText)
+		# # add the action to the parent widget
+		# self.parent.addAction(self.copyAction)
+		# # self.setContextMenuPolicy(Qt.CustomContextMenu)
+		# # self.customContextMenuRequested.connect(self.parent.teamTableContextMenu)
 
 	#568 - from https://stackoverflow.com/a/68626169/3577105
 	def createEditor(self,parent,option,index):
@@ -7231,16 +7231,16 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 
 		menu=QMenu()
 		# self.copyAction.setShortcutContext(Qt.WidgetWithChildrenShortcut)
-		menu.addAction(self.copyAction)
-		self.copyAction.triggered.connect(menu.close)
+		menu.addAction(self.parent.copyAction)
+		self.parent.copyAction.triggered.connect(menu.close)
 		# copyAction.setShortcutContext(Qt.WidgetWithChildrenShortcut)
 		action=menu.exec_(self.sender().mapToGlobal(pos))
 		# self.copyAction.setShortcutContext(Qt.WidgetShortcut)
 		# if action==copyAction:
 		# 	rprint('copying (delegate)')
 
-	def copyText(self):
-		rprint('copyText called from delegate')
+	# def copyText(self):
+	# 	rprint('copyText called from delegate')
 
 
 	# it would be nice to have the very first mouse-down (start of a drag-select)
@@ -7303,6 +7303,13 @@ class CustomTableView(QTableView):
 		self.setItemDelegate(CustomTableItemDelegate(self))
 		self.setContextMenuPolicy(Qt.CustomContextMenu)
 		self.customContextMenuRequested.connect(self.teamTableContextMenu)
+		self.copyAction=QAction('Copy')
+		self.copyAction.setShortcut(QKeySequence(Qt.CTRL+Qt.Key_C))
+		self.copyAction.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+		# self.copyAction.setShortcutContext(Qt.ApplicationShortcut)
+		self.copyAction.triggered.connect(self.copyText)
+		# add the action to the parent widget
+		self.addAction(self.copyAction)
 
 	# def eventFilter(self,target,event):
 	# 	rprint('event: target='+str(target)+'  event='+str(event.type()))
@@ -7333,11 +7340,13 @@ class CustomTableView(QTableView):
 		rprint(' current selection:'+str(self.selectedIndexes()))
 		if self.selectedIndexes():
 			menu=QMenu()
-			copyAction=menu.addAction('Copy')
-			copyAction.setShortcut(QKeySequence(Qt.CTRL+Qt.Key_B))
+			# copyAction=menu.addAction('Copy')
+			# copyAction.setShortcut(QKeySequence(Qt.CTRL+Qt.Key_B))
+			menu.addAction(self.copyAction)
+			self.copyAction.triggered.connect(menu.close)
 			action=menu.exec_(self.mapToGlobal(pos))
-			if action==copyAction:
-				rprint('copying')
+			# if action==copyAction:
+			# 	rprint('copying')
 		# self.editor().setCursorPosition(3)
 		# QApplication.sendEvent(self.itemAt(e.pos()),e)
 
