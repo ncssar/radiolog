@@ -7192,6 +7192,7 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 	def __init__(self,parent=None):
 		self.parent=parent
 		super(CustomTableItemDelegate,self).__init__(parent)
+		# self.parent.copyAction.triggered.connect(self.parent.copyText)
 		# # define the action here, so that it exists without the custom context menu,
 		# #  and so we can also use if from the custom context menu
 		# self.copyAction=QAction('Copy')
@@ -7210,7 +7211,12 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 		if isinstance(editor,QtWidgets.QLineEdit):
 			editor.setContextMenuPolicy(Qt.CustomContextMenu)
 			editor.customContextMenuRequested.connect(self.contextMenuRequested)
+			editor.selectionChanged.connect(self.updateSelection)
 		return editor
+
+	def updateSelection(self):
+		self.parent.sel=str(self.sender().selectedText())
+		rprint('updating selection: sel='+str(self.sender().selectedText()))
 
 	def contextMenuRequested(self,pos):
 		rprint('item context menu requested during edit: pos='+str(pos))
@@ -7242,41 +7248,69 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 	# def copyText(self):
 	# 	rprint('copyText called from delegate')
 
+	# def keyPressEvent(self,e):
+	# 	rprint('keyPressEvent(delegate):'+str(e))
 
-	# it would be nice to have the very first mouse-down (start of a drag-select)
-	#  open the editor and actually start the drag; then, single-left-click could cancel
 	def eventFilter(self,target,event):
-		if event.type()==QEvent.KeyPress:
-			# if event.key()==Qt.Key_Escape: # allow Esc but kill all other keypresses
-			# 	# rprint('esc')
-			# 	# from https://stackoverflow.com/a/60778294/3577105
-			# 	self.parent.setCurrentIndex(QModelIndex())
-			# 	self.parent.clearFocus() # to get rid of dotted focus box around cell 0,0
-			# 	return False
-			# elif event.key()==Qt.Key_Control or (event.key()==Qt.Key_C and event.modifiers()==Qt.ControlModifier):
-			# 	return False
-			# else:
-			# 	rprint('CustomTableItemDelegate keypress killed')
-			# 	# for any other key, cancel the selection and clear focus, but also kill the keystroke
-			# 	self.parent.setCurrentIndex(QModelIndex())
-			# 	self.parent.clearFocus() # to get rid of dotted focus box around cell 0,0
-			# 	self.parent.parent.keyPressEvent(event) # pass the keystroke to the main window
-			# 	return True
+		t=event.type()
+		# if event.type() in [QEvent.KeyPress,QEvent.Shortcut,QEvent.ShortcutOverride]:
+			# rprint('event(delegate): target='+str(target)+'  event='+str(event.type())+'  key='+str(event.text())+'  mod='+str(event.modifiers()))
+		if(t==QEvent.ShortcutOverride and
+				event.modifiers()==Qt.ControlModifier and
+				event.key()==Qt.Key_C):
+			# rprint('Ctrl-C detected')
+			self.parent.copyText()
+			return True
+		# elif t==QEvent.KeyPress and event.key()!=Qt.Key_Escape: # prevent all other keypresses from editing cell contents
+		# 	return True
+		elif t==QEvent.KeyPress:
 			key=event.key()
-			if key==Qt.Key_Control or (key in [Qt.Key_B] and event.modifiers()==Qt.ControlModifier):
-				return True
+			if key in [Qt.Key_Control]:
+				# rprint('passing '+str(event.text()))
+				return False
 			else:
 				rprint('CustomTableItemDelegate keypress killed')
 				# for any other key, cancel the selection and clear focus, but also kill the keystroke
 				self.parent.setCurrentIndex(QModelIndex())
 				self.parent.clearFocus() # to get rid of dotted focus box around cell 0,0
-				if key==Qt.Key_Escape:
-					return False
-				else:
-					self.parent.parent.keyPressEvent(event) # pass the keystroke to the main window
-					return True
-		else:
-			return False
+				self.parent.parent.keyPressEvent(event) # pass the keystroke to the main window
+				return True
+		return False
+
+	# # it would be nice to have the very first mouse-down (start of a drag-select)
+	# #  open the editor and actually start the drag; then, single-left-click could cancel
+	# def eventFilter(self,target,event):
+	# 	if event.type()==QEvent.KeyPress:
+	# 		# if event.key()==Qt.Key_Escape: # allow Esc but kill all other keypresses
+	# 		# 	# rprint('esc')
+	# 		# 	# from https://stackoverflow.com/a/60778294/3577105
+	# 		# 	self.parent.setCurrentIndex(QModelIndex())
+	# 		# 	self.parent.clearFocus() # to get rid of dotted focus box around cell 0,0
+	# 		# 	return False
+	# 		# elif event.key()==Qt.Key_Control or (event.key()==Qt.Key_C and event.modifiers()==Qt.ControlModifier):
+	# 		# 	return False
+	# 		# else:
+	# 		# 	rprint('CustomTableItemDelegate keypress killed')
+	# 		# 	# for any other key, cancel the selection and clear focus, but also kill the keystroke
+	# 		# 	self.parent.setCurrentIndex(QModelIndex())
+	# 		# 	self.parent.clearFocus() # to get rid of dotted focus box around cell 0,0
+	# 		# 	self.parent.parent.keyPressEvent(event) # pass the keystroke to the main window
+	# 		# 	return True
+	# 		key=event.key()
+	# 		if key==Qt.Key_Control or (key in [Qt.Key_B] and event.modifiers()==Qt.ControlModifier):
+	# 			return True
+	# 		else:
+	# 			rprint('CustomTableItemDelegate keypress killed')
+	# 			# for any other key, cancel the selection and clear focus, but also kill the keystroke
+	# 			self.parent.setCurrentIndex(QModelIndex())
+	# 			self.parent.clearFocus() # to get rid of dotted focus box around cell 0,0
+	# 			if key==Qt.Key_Escape:
+	# 				return False
+	# 			else:
+	# 				self.parent.parent.keyPressEvent(event) # pass the keystroke to the main window
+	# 				return True
+	# 	else:
+	# 		return False
 
 	# def mousePressEvent(self,e):
 	# 	rprint('mousePress CustomTableView: pos='+str(e.pos()))
@@ -7300,7 +7334,6 @@ class CustomTableView(QTableView):
 	def __init__(self,parent,*args,**kwargs):
 		self.parent=parent
 		QTableView.__init__(self,*args,**kwargs)
-		self.setItemDelegate(CustomTableItemDelegate(self))
 		self.setContextMenuPolicy(Qt.CustomContextMenu)
 		self.customContextMenuRequested.connect(self.teamTableContextMenu)
 		self.copyAction=QAction('Copy')
@@ -7310,9 +7343,12 @@ class CustomTableView(QTableView):
 		self.copyAction.triggered.connect(self.copyText)
 		# add the action to the parent widget
 		self.addAction(self.copyAction)
+		self.setItemDelegate(CustomTableItemDelegate(self))
+		self.sel=''
 
 	# def eventFilter(self,target,event):
-	# 	rprint('event: target='+str(target)+'  event='+str(event.type()))
+	# 	if event.type() in [QEvent.KeyPress,QEvent.Shortcut,QEvent.ShortcutOverride]:
+	# 		rprint('event: target='+str(target)+'  event='+str(event.type()))
 	# 	return False
 
 	# #568 - When the mouse is pressed over the table, first stop any editor and clear the selection,
@@ -7331,8 +7367,12 @@ class CustomTableView(QTableView):
 	# 		menu=QMenu()
 	# 		copyAction=menu.addAction('Copy')
 	# 		action=menu.exec_(self.mapToGlobal(e.pos()))
-	# 		if action==copyAction:
+	# 		if action==copyAction:x
 	# 			rprint('copying')
+
+	# def keyPressEvent(self,e):
+	# 	rprint('keyPressEvent:'+str(e))
+	# 	return False
 
 	def teamTableContextMenu(self,pos):
 		rprint('team table context menu requested: pos='+str(pos))
@@ -7351,7 +7391,10 @@ class CustomTableView(QTableView):
 		# QApplication.sendEvent(self.itemAt(e.pos()),e)
 
 	def copyText(self):
-		rprint('copyText called')
+		# t=self.currentIndex().getSelection()
+		t=self.sel
+		rprint('copyText called: '+t)
+		QApplication.clipboard().setText(t)
 		# self.menu.close()		
 	# def keyPressEvent(self,event):
 	# 	rprint('customTableView key pressed')
