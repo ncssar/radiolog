@@ -246,7 +246,7 @@ class Ui_Dialog(object):
         self.splitter.setHandleWidth(6)
         self.splitter.setChildrenCollapsible(False)
         self.splitter.setObjectName("splitter")
-        self.tableView = QtWidgets.QTableView(self.splitter)
+        self.tableView = CustomTableView(self.splitter)
         font = QtGui.QFont()
         font.setPointSize(9)
         self.tableView.setFont(font)
@@ -322,4 +322,5 @@ class Ui_Dialog(object):
         self.helpButton.setShortcut(_translate("Dialog", "F1"))
         self.optionsButton.setShortcut(_translate("Dialog", "F2"))
         self.fsFilterButton.setText(_translate("Dialog", "..."))
+from customTableView import CustomTableView
 import radiolog_ui_rc

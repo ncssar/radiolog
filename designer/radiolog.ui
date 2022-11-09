@@ -536,7 +536,7 @@ FORMAT</string>
      <property name="childrenCollapsible">
       <bool>false</bool>
      </property>
-     <widget class="QTableView" name="tableView">
+     <widget class="CustomTableView" name="tableView">
       <property name="font">
        <font>
         <pointsize>9</pointsize>
@@ -668,6 +668,13 @@ FORMAT</string>
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CustomTableView</class>
+   <extends>QTableView</extends>
+   <header>customTableView.h</header>
+  </customwidget>
+ </customwidgets>
  <tabstops>
   <tabstop>pushButton</tabstop>
   <tabstop>tableView</tabstop>
