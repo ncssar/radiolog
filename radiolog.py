@@ -991,7 +991,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		self.tableModel = MyTableModel(self.radioLog, self)
 		self.ui.tableView.setModel(self.tableModel)
-		self.ui.tableView.setSelectionMode(QAbstractItemView.NoSelection)
+		self.ui.tableView.setSelectionMode(QAbstractItemView.SingleSelection)
 
 		self.ui.tableView.hideColumn(6) # hide epoch seconds
 		self.ui.tableView.hideColumn(7) # hide fleet
@@ -999,14 +999,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableView.hideColumn(9) # hide device
 		self.ui.tableView.resizeRowsToContents()
 
-		#568 - define copyAction here, used in tableContextMenu and TableItemDelegate
-		self.copyAction=QAction('Copy')
-		self.copyAction.setShortcut(QKeySequence(Qt.CTRL+Qt.Key_C))
-		self.copyAction.setShortcutContext(Qt.WidgetWithChildrenShortcut)
-		# self.copyAction.setShortcutContext(Qt.ApplicationShortcut)
-		self.copyAction.triggered.connect(self.ui.tableView.copyText)
-		self.ui.tableView.addAction(self.copyAction)
-		self.ui.tableView.setItemDelegate(CustomTableItemDelegate(self.ui.tableView))
+		# #568 - define copyAction here, used in tableContextMenu and TableItemDelegate
+		# self.copyAction=QAction('Copy')
+		# self.copyAction.setShortcut(QKeySequence(Qt.CTRL+Qt.Key_C))
+		# self.copyAction.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+		# # self.copyAction.setShortcutContext(Qt.ApplicationShortcut)
+		# self.copyAction.triggered.connect(self.ui.tableView.copyText)
+		# self.ui.tableView.addAction(self.copyAction)
+		# self.ui.tableView.setItemDelegate(CustomTableItemDelegate(self.ui.tableView))
 		self.sel=''
 		
 		self.ui.tableView.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -3881,32 +3881,32 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		QCoreApplication.processEvents()
 # 		rprint("7: finished newEntryPost")
 
-	def tableContextMenu(self,pos):
-		row=self.ui.tableView.rowAt(pos.y())
-		rowData=self.radioLog[row]
-		rprint("row:"+str(row)+":"+str(rowData))
-		if row>0 and rowData[1]:
-			self.ui.tableView.setSelectionMode(QAbstractItemView.SingleSelection)
-			self.ui.tableView.selectRow(row)
-			rowHasRadioLoc=False
-			rowHasMsgCoords=False
-##			if rowData[9] and rowData[9]!="":
-##				rowHasRadioLoc=True
-##			if re.search(r'[0-9]{4,}',rowData[3]): # a string of four or more digits in the message
-##				rowHasMsgCoords=True
-			menu=QMenu()
-			amendAction=menu.addAction("Amend this entry")
-##			convertAction=menu.addAction("Convert coordinates")
-##			if not (rowHasRadioLoc or rowHasMsgCoords):
-##				convertAction.setEnabled(False)
-			action=menu.exec_(self.ui.tableView.viewport().mapToGlobal(pos))
-			self.ui.tableView.clearSelection()
-			self.ui.tableView.setSelectionMode(QAbstractItemView.NoSelection)
-			if action==amendAction:
-				self.amendEntry(row)
-##			if action==convertAction:
-##				self.convertDialog=convertDialog(self,rowData,rowHasRadioLoc,rowHasMsgCoords)
-##				self.convertDialog.show()
+# 	def tableContextMenu(self,pos):
+# 		row=self.ui.tableView.rowAt(pos.y())
+# 		rowData=self.radioLog[row]
+# 		rprint("row:"+str(row)+":"+str(rowData))
+# 		if row>0 and rowData[1]:
+# 			self.ui.tableView.setSelectionMode(QAbstractItemView.SingleSelection)
+# 			self.ui.tableView.selectRow(row)
+# 			rowHasRadioLoc=False
+# 			rowHasMsgCoords=False
+# ##			if rowData[9] and rowData[9]!="":
+# ##				rowHasRadioLoc=True
+# ##			if re.search(r'[0-9]{4,}',rowData[3]): # a string of four or more digits in the message
+# ##				rowHasMsgCoords=True
+# 			menu=QMenu()
+# 			amendAction=menu.addAction("Amend this entry")
+# ##			convertAction=menu.addAction("Convert coordinates")
+# ##			if not (rowHasRadioLoc or rowHasMsgCoords):
+# ##				convertAction.setEnabled(False)
+# 			action=menu.exec_(self.ui.tableView.viewport().mapToGlobal(pos))
+# 			self.ui.tableView.clearSelection()
+# 			self.ui.tableView.setSelectionMode(QAbstractItemView.NoSelection)
+# 			if action==amendAction:
+# 				self.amendEntry(row)
+# ##			if action==convertAction:
+# ##				self.convertDialog=convertDialog(self,rowData,rowHasRadioLoc,rowHasMsgCoords)
+# ##				self.convertDialog.show()
 
 	def amendEntry(self,row): # row argument is zero-based
 		rprint("Amending row "+str(row))
@@ -7230,6 +7230,9 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 
 	def contextMenuRequested(self,pos):
 		rprint('item context menu requested during edit: pos='+str(pos))
+		# self.parent.contextRow=self.parent.rowAt(pos.y())
+		# self.parent.contextRowData=self.parent.window().radioLog[self.parent.contextRow]
+		rprint("row:"+str(self.parent.row)+":"+str(self.parent.rowData))
 		# self.parent.menu=QMenu()
 		# # copyAction=menu.addAction('Copy')
 		# copyAction=QAction('Copy')
@@ -7249,6 +7252,8 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 		# self.copyAction.setShortcutContext(Qt.WidgetWithChildrenShortcut)
 		menu.addAction(self.parent.copyAction)
 		self.parent.copyAction.triggered.connect(menu.close)
+		menu.addAction(self.parent.amendAction)
+		# self.parent.amendAction.triggered.connect(self.parent.amend)
 		# copyAction.setShortcutContext(Qt.WidgetWithChildrenShortcut)
 		action=menu.exec_(self.sender().mapToGlobal(pos))
 		# self.copyAction.setShortcutContext(Qt.WidgetShortcut)
@@ -7351,10 +7356,14 @@ class CustomTableView(QTableView):
 		self.copyAction.setShortcutContext(Qt.WidgetWithChildrenShortcut)
 		# self.copyAction.setShortcutContext(Qt.ApplicationShortcut)
 		self.copyAction.triggered.connect(self.copyText)
+		self.amendAction=QAction('Amend this entry')
+		self.amendAction.triggered.connect(self.amend)
 		# add the action to the parent widget
 		self.addAction(self.copyAction)
 		self.setItemDelegate(CustomTableItemDelegate(self))
 		self.sel=''
+		self.row=None
+		self.rowData=None
 
 	# def eventFilter(self,target,event):
 	# 	if event.type() in [QEvent.KeyPress,QEvent.Shortcut,QEvent.ShortcutOverride]:
@@ -7370,8 +7379,19 @@ class CustomTableView(QTableView):
 		# self.setCurrentIndex(self.indexAt(e.pos()))
 		self.setCurrentIndex(QModelIndex())
 		self.clearFocus()
-		self.setCurrentIndex(self.indexAt(e.pos()))
-		self.edit(self.indexAt(e.pos()))
+		pos=e.pos()
+		i=self.indexAt(pos)
+		self.setCurrentIndex(i)
+		self.edit(i)
+		# if called from the top table, self.row is an index into the main radiolog,
+		#  but if called from a team table, self.row is an index into that table
+		#  so needs to be translated to an index into the main radiolog
+		#  see https://stackoverflow.com/questions/61268687
+		if self.parent==self.window(): # called from the team tables (parent=MyWindow)
+			self.row=self.model().mapToSource(i).row()
+		else: # called from the top table (parent=QSplitter)
+			self.row=self.rowAt(pos.y())
+		self.rowData=self.window().radioLog[self.row]
 	# 	if e.buttons()==Qt.RightButton:
 	# 		rprint('right')
 	# 		menu=QMenu()
@@ -7386,6 +7406,9 @@ class CustomTableView(QTableView):
 
 	def contextMenuRequested(self,pos):
 		rprint('custom table context menu requested: pos='+str(pos))
+		# self.contextRow=self.rowAt(pos.y())
+		# self.contextRowData=self.window().radioLog[self.contextRow]
+		rprint("row:"+str(self.row)+":"+str(self.rowData))
 		# only show the context menu if a cell is selected
 		rprint(' current selection:'+str(self.selectedIndexes()))
 		if self.selectedIndexes():
@@ -7394,6 +7417,10 @@ class CustomTableView(QTableView):
 			# copyAction.setShortcut(QKeySequence(Qt.CTRL+Qt.Key_B))
 			menu.addAction(self.copyAction)
 			self.copyAction.triggered.connect(menu.close)
+			menu.addAction(self.amendAction)
+			# top=self.window()
+			# menu.addAction(top.copyAction)
+			# top.copyAction.triggered.connect(menu.close)
 			action=menu.exec_(self.mapToGlobal(pos))
 			# if action==copyAction:
 			# 	rprint('copying')
@@ -7405,7 +7432,23 @@ class CustomTableView(QTableView):
 		t=self.sel
 		rprint('copyText called: '+t)
 		QApplication.clipboard().setText(t)
-		# self.menu.close()		
+		self.setCurrentIndex(QModelIndex())
+		self.clearFocus()
+		self.row=None
+		self.rowData=None
+		# self.menu.close()
+
+	def amend(self):
+		rprint('amend called from table context menu')
+		self.setCurrentIndex(QModelIndex())
+		self.clearFocus()
+		# self.row is an index into the main radiolog list;
+		#  index conversion was done in mousePressEvent
+		self.window().amendEntry(self.row)
+		# self.window().amendEntry(self.model().mapToSource(self.row))
+		self.row=None
+		self.rowData=None
+
 	# def keyPressEvent(self,event):
 	# 	rprint('customTableView key pressed')
 	# 	return
