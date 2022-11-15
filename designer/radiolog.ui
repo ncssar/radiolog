@@ -672,7 +672,7 @@ FORMAT</string>
   <customwidget>
    <class>CustomTableView</class>
    <extends>QTableView</extends>
-   <header>customTableView.h</header>
+   <header>radiolog.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

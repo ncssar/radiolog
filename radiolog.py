@@ -999,8 +999,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableView.hideColumn(9) # hide device
 		self.ui.tableView.resizeRowsToContents()
 
+		#568 - define copyAction here, used in tableContextMenu and TableItemDelegate
+		self.copyAction=QAction('Copy')
+		self.copyAction.setShortcut(QKeySequence(Qt.CTRL+Qt.Key_C))
+		self.copyAction.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+		# self.copyAction.setShortcutContext(Qt.ApplicationShortcut)
+		self.copyAction.triggered.connect(self.ui.tableView.copyText)
+		self.ui.tableView.addAction(self.copyAction)
+		self.ui.tableView.setItemDelegate(CustomTableItemDelegate(self.ui.tableView))
+		self.sel=''
+		
 		self.ui.tableView.setContextMenuPolicy(Qt.CustomContextMenu)
-		self.ui.tableView.customContextMenuRequested.connect(self.tableContextMenu)
+		# self.ui.tableView.customContextMenuRequested.connect(self.tableContextMenu)
 
 		#downside of the following line: slow, since it results in a resize call for each column,
 		#  when we could defer and just do one resize at the end of all the resizes
@@ -7273,7 +7283,7 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 				# for any other key, cancel the selection and clear focus, but also kill the keystroke
 				self.parent.setCurrentIndex(QModelIndex())
 				self.parent.clearFocus() # to get rid of dotted focus box around cell 0,0
-				self.parent.parent.keyPressEvent(event) # pass the keystroke to the main window
+				self.parent.window().keyPressEvent(event) # pass the keystroke to the main window
 				return True
 		return False
 
@@ -7333,9 +7343,9 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 class CustomTableView(QTableView):
 	def __init__(self,parent,*args,**kwargs):
 		self.parent=parent
-		QTableView.__init__(self,*args,**kwargs)
+		QTableView.__init__(self,parent)
 		self.setContextMenuPolicy(Qt.CustomContextMenu)
-		self.customContextMenuRequested.connect(self.teamTableContextMenu)
+		self.customContextMenuRequested.connect(self.contextMenuRequested)
 		self.copyAction=QAction('Copy')
 		self.copyAction.setShortcut(QKeySequence(Qt.CTRL+Qt.Key_C))
 		self.copyAction.setShortcutContext(Qt.WidgetWithChildrenShortcut)
@@ -7374,8 +7384,8 @@ class CustomTableView(QTableView):
 	# 	rprint('keyPressEvent:'+str(e))
 	# 	return False
 
-	def teamTableContextMenu(self,pos):
-		rprint('team table context menu requested: pos='+str(pos))
+	def contextMenuRequested(self,pos):
+		rprint('custom table context menu requested: pos='+str(pos))
 		# only show the context menu if a cell is selected
 		rprint(' current selection:'+str(self.selectedIndexes()))
 		if self.selectedIndexes():

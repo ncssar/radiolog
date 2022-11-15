@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Users\caver\Documents\GitHub\radiolog\designer\radiolog.ui'
+# Form implementation generated from reading ui file 'radiolog.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.6
 #
@@ -322,5 +322,5 @@ class Ui_Dialog(object):
         self.helpButton.setShortcut(_translate("Dialog", "F1"))
         self.optionsButton.setShortcut(_translate("Dialog", "F2"))
         self.fsFilterButton.setText(_translate("Dialog", "..."))
-from customTableView import CustomTableView
+from radiolog import CustomTableView
 import radiolog_ui_rc
