@@ -1127,6 +1127,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
 
+	def clearSelectionAllTables(self):
+		self.ui.tableView.setCurrentIndex(QModelIndex())
+		self.ui.tableView.clearFocus() # to get rid of dotted focus box around cell 0,0
+		for teamTable in self.ui.tableViewList:
+			teamTable.setCurrentIndex(QModelIndex())
+			teamTable.clearFocus()
+
 	def getSessions(self,sort='chronological',reverse=False,omitCurrentSession=False):
 		csvFiles=glob.glob(self.firstWorkingDir+'/*/*.csv') # files nested in session dirs
 		# backwards compatibility: also list csv files saved flat in the working dir
@@ -7255,7 +7262,9 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 		menu.addAction(self.parent.amendAction)
 		# self.parent.amendAction.triggered.connect(self.parent.amend)
 		# copyAction.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+		self.parent.contextMenuOpened=True
 		action=menu.exec_(self.sender().mapToGlobal(pos))
+		self.parent.contextMenuOpened=False
 		# self.copyAction.setShortcutContext(Qt.WidgetShortcut)
 		# if action==copyAction:
 		# 	rprint('copying (delegate)')
@@ -7286,8 +7295,9 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 			else:
 				rprint('CustomTableItemDelegate keypress killed')
 				# for any other key, cancel the selection and clear focus, but also kill the keystroke
-				self.parent.setCurrentIndex(QModelIndex())
-				self.parent.clearFocus() # to get rid of dotted focus box around cell 0,0
+				self.parent.window().clearSelectionAllTables()
+				# self.parent.setCurrentIndex(QModelIndex())
+				# self.parent.clearFocus() # to get rid of dotted focus box around cell 0,0
 				self.parent.window().keyPressEvent(event) # pass the keystroke to the main window
 				return True
 		return False
@@ -7362,6 +7372,7 @@ class CustomTableView(QTableView):
 		self.addAction(self.copyAction)
 		self.setItemDelegate(CustomTableItemDelegate(self))
 		self.sel=''
+		self.contextMenuOpened=False
 		self.row=None
 		self.rowData=None
 
@@ -7377,8 +7388,9 @@ class CustomTableView(QTableView):
 	def mousePressEvent(self,e):
 		# rprint('mousePress CustomTableView: pos='+str(e.pos()))
 		# self.setCurrentIndex(self.indexAt(e.pos()))
-		self.setCurrentIndex(QModelIndex())
-		self.clearFocus()
+		self.window().clearSelectionAllTables()
+		# self.setCurrentIndex(QModelIndex())
+		# self.clearFocus()
 		pos=e.pos()
 		i=self.indexAt(pos)
 		self.setCurrentIndex(i)
@@ -7404,6 +7416,17 @@ class CustomTableView(QTableView):
 	# 	rprint('keyPressEvent:'+str(e))
 	# 	return False
 
+	# def focusOutEvent(self,e):
+	# 	rprint('customTableView focusOutEvent called')
+	# 	# self.window().clearSelectionAllTables()
+
+	# leaveEvent also fires when the context menu is opened; use a flag
+	#  here AND in the delegate class to prevent clearSelectionAllTables
+	def leaveEvent(self,e):
+		rprint('customTableView leaveEvent called')
+		if not self.contextMenuOpened:
+			self.window().clearSelectionAllTables()
+
 	def contextMenuRequested(self,pos):
 		rprint('custom table context menu requested: pos='+str(pos))
 		# self.contextRow=self.rowAt(pos.y())
@@ -7413,6 +7436,7 @@ class CustomTableView(QTableView):
 		rprint(' current selection:'+str(self.selectedIndexes()))
 		if self.selectedIndexes():
 			menu=QMenu()
+			self.contextMenuOpened=True
 			# copyAction=menu.addAction('Copy')
 			# copyAction.setShortcut(QKeySequence(Qt.CTRL+Qt.Key_B))
 			menu.addAction(self.copyAction)
@@ -7422,6 +7446,7 @@ class CustomTableView(QTableView):
 			# menu.addAction(top.copyAction)
 			# top.copyAction.triggered.connect(menu.close)
 			action=menu.exec_(self.mapToGlobal(pos))
+			self.contextMenuOpened=False
 			# if action==copyAction:
 			# 	rprint('copying')
 		# self.editor().setCursorPosition(3)
@@ -7432,16 +7457,18 @@ class CustomTableView(QTableView):
 		t=self.sel
 		rprint('copyText called: '+t)
 		QApplication.clipboard().setText(t)
-		self.setCurrentIndex(QModelIndex())
-		self.clearFocus()
+		self.window().clearSelectionAllTables()
+		# self.setCurrentIndex(QModelIndex())
+		# self.clearFocus()
 		self.row=None
 		self.rowData=None
 		# self.menu.close()
 
 	def amend(self):
 		rprint('amend called from table context menu')
-		self.setCurrentIndex(QModelIndex())
-		self.clearFocus()
+		self.window().clearSelectionAllTables()
+		# self.setCurrentIndex(QModelIndex())
+		# self.clearFocus()
 		# self.row is an index into the main radiolog list;
 		#  index conversion was done in mousePressEvent
 		self.window().amendEntry(self.row)
