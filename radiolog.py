@@ -331,7 +331,7 @@ from PyPDF2 import PdfFileReader,PdfFileWriter
 from FingerTabs import *
 from pygeodesy import Datums,ellipsoidalBase,dms
 
-__version__ = "3.3.0"
+__version__ = "3.3.1"
 
 # process command-line arguments
 develMode=False
@@ -2726,6 +2726,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		instructionsMarkAndLeave=''
 		instructionsDisregard=''
 		instructionsOther=''
+		instructionsOtherText=''
 		# parse to a list of tokens - split on comma or semicolon with space(s) before and/or after
 		instructions=re.sub(r' *[,;] *','|',instructions).split('|')
 		# remove any empty elements, probably due to back-to-back delimiters
