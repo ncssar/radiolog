@@ -5301,7 +5301,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.dev=dev
 		self.parent=parent
 		self.isMostRecentForCallsign=isMostRecentForCallsign
-		self.quickTextJustAdded=False
+		self.insideQuickText=False
+		self.prevActionWasQuickText=False
 		if amendFlag:
 			row=parent.radioLog[amendRow]
 			self.sec=row[6]
@@ -5511,6 +5512,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 
 	def quickTextAction(self):
 		quickText=self.sender().text()
+		self.insideQuickText=True
 # 		rprint("  quickTextAction called: text="+str(quickText))
 		quickText=re.sub(r' +\[.*$','',quickText) # prune one or more spaces followed by open bracket, thru end
 		existingText=self.ui.messageField.text()
@@ -5529,7 +5531,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			self.quickTextAddedStack.append(textToAdd)
 			self.ui.messageField.setText(existingText+textToAdd)
 		self.ui.messageField.setFocus()
-		self.quickTextJustAdded=True #506: make sure to do this after the call to messageField.setText
+		self.insideQuickText=False
 
 	def quickTextUndo(self):
 		rprint("ctrl+z keyBindings:"+str(QKeySequence("Ctrl+Z")))
@@ -5935,13 +5937,20 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			
 	def messageTextChanged(self): # gets called after every keystroke or button press, so, should be fast
 ##		self.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
-		#506 - if the most recent thing entered was a quick text, insert a space before the next thing typed
-		if self.quickTextJustAdded:
-			# rprint('  the most recent action was a quick text - adding a space')
-			self.quickTextJustAdded=False #506 - make sure to clear this flag before the call to messageField.setText
+		#506 - if the most recent thing entered was a quick text, insert a space before the new typed character
+		# quick text followed by letter: add space before new typed character
+		# quick text followed by quick text: add semicolon and space before new quick text (done in quickTextAction)
+		# letter followed by letter: don't add anything
+		# letter followed by quick text: add semicolon and space before new quick text (done in quickTextAction)
+		# rprint('messageTextChanged: insideQuickText='+str(self.insideQuickText)+'  prevActionWasQuickText='+str(self.prevActionWasQuickText))
+		if self.prevActionWasQuickText and not self.insideQuickText:
+			# rprint('  the previous action was a quick text but the current action is not - adding a space')
 			prev=self.ui.messageField.text()
+			# rprint('prev:'+prev)
 			if prev[-1]!=' ': # avoid double-space if the user actually typed a space after the quick text
+				self.prevActionWasQuickText=self.insideQuickText # avoid recursion loop
 				self.ui.messageField.setText(prev[:-1]+' '+prev[-1])
+				# rprint(' new:'+self.ui.messageField.text())
 		message=self.ui.messageField.text().lower()
 		extTeamName=getExtTeamName(self.ui.teamField.text())
 		prevStatus=""
@@ -6062,6 +6071,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					# rprint('setting tmpNewStatus to '+newStatus)
 					self.tmpNewStatus=newStatus
 		self.ui.messageField.deselect()
+		self.prevActionWasQuickText=self.insideQuickText # avoid recursion loop
 
 	def warnNoStatusChange(self):
 		box=QMessageBox(QMessageBox.Warning,"Warning","For safety reasons, changing the status from an older message (not the most recent message for this callsign) is disabled.\n\nTo change the status right now, you would need to create a new entry, or amend the most recent entry for this callsign.",
