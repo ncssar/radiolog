@@ -5578,8 +5578,13 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		#  (it has no meaning for hotkey-opened newEntryWidgets)
 		self.needsChangeCallsign=False
 		if self.fleet:
-			self.changeCallsignDialog=changeCallsignDialog(self,self.ui.teamField.text(),self.fleet,self.dev)
-			self.changeCallsignDialog.exec_() # required to make it stay on top
+			try:
+				#482: wrap in try/except, since a quick 'esc' will close the NED, deleting teamField,
+				#  before this code executes since it is called from a singleshot timer
+				self.changeCallsignDialog=changeCallsignDialog(self,self.ui.teamField.text(),self.fleet,self.dev)
+				self.changeCallsignDialog.exec_() # required to make it stay on top
+			except:
+				pass
 
 	def accept(self):
 		if not self.clueDialogOpen and not self.subjectLocatedDialogOpen:
