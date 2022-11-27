@@ -734,7 +734,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.loadFlag=False # set this to true during load, to prevent save on each newEntry
 		self.totalEntryCount=0 # rotate backups after every 5 entries; see newEntryWidget.accept
-		self.locatorReminderShown=False
 		
 		self.ui.teamHotkeysWidget.setVisible(False) # disabled by default		
 		self.hotkeyDict={}
@@ -2051,15 +2050,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		if not self.noSend:
 			if self.getString!='': # to avoid sending a GET string that is nothing but the callsign
 				self.getString=self.getString+suffix
-			# don't try to send if newChangeCallsign has been set
-			if self.getString!='' and not self.getString.endswith("-") and not (self.newEntryWidget and self.newEntryWidget.needsChangeCallsign):
-				if not self.locatorReminderShown:
-					box=QMessageBox(QMessageBox.Warning,'Locator Group Reminder','SARTopo Locator Group reminder\n\nMake sure to add a Locator Group in SARTopo.\n\nGPS data is about to be sent for the first time since starting RadioLog.  The GPS data will be sent to the CalTopo Desktop server running on '+str(self.sarsoftServerName)+'.  This message will only be shown once per RadioLog session.',
-						QMessageBox.Close,self.newEntryWindow,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-					box.show()
-					box.raise_()
-					box.exec_()
-					self.locatorReminderShown=True
+			if self.getString!='' and not self.getString.endswith("-"):
 				rprint("calling processEvents before sending GET request...")
 				QCoreApplication.processEvents()
 				try:
