@@ -4853,6 +4853,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
 		self.newNonRadioClueDialog.show()
 
+	def showInterviewPopup(self,parent):
+		box=QMessageBox(QMessageBox.Warning,'Interview reminder','If this clue or message involves an interview, remind the field team to collect the interviewee\'s name and contact information.',
+				QMessageBox.Ok,parent,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		box.show()
+		box.raise_()
+		box.exec_()
+
 	def restore(self):
 		# use this function to reload the last saved files, based on lastFileName entry from resource file
 		#  but, keep the new session's save filenames going forward
@@ -5337,6 +5344,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.subjectLocatedDialogOpen=False
 		self.clueKeywords=['clue','located','found','interview']
 		self.cluePopupShown=False
+		self.interviewPopupShown=False
 
 # 		rprint(" new entry widget opened.  allteamslist:"+str(self.parent.allTeamsList))
 		if len(self.parent.allTeamsList)<2:
@@ -6040,6 +6048,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					# clear the message text since it has been moved to the clue dialog;
 					#  it will be moved back to the message text if the clue dialog is canceled
 					self.ui.messageField.setText('')
+				elif 'interview' in message and not self.interviewPopupShown:
+					self.parent.showInterviewPopup(self)
+					self.interviewPopupShown=True
+
 
 # 		rprint("message:"+str(message))
 # 		rprint("  previous status:"+str(prevStatus)+"  newStatus:"+str(newStatus))
@@ -6224,6 +6236,9 @@ class clueDialog(QDialog,Ui_clueDialog):
 
 	def descriptionTextChanged(self):
 		text=self.ui.descriptionField.toPlainText()
+		if 'interview' in text.lower() and not self.parent.interviewPopupShown:
+			self.parent.parent.showInterviewPopup(self)
+			self.parent.interviewPopupShown=True
 		if len(text)>clueDialog.descriptionMaxLength:
 			self.ui.descriptionField.setPlainText(text[:clueDialog.descriptionMaxLength])
 			cursor=self.ui.descriptionField.textCursor()
@@ -6430,6 +6445,8 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		self.values[6]=time.time()
 		self.parent.newEntry(self.values)
 		self.setFixedSize(self.size())
+		self.ui.descriptionField.textChanged.connect(self.descriptionTextChanged)
+		self.interviewPopupShown=False
 		
 	def accept(self):
 		self.parent.clueLogNeedsPrint=True
@@ -6461,6 +6478,11 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 ##		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().accept()
 		self.parent.clueLogDialog.ui.tableView.model().layoutChanged.emit()
 		super(nonRadioClueDialog,self).accept()
+
+	def descriptionTextChanged(self):
+		if 'interview' in self.ui.descriptionField.toPlainText().lower() and not self.interviewPopupShown:
+			self.parent.showInterviewPopup(self)
+			self.interviewPopupShown=True
 
 	def closeEvent(self,event,accepted=False):
 		# note, this type of messagebox is needed to show above all other dialogs for this application,
