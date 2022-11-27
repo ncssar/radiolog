@@ -1956,9 +1956,32 @@ class MyWindow(QDialog,Ui_Dialog):
 				# fleet and device# are repeated
 				# apparently a delay elsewhere can result in an extra leading character here;
 				#  so, find the exact characters rather than assuming character index
-				i=line.index('\x02I')
-				fleet=line[i+3:i+6]
-				dev=line[i+6:i+10]
+
+				# 1. parse line into unique complete packets,
+				#   where 'packet' is defined here as an unbroken string of 7 to 20 digits between '\x02I' and '\x03'
+				#   normally, the second packet is identical to the first, so set() will only have one member;
+				#    if set length != 1 then we know there's garbled data and there's nothing else we can do here
+				packetSet=set(re.findall('\x02I([0-9]{7,20})\x03',line))
+				if len(packetSet)>1:
+					rprint('FLEETSYNC ERROR: data appears garbled; there are two complete but non-identical CID packets.  Skipping this message.')
+					return
+				if len(packetSet)==0:
+					rprint('FLEETSYNC ERROR: data appears garbled; no complete CID packets were found in the incoming data.  Skipping this message.')
+					return
+				packet=packetSet.pop()
+				# rprint('packet:'+str(packet))
+				
+				# 2. within a well-defined packed, the 7-digit fid (fleet&ID) should begin at index 1 (second character)
+				#  and (apparently) should repeat immediately after that
+				fid=packet[1:8] # returns indices 1 thru 7 = 7 digits
+				# it's not clear whether this must-repeat-within-packet requirement is universal for all users;
+				#  keep the code handy but commented out for now, if a need arises to become more strict about
+				#  filtering garbled data.  For now, limiting this to complete-packets-only may be sufficient
+				# if packet[8:15]!=fid:
+				# 	rprint('FLEETSYNC ERROR: Fleet&ID 7-digit sequence is not repeated within the packet.  Skipping this message.')
+				# 	return
+				fleet=fid[0:3]
+				dev=fid[3:7]
 				callsign=self.getCallsign(fleet,dev)
 				rprint("CID detected (not in $PKLSH): fleet="+fleet+"  dev="+dev+"  callsign="+callsign)
 		# if any new entry dialogs are already open with 'from' and the
