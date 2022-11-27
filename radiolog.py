@@ -6037,6 +6037,9 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					cursor=self.newClueDialog.ui.descriptionField.textCursor()
 					cursor.setPosition(len(message))
 					self.newClueDialog.ui.descriptionField.setTextCursor(cursor)
+					# clear the message text since it has been moved to the clue dialog;
+					#  it will be moved back to the message text if the clue dialog is canceled
+					self.ui.messageField.setText('')
 
 # 		rprint("message:"+str(message))
 # 		rprint("  previous status:"+str(prevStatus)+"  newStatus:"+str(newStatus))
@@ -6331,7 +6334,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		#  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
 		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
 		if not accepted:
-			really=QMessageBox(QMessageBox.Warning,"Please Confirm","Close this Clue Report Form?\nIt cannot be recovered.",
+			really=QMessageBox(QMessageBox.Warning,"Please Confirm","Close this Clue Report Form?\n\nIt cannot be recovered.\n\nDescription / location / instructions text will be copied to the originating message body.",
 				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			if really.exec_()==QMessageBox.No:
 				event.ignore()
@@ -6343,9 +6346,31 @@ class clueDialog(QDialog,Ui_clueDialog):
 			amendText=''
 			if self.parent.amendFlag:
 				amendText=' during amendment of previous message'
-			self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'LOCATED A CLUE' form"+amendText
+			description=self.ui.descriptionField.toPlainText()
+			location=self.ui.locationField.text()
+			instructions=self.ui.instructionsField.text()
+			canceledMessage='CLUE REPORT OPENED BUT CANCELED BY THE OPERATOR'+amendText+'.'
+			canceledMessagePart2=''
+			if description or location or instructions:
+				canceledMessage+='  CLUE REPORT DATA BEFORE CANCELATION: '
+			if description:
+				canceledMessagePart2+='DESCRIPTION="'+description+'" '
+			if location:
+				canceledMessagePart2+='LOCATION="'+location+'" '
+			if instructions:
+				canceledMessagePart2+='INSTRUCTIONS="'+instructions+'" '
+			self.values[3]='RADIO LOG SOFTWARE: '+canceledMessage+canceledMessagePart2
+			if not canceledMessagePart2:
+				self.values[3]+='  (No data had been entered to the clue report before cancelation.)'
 			self.parent.parent.newEntry(self.values)
-		
+			#577 but also general good practice: copy any entered clue data back to the parent NED
+			msg=self.parent.ui.messageField.text()
+			if canceledMessagePart2:
+				if msg:
+					msg+='; '
+				msg+='from canceled clue report: '+canceledMessagePart2
+				self.parent.cluePopupShown=True # to avoid popup
+				self.parent.ui.messageField.setText(msg)
 		clueDialog.indices[self.i]=False # free up the dialog box location for the next one
 		self.parent.clueDialogOpen=False
 		clueDialog.openDialogCount-=1
