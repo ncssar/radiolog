@@ -5335,6 +5335,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.setAutoFillBackground(True)
 		self.clueDialogOpen=False # only allow one clue dialog at a time per newEntryWidget
 		self.subjectLocatedDialogOpen=False
+		self.clueKeywords=['clue','located','found','interview']
+		self.cluePopupShown=False
 
 # 		rprint(" new entry widget opened.  allteamslist:"+str(self.parent.allTeamsList))
 		if len(self.parent.allTeamsList)<2:
@@ -6013,6 +6015,32 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		else:
 			newStatus=prevStatus
 		
+		#577 #578 - check for text that looks like a clue or interview, and show popup as needed
+		if not self.cluePopupShown:
+			msg=None
+			for keyword in self.clueKeywords:
+				if keyword in message:
+					msg='Since you typed "'+keyword+'", it looks like you meant to click "LOCATED A CLUE".\n\nDo you want to open a clue report now?'
+			if msg:
+				box=QMessageBox(QMessageBox.Information,"Looks like a clue",msg,
+					QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				box.show()
+				box.raise_()
+				self.cluePopupShown=True
+				QTimer.singleShot(100,QApplication.beep)
+				QTimer.singleShot(400,QApplication.beep)
+				QTimer.singleShot(700,QApplication.beep)
+				if box.exec_()==QMessageBox.Yes:
+					self.quickTextClueAction()
+					self.newClueDialog.ui.descriptionField.setPlainText(self.ui.messageField.text())
+					# move cursor to end since it doesn't happen automatically
+					cursor=self.newClueDialog.ui.descriptionField.textCursor()
+					cursor.setPosition(len(message))
+					self.newClueDialog.ui.descriptionField.setTextCursor(cursor)
+					# clear the message text since it has been moved to the clue dialog;
+					#  it will be moved back to the message text if the clue dialog is canceled
+					self.ui.messageField.setText('')
+
 # 		rprint("message:"+str(message))
 # 		rprint("  previous status:"+str(prevStatus)+"  newStatus:"+str(newStatus))
 		# attached callsigns (issue 306):
@@ -6306,7 +6334,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		#  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
 		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
 		if not accepted:
-			really=QMessageBox(QMessageBox.Warning,"Please Confirm","Close this Clue Report Form?\nIt cannot be recovered.",
+			really=QMessageBox(QMessageBox.Warning,"Please Confirm","Close this Clue Report Form?\n\nIt cannot be recovered.\n\nDescription / location / instructions text will be copied to the originating message body.",
 				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			if really.exec_()==QMessageBox.No:
 				event.ignore()
@@ -6318,9 +6346,31 @@ class clueDialog(QDialog,Ui_clueDialog):
 			amendText=''
 			if self.parent.amendFlag:
 				amendText=' during amendment of previous message'
-			self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'LOCATED A CLUE' form"+amendText
+			description=self.ui.descriptionField.toPlainText()
+			location=self.ui.locationField.text()
+			instructions=self.ui.instructionsField.text()
+			canceledMessage='CLUE REPORT OPENED BUT CANCELED BY THE OPERATOR'+amendText+'.'
+			canceledMessagePart2=''
+			if description or location or instructions:
+				canceledMessage+='  CLUE REPORT DATA BEFORE CANCELATION: '
+			if description:
+				canceledMessagePart2+='DESCRIPTION="'+description+'" '
+			if location:
+				canceledMessagePart2+='LOCATION="'+location+'" '
+			if instructions:
+				canceledMessagePart2+='INSTRUCTIONS="'+instructions+'" '
+			self.values[3]='RADIO LOG SOFTWARE: '+canceledMessage+canceledMessagePart2
+			if not canceledMessagePart2:
+				self.values[3]+='  (No data had been entered to the clue report before cancelation.)'
 			self.parent.parent.newEntry(self.values)
-		
+			#577 but also general good practice: copy any entered clue data back to the parent NED
+			msg=self.parent.ui.messageField.text()
+			if canceledMessagePart2:
+				if msg:
+					msg+='; '
+				msg+='from canceled clue report: '+canceledMessagePart2
+				self.parent.cluePopupShown=True # to avoid popup
+				self.parent.ui.messageField.setText(msg)
 		clueDialog.indices[self.i]=False # free up the dialog box location for the next one
 		self.parent.clueDialogOpen=False
 		clueDialog.openDialogCount-=1
