@@ -577,6 +577,16 @@ for qrc in glob.glob(os.path.join(qtQrcDir,'*.qrc')):
 		rprint('  '+cmd)
 		os.system(cmd)
 
+# define simple-subclasses here so they can be used during import of pyuic5-compiled _ui.py files
+class CustomPlainTextEdit(QPlainTextEdit):
+	def __init__(self,parent,*args,**kwargs):
+		self.parent=parent
+		QPlainTextEdit.__init__(self,parent)
+	
+	def focusOutEvent(self,e):
+		self.parent.customFocusOutEvent(self)
+		super(CustomPlainTextEdit,self).focusOutEvent(e)
+
 from ui.help_ui import Ui_Help
 from ui.options_ui import Ui_optionsDialog
 from ui.fsSendDialog_ui import Ui_fsSendDialog
@@ -5499,6 +5509,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##	def changeEvent(self,event):
 ##		self.throb(0)
 
+	def customFocusOutEvent(self,widget):
+		if 'interview' in widget.toPlainText().lower():
+			self.parent.showInterviewPopup(widget)
+
 	def throb(self,n=0):
 		# this function calls itself recursivly 25 times to throb the background blue->white
 # 		rprint("throb:n="+str(n))
@@ -6048,9 +6062,6 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					# clear the message text since it has been moved to the clue dialog;
 					#  it will be moved back to the message text if the clue dialog is canceled
 					self.ui.messageField.setText('')
-				elif 'interview' in message and not self.interviewPopupShown:
-					self.parent.showInterviewPopup(self)
-					self.interviewPopupShown=True
 
 
 # 		rprint("message:"+str(message))
@@ -6233,12 +6244,23 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.setFixedSize(self.size())
 		self.descriptionTooLongHasBeenShown=False
 		self.locationTooLongHasBeenShown=False
+		self.interviewPopupShown=False
+		self.interviewInstructionsAdded=False
+
+	def customFocusOutEvent(self,widget):
+		if 'interview' in widget.toPlainText().lower():
+			if not self.interviewPopupShown:
+				self.parent.customFocusOutEvent(widget)
+				self.interviewPopupShown=True
+			if not self.interviewInstructionsAdded:
+				t=self.ui.instructionsField.text()
+				if t:
+					t+='; '
+				self.ui.instructionsField.setText(t+'Get interviewee name and contact info')
+				self.interviewInstructionsAdded=True
 
 	def descriptionTextChanged(self):
 		text=self.ui.descriptionField.toPlainText()
-		if 'interview' in text.lower() and not self.parent.interviewPopupShown:
-			self.parent.parent.showInterviewPopup(self)
-			self.parent.interviewPopupShown=True
 		if len(text)>clueDialog.descriptionMaxLength:
 			self.ui.descriptionField.setPlainText(text[:clueDialog.descriptionMaxLength])
 			cursor=self.ui.descriptionField.textCursor()
@@ -6321,6 +6343,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 			return
 
 		self.parent.parent.clueLogNeedsPrint=True
+		self.parent.cluePopupShown=True # avoid duplicate popup
 		textToAdd=''
 		existingText=self.parent.ui.messageField.text()
 		if existingText!='':
@@ -6445,9 +6468,21 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		self.values[6]=time.time()
 		self.parent.newEntry(self.values)
 		self.setFixedSize(self.size())
-		self.ui.descriptionField.textChanged.connect(self.descriptionTextChanged)
 		self.interviewPopupShown=False
+		self.interviewInstructionsAdded=False
 		
+	def customFocusOutEvent(self,widget):
+		if 'interview' in widget.toPlainText().lower():
+			if not self.interviewPopupShown:
+				self.parent.showInterviewPopup(widget)
+				self.interviewPopupShown=True
+			if not self.interviewInstructionsAdded:
+				t=self.ui.instructionsField.text()
+				if t:
+					t+='; '
+				self.ui.instructionsField.setText(t+'Get interviewee name and contact info')
+				self.interviewInstructionsAdded=True
+			
 	def accept(self):
 		self.parent.clueLogNeedsPrint=True
 		number=self.ui.clueNumberField.text()
@@ -6478,11 +6513,6 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 ##		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().accept()
 		self.parent.clueLogDialog.ui.tableView.model().layoutChanged.emit()
 		super(nonRadioClueDialog,self).accept()
-
-	def descriptionTextChanged(self):
-		if 'interview' in self.ui.descriptionField.toPlainText().lower() and not self.interviewPopupShown:
-			self.parent.showInterviewPopup(self)
-			self.interviewPopupShown=True
 
 	def closeEvent(self,event,accepted=False):
 		# note, this type of messagebox is needed to show above all other dialogs for this application,

@@ -571,7 +571,7 @@
     <string>F6</string>
    </property>
   </widget>
-  <widget class="QPlainTextEdit" name="descriptionField">
+  <widget class="CustomPlainTextEdit" name="descriptionField">
    <property name="geometry">
     <rect>
      <x>160</x>
@@ -709,6 +709,13 @@
   <zorder>clueQuickTextButton2_2</zorder>
   <zorder>clueQuickTextButton2_3</zorder>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CustomPlainTextEdit</class>
+   <extends>QPlainTextEdit</extends>
+   <header>radiolog.h</header>
+  </customwidget>
+ </customwidgets>
  <tabstops>
   <tabstop>clueNumberField</tabstop>
   <tabstop>descriptionField</tabstop>
