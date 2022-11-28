@@ -212,7 +212,7 @@
     <property name="text">
      <string/>
     </property>
-    <property name="clearButtonEnabled" stdset="0">
+    <property name="clearButtonEnabled">
      <bool>false</bool>
     </property>
    </widget>
@@ -378,7 +378,7 @@
     </font>
    </property>
    <property name="text">
-    <string>Typically, 'Location' and 'Instructions' should be left blank.
+    <string>'Location' and 'Instructions' could remain blank here.
 All relevant data should be hand-written on this form after printing,
 or on a separate paper or attachment.</string>
    </property>
@@ -432,7 +432,7 @@ or on a separate paper or attachment.</string>
     </property>
    </widget>
   </widget>
-  <widget class="QPlainTextEdit" name="descriptionField">
+  <widget class="CustomPlainTextEdit" name="descriptionField">
    <property name="geometry">
     <rect>
      <x>163</x>
@@ -443,6 +443,9 @@ or on a separate paper or attachment.</string>
    </property>
    <property name="styleSheet">
     <string notr="true">font: 14pt &quot;Segoe UI&quot;;</string>
+   </property>
+   <property name="tabChangesFocus">
+    <bool>true</bool>
    </property>
   </widget>
   <zorder>groupBox</zorder>
@@ -458,6 +461,13 @@ or on a separate paper or attachment.</string>
   <zorder>groupBox_2</zorder>
   <zorder>descriptionField</zorder>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CustomPlainTextEdit</class>
+   <extends>QPlainTextEdit</extends>
+   <header>radiolog.h</header>
+  </customwidget>
+ </customwidgets>
  <tabstops>
   <tabstop>clueNumberField</tabstop>
   <tabstop>dateField</tabstop>

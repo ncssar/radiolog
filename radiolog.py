@@ -577,6 +577,16 @@ for qrc in glob.glob(os.path.join(qtQrcDir,'*.qrc')):
 		rprint('  '+cmd)
 		os.system(cmd)
 
+# define simple-subclasses here so they can be used during import of pyuic5-compiled _ui.py files
+class CustomPlainTextEdit(QPlainTextEdit):
+	def __init__(self,parent,*args,**kwargs):
+		self.parent=parent
+		QPlainTextEdit.__init__(self,parent)
+	
+	def focusOutEvent(self,e):
+		self.parent.customFocusOutEvent(self)
+		super(CustomPlainTextEdit,self).focusOutEvent(e)
+
 from ui.help_ui import Ui_Help
 from ui.options_ui import Ui_optionsDialog
 from ui.fsSendDialog_ui import Ui_fsSendDialog
@@ -4853,6 +4863,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
 		self.newNonRadioClueDialog.show()
 
+	def showInterviewPopup(self,parent):
+		box=QMessageBox(QMessageBox.Warning,'Interview reminder','If this clue or message involves an interview, remind the field team to collect the interviewee\'s name and contact information.',
+				QMessageBox.Ok,parent,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		box.show()
+		box.raise_()
+		box.exec_()
+
 	def restore(self):
 		# use this function to reload the last saved files, based on lastFileName entry from resource file
 		#  but, keep the new session's save filenames going forward
@@ -5337,6 +5354,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.subjectLocatedDialogOpen=False
 		self.clueKeywords=['clue','located','found','interview']
 		self.cluePopupShown=False
+		self.interviewPopupShown=False
 
 # 		rprint(" new entry widget opened.  allteamslist:"+str(self.parent.allTeamsList))
 		if len(self.parent.allTeamsList)<2:
@@ -5490,6 +5508,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 
 ##	def changeEvent(self,event):
 ##		self.throb(0)
+
+	def customFocusOutEvent(self,widget):
+		if 'interview' in widget.toPlainText().lower():
+			self.parent.showInterviewPopup(widget)
 
 	def throb(self,n=0):
 		# this function calls itself recursivly 25 times to throb the background blue->white
@@ -6041,6 +6063,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					#  it will be moved back to the message text if the clue dialog is canceled
 					self.ui.messageField.setText('')
 
+
 # 		rprint("message:"+str(message))
 # 		rprint("  previous status:"+str(prevStatus)+"  newStatus:"+str(newStatus))
 		# attached callsigns (issue 306):
@@ -6221,6 +6244,20 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.setFixedSize(self.size())
 		self.descriptionTooLongHasBeenShown=False
 		self.locationTooLongHasBeenShown=False
+		self.interviewPopupShown=False
+		self.interviewInstructionsAdded=False
+
+	def customFocusOutEvent(self,widget):
+		if 'interview' in widget.toPlainText().lower():
+			if not self.interviewPopupShown:
+				self.parent.customFocusOutEvent(widget)
+				self.interviewPopupShown=True
+			if not self.interviewInstructionsAdded:
+				t=self.ui.instructionsField.text()
+				if t:
+					t+='; '
+				self.ui.instructionsField.setText(t+'Get interviewee name and contact info')
+				self.interviewInstructionsAdded=True
 
 	def descriptionTextChanged(self):
 		text=self.ui.descriptionField.toPlainText()
@@ -6306,6 +6343,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 			return
 
 		self.parent.parent.clueLogNeedsPrint=True
+		self.parent.cluePopupShown=True # avoid duplicate popup
 		textToAdd=''
 		existingText=self.parent.ui.messageField.text()
 		if existingText!='':
@@ -6430,7 +6468,21 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		self.values[6]=time.time()
 		self.parent.newEntry(self.values)
 		self.setFixedSize(self.size())
+		self.interviewPopupShown=False
+		self.interviewInstructionsAdded=False
 		
+	def customFocusOutEvent(self,widget):
+		if 'interview' in widget.toPlainText().lower():
+			if not self.interviewPopupShown:
+				self.parent.showInterviewPopup(widget)
+				self.interviewPopupShown=True
+			if not self.interviewInstructionsAdded:
+				t=self.ui.instructionsField.text()
+				if t:
+					t+='; '
+				self.ui.instructionsField.setText(t+'Get interviewee name and contact info')
+				self.interviewInstructionsAdded=True
+			
 	def accept(self):
 		self.parent.clueLogNeedsPrint=True
 		number=self.ui.clueNumberField.text()

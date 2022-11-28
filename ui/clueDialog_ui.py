@@ -214,7 +214,7 @@ class Ui_clueDialog(object):
         self.clueQuickTextButton5.setFont(font)
         self.clueQuickTextButton5.setFocusPolicy(QtCore.Qt.NoFocus)
         self.clueQuickTextButton5.setObjectName("clueQuickTextButton5")
-        self.descriptionField = QtWidgets.QPlainTextEdit(clueDialog)
+        self.descriptionField = CustomPlainTextEdit(clueDialog)
         self.descriptionField.setGeometry(QtCore.QRect(160, 170, 571, 121))
         self.descriptionField.viewport().setProperty("cursor", QtGui.QCursor(QtCore.Qt.IBeamCursor))
         self.descriptionField.setMouseTracking(True)
@@ -323,3 +323,4 @@ class Ui_clueDialog(object):
         self.clueQuickTextButton2_2.setShortcut(_translate("clueDialog", "F3"))
         self.clueQuickTextButton2_3.setText(_translate("clueDialog", "CONTINUE SEARCH  [F7]"))
         self.clueQuickTextButton2_3.setShortcut(_translate("clueDialog", "F7"))
+from radiolog import CustomPlainTextEdit
