@@ -764,6 +764,20 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.hiddenTeamTabsList=[]
 		self.teamTabsMoreMenu=None
 
+		self.callsignCompletionWordList=['Relay','Transport']
+		phonetics=[
+			'Alpha','Bravo','Charlie','Delta','Echo','Foxtrot','Golf','Hotel','India',
+			'Juliett','Kilo','Lima','Mike','November','Oscar','Papa','Quebec','Romeo',
+			'Sierra','Tango','Uniform','Victor','Whiskey','X-ray','Yankee','Zulu',
+			'Adam','Boy','Charles','David','Edward','Frank','George','Henry','Ida',
+			'John','King','Lincoln','Mary','Nora','Ocean','Paul','Queen','Robert',
+			'Sam','Tom','Uniform','Victor','William','X-Ray','Yellow','Zebra'
+		]
+		for x in phonetics:
+			self.callsignCompletionWordList.append(x)
+			self.callsignCompletionWordList.append('Team '+x)
+		
+
 		# coordinate system name translation dictionary:
 		#  key = ASCII name in the config file
 		#  value = utf-8 name used in the rest of this code
@@ -5356,6 +5370,14 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.cluePopupShown=False
 		self.interviewPopupShown=False
 
+		self.completer=QCompleter(self.parent.callsignCompletionWordList)
+		# performance speedups: see https://stackoverflow.com/questions/33447843
+		self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+		self.completer.setModelSorting(QCompleter.CaseSensitivelySortedModel)
+		self.completer.popup().setUniformItemSizes(True)
+		self.completer.popup().setLayoutMode(QListView.Batched)
+		self.ui.teamField.setCompleter(self.completer)
+
 # 		rprint(" new entry widget opened.  allteamslist:"+str(self.parent.allTeamsList))
 		if len(self.parent.allTeamsList)<2:
 			self.ui.teamComboBox.setEnabled(False)
@@ -7126,6 +7148,13 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		self.ui.fsFilterButton.clicked.connect(self.fsFilterConfirm)
 		changeCallsignDialog.openDialogCount+=1
 		self.setFixedSize(self.size())
+		self.completer=QCompleter(self.parent.parent.callsignCompletionWordList)
+		# performance speedups: see https://stackoverflow.com/questions/33447843
+		self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+		self.completer.setModelSorting(QCompleter.CaseSensitivelySortedModel)
+		self.completer.popup().setUniformItemSizes(True)
+		self.completer.popup().setLayoutMode(QListView.Batched)
+		self.ui.newCallsignField.setCompleter(self.completer)
 
 	def fsFilterConfirm(self):
 		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Filter (ignore) future incoming messages\n  from this FleetSync device?",
