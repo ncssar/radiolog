@@ -420,14 +420,15 @@ lastClueNumber=0
 ##	"separator",
 ##	["REQUESTING DEPUTY",Qt.Key_F11]]
 
-prependTeamLowerList=[x.lower() for x in [
+phonetics=[
 	'Alpha','Bravo','Charlie','Delta','Echo','Foxtrot','Golf','Hotel',
 	'India','Juliet','Kilo','Lima','Mike','November','Oscar','Papa',
 	'Quebec','Romeo','Sierra','Tango','Uniform','Victor','X-ray','Yankee','Zulu',
 	'Adam','Boy','Charles','David','Edward','Frank','George','Henry',
 	'Ida','John','King','Lincoln','Mary','Nora','Ocean','Paul','Queen',
 	'Robert','Sam','Tom','Union','Victor','William','Xray','Young','Zebra'
-]]
+]
+lowerPhonetics=[x.lower() for x in phonetics]
 
 def getExtTeamName(teamName):
 	if teamName.lower().startswith("all ") or teamName.lower()=="all":
@@ -449,7 +450,7 @@ def getExtTeamName(teamName):
 	else:
 		prefix=""
 	#589: always prepend 'Team' here if name is all digits or is in the list of known names
-	if name.isdigit() or name.lower() in prependTeamLowerList:
+	if name.isdigit() or name.lower() in lowerPhonetics:
 		prefix='team'
 #	print("FirstNumIndex:"+str(firstNumIndex)+" Prefix:'"+prefix+"'")
 	# allow shorthand team names (t2) to still be inserted in the same sequence as
@@ -779,18 +780,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.teamTabsMoreMenu=None
 
 		self.callsignCompletionWordList=['Relay','Transport']
-		phonetics=[
-			'Alpha','Bravo','Charlie','Delta','Echo','Foxtrot','Golf','Hotel','India',
-			'Juliett','Kilo','Lima','Mike','November','Oscar','Papa','Quebec','Romeo',
-			'Sierra','Tango','Uniform','Victor','Whiskey','X-ray','Yankee','Zulu',
-			'Adam','Boy','Charles','David','Edward','Frank','George','Henry','Ida',
-			'John','King','Lincoln','Mary','Nora','Ocean','Paul','Queen','Robert',
-			'Sam','Tom','Uniform','Victor','William','X-Ray','Yellow','Zebra'
-		]
 		for x in phonetics:
 			self.callsignCompletionWordList.append(x)
 			self.callsignCompletionWordList.append('Team '+x)
-		
 
 		# coordinate system name translation dictionary:
 		#  key = ASCII name in the config file
