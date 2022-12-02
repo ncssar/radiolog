@@ -420,10 +420,21 @@ lastClueNumber=0
 ##	"separator",
 ##	["REQUESTING DEPUTY",Qt.Key_F11]]
 
+prependTeamLowerList=[x.lower() for x in [
+	'Alpha','Bravo','Charlie','Delta','Echo','Foxtrot','Golf','Hotel',
+	'India','Juliet','Kilo','Lima','Mike','November','Oscar','Papa',
+	'Quebec','Romeo','Sierra','Tango','Uniform','Victor','X-ray','Yankee','Zulu',
+	'Adam','Boy','Charles','David','Edward','Frank','George','Henry',
+	'Ida','John','King','Lincoln','Mary','Nora','Ocean','Paul','Queen',
+	'Robert','Sam','Tom','Union','Victor','William','Xray','Young','Zebra'
+]]
 
 def getExtTeamName(teamName):
 	if teamName.lower().startswith("all ") or teamName.lower()=="all":
 		return "ALL TEAMS"
+	# capitalize each word, in case teamName is e.g. 'Team bravo'
+	#  https://stackoverflow.com/a/1549644/3577105
+	teamName=' '.join(w.capitalize() for w in teamName.split())
 	# fix #459 (and other places in the code): remove all leading and trailing spaces, and change all chains of spaces to one space
 	name=re.sub(r' +',r' ',teamName).strip()
 	name=name.replace(' ','') # remove spaces to shorten the name
@@ -437,6 +448,9 @@ def getExtTeamName(teamName):
 		prefix=name[:firstNumIndex]
 	else:
 		prefix=""
+	#589: always prepend 'Team' here if name is all digits or is in the list of known names
+	if name.isdigit() or name.lower() in prependTeamLowerList:
+		prefix='team'
 #	print("FirstNumIndex:"+str(firstNumIndex)+" Prefix:'"+prefix+"'")
 	# allow shorthand team names (t2) to still be inserted in the same sequence as
 	# full team names (team2) so the tab list could be: team1 t2 team3
@@ -454,7 +468,7 @@ def getExtTeamName(teamName):
 	if firstNum!=None:
 		rest=name[firstNumIndex:].zfill(5)
 	else:
-		rest=teamName # preserve case if there are no numbers
+		rest=name # preserve case if there are no numbers
 ##	rprint("prefix="+prefix+" rest="+rest+" name="+name)
 	extTeamName=prefix+rest
 # 	rprint("Team Name:"+teamName+": extended team name:"+extTeamName)
