@@ -5382,6 +5382,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.completer.setModelSorting(QCompleter.CaseSensitivelySortedModel)
 		self.completer.popup().setUniformItemSizes(True)
 		self.completer.popup().setLayoutMode(QListView.Batched)
+		completerFont=self.ui.teamField.font()
+		completerFont.setPointSize(int(completerFont.pointSize()*0.60))
+		completerFont.setBold(False)
+		self.completer.popup().setFont(completerFont)
 		self.ui.teamField.setCompleter(self.completer)
 
 # 		rprint(" new entry widget opened.  allteamslist:"+str(self.parent.allTeamsList))
@@ -7160,6 +7164,10 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		self.completer.setModelSorting(QCompleter.CaseSensitivelySortedModel)
 		self.completer.popup().setUniformItemSizes(True)
 		self.completer.popup().setLayoutMode(QListView.Batched)
+		completerFont=self.ui.newCallsignField.font()
+		completerFont.setPointSize(int(completerFont.pointSize()*0.70))
+		completerFont.setBold(False)
+		self.completer.popup().setFont(completerFont)
 		self.ui.newCallsignField.setCompleter(self.completer)
 
 	def fsFilterConfirm(self):
