@@ -420,14 +420,15 @@ lastClueNumber=0
 ##	"separator",
 ##	["REQUESTING DEPUTY",Qt.Key_F11]]
 
-prependTeamLowerList=[x.lower() for x in [
+phonetics=[
 	'Alpha','Bravo','Charlie','Delta','Echo','Foxtrot','Golf','Hotel',
 	'India','Juliet','Kilo','Lima','Mike','November','Oscar','Papa',
 	'Quebec','Romeo','Sierra','Tango','Uniform','Victor','X-ray','Yankee','Zulu',
 	'Adam','Boy','Charles','David','Edward','Frank','George','Henry',
 	'Ida','John','King','Lincoln','Mary','Nora','Ocean','Paul','Queen',
 	'Robert','Sam','Tom','Union','Victor','William','Xray','Young','Zebra'
-]]
+]
+lowerPhonetics=[x.lower() for x in phonetics]
 
 def getExtTeamName(teamName):
 	if teamName.lower().startswith("all ") or teamName.lower()=="all":
@@ -449,7 +450,7 @@ def getExtTeamName(teamName):
 	else:
 		prefix=""
 	#589: always prepend 'Team' here if name is all digits or is in the list of known names
-	if name.isdigit() or name.lower() in prependTeamLowerList:
+	if name.isdigit() or name.lower() in lowerPhonetics:
 		prefix='team'
 #	print("FirstNumIndex:"+str(firstNumIndex)+" Prefix:'"+prefix+"'")
 	# allow shorthand team names (t2) to still be inserted in the same sequence as
@@ -777,6 +778,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.teamTabsMoreButton.pressed.connect(self.teamTabsMoreButtonPressed) # see comments at the function
 		self.hiddenTeamTabsList=[]
 		self.teamTabsMoreMenu=None
+
+		self.callsignCompletionWordList=['Relay','Transport']
+		for x in phonetics:
+			self.callsignCompletionWordList.append(x)
+			self.callsignCompletionWordList.append('Team '+x)
 
 		# coordinate system name translation dictionary:
 		#  key = ASCII name in the config file
@@ -5370,6 +5376,14 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.cluePopupShown=False
 		self.interviewPopupShown=False
 
+		self.completer=QCompleter(self.parent.callsignCompletionWordList)
+		# performance speedups: see https://stackoverflow.com/questions/33447843
+		self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+		self.completer.setModelSorting(QCompleter.CaseSensitivelySortedModel)
+		self.completer.popup().setUniformItemSizes(True)
+		self.completer.popup().setLayoutMode(QListView.Batched)
+		self.ui.teamField.setCompleter(self.completer)
+
 # 		rprint(" new entry widget opened.  allteamslist:"+str(self.parent.allTeamsList))
 		if len(self.parent.allTeamsList)<2:
 			self.ui.teamComboBox.setEnabled(False)
@@ -7140,6 +7154,13 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		self.ui.fsFilterButton.clicked.connect(self.fsFilterConfirm)
 		changeCallsignDialog.openDialogCount+=1
 		self.setFixedSize(self.size())
+		self.completer=QCompleter(self.parent.parent.callsignCompletionWordList)
+		# performance speedups: see https://stackoverflow.com/questions/33447843
+		self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+		self.completer.setModelSorting(QCompleter.CaseSensitivelySortedModel)
+		self.completer.popup().setUniformItemSizes(True)
+		self.completer.popup().setLayoutMode(QListView.Batched)
+		self.ui.newCallsignField.setCompleter(self.completer)
 
 	def fsFilterConfirm(self):
 		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Filter (ignore) future incoming messages\n  from this FleetSync device?",
