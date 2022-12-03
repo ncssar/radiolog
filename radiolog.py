@@ -2178,10 +2178,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		for row in self.fsLog:
 			if row[3]==True:
 				filteredHtml+="<tr><td>"+row[2]+"</td><td>"+str(row[0])+"</td><td>"+str(row[1])+"</td></tr>"
+		# richtext doesn't support pt-based font sizes https://stackoverflow.com/a/49397095/3577105
 		if filteredHtml != "":
-			tt="Filtered devices:<br>(left-click to edit)<table border='1' cellpadding='3'><tr><td>Callsign</td><td>Fleet</td><td>ID</td></tr>"+filteredHtml+"</table>"
+			tt='<span style="font-size: '+str(toolTipFontSize)+'pt;">Filtered devices:<br>(left-click to edit)<table border="1" cellpadding="3"><tr><td>Callsign</td><td>Fleet</td><td>ID</td></tr>'+filteredHtml+'</table></span>'
 		else:
-			tt="<font size="+str(toolTipFontSize)+">No devices are currently being filtered.<br>(left-click to edit)</font>"
+			tt='<span style="font-size: '+str(toolTipFontSize)+'pt;">No devices are currently being filtered.<br>(left-click to edit)</span>'
 		self.ui.fsFilterButton.setToolTip(tt)
 
 	def fsIsFiltered(self,fleet,dev):
