@@ -630,13 +630,6 @@ def rreplace(s,old,new,occurrence):
 def normName(name):
 	return re.sub("[^A-Za-z0-9_]+","_",name)
 
-#529 - specify dynamically sized fonts here, to be modified during fontsChanged
-# messageBoxFont=QFont()
-# messageBoxFont.setPointSize(14)
-menuFont=QFont()
-menuFont.setPointSize(14)
-toolTipFontSize=14
-
 #529 - specify a hardcoded global stylesheet to be applied to every dialog class;
 #  setting the top level style sheet when there is a lot of data can cause big delay:
 #  setting the top level stylesheet resulted in 10 second delay for ~300 entries
@@ -798,6 +791,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.teamTabsMoreButton.pressed.connect(self.teamTabsMoreButtonPressed) # see comments at the function
 		self.hiddenTeamTabsList=[]
 		self.teamTabsMoreMenu=None
+
+		self.menuFont=QFont()
+		self.menuFont.setPointSize(14)
+		self.toolTipFontSize=14
 
 		self.callsignCompletionWordList=['Relay','Transport']
 		for x in phonetics:
@@ -2180,9 +2177,9 @@ class MyWindow(QDialog,Ui_Dialog):
 				filteredHtml+="<tr><td>"+row[2]+"</td><td>"+str(row[0])+"</td><td>"+str(row[1])+"</td></tr>"
 		# richtext doesn't support pt-based font sizes https://stackoverflow.com/a/49397095/3577105
 		if filteredHtml != "":
-			tt='<span style="font-size: '+str(toolTipFontSize)+'pt;">Filtered devices:<br>(left-click to edit)<table border="1" cellpadding="3"><tr><td>Callsign</td><td>Fleet</td><td>ID</td></tr>'+filteredHtml+'</table></span>'
+			tt='<span style="font-size: '+str(self.toolTipFontSize)+'pt;">Filtered devices:<br>(left-click to edit)<table border="1" cellpadding="3"><tr><td>Callsign</td><td>Fleet</td><td>ID</td></tr>'+filteredHtml+'</table></span>'
 		else:
-			tt='<span style="font-size: '+str(toolTipFontSize)+'pt;">No devices are currently being filtered.<br>(left-click to edit)</span>'
+			tt='<span style="font-size: '+str(self.toolTipFontSize)+'pt;">No devices are currently being filtered.<br>(left-click to edit)</span>'
 		self.ui.fsFilterButton.setToolTip(tt)
 
 	def fsIsFiltered(self,fleet,dev):
@@ -2993,7 +2990,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		QTimer.singleShot(1800,self.optionsDialog.ui.incidentField.setFocus)
 
 	def fontsChanged(self):
-		rprint("1 - begin fontsChanged")
 		self.limitedFontSize=self.fontSize
 		if self.limitedFontSize>self.maxLimitedFontSize:
 			self.limitedFontSize=self.maxLimitedFontSize
@@ -3003,19 +2999,20 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  causes the rightmost tab to be selected
 		i=self.ui.tabWidget.currentIndex()
 		self.ui.tableView.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
-		for n in self.ui.tableViewList[1:]:
-			rprint("n="+str(n))
-			n.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
+		# for n in self.ui.tableViewList[1:]:
+		# 	rprint("n="+str(n))
+		for x in self.ui.tableViewList:
+			try:
+				# this could be a source of lag if the tableview has a lot of entries
+				x.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
+			except: # may fail for elements that don't have styles, like dummies and spacers
+				pass
 		# don't change tab font size unless you find a good way to dynamically
 		# change tab size and margins as well
 ##		self.ui.tabWidget.tabBar().setStyleSheet("font-size:"+str(self.fontSize)+"pt")
-		rprint("2")
 		self.redrawTables()
-		rprint("2.1")
 		self.ui.tabWidget.setCurrentIndex(i)
-		rprint("2.2")
 		self.ui.incidentNameLabel.setStyleSheet("font-size:"+str(self.limitedFontSize)+"pt;")
-		rprint("2.3")
 
 		# NOTE that setStyleSheet is DESTRUCTIVE, not INCREMENTAL.  To set a new style
 		#  without affecting previous style settings for the same identifier, you
@@ -3042,18 +3039,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  so, incorporate methods here and elsewhere to accomplish what the stylesheet
 		#  section above was accomplishing, without using stylesheets
 
-		# to change all message box fonts:
-		#  subclass QMessageBox (see CustomMessageBox class below) and setFont during init,
-		#  and change global messageBoxFont here;
-		# or, apply globalStyleSheet during init of each class
-		# global messageBoxFont
-		# messageBoxFont.setPointSize(self.limitedFontSize)
-		global toolTipFontSize
-		toolTipFontSize=int(self.limitedFontSize*2/3)
+		self.toolTipFontSize=int(self.limitedFontSize*2/3)
 		self.fsBuildTooltip()
-		global menuFont
-		menuFont.setPointSize(int(self.limitedFontSize*3/4))
-		rprint("3 - end of fontsChanged")
+		self.menuFont.setPointSize(int(self.limitedFontSize*3/4))
 
 	def redrawTables(self):
 		# column sizing rules, in sequence:
@@ -4297,7 +4285,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			
 	def tabContextMenu(self,pos):
 		menu=QMenu()
-		menu.setFont(menuFont)
+		menu.setFont(self.menuFont)
 		rprint("tab context menu requested: pos="+str(pos))
 ##		menu.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		bar=self.ui.tabWidget.tabBar()
@@ -4894,7 +4882,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			#  to allow toggling the menu by clicking the button again
 			self.ui.teamTabsMoreButton.pressed.disconnect(self.teamTabsMoreButtonPressed)
 			self.teamTabsMoreMenu=QMenu('Hidden team tabs')
-			self.teamTabsMoreMenu.setFont(menuFont)
+			self.teamTabsMoreMenu.setFont(self.menuFont)
 			# self.teamTabsMoreMenu.addAction('Hidden team tabs').setObjectName('action1')
 			self.teamTabsMoreMenu.addAction('Hidden team tabs').setEnabled(False)
 			self.teamTabsMoreMenu.addAction('Select a team to unhide:').setEnabled(False)
@@ -7445,7 +7433,7 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 		# rprint('item context menu requested during edit: pos='+str(pos))
 		# rprint("row:"+str(self.parent.row)+":"+str(self.parent.rowData))
 		menu=QMenu()
-		menu.setFont(menuFont)
+		menu.setFont(self.parent.window().menuFont)
 		menu.addAction(self.parent.copyAction)
 		self.parent.copyAction.triggered.connect(menu.close)
 		menu.addAction(self.parent.amendAction)
@@ -7531,7 +7519,7 @@ class CustomTableView(QTableView):
 		# rprint(' current selection:'+str(self.selectedIndexes()))
 		if self.selectedIndexes():
 			menu=QMenu()
-			menu.setFont(menuFont)
+			menu.setFont(self.window().menuFont)
 			self.contextMenuOpened=True
 			menu.addAction(self.copyAction)
 			self.copyAction.triggered.connect(menu.close)
