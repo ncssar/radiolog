@@ -629,7 +629,26 @@ def rreplace(s,old,new,occurrence):
 	
 def normName(name):
 	return re.sub("[^A-Za-z0-9_]+","_",name)
-  
+
+#529 - specify dynamically sized fonts here, to be modified during fontsChanged
+# messageBoxFont=QFont()
+# messageBoxFont.setPointSize(14)
+menuFont=QFont()
+menuFont.setPointSize(14)
+toolTipFontSize=14
+
+#529 - specify a hardcoded global stylesheet to be applied to every dialog class;
+#  setting the top level style sheet when there is a lot of data can cause big delay:
+#  setting the top level stylesheet resulted in 10 second delay for ~300 entries
+#  when called during fontsChanged, but doing so now once during init of each class
+#  is instant; make sure to do the same in init of each custom GUI class, since some
+#  dialogs don't have a parent
+globalStyleSheet="""
+			QMessageBox,QDialogButtonBox QPushButton {
+				font-size:14pt;
+			}
+		"""
+
 class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
@@ -748,6 +767,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.parent=parent
 		self.ui=Ui_Dialog()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		# #520 - show version number in main window banner
 		versionText='RadioLog '+str(__version__)
 		# determine if this is being run from a pyinstaller executable, or from 'python radiolog.py'
@@ -2161,7 +2181,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		if filteredHtml != "":
 			tt="Filtered devices:<br>(left-click to edit)<table border='1' cellpadding='3'><tr><td>Callsign</td><td>Fleet</td><td>ID</td></tr>"+filteredHtml+"</table>"
 		else:
-			tt="No devices are currently being filtered.<br>(left-click to edit)"
+			tt="<font size="+str(toolTipFontSize)+">No devices are currently being filtered.<br>(left-click to edit)</font>"
 		self.ui.fsFilterButton.setToolTip(tt)
 
 	def fsIsFiltered(self,fleet,dev):
@@ -2972,7 +2992,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		QTimer.singleShot(1800,self.optionsDialog.ui.incidentField.setFocus)
 
 	def fontsChanged(self):
-		# rprint("1 - begin fontsChanged")
+		rprint("1 - begin fontsChanged")
 		self.limitedFontSize=self.fontSize
 		if self.limitedFontSize>self.maxLimitedFontSize:
 			self.limitedFontSize=self.maxLimitedFontSize
@@ -2983,15 +3003,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		i=self.ui.tabWidget.currentIndex()
 		self.ui.tableView.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		for n in self.ui.tableViewList[1:]:
-			# rprint("n="+str(n))
+			rprint("n="+str(n))
 			n.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		# don't change tab font size unless you find a good way to dynamically
 		# change tab size and margins as well
 ##		self.ui.tabWidget.tabBar().setStyleSheet("font-size:"+str(self.fontSize)+"pt")
-		# rprint("2")
+		rprint("2")
 		self.redrawTables()
+		rprint("2.1")
 		self.ui.tabWidget.setCurrentIndex(i)
+		rprint("2.2")
 		self.ui.incidentNameLabel.setStyleSheet("font-size:"+str(self.limitedFontSize)+"pt;")
+		rprint("2.3")
 
 		# NOTE that setStyleSheet is DESTRUCTIVE, not INCREMENTAL.  To set a new style
 		#  without affecting previous style settings for the same identifier, you
@@ -2999,19 +3022,37 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  as possible in one text block as below.
 		
 		# hardcode dialog button box pushbutton font size to 14pt since QTDesiger-generated code doesn't work
-		self.parent.setStyleSheet("""
-			QMessageBox,QDialogButtonBox QPushButton {
-				font-size:14pt;
-			}
-			QToolTip {
-				font-size:"""+str(self.fontSize*2/3)+"""pt;
-				color:#555;
-			}
-			QMenu {
-				font-size:"""+str(self.limitedFontSize*3/4)+"""pt;
-			}
-		""")
-		# rprint("3 - end of fontsChanged")
+		# self.parent.setStyleSheet("""
+		# 	QMessageBox,QDialogButtonBox QPushButton {
+		# 		font-size:14pt;
+		# 	}
+		# 	QToolTip {
+		# 		font-size:"""+str(self.fontSize*2/3)+"""pt;
+		# 		color:#555;
+		# 	}
+		# 	QMenu {
+		# 		font-size:"""+str(self.limitedFontSize*3/4)+"""pt;
+		# 	}
+		# """)
+
+		#259 - calling self.parent.setStyleSheet here - regardless of content - causes
+		#  big delay when there are already hundreds of entries - 10sec for ~300 entries;
+		#  many online posts say stylesheets are slow in general and should be avoided;
+		#  so, incorporate methods here and elsewhere to accomplish what the stylesheet
+		#  section above was accomplishing, without using stylesheets
+
+		# to change all message box fonts:
+		#  subclass QMessageBox (see CustomMessageBox class below) and setFont during init,
+		#  and change global messageBoxFont here;
+		# or, apply globalStyleSheet during init of each class
+		# global messageBoxFont
+		# messageBoxFont.setPointSize(self.limitedFontSize)
+		global toolTipFontSize
+		toolTipFontSize=int(self.limitedFontSize*2/3)
+		self.fsBuildTooltip()
+		global menuFont
+		menuFont.setPointSize(int(self.limitedFontSize*3/4))
+		rprint("3 - end of fontsChanged")
 
 	def redrawTables(self):
 		# column sizing rules, in sequence:
@@ -3237,6 +3278,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Exit the Radio Log program?"+msg,
 			QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 		really.setDefaultButton(QMessageBox.No)
+		# really.setFont(self.messageBoxFont)
+		# really.font().setPointSize(32)
 		really.show()
 		really.raise_()
 		if really.exec_()==QMessageBox.No:
@@ -3500,7 +3543,8 @@ class MyWindow(QDialog,Ui_Dialog):
 						self.ui.incidentNameLabel.setText(self.incidentName)
 					if not row[0].startswith('#'): # prune comment lines
 						totalEntries=totalEntries+1
-				progressBox.setMaximum(totalEntries*2)
+			progressBox.setMaximum(totalEntries+2)
+			progressBox.setValue(1)
 
 			# pass 2: read and process the file
 			with open(fileName,'r') as csvFile:
@@ -3522,20 +3566,23 @@ class MyWindow(QDialog,Ui_Dialog):
 							self.opPeriod=newOp
 							self.printDialog.ui.opPeriodComboBox.addItem(str(self.opPeriod))
 							rprint('Setting OP to '+str(self.opPeriod)+' based on loaded entry "'+row[3]+'".')
-						progressBox.setValue(i)
 				csvFile.close()
+			progressBox.setValue(2)
 
+			rprint('  t1 - done reading file')
 			# now add entries, sort, and prune any Begins lines after the first line
 			# edit: don't prune Begins lines - those are needed to indicate start of operational periods
 			# move loadFlag True then False closer in to the newEntry commands, to
 			#  minimize opportunity for failed entries due to self.loadFlag being
 			#  left at True, probably due to early return above (see #340)
 			self.loadFlag=True
+			i=2
 			for row in loadedRadioLog:
 				self.newEntry(row)
 				i=i+1
 				progressBox.setValue(i)
 			self.loadFlag=False
+			rprint('  t2')
 			self.radioLog.sort(key=lambda entry: entry[6]) # sort by epoch seconds
 ##		self.radioLog[1:]=[x for x in self.radioLog[1:] if not x[3].startswith('Radio Log Begins:')]
 
@@ -3546,8 +3593,11 @@ class MyWindow(QDialog,Ui_Dialog):
 # they could be put inside redrawTables, but, there's no need to put them inside that
 #  function which is called from other places, unless another syptom shows up; so, leave
 #  them here for now.
+			rprint('  t3')
 			self.ui.tableView.model().layoutChanged.emit()
+			rprint('  t4')
 			self.ui.tableView.scrollToBottom()
+			rprint('  t5')
 	##		self.ui.tableView.resizeRowsToContents()
 	##		for i in range(self.ui.tabWidget.count()):
 	##			self.ui.tabWidget.setCurrentIndex(i)
@@ -3572,19 +3622,28 @@ class MyWindow(QDialog,Ui_Dialog):
 								lastClueNumber=int(row[1].split('(Last clue number: ')[1].replace(')',''))
 					csvFile.close()
 
+			rprint('  t6')
 			self.clueLogDialog.ui.tableView.model().layoutChanged.emit()
+			rprint('  t7')
 			# finished
 			# rprint("Starting redrawTables")
 			self.fontsChanged()
+			rprint('  t8')
 	##		self.ui.tableView.model().layoutChanged.emit()
 	##		QCoreApplication.processEvents()
 			# rprint("Returned from redrawTables")
 			progressBox.close()
+			rprint('  t9')
 			self.ui.opPeriodButton.setText("OP "+str(self.opPeriod))
+			rprint('  t10')
 			self.teamTimer.start(1000) #resume
+			rprint('  t11')
 			self.lastSavedFileName="NONE"
+			rprint('  t12')
 			self.updateFileNames() # note, no file will be saved until the next entry is made
+			rprint('  t13')
 			self.saveRcFile()
+			rprint('  t14')
 
 	def updateFileNames(self):
 		# update the filenames based on current incident name and current date/time
@@ -4237,6 +4296,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			
 	def tabContextMenu(self,pos):
 		menu=QMenu()
+		menu.setFont(menuFont)
 		rprint("tab context menu requested: pos="+str(pos))
 ##		menu.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		bar=self.ui.tabWidget.tabBar()
@@ -4833,6 +4893,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			#  to allow toggling the menu by clicking the button again
 			self.ui.teamTabsMoreButton.pressed.disconnect(self.teamTabsMoreButtonPressed)
 			self.teamTabsMoreMenu=QMenu('Hidden team tabs')
+			self.teamTabsMoreMenu.setFont(menuFont)
 			# self.teamTabsMoreMenu.addAction('Hidden team tabs').setObjectName('action1')
 			self.teamTabsMoreMenu.addAction('Hidden team tabs').setEnabled(False)
 			self.teamTabsMoreMenu.addAction('Select a team to unhide:').setEnabled(False)
@@ -4926,6 +4987,7 @@ class helpWindow(QDialog,Ui_Help):
 		QDialog.__init__(self)
 		self.ui=Ui_Help()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		self.setWindowFlags(Qt.WindowStaysOnTopHint)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setFixedSize(self.size())
@@ -4943,6 +5005,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.parent=parent
 		self.ui=Ui_optionsDialog()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		self.ui.timeoutField.valueChanged.connect(self.displayTimeout)
 		self.displayTimeout()
 		self.setWindowFlags(Qt.WindowStaysOnTopHint)
@@ -4991,6 +5054,7 @@ class printDialog(QDialog,Ui_printDialog):
 		self.parent=parent
 		self.ui=Ui_printDialog()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		self.ui.opPeriodComboBox.addItem(str(self.parent.opPeriod))
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setFixedSize(self.size())
@@ -5063,6 +5127,7 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 		self.tabWidth=175
 		self.tabHeight=25
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		self.ui.tabWidget.setTabBar(FingerTabBarWidget(width=self.tabWidth,height=self.tabHeight))
 		self.ui.tabWidget.setTabPosition(QTabWidget.West)
 ##		self.i=0 # unique persistent tab index; increments with each newly added tab; values are never re-used
@@ -5361,6 +5426,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##		newEntryDialog.newEntryDialogUsedPositionList[self.position]=True
 		newEntryWidget.instances.append(self)
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 
 		# blank-out the label under the callsign field if this was a manually / hotkey
 		#  generated newEntryWidget; the label only applies to fleetsync-spawned entries
@@ -6230,6 +6296,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_clueDialog()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		self.ui.timeField.setText(t)
 		self.ui.dateField.setText(time.strftime("%x"))
 		self.ui.callsignField.setText(callsign)
@@ -6485,6 +6552,7 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_nonRadioClueDialog()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		self.ui.timeField.setText(t)
 		self.ui.dateField.setText(time.strftime("%x"))
 		self.ui.clueNumberField.setText(str(newClueNumber))
@@ -6575,6 +6643,7 @@ class clueLogDialog(QDialog,Ui_clueLogDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_clueLogDialog()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		self.parent=parent
 		self.tableModel = clueTableModel(parent.clueLog, self)
 		self.ui.tableView.setModel(self.tableModel)
@@ -6638,6 +6707,7 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_subjectLocatedDialog()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		self.ui.timeField.setText(t)
 		self.ui.dateField.setText(time.strftime("%x"))
 		self.ui.callsignField.setText(callsign)
@@ -6739,6 +6809,7 @@ class printClueLogDialog(QDialog,Ui_printClueLogDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_printClueLogDialog()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		self.parent=parent
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 
@@ -6786,6 +6857,7 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_opPeriodDialog()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		self.parent=parent
 		self.ui.currentOpPeriodField.setText(str(parent.opPeriod))
 		self.ui.newOpPeriodField.setText(str(parent.opPeriod+1))
@@ -6832,6 +6904,7 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_continuedIncidentDialog()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		self.parent=parent
 		self.incidentNameCandidate=''
 		self.lastOPCandidate=0
@@ -6920,6 +6993,7 @@ class loadDialog(QDialog,Ui_loadDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_loadDialog()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		self.parent=parent
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		# self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
@@ -6979,6 +7053,7 @@ class fsFilterDialog(QDialog,Ui_fsFilterDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_fsFilterDialog()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.parent=parent
 		self.tableModel = fsTableModel(parent.fsLog, self)
@@ -7012,6 +7087,7 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_fsSendDialog()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.parent=parent
 		# need to connect apply signal by hand https://stackoverflow.com/a/35444005
@@ -7106,6 +7182,7 @@ class fsSendMessageDialog(QDialog,Ui_fsSendMessageDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_fsSendMessageDialog()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.parent=parent
 		self.fdcList=fdcList
@@ -7140,6 +7217,7 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_changeCallsignDialog()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.parent=parent
@@ -7366,6 +7444,7 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 		# rprint('item context menu requested during edit: pos='+str(pos))
 		# rprint("row:"+str(self.parent.row)+":"+str(self.parent.rowData))
 		menu=QMenu()
+		menu.setFont(menuFont)
 		menu.addAction(self.parent.copyAction)
 		self.parent.copyAction.triggered.connect(menu.close)
 		menu.addAction(self.parent.amendAction)
@@ -7451,6 +7530,7 @@ class CustomTableView(QTableView):
 		# rprint(' current selection:'+str(self.selectedIndexes()))
 		if self.selectedIndexes():
 			menu=QMenu()
+			menu.setFont(menuFont)
 			self.contextMenuOpened=True
 			menu.addAction(self.copyAction)
 			self.copyAction.triggered.connect(menu.close)
@@ -7598,6 +7678,12 @@ class customEventFilter(QObject):
 			event.key()==Qt.Key_Z):
 			return True # block the default processing of Ctrl+Z
 		return super(customEventFilter,self).eventFilter(receiver,event)
+
+
+# class CustomMessageBox(QMessageBox):
+# 	def __init__(self,*args):
+# 		QMessageBox.__init__(self,*args)
+# 		# self.setFont(messageBoxFont)
 
 
 def main():
