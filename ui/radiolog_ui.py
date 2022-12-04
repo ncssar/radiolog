@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'radiolog.ui'
+# Form implementation generated from reading ui file 'C:\Users\caver\Documents\GitHub\radiolog\designer\radiolog.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.6
 #
@@ -292,7 +292,7 @@ class Ui_Dialog(object):
         self.tabWidget.setTabPosition(QtWidgets.QTabWidget.North)
         self.tabWidget.setTabShape(QtWidgets.QTabWidget.Rounded)
         self.tabWidget.setIconSize(QtCore.QSize(10, 20))
-        self.tabWidget.setUsesScrollButtons(True)
+        self.tabWidget.setUsesScrollButtons(False)
         self.tabWidget.setObjectName("tabWidget")
         self.verticalLayout.addWidget(self.tabWidget)
         self.verticalLayout_2.addLayout(self.verticalLayout)

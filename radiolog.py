@@ -4024,7 +4024,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		while bar.count()>0:
 # 			print("count:"+str(bar.count()))
 			bar.removeTab(0)
-		for extTeamName in self.extTeamNameList:
+		#595: avoid right-left-shift-flicker by setting first tab visibility
+		#  before adding other tabs; tab is visible by default
+		self.addTab(self.extTeamNameList[0])
+		if not self.hiddenTeamTabsList:
+			self.ui.tabWidget.tabBar().setTabVisible(0,False)
+		for extTeamName in self.extTeamNameList[1:]:
 			self.addTab(extTeamName)
 # 		self.rebuildTeamHotkeys()
 	
@@ -4268,7 +4273,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# rebuild self.extTeamNameList, with groups and spacers in the correct order,
 		#  since everything throughout the code keys off its sequence;
 		#  note the spacer names need to be unique for later processing
-		self.extTeamNameList=[]
+		self.extTeamNameList=['spacerLeft']
 		spacerIndex=1 # start with 1 so trailing 0 doesn't get deleted in getNiceTeamName
 		for grp in self.tabGroups:
 # 			rprint("group:"+str(grp)+":"+str(grouped[grp[0]]))
@@ -4864,12 +4869,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.teamHotkeysWidget.setVisible(not vis)
 
 	def showTeamTabsMoreButtonIfNeeded(self):
+		#595: setStyleSheet causes a second or two of lag when there are ~300 entries;
+		#  instead, just toggle visibility of the leftmost spacer tab
 		if self.hiddenTeamTabsList:
-			self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:14px;}')
-			self.ui.teamTabsMoreButton.setVisible(True)
+			# self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:14px;}')
+			if not self.ui.teamTabsMoreButton.isVisible() or not self.ui.tabWidget.tabBar().isTabVisible(0):
+				self.ui.tabWidget.tabBar().setTabVisible(0,True)
+				self.ui.teamTabsMoreButton.setVisible(True)
 		else:
-			self.ui.teamTabsMoreButton.setVisible(False)
-			self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:0px;}')
+			if self.ui.teamTabsMoreButton.isVisible() or self.ui.tabWidget.tabBar().isTabVisible(0):
+				self.ui.teamTabsMoreButton.setVisible(False)
+				self.ui.tabWidget.tabBar().setTabVisible(0,False)
+			# self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:0px;}')
 
 	# need to run this slot on pressed, instead of clicked which causes redisplay with every click
 	#  due to interaction with return value from QMenu

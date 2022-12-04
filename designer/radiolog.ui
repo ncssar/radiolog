@@ -656,7 +656,7 @@ FORMAT</string>
             </size>
            </property>
            <property name="usesScrollButtons">
-            <bool>true</bool>
+            <bool>false</bool>
            </property>
           </widget>
          </item>
