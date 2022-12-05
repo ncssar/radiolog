@@ -330,6 +330,7 @@ from reportlab.lib.units import inch
 from PyPDF2 import PdfFileReader,PdfFileWriter
 from FingerTabs import *
 from pygeodesy import Datums,ellipsoidalBase,dms
+from sartopo_python import SartopoSession
 
 __version__ = "3.4.0"
 
@@ -1017,6 +1018,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.secondComPort=None
 		self.comPortScanInProgress=False
 		self.comPortTryList=[]
+
+		self.sts=None
+		self.sartopoURL=''
+		self.sartopoLink=None
+		self.radioMarkerDict={}
+
 ##		if develMode:
 ##			self.comPortTryList=[serial.Serial("\\\\.\\CNCB0")] # DEVEL
 		self.fsBuffer=""
@@ -1938,6 +1945,8 @@ class MyWindow(QDialog,Ui_Dialog):
 								#  otherwise, append the callsign now, as a sign to send immediately
 								if not devTxt.startswith("Radio "):
 									self.getString=self.getString+devTxt
+								if self.optionsDialog.ui.sartopoRadioMarkersCheckBox.isChecked() and self.sts:
+									self.sendRadioMarker(devTxt,lat,lon)
 							# was this a response to a location request for this device?
 							if self.fsAwaitingResponse and [int(fleet),int(dev)]==[int(x) for x in self.fsAwaitingResponse[0:2]]:
 								try:
@@ -2110,7 +2119,21 @@ class MyWindow(QDialog,Ui_Dialog):
 				except Exception as e:
 					rprint("  exception during sending of GET request: "+str(e))
 				self.getString=''
-				
+	
+	def sendRadioMarker(self,label,lat,lon):
+		if not self.sts:
+			return
+		existingId=self.radioMarkerDict.get(label,'') # can be None in newer sartopo_python
+		id=self.sts.addMarker(lat,lon,label,time.strftime('%H:%M:%S'),existingId=existingId)
+		if not existingId:
+			self.radioMarkerDict[label]=id
+
+		# if existingId:
+		# 	pass
+		# else:			
+		# 	id=self.sts.addMarker(lat,lon,label,time.strftime('%H:%M:%S'))
+		# 	self.radioMarkerDict[label]=id
+
 	# for fsLog, a dictionary would probably be easier, but we have to use an array
 	#  since we will be displaying in a QTableView
 	# if callsign is specified, update the callsign but not the time;
@@ -4982,6 +5005,43 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.save()
 		self.saveRcFile()
 
+	def createSTS(self):
+		rprint('createSTS called:')
+		if self.sts is not None: # close out any previous session
+			print('Closing previous SartopoSession')
+			self.sts=None
+			# self.ui.linkIndicator.setText("")
+			# self.updateLinkIndicator()
+			# self.link=-1
+			# self.updateFeatureList("Folder")
+			# self.updateFeatureList("Marker")
+		if self.optionsDialog.ui.sartopoMapURLField.text():
+			u=self.optionsDialog.ui.sartopoMapURLField.text()
+			if u==self.sartopoURL: # url has not changed; keep the existing link and folder list
+				return
+			self.sartopoURL=u
+			if self.sartopoURL.endswith("#"): # pound sign at end of URL causes crash; brute force fix it here
+				self.sartopoURL=self.sartopoURL[:-1]
+				self.optionsDialog.ui.sartopoMapURLField.setText(self.sartopoURL)
+			parse=self.sartopoURL.replace("http://","").replace("https://","").split("/")
+			domainAndPort=parse[0]
+			mapID=parse[-1]
+			print("calling SartopoSession with domainAndPort="+domainAndPort+" mapID="+mapID)
+			if 'sartopo.com' in domainAndPort.lower():
+				print("  creating online session for user "+self.sartopoAccountName)
+				self.sts=SartopoSession(domainAndPort=domainAndPort,mapID=mapID,
+										configpath="../sts.ini",
+										account=self.accountName)
+			else:
+				self.sts=SartopoSession(domainAndPort=domainAndPort,mapID=mapID)
+			self.sartopoLink=self.sts.apiVersion
+			print("link status:"+str(self.sartopoLink))
+			# self.updateLinkIndicator()
+			# if self.link>0:
+			# 	self.ui.linkIndicator.setText(self.sts.mapID)
+			# 	self.updateFeatureList("Folder")
+			# self.optionsDialog.ui.folderComboBox.setHeader("Select a Folder...")
+
 class helpWindow(QDialog,Ui_Help):
 	def __init__(self, *args):
 		QDialog.__init__(self)
@@ -5015,6 +5075,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.formatField.setEnabled(False) # since convert menu is not working yet, TMG 4-8-15
 		self.setFixedSize(self.size())
 		self.secondWorkingDirCB()
+		self.sartopoEnabledCB()
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
@@ -5047,6 +5108,18 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		else:
 			self.show()
 			self.raise_()
+
+	def sartopoEnabledCB(self):
+		a=self.ui.sartopoGroupBox.isChecked()
+		radios=self.ui.sartopoRadioMarkersCheckBox.isChecked()
+		clues=self.ui.sartopoClueMarkersCheckBox.isChecked()
+		self.ui.sartopoLocationUpdatesCheckBox.setEnabled(a)
+		self.ui.sartopoRadioMarkersCheckBox.setEnabled(a)
+		self.ui.sartopoClueMarkersCheckBox.setEnabled(a)
+		self.ui.sartopoMapURLField.setEnabled(a and (radios or clues))
+
+	def sartopoURLCB(self):
+		self.parent.createSTS()
 
 class printDialog(QDialog,Ui_printDialog):
 	def __init__(self,parent):
