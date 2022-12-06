@@ -838,6 +838,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.incidentStartDate=time.strftime("%a %b %d, %Y")
 		self.isContinuedIncident=False
 
+		self.sts=None
+		self.sartopoURL=''
+		self.sartopoLink=None
+		self.radioMarkerDict={}
+		self.radioMarkerFID=None
+
 		self.optionsDialog=optionsDialog(self)
 		self.optionsDialog.accepted.connect(self.optionsAccepted)
 		
@@ -1019,12 +1025,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.secondComPort=None
 		self.comPortScanInProgress=False
 		self.comPortTryList=[]
-
-		self.sts=None
-		self.sartopoURL=''
-		self.sartopoLink=None
-		self.radioMarkerDict={}
-		self.radioMarkerFID=None
 
 ##		if develMode:
 ##			self.comPortTryList=[serial.Serial("\\\\.\\CNCB0")] # DEVEL
@@ -5025,7 +5025,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint('createSTS called:')
 		if self.sts is not None: # close out any previous session
 			print('Closing previous SartopoSession')
-			self.sts=None
+			self.closeSTS()
 			# self.ui.linkIndicator.setText("")
 			# self.updateLinkIndicator()
 			# self.link=-1
@@ -5033,7 +5033,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			# self.updateFeatureList("Marker")
 		if self.optionsDialog.ui.sartopoMapURLField.text():
 			u=self.optionsDialog.ui.sartopoMapURLField.text()
-			if u==self.sartopoURL: # url has not changed; keep the existing link and folder list
+			if u==self.sartopoURL and self.sts: # url has not changed; keep the existing link and folder list
 				return
 			self.sartopoURL=u
 			if self.sartopoURL.endswith("#"): # pound sign at end of URL causes crash; brute force fix it here
@@ -5054,6 +5054,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				# self.sts=SartopoSession(domainAndPort=domainAndPort,mapID=mapID,sync=False,syncTimeout=0.001)
 			self.sartopoLink=self.sts.apiVersion
 			print("link status:"+str(self.sartopoLink))
+			self.updateSartopoLinkIndicator()
 			# self.updateLinkIndicator()
 			# if self.link>0:
 			# 	self.ui.linkIndicator.setText(self.sts.mapID)
@@ -5067,6 +5068,23 @@ class MyWindow(QDialog,Ui_Dialog):
 					rprint('adding deferred marker "'+key+'"')
 					id=self.sts.addMarker(val[2],val[3],key,val[1],folderId=self.radioMarkerFID)
 					self.radioMarkerDict[key][0]=id
+
+	def closeSTS(self):
+		rprint('closeSTS called')
+		if self.sts:
+			del self.sts
+			self.sts=None
+		self.sartopoLink=0
+		self.updateSartopoLinkIndicator()
+
+	def updateSartopoLinkIndicator(self):
+		rprint('updateSartopoLinkIndcator called: sartopoLink='+str(self.sartopoLink))
+		if self.sartopoLink==1:
+			self.optionsDialog.ui.sartopoLinkIndicator.setStyleSheet("background-color:#00ff00")
+		elif self.sartopoLink==-1:
+			self.optionsDialog.ui.sartopoLinkIndicator.setStyleSheet("background-color:#ff0000")
+		else:
+			self.optionsDialog.ui.sartopoLinkIndicator.setStyleSheet("background-color:#aaaaaa")
 
 class helpWindow(QDialog,Ui_Help):
 	def __init__(self, *args):
@@ -5103,7 +5121,6 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.formatField.setEnabled(False) # since convert menu is not working yet, TMG 4-8-15
 		self.setFixedSize(self.size())
 		self.secondWorkingDirCB()
-		self.sartopoEnabledCB()
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
@@ -5113,6 +5130,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.formatField.clearFocus()
 		self.ui.timeoutField.clearFocus()
 		self.ui.secondWorkingDirCheckBox.clearFocus()
+		self.sartopoEnabledCB()
 
 	def displayTimeout(self):
 		self.ui.timeoutLabel.setText("Timeout: "+timeoutDisplayList[self.ui.timeoutField.value()][0])
@@ -5137,19 +5155,27 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.show()
 			self.raise_()
 
-	def sartopoEnabledCB(self):
+	def sartopoEnabledCB(self): # called from stateChanged of group box AND of radio markers checkbox
 		a=self.ui.sartopoGroupBox.isChecked()
 		radios=self.ui.sartopoRadioMarkersCheckBox.isChecked()
 		self.ui.sartopoLocationUpdatesCheckBox.setEnabled(a)
 		self.ui.sartopoRadioMarkersCheckBox.setEnabled(a)
 		enableMapFields=a and radios
 		self.ui.sartopoMapURLField.setEnabled(enableMapFields)
-		self.ui.sartopoLinkStatusField.setEnabled(enableMapFields)
+		self.ui.sartopoLinkIndicator.setEnabled(enableMapFields)
 		self.ui.sartopoMapURLLabel.setEnabled(enableMapFields)
 		self.ui.sartopoMapNameLabel.setEnabled(enableMapFields)
+		if enableMapFields:
+			self.sartopoURLCB() # try to reconnect if mapURL is not blank
+		else:
+			self.parent.closeSTS()
 
 	def sartopoURLCB(self):
+		if self.ui.sartopoMapURLField.text()=='':
+			self.parent.closeSTS()
+			return
 		self.parent.createSTS()
+
 
 class printDialog(QDialog,Ui_printDialog):
 	def __init__(self,parent):

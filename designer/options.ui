@@ -327,18 +327,24 @@
            <widget class="QLineEdit" name="sartopoMapURLField"/>
           </item>
           <item>
-           <widget class="QLineEdit" name="sartopoLinkStatusField">
+           <widget class="QLineEdit" name="sartopoLinkIndicator">
             <property name="minimumSize">
              <size>
-              <width>40</width>
+              <width>20</width>
               <height>0</height>
              </size>
             </property>
             <property name="maximumSize">
              <size>
-              <width>16777215</width>
-              <height>30</height>
+              <width>20</width>
+              <height>20</height>
              </size>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">background-color:#aaaaaa</string>
+            </property>
+            <property name="readOnly">
+             <bool>true</bool>
             </property>
            </widget>
           </item>
