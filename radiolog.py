@@ -5092,6 +5092,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui=Ui_optionsDialog()
 		self.ui.setupUi(self)
 		self.setStyleSheet(globalStyleSheet)
+		# self.adjustSize()
+		# self.resize(self.minimumSize())
 		self.ui.timeoutField.valueChanged.connect(self.displayTimeout)
 		self.displayTimeout()
 		self.setWindowFlags(Qt.WindowStaysOnTopHint)
@@ -5138,11 +5140,13 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	def sartopoEnabledCB(self):
 		a=self.ui.sartopoGroupBox.isChecked()
 		radios=self.ui.sartopoRadioMarkersCheckBox.isChecked()
-		clues=self.ui.sartopoClueMarkersCheckBox.isChecked()
 		self.ui.sartopoLocationUpdatesCheckBox.setEnabled(a)
 		self.ui.sartopoRadioMarkersCheckBox.setEnabled(a)
-		self.ui.sartopoClueMarkersCheckBox.setEnabled(a)
-		self.ui.sartopoMapURLField.setEnabled(a and (radios or clues))
+		enableMapFields=a and radios
+		self.ui.sartopoMapURLField.setEnabled(enableMapFields)
+		self.ui.sartopoLinkStatusField.setEnabled(enableMapFields)
+		self.ui.sartopoMapURLLabel.setEnabled(enableMapFields)
+		self.ui.sartopoMapNameLabel.setEnabled(enableMapFields)
 
 	def sartopoURLCB(self):
 		self.parent.createSTS()
