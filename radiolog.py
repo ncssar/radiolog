@@ -5080,11 +5080,17 @@ class MyWindow(QDialog,Ui_Dialog):
 	def updateSartopoLinkIndicator(self):
 		rprint('updateSartopoLinkIndcator called: sartopoLink='+str(self.sartopoLink))
 		if self.sartopoLink==1:
-			self.optionsDialog.ui.sartopoLinkIndicator.setStyleSheet("background-color:#00ff00")
+			ss='background-color:#00ff00'
 		elif self.sartopoLink==-1:
-			self.optionsDialog.ui.sartopoLinkIndicator.setStyleSheet("background-color:#ff0000")
+			ss='background-color:#ff0000'
 		else:
-			self.optionsDialog.ui.sartopoLinkIndicator.setStyleSheet("background-color:#aaaaaa")
+			ss='background-color:#aaaaaa'
+		self.optionsDialog.ui.sartopoLinkIndicator.setStyleSheet(ss)
+		self.ui.sartopoLinkIndicator.setStyleSheet(ss)
+		if self.sts:
+			self.ui.sartopoLinkIndicator.setText(self.sts.mapID)
+		else:
+			self.ui.sartopoLinkIndicator.setText('')
 
 class helpWindow(QDialog,Ui_Help):
 	def __init__(self, *args):
