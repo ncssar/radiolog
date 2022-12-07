@@ -323,6 +323,7 @@ import win32con
 import shutil
 import math
 import textwrap
+from collections import defaultdict
 from reportlab.lib import colors,utils
 from reportlab.lib.pagesizes import letter,landscape,portrait
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
@@ -1948,7 +1949,7 @@ class MyWindow(QDialog,Ui_Dialog):
 								if not devTxt.startswith("Radio "):
 									self.getString=self.getString+devTxt
 								# if self.optionsDialog.ui.sartopoRadioMarkersCheckBox.isChecked() and self.sts:
-								self.sendRadioMarker(devTxt,lat,lon) # always send or queue
+								self.sendRadioMarker(fleet,dev,devTxt,lat,lon) # always send or queue
 							# was this a response to a location request for this device?
 							if self.fsAwaitingResponse and [int(fleet),int(dev)]==[int(x) for x in self.fsAwaitingResponse[0:2]]:
 								try:
@@ -2123,7 +2124,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					rprint("  exception during sending of GET request: "+str(e))
 				self.getString=''
 	
-	def sendRadioMarker(self,label,lat,lon):
+	def sendRadioMarker(self,fleet,dev,label,lat,lon):
 		rprint('sendRadioMarker called')
 		# mimic the old 'Locator Group' behavior:
 		# - create a 'Radios' folder on the first call to this function; place markers in that folder
@@ -2134,22 +2135,65 @@ class MyWindow(QDialog,Ui_Dialog):
 		#    or one marker per callsign?
 		# - should radio markers be deleted at any point?
 		# - should radio marker colors be changed, as a function of team status, or time since last call?
-		# self.radioMarkerDict - keys are callsigns, values are lists [id,latestTimeString,lat,lon]
+		# self.radioMarkerDict - keys are callsigns, values are dictionaries with these keys:
+		#   sartopoID - sartopo feature ID - initially an empty string
+		#   fleet - Kenwood fleet #
+		#   deviceID - Kenwood device ID
+		#   latestTimeString
+		#   lat
+		#   lon
 		# existingId=self.radioMarkerDict.get(label,'') # can be None in newer sartopo_python
 		# id=None
-		entry=self.radioMarkerDict.get(label,[''])
-		existingId=entry[0]
+		
+		d=self.radioMarkerDict.get(label,{})
+		existingId=d.get('sartopoID','')
 		id=''
 		latestTimeString=time.strftime('%H:%M:%S')
 		if self.sts:
 			if not self.radioMarkerFID:
 				self.radioMarkerFID=self.sts.addFolder('Radios')
 			id=self.sts.addMarker(lat,lon,label,latestTimeString,folderId=self.radioMarkerFID,existingId=existingId)
-		self.radioMarkerDict[label]=[id,latestTimeString,lat,lon] # queued markers will be added during createSTS
+		self.radioMarkerDict[label]={
+			'sartopoID': id,
+			'fleet': fleet,
+			'device': dev,
+			'latestTimeString': latestTimeString,
+			'lat': lat,
+			'lon': lon
+		} # queued markers will be added during createSTS
+		self.cleanupRadioMarkers()
 		rprint(json.dumps(self.radioMarkerDict,indent=3))
+
+		# entry=self.radioMarkerDict.get(label,[''])
+		# existingId=entry[0]
+		# id=''
+		# latestTimeString=time.strftime('%H:%M:%S')
+		# if self.sts:
+		# 	if not self.radioMarkerFID:
+		# 		self.radioMarkerFID=self.sts.addFolder('Radios')
+		# 	id=self.sts.addMarker(lat,lon,label,latestTimeString,folderId=self.radioMarkerFID,existingId=existingId)
+		# self.radioMarkerDict[label]=[id,latestTimeString,lat,lon] # queued markers will be added during createSTS
+		# rprint(json.dumps(self.radioMarkerDict,indent=3))
 
 		# process this marker, and also any other entries without id
 
+	def cleanupRadioMarkers(self):
+		# delete radio markers whose labels are the same as device ID,
+		#  if another marker with same device ID but a useful label exists;
+		#  this happens intentionally, when the marker is sent as soon as a new
+		#  call comes in but before a callsign is defined in the CCD.
+		# pairs=[[label,d['device']] for (label,d) in self.radioMarkerDict.items()]
+		# for pair in pairs:
+		labelsForDevice=defaultdict(list)
+		for (label,d) in self.radioMarkerDict.items():
+			labelsForDevice[d['device']].append(label)
+		rprint('labelsForDevice:'+json.dumps(labelsForDevice,indent=3))
+		for (device,labels) in labelsForDevice.items():
+			if len(labels)>1:
+				for label in labels:
+					if label==device:
+						rprint('deleting old marker "'+label+'"  id='+str(self.radioMarkerDict[label]['sartopoID']))
+						# when sartopo_python is updated, delete the marker AND the radioMarkerDict entry
 	# for fsLog, a dictionary would probably be easier, but we have to use an array
 	#  since we will be displaying in a QTableView
 	# if callsign is specified, update the callsign but not the time;
@@ -2188,6 +2232,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsFilterDialog.ui.tableView.model().layoutChanged.emit()
 		self.fsBuildTeamFilterDict()
 	
+	def updateRadioMarkerLabel(self,fleet,device,label):
+		for (l,d) in self.radioMarkerDict.items():
+			if str(d['fleet'])==str(fleet) and str(d['deviceID'])==str(device) and l==str(device):
+				# self.sts.editFeature(id=d['sartopoID'],properties={'title':label})
+				# self.radioMarkerDict[label]=d
+				# del self.radioMarkerDict[l]
+				rprint('sartopo_python update needed: changing marker name from "'+l+'" to "'+label+'" for id '+d['sartopoID'])
+
 	def fsGetLatestComPort(self,fleet,device):
 		rprint('fsLog:'+str(self.fsLog))
 		log=[x for x in self.fsLog if x[0:2]==[int(fleet),int(device)]]
@@ -5060,14 +5112,15 @@ class MyWindow(QDialog,Ui_Dialog):
 			# 	self.ui.linkIndicator.setText(self.sts.mapID)
 			# 	self.updateFeatureList("Folder")
 			# self.optionsDialog.ui.folderComboBox.setHeader("Select a Folder...")
-			# process any queued radio markers
-			if not self.radioMarkerFID:
-				self.radioMarkerFID=self.sts.addFolder('Radios')
-			for (key,val) in self.radioMarkerDict.items():
-				if not val[0]:
-					rprint('adding deferred marker "'+key+'"')
-					id=self.sts.addMarker(val[2],val[3],key,val[1],folderId=self.radioMarkerFID)
-					self.radioMarkerDict[key][0]=id
+			# if the session is good, process any deferred radio markers
+			if self.sts and self.sartopoLink>0:
+				if not self.radioMarkerFID:
+					self.radioMarkerFID=self.sts.addFolder('Radios')
+				for (label,d) in self.radioMarkerDict.items():
+					if d['sartopoID'] in ['',-1]: # could be blank, or, -1
+						rprint('adding deferred marker "'+label+'"')
+						id=self.sts.addMarker(d['lat'],d['lon'],label,d['latestTimeString'],folderId=self.radioMarkerFID)
+						self.radioMarkerDict[label]['sartopoID']=id
 
 	def closeSTS(self):
 		rprint('closeSTS called')
