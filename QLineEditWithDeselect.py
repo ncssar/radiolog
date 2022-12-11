@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import *
 class QLineEditWithDeselect(QLineEdit):
     def __init__(self,parent=None):
         self.parent=parent
+        self.lastKeyText=''
         super(QLineEditWithDeselect,self).__init__(parent)
     
     # for some reason, the entire existing text (if any) was always selected;
@@ -13,3 +14,8 @@ class QLineEditWithDeselect(QLineEdit):
         QLineEdit.focusInEvent(self,e) # do this to show the blinking cursor
         self.deselect()
         self.setCursorPosition(len(self.text()))
+
+    # capture the text of the last key pressed, for use in messageChanged handling (#506)
+    def keyPressEvent(self,e):
+        self.lastKeyText=e.text()
+        QLineEdit.keyPressEvent(self,e)

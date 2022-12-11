@@ -6078,20 +6078,18 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			
 	def messageTextChanged(self): # gets called after every keystroke or button press, so, should be fast
 ##		self.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
-		#506 - if the most recent thing entered was a quick text, insert a space before the new typed character
-		# quick text followed by letter: add space before new typed character
+		#506 - if the most recent thing entered was a quick text, insert a space before the new typed alphanumeric
+		# quick text followed by alphanumeric: add space before new typed character
 		# quick text followed by quick text: add semicolon and space before new quick text (done in quickTextAction)
-		# letter followed by letter: don't add anything
-		# letter followed by quick text: add semicolon and space before new quick text (done in quickTextAction)
+		# alphanumeric followed by alphanumeric: don't add anything
+		# alphanumeric followed by quick text: add semicolon and space before new quick text (done in quickTextAction)
 		# rprint('messageTextChanged: insideQuickText='+str(self.insideQuickText)+'  prevActionWasQuickText='+str(self.prevActionWasQuickText))
-		if self.prevActionWasQuickText and not self.insideQuickText:
-			# rprint('  the previous action was a quick text but the current action is not - adding a space')
+		# rprint('messageTextChanged: lastKeyText="'+self.ui.messageField.lastKeyText+'"')
+		if self.ui.messageField.lastKeyText.isalpha() and self.prevActionWasQuickText and not self.insideQuickText:
+			# # rprint('  the previous action was a quick text but the current action is not - adding a space')
 			prev=self.ui.messageField.text()
-			# rprint('prev:'+prev)
-			if prev[-1]!=' ': # avoid double-space if the user actually typed a space after the quick text
-				self.prevActionWasQuickText=self.insideQuickText # avoid recursion loop
-				self.ui.messageField.setText(prev[:-1]+' '+prev[-1])
-				# rprint(' new:'+self.ui.messageField.text())
+			self.prevActionWasQuickText=self.insideQuickText # avoid recursion loop
+			self.ui.messageField.setText(prev[:-1]+' '+prev[-1])
 		message=self.ui.messageField.text().lower()
 		extTeamName=getExtTeamName(self.ui.teamField.text())
 		prevStatus=""
