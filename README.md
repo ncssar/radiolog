@@ -29,7 +29,7 @@ This open-source project is mainly intended for use by other Search and Rescue t
 
 Prior to mid-2022, there was no downloadable installer available, and radiolog was not available as a Windows executable.  Installation was a much more manual process.  See those installation guidelines [here](INSTALL.md).  Thanks to user @erinn for creating the release workflow including the radiolog Windows executable, and the executable installer.
 
-See guidelines for contributing to this project [here](CONTRIBUTING.md).
+See guidelines for contributing to this project [here](CONTRIBUTING.md).  Also see [Developer notes and GitHub workflow notes](DEVELOPER_NOTES.md).
 
 The general idea:
 
@@ -74,3 +74,5 @@ Overview slideshow (17 slides describing the features in a bit more detail): [ov
 FleetSync interface details are spelled out [here](/doc/radiolog_fleetsync_details.pdf).
 
 Please contact the author if other documentation would be helpful.
+
+See the [Developer Notes](DEVELOPER_NOTES.md).
