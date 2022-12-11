@@ -6140,11 +6140,18 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			msg=None
 			for keyword in self.clueKeywords:
 				if keyword in message:
-					msg='Since you typed "'+keyword+'", it looks like you meant to click "LOCATED A CLUE".\n\nDo you want to open a clue report now?'
+					msg='Since you typed "'+keyword+'", it looks like you meant to click "LOCATED A CLUE".\n\nDo you want to open a clue report now?\n\n(If so, everything typed so far will be copied to the Clue Description field.)\n\nPress the \'Escape\' key to close this popup.'
 			if msg:
-				box=QMessageBox(QMessageBox.Information,"Looks like a clue",msg,
+				box=CustomMessageBox(QMessageBox.Information,"Looks like a clue",msg,
 					QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				# the two lines below are needed to prevent space bar from triggering the 'Yes' button (opening a clue dialog)
+				#  or the 'No' button (closing the popup)
+				box.button(QMessageBox.Yes).setFocusPolicy(Qt.NoFocus)
+				box.button(QMessageBox.No).setFocusPolicy(Qt.NoFocus)
 				box.show()
+				messageFieldTopLeft=self.mapToGlobal(self.ui.messageField.pos())
+				messageFieldHeight=self.ui.messageField.height()
+				box.move(messageFieldTopLeft.x()+10,messageFieldTopLeft.y()+messageFieldHeight+10)
 				box.raise_()
 				self.cluePopupShown=True
 				QTimer.singleShot(100,QApplication.beep)
@@ -6155,7 +6162,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					self.newClueDialog.ui.descriptionField.setPlainText(self.ui.messageField.text())
 					# move cursor to end since it doesn't happen automatically
 					cursor=self.newClueDialog.ui.descriptionField.textCursor()
-					cursor.setPosition(len(message))
+					cursor.setPosition(len(self.newClueDialog.ui.descriptionField.toPlainText()))
 					self.newClueDialog.ui.descriptionField.setTextCursor(cursor)
 					# clear the message text since it has been moved to the clue dialog;
 					#  it will be moved back to the message text if the clue dialog is canceled
@@ -7684,6 +7691,26 @@ class customEventFilter(QObject):
 # 	def __init__(self,*args):
 # 		QMessageBox.__init__(self,*args)
 # 		# self.setFont(messageBoxFont)
+
+
+class CustomMessageBox(QMessageBox):
+	def __init__(self,*args):
+		super(CustomMessageBox,self).__init__(*args)
+		self.palette=QPalette()
+
+	def keyPressEvent(self,e):
+		k=e.key()
+		if k==Qt.Key_Escape:
+			self.close()
+		else:
+			QApplication.beep()
+			self.parent().throb()
+			# send all keypresses except Esc and Enter to the NED messageField
+			#  so that typing can continue uninterrupted
+			if e.key() in [Qt.Key_Enter,Qt.Key_Return]:
+				rprint('blocked')
+			else:
+				QApplication.sendEvent(self.parent().ui.messageField,e)
 
 
 def main():
