@@ -1327,7 +1327,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			rprint("Operating system is Windows.")
 			if shutil.which("powershell.exe"):
 				rprint("PowerShell.exe is in the path.")
-				self.rotateScript="powershell.exe -ExecutionPolicy Bypass .\\rotateCsvBackups.ps1 -filenames "
+				#601 - use absolute path
+				self.rotateScript="powershell.exe -ExecutionPolicy Bypass "+installDir+"\\rotateCsvBackups.ps1 -filenames "
+				rprint('rotate script command: "'+self.rotateScript+'"')
 				self.rotateDelimiter=","
 			else:
 				rprint("PowerShell.exe is not in the path; poweshell-based backup rotation script cannot be used.")
