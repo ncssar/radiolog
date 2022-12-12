@@ -839,6 +839,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.optionsDialog=optionsDialog(self)
 		self.optionsDialog.accepted.connect(self.optionsAccepted)
 		
+		self.printFailMessageBoxShown=False
+		
 		self.fontSize=10
 		self.x=100
 		self.y=100
@@ -2514,6 +2516,23 @@ class MyWindow(QDialog,Ui_Dialog):
 		canvas.restoreState()
 		rprint("end of printLogHeaderFooter")
 
+	def printPDF(self,pdfName):
+		try:
+			win32api.ShellExecute(0,"print",pdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
+		except Exception as e:
+			estr=str(e)
+			rprint('Print failed: '+estr)
+			if '31' in estr:
+				msg='Failed to send PDF to a printer.\n\nThe PDF file has still been generated and saved in the run directory.\n\nThe most likely cause for this error is that there is no PDF viewer application installed on your system.\n\nPlease make sure you have a PDF viewer application such as Acrobat or Acrobat Reader installed and set as the system default application for viewing PDF files.\n\nYou can install that application now without exiting RadioLog, then try printing again.'
+				rprint(msg)
+			if not self.printFailMessageBoxShown:
+				box=QMessageBox(QMessageBox.Warning,'Print Failed',msg+'\n\nThis message will not appear again for this RadioLog session.',
+					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				box.show()
+				box.raise_()
+				box.exec_()
+				self.printFailMessageBoxShown=True
+
 	# optonal argument 'teams': if True, generate one pdf of all individual team logs;
 	#  so, this function should be called once to generate the overall log pdf, and
 	#  again with teams=True to generate team logs pdf
@@ -2610,7 +2629,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					elements.append(Spacer(0,0.25*inch))
 		doc.build(elements,onFirstPage=functools.partial(self.printLogHeaderFooter,opPeriod=opPeriod,teams=teams),onLaterPages=functools.partial(self.printLogHeaderFooter,opPeriod=opPeriod,teams=teams))
 # 		self.logMsgBox.setInformativeText("Finalizing and Printing...")
-		win32api.ShellExecute(0,"print",pdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
+		self.printPDF(pdfName)
 		self.radioLogNeedsPrint=False
 
 		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
@@ -2736,7 +2755,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				elements.append(t)
 				doc.build(elements,onFirstPage=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod),onLaterPages=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod))
 	# 			self.clueLogMsgBox.setInformativeText("Finalizing and Printing...")
-				win32api.ShellExecute(0,"print",clueLogPdfFileName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
+				self.printPDF(clueLogPdfFileName)
 				if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
 					rprint("copying clue log pdf to "+self.secondWorkingDir)
 					shutil.copy(clueLogPdfFileName,self.secondWorkingDir)
@@ -2968,7 +2987,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		with open(cluePdfName,'wb') as out_pdf:
 			outputPDF.write(out_pdf)
 
-		win32api.ShellExecute(0,"print",cluePdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
+		self.printPDF(cluePdfName)
 		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
 			rprint("copying clue report pdf to "+self.secondWorkingDir)
 			shutil.copy(cluePdfName,self.secondWorkingDir)
