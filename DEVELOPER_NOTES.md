@@ -65,3 +65,6 @@ This will start the github action.  It will take a few minutes to complete.  Whi
 
 ## Build a test executable on a local clone
 Run 'pyinstaller radiolog.spec'.  The executable will be created in the dist/radiolog directory.  Debugging pyinstaller is beyond the scope of this set of notes; it has been running smoothly recently.
+
+## Build a test installer (e.g. to test edits to radiolog.iss before committing)
+Run '\<Inno Setup install dir\>\ISCC.exe radiolog.iss' - this will build dist\radiolog-\<version\>-setup.exe.
