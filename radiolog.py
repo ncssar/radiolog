@@ -481,15 +481,18 @@ def getNiceTeamName(extTeamName):
 	# find index of first number in the name; everything left of that is the 'prefix';
 	# assume that everything after the prefix is a number
 	#  (left-zero-padded to 5 digits)
+	# if there is no number, split after the word 'team' if it exists
 	firstNum=re.search("\d",extTeamName)
-	firstNumIndex=-1 # assume there is no number at all
+	splitIndex=-1 # assume there is no number at all
 	prefix=""
 	if firstNum:
-		firstNumIndex=firstNum.start()
-	if firstNumIndex>0:
-		prefix=extTeamName[:firstNumIndex]
+		splitIndex=firstNum.start()
+	elif extTeamName.lower().startswith('team'):
+		splitIndex=4
+	if splitIndex>0:
+		prefix=extTeamName[:splitIndex]
 #		name=prefix.capitalize()+" "+str(int(str(extTeamName[firstNumIndex:])))
-		name=prefix.capitalize()+" "+str(extTeamName[firstNumIndex:]).lstrip('0')
+		name=prefix.capitalize()+" "+str(extTeamName[splitIndex:]).lstrip('0')
 	else:
 		name=extTeamName
 	# finally, remove any leading zeros (necessary for non-'Team' callsigns)
