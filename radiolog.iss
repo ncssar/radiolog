@@ -49,3 +49,10 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilen
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
+[Code]
+procedure CurStepChanged(CurStep:TSetupStep);
+begin
+	if CurStep = ssPostInstall then
+		if not RegKeyExists(HKLM,'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\Acrobat.exe') then
+			MsgBox('PDF Print Notice'+#13#10#13#10+'It looks like Adobe Acrobat is not installed.'+#13#10#13#10+'PDF files will still be generated and saved by RadioLog, but a default PDF viewer application, other than a web browser, must be installed in order to send those generated PDF files to a printer.'+#13#10#13#10+'Adobe Acrobat Reader is just one option.  It can be installed from get.adobe.com/reader.'+#13#10#13#10+'If you do have Acrobat or a different PDF viewer application installed, please try printing from RadioLog to confirm.',mbInformation,MB_OK);
+end;
