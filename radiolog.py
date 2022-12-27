@@ -322,6 +322,7 @@ import win32con
 import shutil
 import math
 import textwrap
+import json
 from reportlab.lib import colors,utils
 from reportlab.lib.pagesizes import letter,landscape,portrait
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
@@ -927,6 +928,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.enableSendText=True
 		self.enablePollGPS=True
 		self.getString=""
+
+		self.mbfTimersDict={}
+		self.mbfTime=1000 # mic bump filter timeout in milliseconds
 
 ##		# attempt to change to the second working dir and back again, to 'wake up'
 ##		#  any mount points, to hopefully avoid problems of second working dir
@@ -2037,10 +2041,47 @@ class MyWindow(QDialog,Ui_Dialog):
 				dev=fid[3:7]
 				callsign=self.getCallsign(fleet,dev)
 				rprint("CID detected (not in $PKLSH): fleet="+fleet+"  dev="+dev+"  callsign="+callsign)
+				t=time.time()
+				# rprint('self.mbfTimersDict:')
+				# rprint(json.dumps(self.mbfTimersDict,indent=3))
+				mbft=self.mbfTimersDict.get(fid)
+				if mbft:
+					rprint('canceling mbfTimer for '+fid)
+					mbft.stop() # no need to check time difference; if the timer still exists, cancel it
+					del mbft
+					rprint('canceled mbfTimer for '+fid)
+				else:
+					parseDict={
+						'fleet':fleet,
+						'dev':dev,
+						'callsign':callsign,
+						'origLocString':origLocString,
+						'formattedLocString':formattedLocString,
+						'parsedTime':time.time()}
+					rprint('creating mbfTimer for '+fid)
+					self.mbfTimersDict[fid]=QTimer.singleShot(self.mbfTime,lambda:self.fsProcessParsedData(parseDict))
+					# QTimer.singleShot(500,lambda:self.newEntryWidget.openChangeCallsignDialog())
+			# QTimer.singleShot(100,lambda:self.newEntryPost(extTeamName))
+
+	# fsProcessParsedData
+	# This was previously not its own function - it was just the second half of fsParse;
+	#  to provide for MBF (Mic Bump Filtering), this is separated into its own function,
+	#  called in a timer from fsParse, unless that timer is canceled by EOT from the same
+	#  device within the MBF time.
+	def fsProcessParsedData(self,parseDict):
 		# if any new entry dialogs are already open with 'from' and the
 		#  current callsign, and that entry has been edited within the 'continue' time,
 		#  update it with the current location if available;
 		# otherwise, spawn a new entry dialog
+		fleet=parseDict['fleet']
+		dev=parseDict['dev']
+		callsign=parseDict['callsign']
+		origLocString=parseDict['origLocString']
+		formattedLocString=parseDict['formattedLocString']
+		rprint('processing for '+str(fleet)+':'+str(dev))
+		fid=str(fleet)+str(dev)
+		if fid in self.mbfTimersDict.keys():
+			del self.mbfTimersDict[fid]
 		found=False
 		for widget in newEntryWidget.instances:
 ##			rprint("checking against existing widget: to_from="+widget.ui.to_fromField.currentText()" team="+widget.ui.teamField.text()
