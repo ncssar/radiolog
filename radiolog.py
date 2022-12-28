@@ -840,6 +840,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.opPeriod=1
 		self.incidentStartDate=time.strftime("%a %b %d, %Y")
 		self.isContinuedIncident=False
+		self.useOperatorLogin=True # can be disabled in config
+		self.operatorLastName='?'
+		self.operatorFirstName='?'
+		self.operatorId='???'
 
 		self.optionsDialog=optionsDialog(self)
 		self.optionsDialog.accepted.connect(self.optionsAccepted)
@@ -3870,6 +3874,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			self.newEntryWidget.ui.datumFormatLabel.setText("")
 	
+	def getOperatorInitials(self):
+		return self.operatorFirstName[0].upper()+self.operatorLastName[0].upper()
+
 	def newEntry(self,values,amend=False):
 		# values array format: [time,to_from,team,message,locString,status,sec,fleet,dev]
 		#  locString is also stored in the table in a column after dev, unmodified;
@@ -3882,6 +3889,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint(values)
 		niceTeamName=values[2]
 		extTeamName=getExtTeamName(niceTeamName)
+		# if self.useOperatorLogin:
+		# 	values[0]+=' ['+self.getOperatorInitials()+']'
 		status=values[5]
 		if values[4]==None:
 			values[4]=''
@@ -7439,7 +7448,7 @@ class loginDialog(QDialog,Ui_loginDialog):
 		self.parent.operatorLastName=newLastName
 		self.parent.operatorFirstName=newFirstName
 		self.parent.operatorId=newId
-		self.parent.ui.loginInitialsLabel.setText(newFirstName[0].upper()+newLastName[0].upper())
+		self.parent.ui.loginInitialsLabel.setText(self.parent.getOperatorInitials())
 		self.parent.ui.loginIdLabel.setText(newId)
 		self.parent.saveOperators()
 		super(loginDialog,self).accept()
