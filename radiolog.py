@@ -322,6 +322,7 @@ import win32con
 import shutil
 import math
 import textwrap
+import json
 from reportlab.lib import colors,utils
 from reportlab.lib.pagesizes import letter,landscape,portrait
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
@@ -622,6 +623,7 @@ from ui.nonRadioClueDialog_ui import Ui_nonRadioClueDialog
 from ui.subjectLocatedDialog_ui import Ui_subjectLocatedDialog
 from ui.continuedIncidentDialog_ui import Ui_continuedIncidentDialog
 from ui.loadDialog_ui import Ui_loadDialog
+from ui.loginDialog_ui import Ui_loginDialog
 
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
@@ -951,6 +953,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  lookup filename based on the current incedent name and time
 		# self.fsFileName=os.path.join(self.firstWorkingDir,'config','radiolog_fleetsync.csv')
 		self.fsFileName='radiolog_fleetsync.csv'
+
+		self.operatorsFileName='radiolog_operators.json'
+		
+		# self.operatorsDict: dictioary with one key ('operators') whose value is a list of dictionaries
+		#  Why not just a list of dictionaries?  Why wrap in a single-item dictionary?
+		#  -> for ease of file I/O with json.dump and json.load - see loadOperators and saveOperators
+		self.operatorsDict={'operators':[]}
 		
 		self.helpFont1=QFont()
 		self.helpFont1.setFamily("Segoe UI")
@@ -992,6 +1001,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsLatestComPort=None
 		self.fsShowChannelWarning=True
 		
+		self.loginDialog=loginDialog(self)
+
 		self.ui.addNonRadioClueButton.clicked.connect(self.addNonRadioClue)
 
 		self.ui.helpButton.clicked.connect(self.helpWindow.toggleShow)
@@ -999,6 +1010,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.fsFilterButton.clicked.connect(self.fsFilterDialog.toggleShow)
 		self.ui.printButton.clicked.connect(self.printDialog.toggleShow)
 ##		self.ui.printButton.clicked.connect(self.testConvertCoords)
+		self.ui.loginWidget.clicked.connect(self.loginDialog.toggleShow) # note this is a custom class with custom signal
 
 		self.ui.tabList=["dummy"]
 		self.ui.tabGridLayoutList=["dummy"]
@@ -3440,6 +3452,24 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.updateOptionsDialog()
 		rcFile.close()
 		return cleanShutdownFlag
+
+	def loadOperators(self):
+		fileName=os.path.join(self.configDir,self.operatorsFileName)
+		try:
+			with open(fileName,'r') as ofile:
+				rprint('Loading operator data from file '+fileName)
+				self.operatorsDict=json.load(ofile)
+		except:
+			rprint('WARNING: Could not read operator data file '+fileName)
+
+	def saveOperators(self):
+		fileName=os.path.join(self.configDir,self.operatorsFileName)
+		try:
+			with open(fileName,'w') as ofile:
+				rprint('Saving operator data file '+fileName)
+				json.dump(self.operatorsDict,ofile,indent=3)
+		except:
+			rprint('WARNING: Could not write operator data file '+fileName)
 
 	def save(self,finalize=False):
 		csvFileNameList=[os.path.join(self.sessionDir,self.csvFileName)]
@@ -7318,6 +7348,102 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		super(changeCallsignDialog,self).accept()
 		rprint("New callsign pairing created: fleet="+fleet+"  dev="+dev+"  callsign="+newCallsign)
 
+
+class clickableWidget(QWidget):
+	clicked=pyqtSignal()
+	def __init__(self,parent,*args,**kwargs):
+		self.parent=parent
+		QWidget.__init__(self,parent)
+		self.pressed=False
+
+	def mousePressEvent(self,e):
+		self.pressed=True
+
+	def mouseOutEvent(self,e):
+		self.pressed=False
+
+	def mouseReleaseEvent(self,e):
+		if self.pressed:
+			self.clicked.emit()
+
+	# required for stylesheets to apply to subclasses
+	# https://stackoverflow.com/a/32889486/3577105
+	def paintEvent(self,pe):
+		o=QStyleOption()
+		o.initFrom(self)
+		p=QPainter(self)
+		self.style().drawPrimitive(QStyle.PE_Widget,o,p,self)
+
+
+class loginDialog(QDialog,Ui_loginDialog):
+	def __init__(self,parent):
+		QDialog.__init__(self)
+		self.ui=Ui_loginDialog()
+		self.ui.setupUi(self)
+		self.parent=parent
+		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		self.knownDefaultText=' -- Select a Known Operator -- '
+
+	def showEvent(self,e):
+		self.parent.loadOperators()
+		self.ui.knownComboBox.clear()
+		self.ui.knownComboBox.addItem(self.knownDefaultText)
+		self.ui.lastNameField.setText('')
+		self.ui.firstNameField.setText('')
+		self.ui.idField.setText('')
+		items=[] # list of items: first entry is the string, second entry is the variant which is a list [lastName,firstName,id]
+		for od in self.parent.operatorsDict['operators']:
+			items.append([od['lastName']+', '+od['firstName']+'  '+od['id'],[od['lastName'],od['firstName'],od['id']]])
+			# operatorsTextList.append(od['lastName']+', '+od['firstName']+'  '+od['id'])
+		# operatorsTextList.sort() # alphabetical sort - could be changed to most-frequent sort if needed
+		items.sort(key=lambda x:x[0]) # alphabetical sort - could be changed to most-frequent sort if needed
+		rprint('items:'+str(items))
+		for item in items:
+			self.ui.knownComboBox.addItem(item[0],item[1])
+
+	def toggleShow(self):
+		if self.isVisible():
+			self.close()
+		else:
+			self.show()
+			self.raise_()
+
+	def accept(self):
+		# rprint('accept called')
+		lastName=self.ui.lastNameField.text()
+		firstName=self.ui.firstNameField.text()
+		id=self.ui.idField.text()
+		if lastName or firstName or id: # first-time operator
+			if self.ui.knownComboBox.currentText()!=self.knownDefaultText:
+				rprint('ERROR: you selected a known operator, but one or more of the first-time operator fields contain text.  Select one or the other.')
+				return
+			else:
+				self.parent.operatorLastName=lastName
+				self.parent.operatorFirstName=firstName
+				self.parent.operatorId=id
+				self.parent.ui.loginInitialsLabel.setText(firstName[0].upper()+lastName[0].upper())
+				self.parent.ui.loginIdLabel.setText(id)
+				self.parent.operatorsDict['operators'].append({
+					'lastName':lastName,
+					'firstName':firstName,
+					'id':id
+				})
+		elif self.ui.knownComboBox.currentText()!=self.knownDefaultText:
+			[lastName,firstName,id]=self.ui.knownComboBox.currentData()
+			self.parent.operatorLastName=lastName
+			self.parent.operatorFirstName=firstName
+			self.parent.operatorId=id
+			self.parent.ui.loginInitialsLabel.setText(firstName[0].upper()+lastName[0].upper())
+			self.parent.ui.loginIdLabel.setText(id)
+		else:
+			rprint('ERROR: choose a known operator, or, fill out all three fields for a first-time operator.')
+			return
+		self.parent.saveOperators()
+		super(loginDialog,self).accept()
+
+	# def closeEvent(self,e):
+	# 	rprint('closeEvent called')
+	# 	self.parent.saveOperators()
 
 ##class convertDialog(QDialog,Ui_convertDialog):
 ##	def __init__(self,parent,rowData,rowHasRadioLoc=False,rowHasMsgCoords=False):
