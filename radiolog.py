@@ -2602,6 +2602,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			extTeamNameLower=getExtTeamName(team).lower()
 			radioLogPrint=[]
 			styles = getSampleStyleSheet()
+			styles.add(ParagraphStyle(
+				name='operator',
+				parent=styles['Normal'],
+				backColor='lightgrey'
+				))
 			radioLogPrint.append(MyTableModel.header_labels[0:6])
 ##			if teams and opPeriod==1: # if request op period = 1, include 'Radio Log Begins' in all team tables
 ##				radioLogPrint.append(self.radioLog[0])
@@ -2622,7 +2627,10 @@ class MyWindow(QDialog,Ui_Dialog):
 ##				rprint("desired op period="+str(opPeriod)+"; this entry op period="+str(entryOpPeriod))
 				if entryOpPeriod == opPeriod:
 					if team=="" or extTeamNameLower==getExtTeamName(row[2]).lower() or opStartRow: # filter by team name if argument was specified
-						radioLogPrint.append([row[0],row[1],row[2],Paragraph(row[3],styles['Normal']),Paragraph(row[4],styles['Normal']),Paragraph(row[5],styles['Normal'])])
+						style=styles['Normal']
+						if 'RADIO OPERATOR LOGGED IN' in row[3]:
+							style=styles['operator']
+						radioLogPrint.append([row[0],row[1],row[2],Paragraph(row[3],style),Paragraph(row[4],styles['Normal']),Paragraph(row[5],styles['Normal'])])
 ##						hits=True
 			if not teams:
 				# #523: avoid exception	
@@ -7394,8 +7402,6 @@ class loginDialog(QDialog,Ui_loginDialog):
 		items=[] # list of items: first entry is the string, second entry is the variant which is a list [lastName,firstName,id]
 		for od in self.parent.operatorsDict['operators']:
 			items.append([od['lastName']+', '+od['firstName']+'  '+od['id'],[od['lastName'],od['firstName'],od['id']]])
-			# operatorsTextList.append(od['lastName']+', '+od['firstName']+'  '+od['id'])
-		# operatorsTextList.sort() # alphabetical sort - could be changed to most-frequent sort if needed
 		items.sort(key=lambda x:x[0]) # alphabetical sort - could be changed to most-frequent sort if needed
 		rprint('items:'+str(items))
 		for item in items:
@@ -7409,7 +7415,6 @@ class loginDialog(QDialog,Ui_loginDialog):
 			self.raise_()
 
 	def accept(self):
-		# rprint('accept called')
 		lastName=self.ui.lastNameField.text()
 		firstName=self.ui.firstNameField.text()
 		id=self.ui.idField.text()
@@ -7418,28 +7423,34 @@ class loginDialog(QDialog,Ui_loginDialog):
 				rprint('ERROR: you selected a known operator, but one or more of the first-time operator fields contain text.  Select one or the other.')
 				return
 			else:
-				self.parent.operatorLastName=lastName
-				self.parent.operatorFirstName=firstName
-				self.parent.operatorId=id
-				self.parent.ui.loginInitialsLabel.setText(firstName[0].upper()+lastName[0].upper())
-				self.parent.ui.loginIdLabel.setText(id)
+				newLastName=lastName
+				newFirstName=firstName
+				newId=id
 				self.parent.operatorsDict['operators'].append({
 					'lastName':lastName,
 					'firstName':firstName,
 					'id':id
 				})
-		elif self.ui.knownComboBox.currentText()!=self.knownDefaultText:
-			[lastName,firstName,id]=self.ui.knownComboBox.currentData()
-			self.parent.operatorLastName=lastName
-			self.parent.operatorFirstName=firstName
-			self.parent.operatorId=id
-			self.parent.ui.loginInitialsLabel.setText(firstName[0].upper()+lastName[0].upper())
-			self.parent.ui.loginIdLabel.setText(id)
+		elif self.ui.knownComboBox.currentText()!=self.knownDefaultText: # known operator
+			[newLastName,newFirstName,newId]=self.ui.knownComboBox.currentData()
 		else:
 			rprint('ERROR: choose a known operator, or, fill out all three fields for a first-time operator.')
 			return
+		self.parent.operatorLastName=newLastName
+		self.parent.operatorFirstName=newFirstName
+		self.parent.operatorId=newId
+		self.parent.ui.loginInitialsLabel.setText(newFirstName[0].upper()+newLastName[0].upper())
+		self.parent.ui.loginIdLabel.setText(newId)
 		self.parent.saveOperators()
 		super(loginDialog,self).accept()
+		
+		# values format for adding a new entry:
+		#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+		values=['' for n in range(10)]
+		values[0]=time.strftime("%H%M")
+		values[6]=time.time()
+		values[3]='RADIO OPERATOR LOGGED IN: '+newLastName+', '+newFirstName+'  '+newId
+		self.parent.newEntry(values)
 
 	# def closeEvent(self,e):
 	# 	rprint('closeEvent called')
