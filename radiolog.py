@@ -7412,9 +7412,13 @@ class loginDialog(QDialog,Ui_loginDialog):
 		self.ui=Ui_loginDialog()
 		self.ui.setupUi(self)
 		self.ui.buttonBox.button(QDialogButtonBox.Ok).setText('Log In')
+		self.ui.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
 		self.parent=parent
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.knownDefaultText=' -- Select a Known Operator -- '
+		self.lastNameText=self.ui.lastNameField.text()
+		self.firstNameText=self.ui.firstNameField.text()
+		self.idText=self.ui.idField.text()
 
 	def showEvent(self,e):
 		self.parent.loadOperators()
@@ -7425,7 +7429,12 @@ class loginDialog(QDialog,Ui_loginDialog):
 		self.ui.idField.setText('')
 		items=[] # list of items: first entry is the string, second entry is the variant which is a list [lastName,firstName,id]
 		for od in self.parent.operatorsDict['operators']:
-			items.append([od['lastName']+', '+od['firstName']+'  '+od['id'],[od['lastName'],od['firstName'],od['id']]])
+			if isinstance(od,dict):
+				lastName=od.get('lastName')
+				firstName=od.get('firstName')
+				id=od.get('id')
+				if isinstance(lastName,str) and isinstance(firstName,str) and isinstance(id,str):
+					items.append([lastName+', '+firstName+'  '+id,[lastName,firstName,id]])
 		items.sort(key=lambda x:x[0]) # alphabetical sort - could be changed to most-frequent sort if needed
 		rprint('items:'+str(items))
 		for item in items:
@@ -7437,6 +7446,31 @@ class loginDialog(QDialog,Ui_loginDialog):
 		else:
 			self.show()
 			self.raise_()
+
+	def knownFieldChanged(self,i):
+		self.ui.firstTimeGroupBox.setEnabled(i==0)
+		self.checkForValidOperator()
+
+	# always leave known field enabled, so it's easy to override any entered text
+	def lastNameFieldTextChanged(self,t):
+		self.lastNameText=t
+		self.checkForValidOperator()
+
+	def firstNameFieldTextChanged(self,t):
+		self.firstNameText=t
+		self.checkForValidOperator()
+
+	def idFieldTextChanged(self,t):
+		self.idText=t
+		self.checkForValidOperator()
+
+	def checkForValidOperator(self):
+		# does known field have a valid selection?
+		vk=self.ui.knownComboBox.currentIndex()!=0
+		# does first-time field group have a valid selection (are all three fields non-empty)?
+		vft=(self.lastNameText!='') and (self.firstNameText!='') and (self.idText!='')
+		# if either is valid, enable the Log In button
+		self.ui.buttonBox.button(QDialogButtonBox.Ok).setEnabled(vk or vft)
 
 	def accept(self):
 		oldLastName=self.parent.operatorLastName

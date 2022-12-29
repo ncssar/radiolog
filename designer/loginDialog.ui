@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>527</width>
-    <height>362</height>
+    <width>557</width>
+    <height>374</height>
    </rect>
   </property>
   <property name="font">
@@ -120,6 +120,9 @@ QGroupBox::title{
               <pointsize>14</pointsize>
              </font>
             </property>
+            <property name="maxLength">
+             <number>30</number>
+            </property>
            </widget>
           </item>
          </layout>
@@ -147,12 +150,18 @@ QGroupBox::title{
               <pointsize>14</pointsize>
              </font>
             </property>
+            <property name="maxLength">
+             <number>30</number>
+            </property>
            </widget>
           </item>
          </layout>
         </item>
         <item>
          <layout class="QHBoxLayout" name="idHLayout">
+          <property name="sizeConstraint">
+           <enum>QLayout::SetDefaultConstraint</enum>
+          </property>
           <item>
            <widget class="QLabel" name="idLabel">
             <property name="font">
@@ -162,7 +171,7 @@ QGroupBox::title{
              </font>
             </property>
             <property name="text">
-             <string>ID (SAR ID, callsign, etc)</string>
+             <string>ID or callsign (8 characters max.)</string>
             </property>
            </widget>
           </item>
@@ -173,6 +182,9 @@ QGroupBox::title{
               <family>Segoe UI</family>
               <pointsize>14</pointsize>
              </font>
+            </property>
+            <property name="maxLength">
+             <number>8</number>
             </property>
            </widget>
           </item>
@@ -251,8 +263,76 @@ QGroupBox::title{
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>knownComboBox</sender>
+   <signal>currentIndexChanged(int)</signal>
+   <receiver>loginDialog</receiver>
+   <slot>knownFieldChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>454</x>
+     <y>59</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>517</x>
+     <y>70</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>lastNameField</sender>
+   <signal>textChanged(QString)</signal>
+   <receiver>loginDialog</receiver>
+   <slot>lastNameFieldTextChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>491</x>
+     <y>172</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>521</x>
+     <y>184</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>firstNameField</sender>
+   <signal>textChanged(QString)</signal>
+   <receiver>loginDialog</receiver>
+   <slot>firstNameFieldTextChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>491</x>
+     <y>219</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>520</x>
+     <y>241</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>idField</sender>
+   <signal>textChanged(QString)</signal>
+   <receiver>loginDialog</receiver>
+   <slot>idFieldTextChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>486</x>
+     <y>268</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>519</x>
+     <y>288</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>viewUsageButtonClicked()</slot>
+  <slot>knownFieldChanged()</slot>
+  <slot>lastNameFieldTextChanged()</slot>
+  <slot>firstNameFieldTextChanged()</slot>
+  <slot>idFieldTextChanged()</slot>
  </slots>
 </ui>

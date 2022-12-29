@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_loginDialog(object):
     def setupUi(self, loginDialog):
         loginDialog.setObjectName("loginDialog")
-        loginDialog.resize(527, 362)
+        loginDialog.resize(557, 374)
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(14)
@@ -87,6 +87,7 @@ class Ui_loginDialog(object):
         font.setFamily("Segoe UI")
         font.setPointSize(14)
         self.lastNameField.setFont(font)
+        self.lastNameField.setMaxLength(30)
         self.lastNameField.setObjectName("lastNameField")
         self.lastNameHLayout.addWidget(self.lastNameField)
         self.verticalLayout.addLayout(self.lastNameHLayout)
@@ -104,10 +105,12 @@ class Ui_loginDialog(object):
         font.setFamily("Segoe UI")
         font.setPointSize(14)
         self.firstNameField.setFont(font)
+        self.firstNameField.setMaxLength(30)
         self.firstNameField.setObjectName("firstNameField")
         self.firstNameHLayout.addWidget(self.firstNameField)
         self.verticalLayout.addLayout(self.firstNameHLayout)
         self.idHLayout = QtWidgets.QHBoxLayout()
+        self.idHLayout.setSizeConstraint(QtWidgets.QLayout.SetDefaultConstraint)
         self.idHLayout.setObjectName("idHLayout")
         self.idLabel = QtWidgets.QLabel(self.firstTimeGroupBox)
         font = QtGui.QFont()
@@ -121,6 +124,7 @@ class Ui_loginDialog(object):
         font.setFamily("Segoe UI")
         font.setPointSize(14)
         self.idField.setFont(font)
+        self.idField.setMaxLength(8)
         self.idField.setObjectName("idField")
         self.idHLayout.addWidget(self.idField)
         self.verticalLayout.addLayout(self.idHLayout)
@@ -141,6 +145,10 @@ class Ui_loginDialog(object):
         self.retranslateUi(loginDialog)
         self.buttonBox.accepted.connect(loginDialog.accept) # type: ignore
         self.buttonBox.rejected.connect(loginDialog.reject) # type: ignore
+        self.knownComboBox.currentIndexChanged['int'].connect(loginDialog.knownFieldChanged) # type: ignore
+        self.lastNameField.textChanged['QString'].connect(loginDialog.lastNameFieldTextChanged) # type: ignore
+        self.firstNameField.textChanged['QString'].connect(loginDialog.firstNameFieldTextChanged) # type: ignore
+        self.idField.textChanged['QString'].connect(loginDialog.idFieldTextChanged) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(loginDialog)
 
     def retranslateUi(self, loginDialog):
@@ -151,4 +159,4 @@ class Ui_loginDialog(object):
         self.firstTimeGroupBox.setTitle(_translate("loginDialog", "First-time Operator"))
         self.lastNameLabel.setText(_translate("loginDialog", "Last Name"))
         self.firstNameLabel.setText(_translate("loginDialog", "First Name"))
-        self.idLabel.setText(_translate("loginDialog", "ID (SAR ID, callsign, etc)"))
+        self.idLabel.setText(_translate("loginDialog", "ID or callsign (8 characters max.)"))
