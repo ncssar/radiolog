@@ -532,6 +532,12 @@ FORMAT</string>
            <height>80</height>
           </size>
          </property>
+         <property name="maximumSize">
+          <size>
+           <width>80</width>
+           <height>80</height>
+          </size>
+         </property>
          <property name="styleSheet">
           <string notr="true">QWidget#loginWidget {
 	background-image: url(:/radiolog_ui/icons/user_icon_80px.png);

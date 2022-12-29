@@ -247,6 +247,7 @@ class Ui_Dialog(object):
         sizePolicy.setHeightForWidth(self.loginWidget.sizePolicy().hasHeightForWidth())
         self.loginWidget.setSizePolicy(sizePolicy)
         self.loginWidget.setMinimumSize(QtCore.QSize(80, 80))
+        self.loginWidget.setMaximumSize(QtCore.QSize(80, 80))
         self.loginWidget.setStyleSheet("QWidget#loginWidget {\n"
 "    background-image: url(:/radiolog_ui/icons/user_icon_80px.png);\n"
 "}")

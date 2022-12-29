@@ -14,17 +14,11 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_loginDialog(object):
     def setupUi(self, loginDialog):
         loginDialog.setObjectName("loginDialog")
-        loginDialog.resize(527, 376)
-        loginDialog.setStyleSheet("QGroupBox{\n"
-"    border:1px solid darkgray;\n"
-"    border-radius:5px;\n"
-"    margin-top:10px;\n"
-"}\n"
-"QGroupBox::title{\n"
-"    padding-top:-24px;\n"
-"    left:10px;\n"
-"}\n"
-"")
+        loginDialog.resize(527, 362)
+        font = QtGui.QFont()
+        font.setFamily("Segoe UI")
+        font.setPointSize(14)
+        loginDialog.setFont(font)
         self.verticalLayout_4 = QtWidgets.QVBoxLayout(loginDialog)
         self.verticalLayout_4.setObjectName("verticalLayout_4")
         self.verticalLayout_3 = QtWidgets.QVBoxLayout()
@@ -34,7 +28,15 @@ class Ui_loginDialog(object):
         font.setFamily("Segoe UI")
         font.setPointSize(12)
         self.knownGroupBox.setFont(font)
-        self.knownGroupBox.setStyleSheet("")
+        self.knownGroupBox.setStyleSheet("QGroupBox{\n"
+"    border:1px solid darkgray;\n"
+"    border-radius:5px;\n"
+"    margin-top:10px;\n"
+"}\n"
+"QGroupBox::title{\n"
+"    padding-top:-24px;\n"
+"    left:10px;\n"
+"}")
         self.knownGroupBox.setObjectName("knownGroupBox")
         self.verticalLayout_2 = QtWidgets.QVBoxLayout(self.knownGroupBox)
         self.verticalLayout_2.setObjectName("verticalLayout_2")
@@ -59,6 +61,15 @@ class Ui_loginDialog(object):
         font.setFamily("Segoe UI")
         font.setPointSize(12)
         self.firstTimeGroupBox.setFont(font)
+        self.firstTimeGroupBox.setStyleSheet("QGroupBox{\n"
+"    border:1px solid darkgray;\n"
+"    border-radius:5px;\n"
+"    margin-top:10px;\n"
+"}\n"
+"QGroupBox::title{\n"
+"    padding-top:-24px;\n"
+"    left:10px;\n"
+"}")
         self.firstTimeGroupBox.setObjectName("firstTimeGroupBox")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.firstTimeGroupBox)
         self.verticalLayout.setObjectName("verticalLayout")
@@ -116,15 +127,6 @@ class Ui_loginDialog(object):
         self.verticalLayout_3.addWidget(self.firstTimeGroupBox)
         spacerItem = QtWidgets.QSpacerItem(20, 15, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
         self.verticalLayout_3.addItem(spacerItem)
-        self.horizontalLayout = QtWidgets.QHBoxLayout()
-        self.horizontalLayout.setObjectName("horizontalLayout")
-        self.viewUsageButton = QtWidgets.QPushButton(loginDialog)
-        font = QtGui.QFont()
-        font.setFamily("Segoe UI")
-        font.setPointSize(14)
-        self.viewUsageButton.setFont(font)
-        self.viewUsageButton.setObjectName("viewUsageButton")
-        self.horizontalLayout.addWidget(self.viewUsageButton)
         self.buttonBox = QtWidgets.QDialogButtonBox(loginDialog)
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
@@ -133,14 +135,12 @@ class Ui_loginDialog(object):
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
         self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
         self.buttonBox.setObjectName("buttonBox")
-        self.horizontalLayout.addWidget(self.buttonBox)
-        self.verticalLayout_3.addLayout(self.horizontalLayout)
+        self.verticalLayout_3.addWidget(self.buttonBox)
         self.verticalLayout_4.addLayout(self.verticalLayout_3)
 
         self.retranslateUi(loginDialog)
         self.buttonBox.accepted.connect(loginDialog.accept) # type: ignore
         self.buttonBox.rejected.connect(loginDialog.reject) # type: ignore
-        self.viewUsageButton.clicked.connect(loginDialog.viewUsageButtonClicked) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(loginDialog)
 
     def retranslateUi(self, loginDialog):
@@ -152,4 +152,3 @@ class Ui_loginDialog(object):
         self.lastNameLabel.setText(_translate("loginDialog", "Last Name"))
         self.firstNameLabel.setText(_translate("loginDialog", "First Name"))
         self.idLabel.setText(_translate("loginDialog", "ID (SAR ID, callsign, etc)"))
-        self.viewUsageButton.setText(_translate("loginDialog", "View Usage"))

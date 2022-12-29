@@ -868,6 +868,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  whenever the options dialog is accepted
 		self.readConfigFile() # defaults are set inside readConfigFile
 
+		rprint('useOperatorLogin after readConfigFile:'+str(self.useOperatorLogin))
+
 		self.printDialog=printDialog(self)
 		self.printClueLogDialog=printClueLogDialog(self)
 
@@ -1005,7 +1007,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsLatestComPort=None
 		self.fsShowChannelWarning=True
 		
-		self.loginDialog=loginDialog(self)
+		if self.useOperatorLogin:
+			self.loginDialog=loginDialog(self)
+			self.ui.loginWidget.clicked.connect(self.loginDialog.toggleShow) # note this is a custom class with custom signal
+		else:
+			self.ui.loginWidget.setVisible(False)
 
 		self.ui.addNonRadioClueButton.clicked.connect(self.addNonRadioClue)
 
@@ -1014,7 +1020,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.fsFilterButton.clicked.connect(self.fsFilterDialog.toggleShow)
 		self.ui.printButton.clicked.connect(self.printDialog.toggleShow)
 ##		self.ui.printButton.clicked.connect(self.testConvertCoords)
-		self.ui.loginWidget.clicked.connect(self.loginDialog.toggleShow) # note this is a custom class with custom signal
 
 		self.ui.tabList=["dummy"]
 		self.ui.tabGridLayoutList=["dummy"]
@@ -1407,6 +1412,11 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.tabGroups=eval(tokens[1])
 			elif tokens[0]=="continuedIncidentWindowDays":
 				self.continuedIncidentWindowDays=tokens[1]
+			elif tokens[0]=='useOperatorLogin':
+				try:
+					self.useOperatorLogin=eval(tokens[1])
+				except:
+					pass
 		configFile.close()
 		
 		# validation and post-processing of each item
@@ -3036,6 +3046,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		QTimer.singleShot(1500,self.optionsDialog.ui.incidentField.deselect)
 		QTimer.singleShot(1750,self.optionsDialog.ui.incidentField.selectAll)
 		QTimer.singleShot(1800,self.optionsDialog.ui.incidentField.setFocus)
+		self.optionsDialog.exec_() # force modal
+		if self.useOperatorLogin:
+			self.loginDialog.toggleShow()
+			self.loginDialog.exec_() # force modal
 
 	def fontsChanged(self):
 		self.limitedFontSize=self.fontSize
@@ -7397,6 +7411,7 @@ class loginDialog(QDialog,Ui_loginDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_loginDialog()
 		self.ui.setupUi(self)
+		self.ui.buttonBox.button(QDialogButtonBox.Ok).setText('Log In')
 		self.parent=parent
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.knownDefaultText=' -- Select a Known Operator -- '
@@ -7423,9 +7438,6 @@ class loginDialog(QDialog,Ui_loginDialog):
 			self.show()
 			self.raise_()
 
-	def viewUsageButtonClicked(self,e):
-		rprint('Usage button clicked')
-		
 	def accept(self):
 		oldLastName=self.parent.operatorLastName
 		oldFirstName=self.parent.operatorFirstName
@@ -7436,6 +7448,9 @@ class loginDialog(QDialog,Ui_loginDialog):
 		if lastName or firstName or id: # first-time operator
 			if self.ui.knownComboBox.currentText()!=self.knownDefaultText:
 				rprint('ERROR: you selected a known operator, but one or more of the first-time operator fields contain text.  Select one or the other.')
+				return
+			elif not lastName or not firstName or not id:
+				rprint('ERROR: you must fill out all three fields (Last Name, First Name, ID)')
 				return
 			else:
 				newLastName=lastName
@@ -7469,7 +7484,7 @@ class loginDialog(QDialog,Ui_loginDialog):
 		self.parent.newEntry(values)
 
 		# update the usage dictionaries
-		t=time.time()
+		t=int(time.time())
 		oldOperatorDicts=[d for d in self.parent.operatorsDict['operators'] if d['lastName']==oldLastName and d['firstName']==oldFirstName and d['id']==oldId]
 		if len(oldOperatorDicts)==1:
 			oldOperatorDict=oldOperatorDicts[0]
@@ -7486,11 +7501,14 @@ class loginDialog(QDialog,Ui_loginDialog):
 			newOperatorDict=newOperatorDicts[0]
 			if 'usage' not in newOperatorDict.keys():
 				newOperatorDict['usage']=[]
+			prev=oldOperatorString
+			if prev.startswith('?'):
+				prev=None
 			newOperatorDict['usage'].append({
 				'start':t,
 				'stop':None,
 				'incident':self.parent.incidentName,
-				'previous':oldOperatorString,
+				'previous':prev,
 				'next':None
 			})
 		else:
