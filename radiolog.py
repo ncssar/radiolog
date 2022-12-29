@@ -331,6 +331,7 @@ from reportlab.lib.units import inch
 from PyPDF2 import PdfFileReader,PdfFileWriter
 from FingerTabs import *
 from pygeodesy import Datums,ellipsoidalBase,dms
+from difflib import SequenceMatcher
 
 __version__ = "3.4.0"
 
@@ -7411,6 +7412,7 @@ class loginDialog(QDialog,Ui_loginDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_loginDialog()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		self.ui.buttonBox.button(QDialogButtonBox.Ok).setText('Log In')
 		self.ui.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
 		self.parent=parent
@@ -7427,17 +7429,17 @@ class loginDialog(QDialog,Ui_loginDialog):
 		self.ui.lastNameField.setText('')
 		self.ui.firstNameField.setText('')
 		self.ui.idField.setText('')
-		items=[] # list of items: first entry is the string, second entry is the variant which is a list [lastName,firstName,id]
+		self.items=[] # list of items: first entry is the string, second entry is the variant which is a list [lastName,firstName,id]
 		for od in self.parent.operatorsDict['operators']:
 			if isinstance(od,dict):
 				lastName=od.get('lastName')
 				firstName=od.get('firstName')
 				id=od.get('id')
 				if isinstance(lastName,str) and isinstance(firstName,str) and isinstance(id,str):
-					items.append([lastName+', '+firstName+'  '+id,[lastName,firstName,id]])
-		items.sort(key=lambda x:x[0]) # alphabetical sort - could be changed to most-frequent sort if needed
-		rprint('items:'+str(items))
-		for item in items:
+					self.items.append([lastName+', '+firstName+'  '+id,[lastName,firstName,id]])
+		self.items.sort(key=lambda x:x[0]) # alphabetical sort - could be changed to most-frequent sort if needed
+		rprint('items:'+str(self.items))
+		for item in self.items:
 			self.ui.knownComboBox.addItem(item[0],item[1])
 
 	def toggleShow(self):
@@ -7487,15 +7489,55 @@ class loginDialog(QDialog,Ui_loginDialog):
 				rprint('ERROR: you must fill out all three fields (Last Name, First Name, ID)')
 				return
 			else:
-				newLastName=lastName
-				newFirstName=firstName
-				newId=id
-				self.parent.operatorsDict['operators'].append({
-					'lastName':lastName,
-					'firstName':firstName,
-					'id':id,
-					'usage':[]
-				})
+				# check to see if the typed first-time operator is a 'close match' for a known user;
+				#  if so, offer to select the known user instead - this is mainly to prevent duplicate
+				#  entries in the operator dictionary
+				usedKnownMatch=False
+				for item in self.items:
+					if lastName.lower()==item[1][0].lower() and firstName.lower()==item[1][1].lower() and id.lower().replace(' ','')==item[1][2].lower().replace(' ',''):
+						rprint('  exact case-insensitive match with "'+item[0]+'"')
+						box=QMessageBox(QMessageBox.Information,'Exact Match','The specified Last Name, First Name, and ID are the same as this Known Operator:\n\n    '+item[0]+'\n\nYou will be logged in as the existing Known Operator.',
+							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+						box.show()
+						box.raise_()
+						box.exec_()
+						[newLastName,newFirstName,newId]=item[1]
+						usedKnownMatch=True
+						break
+					r1=SequenceMatcher(None,lastName.lower(),item[1][0].lower()).ratio()
+					# rprint('comparing '+lastName+' to '+item[1][0]+' : ratio='+str(r1))
+					r2=SequenceMatcher(None,firstName.lower(),item[1][1].lower()).ratio()
+					# rprint('comparing '+firstName+' to '+item[1][1]+' : ratio='+str(r2))
+					if (r1+r2)/2>0.7 or r1>0.8 or r2>0.8:
+						# rprint('  possible match with "'+item[0]+'"')
+						tmp=lastName+', '+firstName+'  '+id
+						box=QMessageBox(QMessageBox.Information,'Possible Match','The specified First-Time Operator values\n\n    '+tmp+'\n\nare similar to this Known Operator:\n\n    '+item[0]+'\n\nLog in as the specified First-Time Operator, or, as the similar Known Operator?',
+							QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+						box.button(QMessageBox.Yes).setText('First-Time: '+tmp)
+						box.button(QMessageBox.No).setText('Known: '+item[0])
+						box.show()
+						box.raise_()
+						r=box.exec_()
+						# First-time selected: don't break the loop - in case there are more matches
+						if r==QMessageBox.Yes:
+							[newLastName,newFirstName,newId]=[lastName,firstName,id]
+						# Known selected: break the loop
+						elif r==QMessageBox.No:
+							[newLastName,newFirstName,newId]=item[1]
+							usedKnownMatch=True
+							break
+					# else:
+					# 	rprint('  no match')
+				if not usedKnownMatch:
+					newLastName=lastName
+					newFirstName=firstName
+					newId=id
+					self.parent.operatorsDict['operators'].append({
+						'lastName':lastName,
+						'firstName':firstName,
+						'id':id,
+						'usage':[]
+					})
 		elif self.ui.knownComboBox.currentText()!=self.knownDefaultText: # known operator
 			[newLastName,newFirstName,newId]=self.ui.knownComboBox.currentData()
 		else:
