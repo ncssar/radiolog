@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_loginDialog(object):
     def setupUi(self, loginDialog):
         loginDialog.setObjectName("loginDialog")
-        loginDialog.resize(527, 340)
+        loginDialog.resize(527, 376)
         loginDialog.setStyleSheet("QGroupBox{\n"
 "    border:1px solid darkgray;\n"
 "    border-radius:5px;\n"
@@ -140,6 +140,7 @@ class Ui_loginDialog(object):
         self.retranslateUi(loginDialog)
         self.buttonBox.accepted.connect(loginDialog.accept) # type: ignore
         self.buttonBox.rejected.connect(loginDialog.reject) # type: ignore
+        self.viewUsageButton.clicked.connect(loginDialog.viewUsageButtonClicked) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(loginDialog)
 
     def retranslateUi(self, loginDialog):

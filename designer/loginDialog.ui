@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>527</width>
-    <height>340</height>
+    <height>376</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -220,8 +220,6 @@ QGroupBox::title{
     </layout>
    </item>
   </layout>
-  <zorder>label_4</zorder>
-  <zorder>verticalLayoutWidget</zorder>
  </widget>
  <resources/>
  <connections>
@@ -232,8 +230,8 @@ QGroupBox::title{
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>248</x>
-     <y>254</y>
+     <x>396</x>
+     <y>356</y>
     </hint>
     <hint type="destinationlabel">
      <x>157</x>
@@ -248,8 +246,8 @@ QGroupBox::title{
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>316</x>
-     <y>260</y>
+     <x>464</x>
+     <y>356</y>
     </hint>
     <hint type="destinationlabel">
      <x>286</x>
@@ -257,5 +255,24 @@ QGroupBox::title{
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>viewUsageButton</sender>
+   <signal>clicked()</signal>
+   <receiver>loginDialog</receiver>
+   <slot>viewUsageButtonClicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>61</x>
+     <y>332</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>94</x>
+     <y>307</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
+ <slots>
+  <slot>viewUsageButtonClicked()</slot>
+ </slots>
 </ui>

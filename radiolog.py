@@ -7423,7 +7423,13 @@ class loginDialog(QDialog,Ui_loginDialog):
 			self.show()
 			self.raise_()
 
+	def viewUsageButtonClicked(self,e):
+		rprint('Usage button clicked')
+		
 	def accept(self):
+		oldLastName=self.parent.operatorLastName
+		oldFirstName=self.parent.operatorFirstName
+		oldId=self.parent.operatorId
 		lastName=self.ui.lastNameField.text()
 		firstName=self.ui.firstNameField.text()
 		id=self.ui.idField.text()
@@ -7438,7 +7444,8 @@ class loginDialog(QDialog,Ui_loginDialog):
 				self.parent.operatorsDict['operators'].append({
 					'lastName':lastName,
 					'firstName':firstName,
-					'id':id
+					'id':id,
+					'usage':[]
 				})
 		elif self.ui.knownComboBox.currentText()!=self.knownDefaultText: # known operator
 			[newLastName,newFirstName,newId]=self.ui.knownComboBox.currentData()
@@ -7448,18 +7455,49 @@ class loginDialog(QDialog,Ui_loginDialog):
 		self.parent.operatorLastName=newLastName
 		self.parent.operatorFirstName=newFirstName
 		self.parent.operatorId=newId
+		oldOperatorString=oldLastName+', '+oldFirstName+'  '+oldId
+		newOperatorString=newLastName+', '+newFirstName+'  '+newId
 		self.parent.ui.loginInitialsLabel.setText(self.parent.getOperatorInitials())
 		self.parent.ui.loginIdLabel.setText(newId)
-		self.parent.saveOperators()
-		super(loginDialog,self).accept()
 		
 		# values format for adding a new entry:
 		#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
 		values=['' for n in range(10)]
 		values[0]=time.strftime("%H%M")
 		values[6]=time.time()
-		values[3]='RADIO OPERATOR LOGGED IN: '+newLastName+', '+newFirstName+'  '+newId
+		values[3]='RADIO OPERATOR LOGGED IN: '+newOperatorString
 		self.parent.newEntry(values)
+
+		# update the usage dictionaries
+		t=time.time()
+		oldOperatorDicts=[d for d in self.parent.operatorsDict['operators'] if d['lastName']==oldLastName and d['firstName']==oldFirstName and d['id']==oldId]
+		if len(oldOperatorDicts)==1:
+			oldOperatorDict=oldOperatorDicts[0]
+			if 'usage' not in oldOperatorDict.keys():
+				oldOperatorDict['usage']=[]
+			oldUsageDict=[d for d in oldOperatorDict['usage'] if d['stop']==None][0]
+			oldUsageDict['stop']=t
+			oldUsageDict['next']=newOperatorString
+		else:
+			rprint('ERROR: oldOperatorDict had '+str(len(oldOperatorDicts))+' matches; should have exactly one match.  Old operator usage will not be updated.')
+
+		newOperatorDicts=[d for d in self.parent.operatorsDict['operators'] if d['lastName']==newLastName and d['firstName']==newFirstName and d['id']==newId]
+		if len(newOperatorDicts)==1:
+			newOperatorDict=newOperatorDicts[0]
+			if 'usage' not in newOperatorDict.keys():
+				newOperatorDict['usage']=[]
+			newOperatorDict['usage'].append({
+				'start':t,
+				'stop':None,
+				'incident':self.parent.incidentName,
+				'previous':oldOperatorString,
+				'next':None
+			})
+		else:
+			rprint('ERROR: newOperatorDict had '+str(len(newOperatorDicts))+' matches; should have exactly one match.  New operator usage will not be updated.')
+
+		self.parent.saveOperators()
+		super(loginDialog,self).accept()
 
 	# def closeEvent(self,e):
 	# 	rprint('closeEvent called')
