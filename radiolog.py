@@ -2873,6 +2873,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			radioLocText=""
 
+		operatorText=''
+		if self.useOperatorLogin:
+			operatorText='Radio Dispatcher: '
+			if self.operatorLastName.startswith('?'):
+				operatorText+='Not logged in'
+			else:
+				operatorText+=self.operatorFirstName[0].upper()+self.operatorLastName[0].upper()+' '+self.operatorId
+
 		# define the fields and locations of the overlay pdf; similar to fillable pdf but with more control
 		# clueTableDicts - list of dictionaries, with each dictionary corresponding to a new reportlab table
 		#  data - list of lists, each sublist corresponding to one row of the reportlab table
@@ -2902,10 +2910,14 @@ class MyWindow(QDialog,Ui_Dialog):
 				'widths':[67,141,131],
 				'hvalign':['center','bottom']
 			},
-			{ # gap - Name of Individual That Located Clue, plus gap before description text
-				'data':[['']],
+			{ # Name of Individual That Located Clue - not filled by radiolog, but,
+			  #  use the right-justified space on this line to show radio dispatch operator
+			  #  while still leaving space for someone to hand-write the individual's name
+				'data':[[operatorText]],
 				'heights':0.54,
-				'widths':[1]
+				'widths':[1], # width doesn't matter, since text is right-justified
+				'hvalign':['right','top'],
+				'fontSize':10 # slightly smaller font
 			},
 			{ # description of clue
 				'data':[['',clueData[1]]],
@@ -2979,8 +2991,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			# horizontal alignment must be specified in the Paragraph style
 			if 'hvalign' in td.keys():
 				[h,v]=td['hvalign']
+				# see reportlab docs paragraph alignment section for propert alignment values
+				# https://docs.reportlab.com/reportlab/userguide/ch6_paragraphs/
 				if h=='center':
 					style.alignment=1
+				elif h=='right':
+					style.alignment=2
 
 			data=[[ParagraphOrNot(d,style) for d in row] for row in td['data']]
 			# data=td['data']
@@ -3358,8 +3374,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					usageDict['next']=None
 			elif not self.operatorLastName.startswith('?'):
 				rprint('ERROR: operatorDict had '+str(len(ods))+' matches; should have exactly one match.  Operator usage will not be updated.')
+			self.saveOperators()
 
-		self.saveOperators()
 		self.save(finalize=True)
 		self.fsSaveLookup()
 		self.saveRcFile(cleanShutdownFlag=True)
