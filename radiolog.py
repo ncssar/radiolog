@@ -911,8 +911,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		rlInitText+=self.incidentStartDate
 		if lastClueNumber>0:
 			rlInitText+=' (Last clue number: '+str(lastClueNumber)+')'
-		self.radioLog=[[time.strftime("%H%M"),'','',rlInitText,'','',time.time(),'','',''],
-			['','','','','','',1e10,'','','']] # 1e10 epoch seconds will keep the blank row at the bottom when sorted
+		self.radioLog=[[time.strftime("%H%M"),'','',rlInitText,'','',time.time(),'','','',''],
+			['','','','','','',1e10,'','','','']] # 1e10 epoch seconds will keep the blank row at the bottom when sorted
 		rprint('Initial entry: '+rlInitText)
 
 		self.clueLog=[]
@@ -1070,6 +1070,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableView.hideColumn(7) # hide fleet
 		self.ui.tableView.hideColumn(8) # hide device
 		self.ui.tableView.hideColumn(9) # hide device
+		if not self.useOperatorLogin:
+			self.ui.tableView.hideColumn(10) # hide operator
 		self.ui.tableView.resizeRowsToContents()
 
 		self.sel=''
@@ -1082,6 +1084,7 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		self.ui.tableView.horizontalHeader().sectionResized.connect(self.ui.tableView.resizeRowsToContents)
 		self.columnResizedFlag=False
 		self.ui.tableView.horizontalHeader().sectionResized.connect(self.setColumnResizedFlag)
+		self.ui.tableView.horizontalHeader().setMinimumSectionSize(10) # allow tiny column for operator initials
 
 		self.exitClicked=False
 		# NOTE - the padding numbers for ::tab take a while to figure out in conjunction with
@@ -3151,6 +3154,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableView.setColumnWidth(0,self.fontSize*5) # wide enough for '2345'
 		self.ui.tableView.setColumnWidth(1,self.fontSize*6) # wide enough for 'FROM'
 		self.ui.tableView.setColumnWidth(5,self.fontSize*10) # wide enough for 'STATUS'
+		self.ui.tableView.setColumnWidth(10,self.fontSize*3) # wide enough for 'WW'
 		# rprint("3")
 ##		self.ui.tableView.resizeRowsToContents()
 		# rprint("4")
@@ -3163,6 +3167,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			n.setColumnWidth(0,self.fontSize*5)
 			n.setColumnWidth(1,self.fontSize*6)
 			n.setColumnWidth(5,self.fontSize*10)
+			n.setColumnWidth(10,self.fontSize*3)
 			# rprint("    resizing rows to contents")
 ##			n.resizeRowsToContents()
 		# rprint("5")
@@ -3927,7 +3932,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.newEntryWidget.ui.datumFormatLabel.setText("")
 	
 	def getOperatorInitials(self):
-		return self.operatorFirstName[0].upper()+self.operatorLastName[0].upper()
+		if self.operatorLastName.startswith('?'):
+			return '??'
+		else:
+			return self.operatorFirstName[0].upper()+self.operatorLastName[0].upper()
 
 	def newEntry(self,values,amend=False):
 		# values array format: [time,to_from,team,message,locString,status,sec,fleet,dev]
@@ -3939,6 +3947,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  Only columns thru and including status are shown in the tables.
 		rprint("newEntry called with these values:")
 		rprint(values)
+		# add operator initials if not already present
+		if len(values)==10: 
+			if self.useOperatorLogin:
+				values.append(self.getOperatorInitials())
+			else:
+				values.append('')
 		niceTeamName=values[2]
 		extTeamName=getExtTeamName(niceTeamName)
 		# if self.useOperatorLogin:
@@ -4300,6 +4314,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tabList.insert(i,QWidget())
 		self.ui.tabGridLayoutList.insert(i,QGridLayout(self.ui.tabList[i]))
 		tv=CustomTableView(self,self.ui.tabList[i])
+		tv.horizontalHeader().setMinimumSectionSize(10) # allow tiny column for operator initials
+		tv.horizontalHeader().setDefaultAlignment(Qt.AlignHCenter)
 		# tv.setEditTriggers(QAbstractItemView.AllEditTriggers)
 		self.ui.tableViewList.insert(i,tv)
 		self.ui.tableViewList[i].verticalHeader().setVisible(False)
@@ -4307,6 +4323,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableViewList[i].setFocusPolicy(Qt.ClickFocus)
 		self.ui.tableViewList[i].setSelectionMode(QAbstractItemView.ContiguousSelection)
 		self.ui.tableViewList[i].setStyleSheet("font-size:"+str(self.fontSize)+"pt")
+		# self.ui.tableViewList[i].horizontalHeader().setMinimumSectionSize(10) # allow tiny column for operator initials
 		self.ui.tabGridLayoutList[i].addWidget(self.ui.tableViewList[i],0,0,1,1)
 		self.ui.tabWidget.insertTab(i,self.ui.tabList[i],'')
 		label=QLabel(" "+shortNiceTeamName+" ")
@@ -7715,7 +7732,6 @@ class clueTableModel(QAbstractTableModel):
 		self.printIconPixmap.load(":/radiolog_ui/icons/print_icon.png")
 ##		self.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
-
 	def headerData(self,section,orientation,role=Qt.DisplayRole):
 		if orientation==Qt.Vertical:
 			if role==Qt.DecorationRole and self.arraydata[section][0]!="":
@@ -7757,16 +7773,21 @@ class clueTableModel(QAbstractTableModel):
 
 
 class MyTableModel(QAbstractTableModel):
-	header_labels=['TIME','T/F','TEAM','MESSAGE','RADIO LOC.','STATUS','sec','fleet','dev','origLoc']
+	header_labels=['TIME','T/F','TEAM','MESSAGE','RADIO LOC.','STATUS','sec','fleet','dev','origLoc','']
 	def __init__(self, datain, parent=None, *args):
 		QAbstractTableModel.__init__(self, parent, *args)
 		self.arraydata=datain
+		self.operatorIconPixmap=QPixmap(60,20)
+		self.operatorIconPixmap.load(':/radiolog_ui/icons/user_icon_80px.png')
 
 	def headerData(self,section,orientation,role=Qt.DisplayRole):
 #		print("headerData:",section,",",orientation,",",role)
 		if role==Qt.DisplayRole and orientation==Qt.Horizontal:
 			return self.header_labels[section]
-		return QAbstractTableModel.headerData(self,section,orientation,role)
+		if section==10 and role==Qt.DecorationRole:
+			return self.operatorIconPixmap
+		else:
+			return QAbstractTableModel.headerData(self,section,orientation,role)
 
 	def rowCount(self, parent):
 		return len(self.arraydata)
@@ -7794,6 +7815,7 @@ class MyTableModel(QAbstractTableModel):
 
 	def flags(self,index):
 		return Qt.ItemIsEnabled|Qt.ItemIsSelectable|Qt.ItemIsEditable
+
 
 class CustomTableItemDelegate(QStyledItemDelegate):
 	def __init__(self,parent=None):
@@ -7848,6 +7870,7 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 				self.parent.window().keyPressEvent(event) # pass the keystroke to the main window
 				return True
 		return False
+
 
 class CustomTableView(QTableView):
 	def __init__(self,parent,*args,**kwargs):
@@ -7927,6 +7950,7 @@ class CustomTableView(QTableView):
 		self.window().amendEntry(self.row)
 		self.row=None
 		self.rowData=None
+
 
 class fsTableModel(QAbstractTableModel):
 	header_labels=['Fleet','Device','Callsign','Filtered?','Last Received']
