@@ -3339,6 +3339,24 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.exitClicked=False
 			return
 
+		# update the usage dictionaries
+		if self.useOperatorLogin:
+			t=int(time.time())
+			ods=[d for d in self.operatorsDict['operators'] if d['lastName']==self.operatorLastName and d['firstName']==self.operatorFirstName and d['id']==self.operatorId]
+			if len(ods)==1:
+				od=ods[0]
+				if 'usage' in od.keys():
+					# there could be more than one usage dict with stop=null, if radiolog crashed;
+					#  we need to make sure we are updating the most recent one
+					usageDicts=[d for d in od['usage'] if d['stop']==None]
+					usageDicts.sort(key=lambda x:x['start'])
+					usageDict=usageDicts[0]
+					usageDict['stop']=t
+					usageDict['next']=None
+			else:
+				rprint('ERROR: operatorDict had '+str(len(ods))+' matches; should have exactly one match.  Operator usage will not be updated.')
+
+		self.saveOperators()
 		self.save(finalize=True)
 		self.fsSaveLookup()
 		self.saveRcFile(cleanShutdownFlag=True)
@@ -7566,7 +7584,11 @@ class loginDialog(QDialog,Ui_loginDialog):
 			oldOperatorDict=oldOperatorDicts[0]
 			if 'usage' not in oldOperatorDict.keys():
 				oldOperatorDict['usage']=[]
-			oldUsageDict=[d for d in oldOperatorDict['usage'] if d['stop']==None][0]
+			# there could be more than one usage dict with stop=null, if radiolog crashed;
+			#  we need to make sure we are updating the most recent one
+			oldUsageDicts=[d for d in oldOperatorDict['usage'] if d['stop']==None]
+			oldUsageDicts.sort(key=lambda x:x['start'])
+			oldUsageDict=oldUsageDicts[0]
 			oldUsageDict['stop']=t
 			oldUsageDict['next']=newOperatorString
 		else:
