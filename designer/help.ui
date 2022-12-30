@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>931</width>
-    <height>532</height>
+    <height>581</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -31,7 +31,7 @@
      <x>12</x>
      <y>17</y>
      <width>939</width>
-     <height>504</height>
+     <height>531</height>
     </rect>
    </property>
    <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -209,6 +209,11 @@
         </row>
         <row>
          <property name="text">
+          <string>New Row</string>
+         </property>
+        </row>
+        <row>
+         <property name="text">
           <string>F12</string>
          </property>
         </row>
@@ -250,7 +255,7 @@
           </font>
          </property>
          <property name="textAlignment">
-          <set>AlignRight|AlignVCenter</set>
+          <set>AlignTrailing|AlignVCenter</set>
          </property>
         </item>
         <item row="0" column="1">
@@ -258,7 +263,7 @@
           <string>-</string>
          </property>
          <property name="textAlignment">
-          <set>AlignHCenter|AlignVCenter|AlignCenter</set>
+          <set>AlignCenter</set>
          </property>
         </item>
         <item row="0" column="2">
@@ -284,7 +289,7 @@
           </font>
          </property>
          <property name="textAlignment">
-          <set>AlignRight|AlignVCenter</set>
+          <set>AlignTrailing|AlignVCenter</set>
          </property>
         </item>
         <item row="1" column="1">
@@ -292,7 +297,7 @@
           <string>-</string>
          </property>
          <property name="textAlignment">
-          <set>AlignHCenter|AlignVCenter|AlignCenter</set>
+          <set>AlignCenter</set>
          </property>
         </item>
         <item row="1" column="2">
@@ -318,7 +323,7 @@
           </font>
          </property>
          <property name="textAlignment">
-          <set>AlignRight|AlignVCenter</set>
+          <set>AlignTrailing|AlignVCenter</set>
          </property>
         </item>
         <item row="2" column="1">
@@ -326,7 +331,7 @@
           <string>-</string>
          </property>
          <property name="textAlignment">
-          <set>AlignHCenter|AlignVCenter|AlignCenter</set>
+          <set>AlignCenter</set>
          </property>
         </item>
         <item row="2" column="2">
@@ -352,7 +357,7 @@
           </font>
          </property>
          <property name="textAlignment">
-          <set>AlignRight|AlignVCenter</set>
+          <set>AlignTrailing|AlignVCenter</set>
          </property>
         </item>
         <item row="3" column="1">
@@ -360,7 +365,7 @@
           <string>-</string>
          </property>
          <property name="textAlignment">
-          <set>AlignHCenter|AlignVCenter|AlignCenter</set>
+          <set>AlignCenter</set>
          </property>
         </item>
         <item row="3" column="2">
@@ -386,7 +391,7 @@
           </font>
          </property>
          <property name="textAlignment">
-          <set>AlignRight|AlignVCenter</set>
+          <set>AlignTrailing|AlignVCenter</set>
          </property>
         </item>
         <item row="4" column="1">
@@ -394,7 +399,7 @@
           <string>-</string>
          </property>
          <property name="textAlignment">
-          <set>AlignHCenter|AlignVCenter|AlignCenter</set>
+          <set>AlignCenter</set>
          </property>
         </item>
         <item row="4" column="2">
@@ -420,7 +425,7 @@
           </font>
          </property>
          <property name="textAlignment">
-          <set>AlignRight|AlignVCenter</set>
+          <set>AlignTrailing|AlignVCenter</set>
          </property>
         </item>
         <item row="5" column="1">
@@ -428,7 +433,7 @@
           <string>-</string>
          </property>
          <property name="textAlignment">
-          <set>AlignHCenter|AlignVCenter|AlignCenter</set>
+          <set>AlignCenter</set>
          </property>
         </item>
         <item row="5" column="2">
@@ -454,7 +459,7 @@
           </font>
          </property>
          <property name="textAlignment">
-          <set>AlignRight|AlignVCenter</set>
+          <set>AlignTrailing|AlignVCenter</set>
          </property>
         </item>
         <item row="6" column="1">
@@ -462,7 +467,7 @@
           <string>-</string>
          </property>
          <property name="textAlignment">
-          <set>AlignHCenter|AlignVCenter|AlignCenter</set>
+          <set>AlignCenter</set>
          </property>
         </item>
         <item row="6" column="2">
@@ -488,7 +493,7 @@
           </font>
          </property>
          <property name="textAlignment">
-          <set>AlignRight|AlignVCenter</set>
+          <set>AlignTrailing|AlignVCenter</set>
          </property>
         </item>
         <item row="7" column="1">
@@ -496,7 +501,7 @@
           <string>-</string>
          </property>
          <property name="textAlignment">
-          <set>AlignHCenter|AlignVCenter|AlignCenter</set>
+          <set>AlignCenter</set>
          </property>
         </item>
         <item row="7" column="2">
@@ -522,7 +527,7 @@
           </font>
          </property>
          <property name="textAlignment">
-          <set>AlignRight|AlignVCenter</set>
+          <set>AlignTrailing|AlignVCenter</set>
          </property>
         </item>
         <item row="8" column="1">
@@ -530,7 +535,7 @@
           <string>-</string>
          </property>
          <property name="textAlignment">
-          <set>AlignHCenter|AlignVCenter|AlignCenter</set>
+          <set>AlignCenter</set>
          </property>
         </item>
         <item row="8" column="2">
@@ -544,7 +549,7 @@
           </font>
          </property>
          <property name="textAlignment">
-          <set>AlignLeft|AlignVCenter</set>
+          <set>AlignLeading|AlignVCenter</set>
          </property>
         </item>
         <item row="9" column="0">
@@ -559,7 +564,7 @@
           </font>
          </property>
          <property name="textAlignment">
-          <set>AlignRight|AlignVCenter</set>
+          <set>AlignTrailing|AlignVCenter</set>
          </property>
         </item>
         <item row="9" column="1">
@@ -567,7 +572,7 @@
           <string>-</string>
          </property>
          <property name="textAlignment">
-          <set>AlignHCenter|AlignVCenter|AlignCenter</set>
+          <set>AlignCenter</set>
          </property>
         </item>
         <item row="9" column="2">
@@ -593,7 +598,7 @@
           </font>
          </property>
          <property name="textAlignment">
-          <set>AlignRight|AlignVCenter</set>
+          <set>AlignTrailing|AlignVCenter</set>
          </property>
         </item>
         <item row="10" column="1">
@@ -601,7 +606,7 @@
           <string>-</string>
          </property>
          <property name="textAlignment">
-          <set>AlignHCenter|AlignVCenter|AlignCenter</set>
+          <set>AlignCenter</set>
          </property>
         </item>
         <item row="10" column="2">
@@ -627,7 +632,7 @@
           </font>
          </property>
          <property name="textAlignment">
-          <set>AlignRight|AlignVCenter</set>
+          <set>AlignTrailing|AlignVCenter</set>
          </property>
         </item>
         <item row="11" column="1">
@@ -635,7 +640,7 @@
           <string>-</string>
          </property>
          <property name="textAlignment">
-          <set>AlignHCenter|AlignVCenter|AlignCenter</set>
+          <set>AlignCenter</set>
          </property>
         </item>
         <item row="11" column="2">
@@ -651,6 +656,40 @@
         </item>
         <item row="12" column="0">
          <property name="text">
+          <string>F9</string>
+         </property>
+         <property name="font">
+          <font>
+           <family>MS Shell Dlg 2</family>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="textAlignment">
+          <set>AlignTrailing|AlignVCenter</set>
+         </property>
+        </item>
+        <item row="12" column="1">
+         <property name="text">
+          <string>-</string>
+         </property>
+         <property name="textAlignment">
+          <set>AlignCenter</set>
+         </property>
+        </item>
+        <item row="12" column="2">
+         <property name="text">
+          <string>Operater Login (if used)</string>
+         </property>
+         <property name="font">
+          <font>
+           <family>Segoe UI</family>
+           <pointsize>9</pointsize>
+          </font>
+         </property>
+        </item>
+        <item row="13" column="0">
+         <property name="text">
           <string>F12</string>
          </property>
          <property name="font">
@@ -660,23 +699,29 @@
           </font>
          </property>
          <property name="textAlignment">
-          <set>AlignRight|AlignVCenter</set>
+          <set>AlignTrailing|AlignVCenter</set>
          </property>
         </item>
-        <item row="12" column="1">
+        <item row="13" column="1">
          <property name="text">
           <string>-</string>
          </property>
          <property name="textAlignment">
-          <set>AlignHCenter|AlignVCenter|AlignCenter</set>
+          <set>AlignCenter</set>
          </property>
         </item>
-        <item row="12" column="2">
+        <item row="13" column="2">
          <property name="text">
           <string>Toggle Team Hotkeys (disables default alphanumeric hotkeys)</string>
          </property>
+         <property name="font">
+          <font>
+           <family>Segoe UI</family>
+           <pointsize>9</pointsize>
+          </font>
+         </property>
         </item>
-        <item row="13" column="0">
+        <item row="14" column="0">
          <property name="text">
           <string>+ / -</string>
          </property>
@@ -688,18 +733,18 @@
           </font>
          </property>
          <property name="textAlignment">
-          <set>AlignRight|AlignVCenter</set>
+          <set>AlignTrailing|AlignVCenter</set>
          </property>
         </item>
-        <item row="13" column="1">
+        <item row="14" column="1">
          <property name="text">
           <string>-</string>
          </property>
          <property name="textAlignment">
-          <set>AlignHCenter|AlignVCenter|AlignCenter</set>
+          <set>AlignCenter</set>
          </property>
         </item>
-        <item row="13" column="2">
+        <item row="14" column="2">
          <property name="text">
           <string>Enlarge / Reduce Font</string>
          </property>

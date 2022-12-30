@@ -3302,6 +3302,9 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.ui.fsCheckBox.toggle()
 				elif event.key()==Qt.Key_F8:
 					self.fsFilterDialog.show()
+				elif event.key()==Qt.Key_F9:
+					if self.useOperatorLogin:
+						self.loginDialog.toggleShow()
 				elif event.key()==Qt.Key_F12:
 					self.toggleTeamHotkeys()
 				elif event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
@@ -3353,7 +3356,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					usageDict=usageDicts[0]
 					usageDict['stop']=t
 					usageDict['next']=None
-			else:
+			elif not self.operatorLastName.startswith('?'):
 				rprint('ERROR: operatorDict had '+str(len(ods))+' matches; should have exactly one match.  Operator usage will not be updated.')
 
 		self.saveOperators()
@@ -7407,12 +7410,18 @@ class clickableWidget(QWidget):
 		self.pressed=False
 
 	def mousePressEvent(self,e):
+		# self.move(self.mapToParent(QPoint(2,2)))
+		# QCoreApplication.processEvents()
 		self.pressed=True
 
 	def mouseOutEvent(self,e):
+		# self.move(self.mapToParent(QPoint(0,0)))
+		# QCoreApplication.processEvents()
 		self.pressed=False
 
 	def mouseReleaseEvent(self,e):
+		# self.move(self.mapToParent(QPoint(0,0)))
+		# QCoreApplication.processEvents()
 		if self.pressed:
 			self.clicked.emit()
 
