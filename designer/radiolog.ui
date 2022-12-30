@@ -541,6 +541,9 @@ FORMAT</string>
          <property name="styleSheet">
           <string notr="true">QWidget#loginWidget {
 	background-image: url(:/radiolog_ui/icons/user_icon_80px.png);
+}
+QWidget#loginWidget:hover{
+	background-image: url(:/radiolog_ui/icons/user_icon_blue_80px.png);
 }</string>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_6">

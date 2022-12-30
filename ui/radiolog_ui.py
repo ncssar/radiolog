@@ -250,6 +250,9 @@ class Ui_Dialog(object):
         self.loginWidget.setMaximumSize(QtCore.QSize(80, 80))
         self.loginWidget.setStyleSheet("QWidget#loginWidget {\n"
 "    background-image: url(:/radiolog_ui/icons/user_icon_80px.png);\n"
+"}\n"
+"QWidget#loginWidget:hover{\n"
+"    background-image: url(:/radiolog_ui/icons/user_icon_blue_80px.png);\n"
 "}")
         self.loginWidget.setObjectName("loginWidget")
         self.verticalLayout_6 = QtWidgets.QVBoxLayout(self.loginWidget)
