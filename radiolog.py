@@ -7442,6 +7442,11 @@ class loginDialog(QDialog,Ui_loginDialog):
 
 	def showEvent(self,e):
 		self.parent.loadOperators()
+		if self.parent.operatorLastName.startswith('?'):
+			operatorText='Not logged in'
+		else:
+			operatorText=self.parent.operatorLastName+', '+self.parent.operatorFirstName+'  '+self.parent.operatorId
+		self.ui.currentOperatorLabel.setText('Current Operator: '+operatorText)
 		self.ui.knownComboBox.clear()
 		self.ui.knownComboBox.addItem(self.knownDefaultText)
 		self.ui.lastNameField.setText('')
@@ -7454,7 +7459,9 @@ class loginDialog(QDialog,Ui_loginDialog):
 				firstName=od.get('firstName')
 				id=od.get('id')
 				if isinstance(lastName,str) and isinstance(firstName,str) and isinstance(id,str):
-					self.items.append([lastName+', '+firstName+'  '+id,[lastName,firstName,id]])
+					# don't list the current operator
+					if not (lastName==self.parent.operatorLastName and firstName==self.parent.operatorFirstName and id==self.parent.operatorId):
+						self.items.append([lastName+', '+firstName+'  '+id,[lastName,firstName,id]])
 		self.items.sort(key=lambda x:x[0]) # alphabetical sort - could be changed to most-frequent sort if needed
 		rprint('items:'+str(self.items))
 		for item in self.items:
@@ -7501,10 +7508,18 @@ class loginDialog(QDialog,Ui_loginDialog):
 		id=self.ui.idField.text()
 		if lastName or firstName or id: # first-time operator
 			if self.ui.knownComboBox.currentText()!=self.knownDefaultText:
-				rprint('ERROR: you selected a known operator, but one or more of the first-time operator fields contain text.  Select one or the other.')
+				msg='ERROR: you selected a known operator, but one or more of the first-time operator fields contain text.  Select one or the other.'
+				rprint(msg)
+				box=QMessageBox(QMessageBox.Warning,'Form data conflict',msg,
+						QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				box.exec_()
 				return
 			elif not lastName or not firstName or not id:
-				rprint('ERROR: you must fill out all three fields (Last Name, First Name, ID)')
+				msg='ERROR: you must fill out all three fields (Last Name, First Name, ID)'
+				rprint(msg)
+				box=QMessageBox(QMessageBox.Warning,'Form data conflict',msg,
+						QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				box.exec_()
 				return
 			else:
 				# check to see if the typed first-time operator is a 'close match' for a known user;
@@ -7559,7 +7574,11 @@ class loginDialog(QDialog,Ui_loginDialog):
 		elif self.ui.knownComboBox.currentText()!=self.knownDefaultText: # known operator
 			[newLastName,newFirstName,newId]=self.ui.knownComboBox.currentData()
 		else:
-			rprint('ERROR: choose a known operator, or, fill out all three fields for a first-time operator.')
+			msg='ERROR: choose a known operator, or, fill out all three fields for a first-time operator.'
+			rprint(msg)
+			box=QMessageBox(QMessageBox.Warning,'Form data conflict',msg,
+					QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.exec_()
 			return
 		self.parent.operatorLastName=newLastName
 		self.parent.operatorFirstName=newFirstName
@@ -7591,7 +7610,7 @@ class loginDialog(QDialog,Ui_loginDialog):
 			oldUsageDict=oldUsageDicts[0]
 			oldUsageDict['stop']=t
 			oldUsageDict['next']=newOperatorString
-		else:
+		elif not oldLastName.startswith('?'):
 			rprint('ERROR: oldOperatorDict had '+str(len(oldOperatorDicts))+' matches; should have exactly one match.  Old operator usage will not be updated.')
 
 		newOperatorDicts=[d for d in self.parent.operatorsDict['operators'] if d['lastName']==newLastName and d['firstName']==newFirstName and d['id']==newId]

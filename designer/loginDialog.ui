@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>557</width>
-    <height>374</height>
+    <height>444</height>
    </rect>
   </property>
   <property name="font">
@@ -22,6 +22,43 @@
   <layout class="QVBoxLayout" name="verticalLayout_4">
    <item>
     <layout class="QVBoxLayout" name="verticalLayout_3">
+     <item>
+      <widget class="QLabel" name="currentOperatorLabel">
+       <property name="font">
+        <font>
+         <pointsize>13</pointsize>
+        </font>
+       </property>
+       <property name="text">
+        <string>Current Operator: Not Logged In</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="Line" name="line">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_2">
+       <property name="font">
+        <font>
+         <pointsize>12</pointsize>
+        </font>
+       </property>
+       <property name="text">
+        <string>Incoming Operator log in below:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
      <item>
       <widget class="QGroupBox" name="knownGroupBox">
        <property name="font">
