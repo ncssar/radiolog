@@ -570,12 +570,14 @@ qtDesignerSubDir='designer' # subdir containing Qt Designer source files (*.ui)
 qtUiPySubDir='ui' # target subdir for compiled ui files (*_ui.py)
 qtQrcSubDir='.' # subdir containing Qt qrc resource files (*.qrc)
 qtRcPySubDir='.' # target subdir for compiled resource files
+iconsSubDir='icons'
 
 installDir=os.path.dirname(os.path.realpath(__file__))
 qtDesignerDir=os.path.join(installDir,qtDesignerSubDir)
 qtUiPyDir=os.path.join(installDir,qtUiPySubDir)
 qtQrcDir=os.path.join(installDir,qtQrcSubDir)
 qtRcPyDir=os.path.join(installDir,qtRcPySubDir)
+iconsDir=os.path.join(installDir,iconsSubDir)
 
 # rebuild all _ui.py files from .ui files in the same directory as this script as needed
 #   NOTE - this will overwrite any edits in _ui.py files
@@ -2625,7 +2627,15 @@ class MyWindow(QDialog,Ui_Dialog):
 				parent=styles['Normal'],
 				backColor='lightgrey'
 				))
-			radioLogPrint.append(MyTableModel.header_labels[0:6])
+			headers=MyTableModel.header_labels[0:6]
+			if self.useOperatorLogin:
+				operatorImageFile=os.path.join(iconsDir,'user_icon_80px.png')
+				if os.path.isfile(operatorImageFile):
+					headers.append(Image(operatorImageFile,width=0.16*inch,height=0.16*inch))
+				else:
+					rprint('operator image file not found: '+operatorImageFile)
+					headers.append('Op.')
+			radioLogPrint.append(headers)
 ##			if teams and opPeriod==1: # if request op period = 1, include 'Radio Log Begins' in all team tables
 ##				radioLogPrint.append(self.radioLog[0])
 			entryOpPeriod=1 # update this number when 'Operational Period <x> Begins' lines are found
@@ -2648,7 +2658,10 @@ class MyWindow(QDialog,Ui_Dialog):
 						style=styles['Normal']
 						if 'RADIO OPERATOR LOGGED IN' in row[3]:
 							style=styles['operator']
-						radioLogPrint.append([row[0],row[1],row[2],Paragraph(row[3],style),Paragraph(row[4],styles['Normal']),Paragraph(row[5],styles['Normal'])])
+						printRow=[row[0],row[1],row[2],Paragraph(row[3],style),Paragraph(row[4],styles['Normal']),Paragraph(row[5],styles['Normal'])]
+						if self.useOperatorLogin:
+							printRow.append(row[10])
+						radioLogPrint.append(printRow)
 ##						hits=True
 			if not teams:
 				# #523: avoid exception	
@@ -2659,12 +2672,16 @@ class MyWindow(QDialog,Ui_Dialog):
 					return
 			rprint("length:"+str(len(radioLogPrint)))
 			if not teams or len(radioLogPrint)>2: # don't make a table for teams that have no entries during the requested op period
-				t=Table(radioLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.5,0.6,1.25,5.5,1.25,0.9]])
+				if self.useOperatorLogin:
+					colWidths=[x*inch for x in [0.5,0.6,1.25,5.2,1.25,0.9,0.3]]
+				else:
+					colWidths=[x*inch for x in [0.5,0.6,1.25,5.5,1.25,0.9]]
+				t=Table(radioLogPrint,repeatRows=1,colWidths=colWidths)
 				t.setStyle(TableStyle([('FONT',(0,0),(-1,-1),'Helvetica'),
 					                    ('FONT',(0,0),(-1,1),'Helvetica-Bold'),
 					                    ('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
 			      	                 ('BOX', (0,0), (-1,-1), 2, colors.black),
-			         	              ('BOX', (0,0), (5,0), 2, colors.black)]))
+			         	              ('BOX', (0,0), (-1,0), 2, colors.black)]))
 				elements.append(t)
 				if teams and team!=teamFilterList[-1]: # don't add a spacer after the last team - it could cause another page!
 					elements.append(Spacer(0,0.25*inch))
@@ -2773,12 +2790,23 @@ class MyWindow(QDialog,Ui_Dialog):
 			elements=[]
 			styles = getSampleStyleSheet()
 			clueLogPrint=[]
-			clueLogPrint.append(clueTableModel.header_labels[0:5]+clueTableModel.header_labels[6:8]) # omit operational period
+			headers=clueTableModel.header_labels[0:5]+clueTableModel.header_labels[6:8] # omit operational period
+			if self.useOperatorLogin:
+				operatorImageFile=os.path.join(iconsDir,'user_icon_80px.png')
+				if os.path.isfile(operatorImageFile):
+					headers.append(Image(operatorImageFile,width=0.16*inch,height=0.16*inch))
+				else:
+					rprint('operator image file not found: '+operatorImageFile)
+					headers.append('Op.')
+			clueLogPrint.append(headers)
 			for row in rowsToPrint:
 				locationText=row[6]
 				if row[8]:
 					locationText='[Radio GPS:\n'+(row[8].replace('\n',' '))+'] '+row[6]
-				clueLogPrint.append([row[0],Paragraph(row[1],styles['Normal']),row[2],row[3],row[4],Paragraph(locationText,styles['Normal']),Paragraph(row[7],styles['Normal'])])
+				printRows=[row[0],Paragraph(row[1],styles['Normal']),row[2],row[3],row[4],Paragraph(locationText,styles['Normal']),Paragraph(row[7],styles['Normal'])]
+				if self.useOperatorLogin:
+					printRows.append(row[9])
+				clueLogPrint.append(printRows)
 			# #523: avoid exception	
 			try:
 				clueLogPrint[1][5]=self.datum
@@ -2787,12 +2815,16 @@ class MyWindow(QDialog,Ui_Dialog):
 				return
 			if len(clueLogPrint)>2:
 	##			t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.6,3.75,.9,0.5,1.25,3]])
-				t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.5]])
+				if self.useOperatorLogin:
+					colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.2,0.3]]
+				else:
+					colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.5]]
+				t=Table(clueLogPrint,repeatRows=1,colWidths=colWidths)
 				t.setStyle(TableStyle([('F/generating clue llONT',(0,0),(-1,-1),'Helvetica'),
 										('FONT',(0,0),(-1,1),'Helvetica-Bold'),
 										('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
 									('BOX', (0,0), (-1,-1), 2, colors.black),
-									('BOX', (0,0), (6,0), 2, colors.black)]))
+									('BOX', (0,0), (-1,0), 2, colors.black)]))
 				elements.append(t)
 				doc.build(elements,onFirstPage=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod),onLaterPages=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod))
 	# 			self.clueLogMsgBox.setInformativeText("Finalizing and Printing...")
