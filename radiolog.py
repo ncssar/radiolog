@@ -2035,7 +2035,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					formattedLocString='BAD DATA'
 			elif '\x02I' in line:
 				# caller ID lines look like " I110040021004002" (first character is \x02, may show as a space)
-				# " I<n>" is a prefix, n is either 0 or 1 (not sure why)
+				# " I<n>" is a prefix, n is either 1 (BOT) or 0 (EOT)
 				# the next three characters (100 above) are the fleet#
 				# the next four characters (4002 above) are the device#
 				# fleet and device# are repeated
@@ -2043,10 +2043,13 @@ class MyWindow(QDialog,Ui_Dialog):
 				#  so, find the exact characters rather than assuming character index
 
 				# 1. parse line into unique complete packets,
-				#   where 'packet' is defined here as an unbroken string of 7 to 20 digits between '\x02I' and '\x03'
-				#   normally, the second packet is identical to the first, so set() will only have one member;
+				#   where 'packet' is defined here as an unbroken string of 6 to 19 digits between '\x02I[1=BOT or 0=EOT]' and '\x03'
+				#   normally, there is only one packet per parsed buffered line;
+				#    for a mic bump, a BOT packet will be immediately followed by an EOT packet - though the EOT may not show
+				#    up until the subsequent buffered line (the subsequent fsParse call);
+				#    even for a mic bump, the second packet is identical to the first, so set() will only have one member;
 				#    if set length != 1 then we know there's garbled data and there's nothing else we can do here
-				packetSet=set(re.findall('\x02I([0-9]{7,20})\x03',line))
+				packetSet=set(re.findall('\x02I[0-1]([0-9]{6,19})\x03',line))
 				if len(packetSet)>1:
 					rprint('FLEETSYNC ERROR: data appears garbled; there are two complete but non-identical CID packets.  Skipping this message.')
 					return
@@ -2056,9 +2059,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				packet=packetSet.pop()
 				# rprint('packet:'+str(packet))
 				
-				# 2. within a well-defined packed, the 7-digit fid (fleet&ID) should begin at index 1 (second character)
-				#  and (apparently) should repeat immediately after that
-				fid=packet[1:8] # returns indices 1 thru 7 = 7 digits
+				# 2. within a well-defined packed, the 7-digit fid (fleet&ID) should begin at index 0 (first character)
+				fid=packet[0:7] # returns indices 0 thru 6 = 7 digits
 				# it's not clear whether this must-repeat-within-packet requirement is universal for all users;
 				#  keep the code handy but commented out for now, if a need arises to become more strict about
 				#  filtering garbled data.  For now, limiting this to complete-packets-only may be sufficient
