@@ -322,6 +322,7 @@ import win32con
 import shutil
 import math
 import textwrap
+import json
 from reportlab.lib import colors,utils
 from reportlab.lib.pagesizes import letter,landscape,portrait
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
@@ -330,6 +331,7 @@ from reportlab.lib.units import inch
 from PyPDF2 import PdfFileReader,PdfFileWriter
 from FingerTabs import *
 from pygeodesy import Datums,ellipsoidalBase,dms
+from difflib import SequenceMatcher
 
 __version__ = "3.4.0"
 
@@ -568,12 +570,14 @@ qtDesignerSubDir='designer' # subdir containing Qt Designer source files (*.ui)
 qtUiPySubDir='ui' # target subdir for compiled ui files (*_ui.py)
 qtQrcSubDir='.' # subdir containing Qt qrc resource files (*.qrc)
 qtRcPySubDir='.' # target subdir for compiled resource files
+iconsSubDir='icons'
 
 installDir=os.path.dirname(os.path.realpath(__file__))
 qtDesignerDir=os.path.join(installDir,qtDesignerSubDir)
 qtUiPyDir=os.path.join(installDir,qtUiPySubDir)
 qtQrcDir=os.path.join(installDir,qtQrcSubDir)
 qtRcPyDir=os.path.join(installDir,qtRcPySubDir)
+iconsDir=os.path.join(installDir,iconsSubDir)
 
 # rebuild all _ui.py files from .ui files in the same directory as this script as needed
 #   NOTE - this will overwrite any edits in _ui.py files
@@ -622,6 +626,7 @@ from ui.nonRadioClueDialog_ui import Ui_nonRadioClueDialog
 from ui.subjectLocatedDialog_ui import Ui_subjectLocatedDialog
 from ui.continuedIncidentDialog_ui import Ui_continuedIncidentDialog
 from ui.loadDialog_ui import Ui_loadDialog
+from ui.loginDialog_ui import Ui_loginDialog
 
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
@@ -838,6 +843,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.opPeriod=1
 		self.incidentStartDate=time.strftime("%a %b %d, %Y")
 		self.isContinuedIncident=False
+		self.useOperatorLogin=True # can be disabled in config
+		self.operatorLastName='?'
+		self.operatorFirstName='?'
+		self.operatorId='???'
 
 		self.optionsDialog=optionsDialog(self)
 		self.optionsDialog.accepted.connect(self.optionsAccepted)
@@ -861,6 +870,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  options settings; it is read at radiolog startup, and is written
 		#  whenever the options dialog is accepted
 		self.readConfigFile() # defaults are set inside readConfigFile
+
+		rprint('useOperatorLogin after readConfigFile:'+str(self.useOperatorLogin))
 
 		self.printDialog=printDialog(self)
 		self.printClueLogDialog=printClueLogDialog(self)
@@ -902,12 +913,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		rlInitText+=self.incidentStartDate
 		if lastClueNumber>0:
 			rlInitText+=' (Last clue number: '+str(lastClueNumber)+')'
-		self.radioLog=[[time.strftime("%H%M"),'','',rlInitText,'','',time.time(),'','',''],
-			['','','','','','',1e10,'','','']] # 1e10 epoch seconds will keep the blank row at the bottom when sorted
+		self.radioLog=[[time.strftime("%H%M"),'','',rlInitText,'','',time.time(),'','','',''],
+			['','','','','','',1e10,'','','','']] # 1e10 epoch seconds will keep the blank row at the bottom when sorted
 		rprint('Initial entry: '+rlInitText)
 
 		self.clueLog=[]
-		self.clueLog.append(['',self.radioLog[0][3],'',time.strftime("%H%M"),'','','','',''])
+		self.clueLog.append(['',self.radioLog[0][3],'',time.strftime("%H%M"),'','','','','',''])
 
 # 		self.csvFileName=getFileNameBase(self.incidentNameNormalized)+".csv"
 # 		self.pdfFileName=getFileNameBase(self.incidentNameNormalized)+".pdf"
@@ -951,6 +962,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  lookup filename based on the current incedent name and time
 		# self.fsFileName=os.path.join(self.firstWorkingDir,'config','radiolog_fleetsync.csv')
 		self.fsFileName='radiolog_fleetsync.csv'
+
+		self.operatorsFileName='radiolog_operators.json'
+		
+		# self.operatorsDict: dictioary with one key ('operators') whose value is a list of dictionaries
+		#  Why not just a list of dictionaries?  Why wrap in a single-item dictionary?
+		#  -> for ease of file I/O with json.dump and json.load - see loadOperators and saveOperators
+		self.operatorsDict={'operators':[]}
 		
 		self.helpFont1=QFont()
 		self.helpFont1.setFamily("Segoe UI")
@@ -992,6 +1010,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsLatestComPort=None
 		self.fsShowChannelWarning=True
 		
+		if self.useOperatorLogin:
+			self.loginDialog=loginDialog(self)
+			self.ui.loginWidget.clicked.connect(self.loginDialog.toggleShow) # note this is a custom class with custom signal
+		else:
+			self.ui.loginWidget.setVisible(False)
+
 		self.ui.addNonRadioClueButton.clicked.connect(self.addNonRadioClue)
 
 		self.ui.helpButton.clicked.connect(self.helpWindow.toggleShow)
@@ -1048,6 +1072,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableView.hideColumn(7) # hide fleet
 		self.ui.tableView.hideColumn(8) # hide device
 		self.ui.tableView.hideColumn(9) # hide device
+		if not self.useOperatorLogin:
+			self.ui.tableView.hideColumn(10) # hide operator
 		self.ui.tableView.resizeRowsToContents()
 
 		self.sel=''
@@ -1060,6 +1086,7 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		self.ui.tableView.horizontalHeader().sectionResized.connect(self.ui.tableView.resizeRowsToContents)
 		self.columnResizedFlag=False
 		self.ui.tableView.horizontalHeader().sectionResized.connect(self.setColumnResizedFlag)
+		self.ui.tableView.horizontalHeader().setMinimumSectionSize(10) # allow tiny column for operator initials
 
 		self.exitClicked=False
 		# NOTE - the padding numbers for ::tab take a while to figure out in conjunction with
@@ -1391,6 +1418,11 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.tabGroups=eval(tokens[1])
 			elif tokens[0]=="continuedIncidentWindowDays":
 				self.continuedIncidentWindowDays=tokens[1]
+			elif tokens[0]=='useOperatorLogin':
+				try:
+					self.useOperatorLogin=eval(tokens[1])
+				except:
+					pass
 		configFile.close()
 		
 		# validation and post-processing of each item
@@ -2590,7 +2622,20 @@ class MyWindow(QDialog,Ui_Dialog):
 			extTeamNameLower=getExtTeamName(team).lower()
 			radioLogPrint=[]
 			styles = getSampleStyleSheet()
-			radioLogPrint.append(MyTableModel.header_labels[0:6])
+			styles.add(ParagraphStyle(
+				name='operator',
+				parent=styles['Normal'],
+				backColor='lightgrey'
+				))
+			headers=MyTableModel.header_labels[0:6]
+			if self.useOperatorLogin:
+				operatorImageFile=os.path.join(iconsDir,'user_icon_80px.png')
+				if os.path.isfile(operatorImageFile):
+					headers.append(Image(operatorImageFile,width=0.16*inch,height=0.16*inch))
+				else:
+					rprint('operator image file not found: '+operatorImageFile)
+					headers.append('Op.')
+			radioLogPrint.append(headers)
 ##			if teams and opPeriod==1: # if request op period = 1, include 'Radio Log Begins' in all team tables
 ##				radioLogPrint.append(self.radioLog[0])
 			entryOpPeriod=1 # update this number when 'Operational Period <x> Begins' lines are found
@@ -2610,7 +2655,13 @@ class MyWindow(QDialog,Ui_Dialog):
 ##				rprint("desired op period="+str(opPeriod)+"; this entry op period="+str(entryOpPeriod))
 				if entryOpPeriod == opPeriod:
 					if team=="" or extTeamNameLower==getExtTeamName(row[2]).lower() or opStartRow: # filter by team name if argument was specified
-						radioLogPrint.append([row[0],row[1],row[2],Paragraph(row[3],styles['Normal']),Paragraph(row[4],styles['Normal']),Paragraph(row[5],styles['Normal'])])
+						style=styles['Normal']
+						if 'RADIO OPERATOR LOGGED IN' in row[3]:
+							style=styles['operator']
+						printRow=[row[0],row[1],row[2],Paragraph(row[3],style),Paragraph(row[4],styles['Normal']),Paragraph(row[5],styles['Normal'])]
+						if self.useOperatorLogin:
+							printRow.append(row[10])
+						radioLogPrint.append(printRow)
 ##						hits=True
 			if not teams:
 				# #523: avoid exception	
@@ -2621,12 +2672,16 @@ class MyWindow(QDialog,Ui_Dialog):
 					return
 			rprint("length:"+str(len(radioLogPrint)))
 			if not teams or len(radioLogPrint)>2: # don't make a table for teams that have no entries during the requested op period
-				t=Table(radioLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.5,0.6,1.25,5.5,1.25,0.9]])
+				if self.useOperatorLogin:
+					colWidths=[x*inch for x in [0.5,0.6,1.25,5.2,1.25,0.9,0.3]]
+				else:
+					colWidths=[x*inch for x in [0.5,0.6,1.25,5.5,1.25,0.9]]
+				t=Table(radioLogPrint,repeatRows=1,colWidths=colWidths)
 				t.setStyle(TableStyle([('FONT',(0,0),(-1,-1),'Helvetica'),
 					                    ('FONT',(0,0),(-1,1),'Helvetica-Bold'),
 					                    ('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
 			      	                 ('BOX', (0,0), (-1,-1), 2, colors.black),
-			         	              ('BOX', (0,0), (5,0), 2, colors.black)]))
+			         	              ('BOX', (0,0), (-1,0), 2, colors.black)]))
 				elements.append(t)
 				if teams and team!=teamFilterList[-1]: # don't add a spacer after the last team - it could cause another page!
 					elements.append(Spacer(0,0.25*inch))
@@ -2735,12 +2790,23 @@ class MyWindow(QDialog,Ui_Dialog):
 			elements=[]
 			styles = getSampleStyleSheet()
 			clueLogPrint=[]
-			clueLogPrint.append(clueTableModel.header_labels[0:5]+clueTableModel.header_labels[6:8]) # omit operational period
+			headers=clueTableModel.header_labels[0:5]+clueTableModel.header_labels[6:8] # omit operational period
+			if self.useOperatorLogin:
+				operatorImageFile=os.path.join(iconsDir,'user_icon_80px.png')
+				if os.path.isfile(operatorImageFile):
+					headers.append(Image(operatorImageFile,width=0.16*inch,height=0.16*inch))
+				else:
+					rprint('operator image file not found: '+operatorImageFile)
+					headers.append('Op.')
+			clueLogPrint.append(headers)
 			for row in rowsToPrint:
 				locationText=row[6]
 				if row[8]:
 					locationText='[Radio GPS:\n'+(row[8].replace('\n',' '))+'] '+row[6]
-				clueLogPrint.append([row[0],Paragraph(row[1],styles['Normal']),row[2],row[3],row[4],Paragraph(locationText,styles['Normal']),Paragraph(row[7],styles['Normal'])])
+				printRows=[row[0],Paragraph(row[1],styles['Normal']),row[2],row[3],row[4],Paragraph(locationText,styles['Normal']),Paragraph(row[7],styles['Normal'])]
+				if self.useOperatorLogin:
+					printRows.append(row[9])
+				clueLogPrint.append(printRows)
 			# #523: avoid exception	
 			try:
 				clueLogPrint[1][5]=self.datum
@@ -2749,12 +2815,16 @@ class MyWindow(QDialog,Ui_Dialog):
 				return
 			if len(clueLogPrint)>2:
 	##			t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.6,3.75,.9,0.5,1.25,3]])
-				t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.5]])
+				if self.useOperatorLogin:
+					colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.2,0.3]]
+				else:
+					colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.5]]
+				t=Table(clueLogPrint,repeatRows=1,colWidths=colWidths)
 				t.setStyle(TableStyle([('F/generating clue llONT',(0,0),(-1,-1),'Helvetica'),
 										('FONT',(0,0),(-1,1),'Helvetica-Bold'),
 										('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
 									('BOX', (0,0), (-1,-1), 2, colors.black),
-									('BOX', (0,0), (6,0), 2, colors.black)]))
+									('BOX', (0,0), (-1,0), 2, colors.black)]))
 				elements.append(t)
 				doc.build(elements,onFirstPage=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod),onLaterPages=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod))
 	# 			self.clueLogMsgBox.setInformativeText("Finalizing and Printing...")
@@ -2838,6 +2908,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			radioLocText=""
 
+		operatorText=''
+		if self.useOperatorLogin:
+			operatorText='Radio Dispatcher: '
+			if self.operatorLastName.startswith('?'):
+				operatorText+='Not logged in'
+			else:
+				operatorText+=self.operatorFirstName[0].upper()+self.operatorLastName[0].upper()+' '+self.operatorId
+
 		# define the fields and locations of the overlay pdf; similar to fillable pdf but with more control
 		# clueTableDicts - list of dictionaries, with each dictionary corresponding to a new reportlab table
 		#  data - list of lists, each sublist corresponding to one row of the reportlab table
@@ -2867,10 +2945,14 @@ class MyWindow(QDialog,Ui_Dialog):
 				'widths':[67,141,131],
 				'hvalign':['center','bottom']
 			},
-			{ # gap - Name of Individual That Located Clue, plus gap before description text
-				'data':[['']],
+			{ # Name of Individual That Located Clue - not filled by radiolog, but,
+			  #  use the right-justified space on this line to show radio dispatch operator
+			  #  while still leaving space for someone to hand-write the individual's name
+				'data':[[operatorText]],
 				'heights':0.54,
-				'widths':[1]
+				'widths':[1], # width doesn't matter, since text is right-justified
+				'hvalign':['right','top'],
+				'fontSize':10 # slightly smaller font
 			},
 			{ # description of clue
 				'data':[['',clueData[1]]],
@@ -2944,8 +3026,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			# horizontal alignment must be specified in the Paragraph style
 			if 'hvalign' in td.keys():
 				[h,v]=td['hvalign']
+				# see reportlab docs paragraph alignment section for propert alignment values
+				# https://docs.reportlab.com/reportlab/userguide/ch6_paragraphs/
 				if h=='center':
 					style.alignment=1
+				elif h=='right':
+					style.alignment=2
 
 			data=[[ParagraphOrNot(d,style) for d in row] for row in td['data']]
 			# data=td['data']
@@ -3012,6 +3098,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		QTimer.singleShot(1500,self.optionsDialog.ui.incidentField.deselect)
 		QTimer.singleShot(1750,self.optionsDialog.ui.incidentField.selectAll)
 		QTimer.singleShot(1800,self.optionsDialog.ui.incidentField.setFocus)
+		self.optionsDialog.exec_() # force modal
+		if self.useOperatorLogin:
+			self.loginDialog.toggleShow()
+			self.loginDialog.exec_() # force modal
 
 	def fontsChanged(self):
 		self.limitedFontSize=self.fontSize
@@ -3096,6 +3186,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableView.setColumnWidth(0,self.fontSize*5) # wide enough for '2345'
 		self.ui.tableView.setColumnWidth(1,self.fontSize*6) # wide enough for 'FROM'
 		self.ui.tableView.setColumnWidth(5,self.fontSize*10) # wide enough for 'STATUS'
+		self.ui.tableView.setColumnWidth(10,self.fontSize*3) # wide enough for 'WW'
 		# rprint("3")
 ##		self.ui.tableView.resizeRowsToContents()
 		# rprint("4")
@@ -3108,6 +3199,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			n.setColumnWidth(0,self.fontSize*5)
 			n.setColumnWidth(1,self.fontSize*6)
 			n.setColumnWidth(5,self.fontSize*10)
+			n.setColumnWidth(10,self.fontSize*3)
 			# rprint("    resizing rows to contents")
 ##			n.resizeRowsToContents()
 		# rprint("5")
@@ -3263,6 +3355,9 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.ui.fsCheckBox.toggle()
 				elif event.key()==Qt.Key_F8:
 					self.fsFilterDialog.show()
+				elif event.key()==Qt.Key_F9:
+					if self.useOperatorLogin:
+						self.loginDialog.toggleShow()
 				elif event.key()==Qt.Key_F12:
 					self.toggleTeamHotkeys()
 				elif event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
@@ -3299,6 +3394,24 @@ class MyWindow(QDialog,Ui_Dialog):
 			event.ignore()
 			self.exitClicked=False
 			return
+
+		# update the usage dictionaries
+		if self.useOperatorLogin:
+			t=int(time.time())
+			ods=[d for d in self.operatorsDict['operators'] if d['lastName']==self.operatorLastName and d['firstName']==self.operatorFirstName and d['id']==self.operatorId]
+			if len(ods)==1:
+				od=ods[0]
+				if 'usage' in od.keys():
+					# there could be more than one usage dict with stop=null, if radiolog crashed;
+					#  we need to make sure we are updating the most recent one
+					usageDicts=[d for d in od['usage'] if d['stop']==None]
+					usageDicts.sort(key=lambda x:x['start'])
+					usageDict=usageDicts[0]
+					usageDict['stop']=t
+					usageDict['next']=None
+			elif not self.operatorLastName.startswith('?'):
+				rprint('ERROR: operatorDict had '+str(len(ods))+' matches; should have exactly one match.  Operator usage will not be updated.')
+			self.saveOperators()
 
 		self.save(finalize=True)
 		self.fsSaveLookup()
@@ -3440,6 +3553,24 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.updateOptionsDialog()
 		rcFile.close()
 		return cleanShutdownFlag
+
+	def loadOperators(self):
+		fileName=os.path.join(self.configDir,self.operatorsFileName)
+		try:
+			with open(fileName,'r') as ofile:
+				rprint('Loading operator data from file '+fileName)
+				self.operatorsDict=json.load(ofile)
+		except:
+			rprint('WARNING: Could not read operator data file '+fileName)
+
+	def saveOperators(self):
+		fileName=os.path.join(self.configDir,self.operatorsFileName)
+		try:
+			with open(fileName,'w') as ofile:
+				rprint('Saving operator data file '+fileName)
+				json.dump(self.operatorsDict,ofile,indent=3)
+		except:
+			rprint('WARNING: Could not write operator data file '+fileName)
 
 	def save(self,finalize=False):
 		csvFileNameList=[os.path.join(self.sessionDir,self.csvFileName)]
@@ -3832,6 +3963,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			self.newEntryWidget.ui.datumFormatLabel.setText("")
 	
+	def getOperatorInitials(self):
+		if self.useOperatorLogin:
+			if self.operatorLastName.startswith('?'):
+				return '??'
+			else:
+				return self.operatorFirstName[0].upper()+self.operatorLastName[0].upper()
+		else:
+			return ''
+
 	def newEntry(self,values,amend=False):
 		# values array format: [time,to_from,team,message,locString,status,sec,fleet,dev]
 		#  locString is also stored in the table in a column after dev, unmodified;
@@ -3842,8 +3982,16 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  Only columns thru and including status are shown in the tables.
 		rprint("newEntry called with these values:")
 		rprint(values)
+		# add operator initials if not already present
+		if len(values)==10: 
+			if self.useOperatorLogin:
+				values.append(self.getOperatorInitials())
+			else:
+				values.append('')
 		niceTeamName=values[2]
 		extTeamName=getExtTeamName(niceTeamName)
+		# if self.useOperatorLogin:
+		# 	values[0]+=' ['+self.getOperatorInitials()+']'
 		status=values[5]
 		if values[4]==None:
 			values[4]=''
@@ -4201,6 +4349,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tabList.insert(i,QWidget())
 		self.ui.tabGridLayoutList.insert(i,QGridLayout(self.ui.tabList[i]))
 		tv=CustomTableView(self,self.ui.tabList[i])
+		tv.horizontalHeader().setMinimumSectionSize(10) # allow tiny column for operator initials
+		tv.horizontalHeader().setDefaultAlignment(Qt.AlignHCenter)
 		# tv.setEditTriggers(QAbstractItemView.AllEditTriggers)
 		self.ui.tableViewList.insert(i,tv)
 		self.ui.tableViewList[i].verticalHeader().setVisible(False)
@@ -4208,6 +4358,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableViewList[i].setFocusPolicy(Qt.ClickFocus)
 		self.ui.tableViewList[i].setSelectionMode(QAbstractItemView.ContiguousSelection)
 		self.ui.tableViewList[i].setStyleSheet("font-size:"+str(self.fontSize)+"pt")
+		# self.ui.tableViewList[i].horizontalHeader().setMinimumSectionSize(10) # allow tiny column for operator initials
 		self.ui.tabGridLayoutList[i].addWidget(self.ui.tableViewList[i],0,0,1,1)
 		self.ui.tabWidget.insertTab(i,self.ui.tabList[i],'')
 		label=QLabel(" "+shortNiceTeamName+" ")
@@ -4255,6 +4406,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableViewList[i].hideColumn(7) # hide epoch seconds
 		self.ui.tableViewList[i].hideColumn(8) # hide epoch seconds
 		self.ui.tableViewList[i].hideColumn(9) # hide epoch seconds
+		if not self.useOperatorLogin:
+			self.ui.tableViewList[i].hideColumn(10) # hide operator initials
 		self.ui.tableViewList[i].resizeRowsToContents()
 
 		#NOTE if you do this section before the model is assigned to the tableView,
@@ -6452,6 +6605,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		clueDate=self.ui.dateField.text()
 		clueTime=self.ui.timeField.text()
 		radioLoc=self.ui.radioLocField.toPlainText()
+		operator=self.parent.parent.getOperatorInitials()
 
 		# validation: description, location, instructions fields must all be non-blank
 		vText=""
@@ -6481,7 +6635,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		# previously, lastClueNumber was saved here - on accept; we need to save it on init instead, so that
 		#  multiple concurrent clueDialogs will not have the same clue number!
 		# header_labels=['CLUE#','DESCRIPTION','TEAM','TIME','DATE','OP','LOCATION','INSTRUCTIONS','RADIO LOC.']
-		clueData=[number,description,team,clueTime,clueDate,self.parent.parent.opPeriod,location,instructions,radioLoc]
+		clueData=[number,description,team,clueTime,clueDate,self.parent.parent.opPeriod,location,instructions,radioLoc,operator]
 		self.parent.parent.clueLog.append(clueData)
 		if self.ui.clueReportPrintCheckBox.isChecked():
 			self.parent.parent.printClueReport(clueData)
@@ -6677,6 +6831,8 @@ class clueLogDialog(QDialog,Ui_clueLogDialog):
 		self.tableModel = clueTableModel(parent.clueLog, self)
 		self.ui.tableView.setModel(self.tableModel)
 
+		if not self.parent.useOperatorLogin:
+			self.ui.tableView.hideColumn(9) # hide operator initials
 		self.ui.tableView.verticalHeader().setVisible(True)
 		self.ui.tableView.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 		self.ui.tableView.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
@@ -7319,6 +7475,251 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		rprint("New callsign pairing created: fleet="+fleet+"  dev="+dev+"  callsign="+newCallsign)
 
 
+class clickableWidget(QWidget):
+	clicked=pyqtSignal()
+	def __init__(self,parent,*args,**kwargs):
+		self.parent=parent
+		QWidget.__init__(self,parent)
+		self.pressed=False
+
+	def mousePressEvent(self,e):
+		# self.move(self.mapToParent(QPoint(2,2)))
+		# QCoreApplication.processEvents()
+		self.pressed=True
+
+	def mouseOutEvent(self,e):
+		# self.move(self.mapToParent(QPoint(0,0)))
+		# QCoreApplication.processEvents()
+		self.pressed=False
+
+	def mouseReleaseEvent(self,e):
+		# self.move(self.mapToParent(QPoint(0,0)))
+		# QCoreApplication.processEvents()
+		if self.pressed:
+			self.clicked.emit()
+
+	# required for stylesheets to apply to subclasses
+	# https://stackoverflow.com/a/32889486/3577105
+	def paintEvent(self,pe):
+		o=QStyleOption()
+		o.initFrom(self)
+		p=QPainter(self)
+		self.style().drawPrimitive(QStyle.PE_Widget,o,p,self)
+
+
+class loginDialog(QDialog,Ui_loginDialog):
+	def __init__(self,parent):
+		QDialog.__init__(self)
+		self.ui=Ui_loginDialog()
+		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
+		self.ui.buttonBox.button(QDialogButtonBox.Ok).setText('Log In')
+		self.ui.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
+		self.parent=parent
+		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		self.knownDefaultText=' -- Select a Known Operator -- '
+		self.lastNameText=self.ui.lastNameField.text()
+		self.firstNameText=self.ui.firstNameField.text()
+		self.idText=self.ui.idField.text()
+
+	def showEvent(self,e):
+		self.parent.loadOperators()
+		if self.parent.operatorLastName.startswith('?'):
+			operatorText='Not logged in'
+		else:
+			operatorText=self.parent.operatorLastName+', '+self.parent.operatorFirstName+'  '+self.parent.operatorId
+		self.ui.currentOperatorLabel.setText('Current Operator: '+operatorText)
+		self.ui.knownComboBox.clear()
+		self.ui.knownComboBox.addItem(self.knownDefaultText)
+		self.ui.lastNameField.setText('')
+		self.ui.firstNameField.setText('')
+		self.ui.idField.setText('')
+		self.items=[] # list of items: first entry is the string, second entry is the variant which is a list [lastName,firstName,id]
+		for od in self.parent.operatorsDict['operators']:
+			if isinstance(od,dict):
+				lastName=od.get('lastName')
+				firstName=od.get('firstName')
+				id=od.get('id')
+				if isinstance(lastName,str) and isinstance(firstName,str) and isinstance(id,str):
+					# don't list the current operator
+					if not (lastName==self.parent.operatorLastName and firstName==self.parent.operatorFirstName and id==self.parent.operatorId):
+						self.items.append([lastName+', '+firstName+'  '+id,[lastName,firstName,id]])
+		self.items.sort(key=lambda x:x[0]) # alphabetical sort - could be changed to most-frequent sort if needed
+		rprint('items:'+str(self.items))
+		for item in self.items:
+			self.ui.knownComboBox.addItem(item[0],item[1])
+
+	def toggleShow(self):
+		if self.isVisible():
+			self.close()
+		else:
+			self.show()
+			self.raise_()
+
+	def knownFieldChanged(self,i):
+		self.ui.firstTimeGroupBox.setEnabled(i==0)
+		self.checkForValidOperator()
+
+	# always leave known field enabled, so it's easy to override any entered text
+	def lastNameFieldTextChanged(self,t):
+		self.lastNameText=t
+		self.checkForValidOperator()
+
+	def firstNameFieldTextChanged(self,t):
+		self.firstNameText=t
+		self.checkForValidOperator()
+
+	def idFieldTextChanged(self,t):
+		self.idText=t
+		self.checkForValidOperator()
+
+	def checkForValidOperator(self):
+		# does known field have a valid selection?
+		vk=self.ui.knownComboBox.currentIndex()!=0
+		# does first-time field group have a valid selection (are all three fields non-empty)?
+		vft=(self.lastNameText!='') and (self.firstNameText!='') and (self.idText!='')
+		# if either is valid, enable the Log In button
+		self.ui.buttonBox.button(QDialogButtonBox.Ok).setEnabled(vk or vft)
+
+	def accept(self):
+		oldLastName=self.parent.operatorLastName
+		oldFirstName=self.parent.operatorFirstName
+		oldId=self.parent.operatorId
+		lastName=self.ui.lastNameField.text()
+		firstName=self.ui.firstNameField.text()
+		id=self.ui.idField.text()
+		if lastName or firstName or id: # first-time operator
+			if self.ui.knownComboBox.currentText()!=self.knownDefaultText:
+				msg='ERROR: you selected a known operator, but one or more of the first-time operator fields contain text.  Select one or the other.'
+				rprint(msg)
+				box=QMessageBox(QMessageBox.Warning,'Form data conflict',msg,
+						QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				box.exec_()
+				return
+			elif not lastName or not firstName or not id:
+				msg='ERROR: you must fill out all three fields (Last Name, First Name, ID)'
+				rprint(msg)
+				box=QMessageBox(QMessageBox.Warning,'Form data conflict',msg,
+						QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				box.exec_()
+				return
+			else:
+				# check to see if the typed first-time operator is a 'close match' for a known user;
+				#  if so, offer to select the known user instead - this is mainly to prevent duplicate
+				#  entries in the operator dictionary
+				usedKnownMatch=False
+				for item in self.items:
+					if lastName.lower()==item[1][0].lower() and firstName.lower()==item[1][1].lower() and id.lower().replace(' ','')==item[1][2].lower().replace(' ',''):
+						rprint('  exact case-insensitive match with "'+item[0]+'"')
+						box=QMessageBox(QMessageBox.Information,'Exact Match','The specified Last Name, First Name, and ID are the same as this Known Operator:\n\n    '+item[0]+'\n\nYou will be logged in as the existing Known Operator.',
+							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+						box.show()
+						box.raise_()
+						box.exec_()
+						[newLastName,newFirstName,newId]=item[1]
+						usedKnownMatch=True
+						break
+					r1=SequenceMatcher(None,lastName.lower(),item[1][0].lower()).ratio()
+					# rprint('comparing '+lastName+' to '+item[1][0]+' : ratio='+str(r1))
+					r2=SequenceMatcher(None,firstName.lower(),item[1][1].lower()).ratio()
+					# rprint('comparing '+firstName+' to '+item[1][1]+' : ratio='+str(r2))
+					if (r1+r2)/2>0.7 or r1>0.8 or r2>0.8:
+						# rprint('  possible match with "'+item[0]+'"')
+						tmp=lastName+', '+firstName+'  '+id
+						box=QMessageBox(QMessageBox.Information,'Possible Match','The specified First-Time Operator values\n\n    '+tmp+'\n\nare similar to this Known Operator:\n\n    '+item[0]+'\n\nLog in as the specified First-Time Operator, or, as the similar Known Operator?',
+							QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+						box.button(QMessageBox.Yes).setText('First-Time: '+tmp)
+						box.button(QMessageBox.No).setText('Known: '+item[0])
+						box.show()
+						box.raise_()
+						r=box.exec_()
+						# First-time selected: don't break the loop - in case there are more matches
+						if r==QMessageBox.Yes:
+							[newLastName,newFirstName,newId]=[lastName,firstName,id]
+						# Known selected: break the loop
+						elif r==QMessageBox.No:
+							[newLastName,newFirstName,newId]=item[1]
+							usedKnownMatch=True
+							break
+					# else:
+					# 	rprint('  no match')
+				if not usedKnownMatch:
+					newLastName=lastName
+					newFirstName=firstName
+					newId=id
+					self.parent.operatorsDict['operators'].append({
+						'lastName':lastName,
+						'firstName':firstName,
+						'id':id,
+						'usage':[]
+					})
+		elif self.ui.knownComboBox.currentText()!=self.knownDefaultText: # known operator
+			[newLastName,newFirstName,newId]=self.ui.knownComboBox.currentData()
+		else:
+			msg='ERROR: choose a known operator, or, fill out all three fields for a first-time operator.'
+			rprint(msg)
+			box=QMessageBox(QMessageBox.Warning,'Form data conflict',msg,
+					QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.exec_()
+			return
+		self.parent.operatorLastName=newLastName
+		self.parent.operatorFirstName=newFirstName
+		self.parent.operatorId=newId
+		oldOperatorString=oldLastName+', '+oldFirstName+'  '+oldId
+		newOperatorString=newLastName+', '+newFirstName+'  '+newId
+		self.parent.ui.loginInitialsLabel.setText(self.parent.getOperatorInitials())
+		self.parent.ui.loginIdLabel.setText(newId)
+		
+		# values format for adding a new entry:
+		#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+		values=['' for n in range(10)]
+		values[0]=time.strftime("%H%M")
+		values[6]=time.time()
+		values[3]='RADIO OPERATOR LOGGED IN: '+newOperatorString
+		self.parent.newEntry(values)
+
+		# update the usage dictionaries
+		t=int(time.time())
+		oldOperatorDicts=[d for d in self.parent.operatorsDict['operators'] if d['lastName']==oldLastName and d['firstName']==oldFirstName and d['id']==oldId]
+		if len(oldOperatorDicts)==1:
+			oldOperatorDict=oldOperatorDicts[0]
+			if 'usage' not in oldOperatorDict.keys():
+				oldOperatorDict['usage']=[]
+			# there could be more than one usage dict with stop=null, if radiolog crashed;
+			#  we need to make sure we are updating the most recent one
+			oldUsageDicts=[d for d in oldOperatorDict['usage'] if d['stop']==None]
+			oldUsageDicts.sort(key=lambda x:x['start'])
+			oldUsageDict=oldUsageDicts[0]
+			oldUsageDict['stop']=t
+			oldUsageDict['next']=newOperatorString
+		elif not oldLastName.startswith('?'):
+			rprint('ERROR: oldOperatorDict had '+str(len(oldOperatorDicts))+' matches; should have exactly one match.  Old operator usage will not be updated.')
+
+		newOperatorDicts=[d for d in self.parent.operatorsDict['operators'] if d['lastName']==newLastName and d['firstName']==newFirstName and d['id']==newId]
+		if len(newOperatorDicts)==1:
+			newOperatorDict=newOperatorDicts[0]
+			if 'usage' not in newOperatorDict.keys():
+				newOperatorDict['usage']=[]
+			prev=oldOperatorString
+			if prev.startswith('?'):
+				prev=None
+			newOperatorDict['usage'].append({
+				'start':t,
+				'stop':None,
+				'incident':self.parent.incidentName,
+				'previous':prev,
+				'next':None
+			})
+		else:
+			rprint('ERROR: newOperatorDict had '+str(len(newOperatorDicts))+' matches; should have exactly one match.  New operator usage will not be updated.')
+
+		self.parent.saveOperators()
+		super(loginDialog,self).accept()
+
+	# def closeEvent(self,e):
+	# 	rprint('closeEvent called')
+	# 	self.parent.saveOperators()
+
 ##class convertDialog(QDialog,Ui_convertDialog):
 ##	def __init__(self,parent,rowData,rowHasRadioLoc=False,rowHasMsgCoords=False):
 ##		QDialog.__init__(self)
@@ -7363,14 +7764,15 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 
 
 class clueTableModel(QAbstractTableModel):
-	header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
+	header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.','']
 	def __init__(self,datain,parent=None,*args):
 		QAbstractTableModel.__init__(self,parent,*args)
 		self.arraydata=datain
 		self.printIconPixmap=QPixmap(20,20)
 		self.printIconPixmap.load(":/radiolog_ui/icons/print_icon.png")
+		self.operatorIconPixmap=QPixmap(20,20)
+		self.operatorIconPixmap.load(':/radiolog_ui/icons/user_icon_80px.png')
 ##		self.setEditTriggers(QAbstractItemView.NoEditTriggers)
-
 
 	def headerData(self,section,orientation,role=Qt.DisplayRole):
 		if orientation==Qt.Vertical:
@@ -7379,7 +7781,9 @@ class clueTableModel(QAbstractTableModel):
 				return self.printIconPixmap
 			if role==Qt.DisplayRole:
 				return ""
-		if role==Qt.DisplayRole and orientation==Qt.Horizontal:
+		elif section==9:
+			return self.operatorIconPixmap
+		elif role==Qt.DisplayRole:
 			return self.header_labels[section]
 		return QAbstractTableModel.headerData(self,section,orientation,role)
 
@@ -7413,16 +7817,21 @@ class clueTableModel(QAbstractTableModel):
 
 
 class MyTableModel(QAbstractTableModel):
-	header_labels=['TIME','T/F','TEAM','MESSAGE','RADIO LOC.','STATUS','sec','fleet','dev','origLoc']
+	header_labels=['TIME','T/F','TEAM','MESSAGE','RADIO LOC.','STATUS','sec','fleet','dev','origLoc','']
 	def __init__(self, datain, parent=None, *args):
 		QAbstractTableModel.__init__(self, parent, *args)
 		self.arraydata=datain
+		self.operatorIconPixmap=QPixmap(20,20)
+		self.operatorIconPixmap.load(':/radiolog_ui/icons/user_icon_80px.png')
 
 	def headerData(self,section,orientation,role=Qt.DisplayRole):
 #		print("headerData:",section,",",orientation,",",role)
 		if role==Qt.DisplayRole and orientation==Qt.Horizontal:
 			return self.header_labels[section]
-		return QAbstractTableModel.headerData(self,section,orientation,role)
+		if section==10 and role==Qt.DecorationRole:
+			return self.operatorIconPixmap
+		else:
+			return QAbstractTableModel.headerData(self,section,orientation,role)
 
 	def rowCount(self, parent):
 		return len(self.arraydata)
@@ -7450,6 +7859,7 @@ class MyTableModel(QAbstractTableModel):
 
 	def flags(self,index):
 		return Qt.ItemIsEnabled|Qt.ItemIsSelectable|Qt.ItemIsEditable
+
 
 class CustomTableItemDelegate(QStyledItemDelegate):
 	def __init__(self,parent=None):
@@ -7504,6 +7914,7 @@ class CustomTableItemDelegate(QStyledItemDelegate):
 				self.parent.window().keyPressEvent(event) # pass the keystroke to the main window
 				return True
 		return False
+
 
 class CustomTableView(QTableView):
 	def __init__(self,parent,*args,**kwargs):
@@ -7583,6 +7994,7 @@ class CustomTableView(QTableView):
 		self.window().amendEntry(self.row)
 		self.row=None
 		self.rowData=None
+
 
 class fsTableModel(QAbstractTableModel):
 	header_labels=['Fleet','Device','Callsign','Filtered?','Last Received']
