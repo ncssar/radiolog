@@ -916,7 +916,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint('Initial entry: '+rlInitText)
 
 		self.clueLog=[]
-		self.clueLog.append(['',self.radioLog[0][3],'',time.strftime("%H%M"),'','','','',''])
+		self.clueLog.append(['',self.radioLog[0][3],'',time.strftime("%H%M"),'','','','','',''])
 
 # 		self.csvFileName=getFileNameBase(self.incidentNameNormalized)+".csv"
 # 		self.pdfFileName=getFileNameBase(self.incidentNameNormalized)+".pdf"
@@ -3932,10 +3932,13 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.newEntryWidget.ui.datumFormatLabel.setText("")
 	
 	def getOperatorInitials(self):
-		if self.operatorLastName.startswith('?'):
-			return '??'
+		if self.useOperatorLogin:
+			if self.operatorLastName.startswith('?'):
+				return '??'
+			else:
+				return self.operatorFirstName[0].upper()+self.operatorLastName[0].upper()
 		else:
-			return self.operatorFirstName[0].upper()+self.operatorLastName[0].upper()
+			return ''
 
 	def newEntry(self,values,amend=False):
 		# values array format: [time,to_from,team,message,locString,status,sec,fleet,dev]
@@ -4371,6 +4374,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableViewList[i].hideColumn(7) # hide epoch seconds
 		self.ui.tableViewList[i].hideColumn(8) # hide epoch seconds
 		self.ui.tableViewList[i].hideColumn(9) # hide epoch seconds
+		if not self.useOperatorLogin:
+			self.ui.tableViewList[i].hideColumn(10) # hide operator initials
 		self.ui.tableViewList[i].resizeRowsToContents()
 
 		#NOTE if you do this section before the model is assigned to the tableView,
@@ -6568,6 +6573,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		clueDate=self.ui.dateField.text()
 		clueTime=self.ui.timeField.text()
 		radioLoc=self.ui.radioLocField.toPlainText()
+		operator=self.parent.parent.getOperatorInitials()
 
 		# validation: description, location, instructions fields must all be non-blank
 		vText=""
@@ -6597,7 +6603,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		# previously, lastClueNumber was saved here - on accept; we need to save it on init instead, so that
 		#  multiple concurrent clueDialogs will not have the same clue number!
 		# header_labels=['CLUE#','DESCRIPTION','TEAM','TIME','DATE','OP','LOCATION','INSTRUCTIONS','RADIO LOC.']
-		clueData=[number,description,team,clueTime,clueDate,self.parent.parent.opPeriod,location,instructions,radioLoc]
+		clueData=[number,description,team,clueTime,clueDate,self.parent.parent.opPeriod,location,instructions,radioLoc,operator]
 		self.parent.parent.clueLog.append(clueData)
 		if self.ui.clueReportPrintCheckBox.isChecked():
 			self.parent.parent.printClueReport(clueData)
@@ -6793,6 +6799,8 @@ class clueLogDialog(QDialog,Ui_clueLogDialog):
 		self.tableModel = clueTableModel(parent.clueLog, self)
 		self.ui.tableView.setModel(self.tableModel)
 
+		if not self.parent.useOperatorLogin:
+			self.ui.tableView.hideColumn(9) # hide operator initials
 		self.ui.tableView.verticalHeader().setVisible(True)
 		self.ui.tableView.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 		self.ui.tableView.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
@@ -7724,12 +7732,14 @@ class loginDialog(QDialog,Ui_loginDialog):
 
 
 class clueTableModel(QAbstractTableModel):
-	header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
+	header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.','']
 	def __init__(self,datain,parent=None,*args):
 		QAbstractTableModel.__init__(self,parent,*args)
 		self.arraydata=datain
 		self.printIconPixmap=QPixmap(20,20)
 		self.printIconPixmap.load(":/radiolog_ui/icons/print_icon.png")
+		self.operatorIconPixmap=QPixmap(20,20)
+		self.operatorIconPixmap.load(':/radiolog_ui/icons/user_icon_80px.png')
 ##		self.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
 	def headerData(self,section,orientation,role=Qt.DisplayRole):
@@ -7739,7 +7749,9 @@ class clueTableModel(QAbstractTableModel):
 				return self.printIconPixmap
 			if role==Qt.DisplayRole:
 				return ""
-		if role==Qt.DisplayRole and orientation==Qt.Horizontal:
+		elif section==9:
+			return self.operatorIconPixmap
+		elif role==Qt.DisplayRole:
 			return self.header_labels[section]
 		return QAbstractTableModel.headerData(self,section,orientation,role)
 
@@ -7777,7 +7789,7 @@ class MyTableModel(QAbstractTableModel):
 	def __init__(self, datain, parent=None, *args):
 		QAbstractTableModel.__init__(self, parent, *args)
 		self.arraydata=datain
-		self.operatorIconPixmap=QPixmap(60,20)
+		self.operatorIconPixmap=QPixmap(20,20)
 		self.operatorIconPixmap.load(':/radiolog_ui/icons/user_icon_80px.png')
 
 	def headerData(self,section,orientation,role=Qt.DisplayRole):
