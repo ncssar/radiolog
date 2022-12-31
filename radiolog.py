@@ -2057,7 +2057,9 @@ class MyWindow(QDialog,Ui_Dialog):
 					rprint('FLEETSYNC ERROR: data appears garbled; no complete CID packets were found in the incoming data.  Skipping this message.')
 					return
 				packet=packetSet.pop()
+				count=line.count(packet)
 				# rprint('packet:'+str(packet))
+				# rprint('packet count on this line:'+str(count))
 				
 				# 2. within a well-defined packed, the 7-digit fid (fleet&ID) should begin at index 0 (first character)
 				fid=packet[0:7] # returns indices 0 thru 6 = 7 digits
@@ -2070,6 +2072,12 @@ class MyWindow(QDialog,Ui_Dialog):
 				fleet=fid[0:3]
 				dev=fid[3:7]
 				callsign=self.getCallsign(fleet,dev)
+
+				# passive mic bump filter: if BOT and EOT packets are in the same line, return without opening a new dialog
+				if count>1:
+					rprint(' Mic bump filtered from '+callsign)
+					return
+					
 				rprint("CID detected (not in $PKLSH): fleet="+fleet+"  dev="+dev+"  callsign="+callsign)
 		# if any new entry dialogs are already open with 'from' and the
 		#  current callsign, and that entry has been edited within the 'continue' time,
