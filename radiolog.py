@@ -1604,6 +1604,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		if state=="on":
 			self.ui.incidentNameLabel.setText("Incoming FS call filtered/ignored:\n"+callsign+"   ("+str(fleet)+":"+str(dev)+")")
 			self.ui.incidentNameLabel.setStyleSheet("background-color:#ff5050;color:white;font-size:"+str(self.limitedFontSize/2)+"pt")
+		elif state=="bump":
+			self.ui.incidentNameLabel.setText("Mic bump filtered:\n"+callsign+"   ("+str(fleet)+":"+str(dev)+")")
+			self.ui.incidentNameLabel.setStyleSheet("background-color:#5050ff;color:white;font-size:"+str(self.limitedFontSize/2)+"pt")
 		else:
 			self.ui.incidentNameLabel.setText(self.incidentName)
 			self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black;font-size:"+str(self.limitedFontSize)+"pt")
@@ -2078,6 +2081,9 @@ class MyWindow(QDialog,Ui_Dialog):
 				# passive mic bump filter: if BOT and EOT packets are in the same line, return without opening a new dialog
 				if count>1:
 					rprint(' Mic bump filtered from '+callsign)
+					self.fsFilteredCallDisplay() # blank for a tenth of a second in case of repeated bumps
+					QTimer.singleShot(200,lambda:self.fsFilteredCallDisplay('bump',fleet,dev,callsign))
+					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 					self.fsLogUpdate(int(fleet),int(dev),bump=True)
 					self.sendPendingGet() # while getString will be non-empty if this bump had GPS, it may still have the default callsign
 					return
