@@ -1006,6 +1006,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsFilterDialog=fsFilterDialog(self)
 		self.fsFilterDialog.ui.tableView.setColumnWidth(0,50)
 		self.fsFilterDialog.ui.tableView.setColumnWidth(1,75)
+		self.fsFilterDialog.ui.tableView.setColumnWidth(6,60)
 		self.fsBuildTooltip()
 		self.fsLatestComPort=None
 		self.fsShowChannelWarning=True
@@ -2077,6 +2078,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				# passive mic bump filter: if BOT and EOT packets are in the same line, return without opening a new dialog
 				if count>1:
 					rprint(' Mic bump filtered from '+callsign)
+					self.fsLogUpdate(int(fleet),int(dev),bump=True)
+					self.sendPendingGet() # while getString will be non-empty if this bump had GPS, it may still have the default callsign
 					return
 					
 				rprint("CID detected (not in $PKLSH): fleet="+fleet+"  dev="+dev+"  callsign="+callsign)
@@ -2166,7 +2169,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	# if callsign is specified, update the callsign but not the time;
 	#  if callsign is not specified, udpate the time but not the callsign;
 	#  if the entry does not yet exist, add it
-	def fsLogUpdate(self,fleet,dev,callsign=False):
+	def fsLogUpdate(self,fleet,dev,callsign=False,bump=False):
 		# row structure: [fleet,dev,callsign,filtered,last_received,com port]
 		# don't process the dummy default entry
 		if callsign=='Default':
@@ -2191,9 +2194,11 @@ class MyWindow(QDialog,Ui_Dialog):
 				else:
 					row[4]=t
 				row[5]=com
+				if bump:
+					row[6]+=1
 		if not found:
 			# always update callsign - it may have changed since creation
-			self.fsLog.append([fleet,dev,self.getCallsign(fleet,dev),False,t,com])
+			self.fsLog.append([fleet,dev,self.getCallsign(fleet,dev),False,t,com,int(bump)])
 # 		rprint(self.fsLog)
 # 		if self.fsFilterDialog.ui.tableView:
 		self.fsFilterDialog.ui.tableView.model().layoutChanged.emit()
@@ -7256,6 +7261,7 @@ class fsFilterDialog(QDialog,Ui_fsFilterDialog):
 		self.ui.tableView.setModel(self.tableModel)
 		self.ui.tableView.setSelectionMode(QAbstractItemView.NoSelection)
 		self.ui.tableView.clicked.connect(self.tableClicked)
+		self.ui.tableView.hideColumn(5) # hide com port
 		self.ui.tableView.horizontalHeader().setSectionResizeMode(2,QHeaderView.Stretch)
 		self.setFixedSize(self.size())
 		self.ui.tableView.setStyleSheet("font-size:12pt")
@@ -8008,7 +8014,7 @@ class CustomTableView(QTableView):
 
 
 class fsTableModel(QAbstractTableModel):
-	header_labels=['Fleet','Device','Callsign','Filtered?','Last Received']
+	header_labels=['Fleet','Device','Callsign','Filtered?','Last Received','','Bumps']
 	def __init__(self, datain, parent=None, *args):
 		QAbstractTableModel.__init__(self, parent, *args)
 		self.arraydata=datain
