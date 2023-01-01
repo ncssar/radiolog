@@ -1917,6 +1917,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						return
 			if '$PKLSH' in line:
 				lineParse=line.split(',')
+				# if CID packet(s) came before $PKLSH on the same line, that's OK since they don't have any commas
 				if len(lineParse)==10:
 					[pklsh,nval,nstr,wval,wstr,utc,valid,fleet,dev,chksum]=lineParse
 					callsign=self.getCallsign(fleet,dev)
@@ -2033,7 +2034,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					rprint("Parsed line contained "+str(len(lineParse))+" tokens instead of the expected 10; skipping.")
 					origLocString='BAD DATA'
 					formattedLocString='BAD DATA'
-			elif '\x02I' in line:
+			if '\x02I' in line: # 'if' rather than 'elif' means that self.getString is available to send to sartopo
 				# caller ID lines look like " I110040021004002" (first character is \x02, may show as a space)
 				# " I<n>" is a prefix, n is either 1 (BOT) or 0 (EOT)
 				# the next three characters (100 above) are the fleet#
