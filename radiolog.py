@@ -1223,8 +1223,9 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		csvFiles+=glob.glob(oldWD+'/*.csv')
 
-		# remove _fleetsync and _clueLog files
-		csvFiles=[f for f in csvFiles if '_clueLog' not in f and '_fleetsync' not in f and '_bak' not in f and self.isRadioLogDataFile(f)]
+		csvFiles=[f for f in csvFiles if '_clueLog' not in f and '_fleetsync' not in f and '_bak' not in f] # only show 'base' radiolog csv files
+		csvFiles=[self.isRadioLogDataFile(f) for f in csvFiles] # isRadioLogDataFile returns the first valid filename in the search path, or False if none are valid
+		csvFiles=[f for f in csvFiles if f] # get rid of 'False' return values from isRadioLogDataFile
 
 		#552 remove current session from the list
 		if omitCurrentSession:
@@ -1236,7 +1237,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		elif sort=='alphabetical':
 			sortedCsvFiles=sorted(csvFiles,reverse=reverse)
 		else:
-			soretdCsvFiles=csvFiles
+			sortedCsvFiles=csvFiles
 		rval=[]
 		now=time.time()
 		for f in sortedCsvFiles:
@@ -1255,6 +1256,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			if ageStr:
 				ageStr+=' ago'
 			filenameBase=f[:-4] # do this rather than splitext, to preserve entire path name
+			if '_bak' in f:
+				filenameBase=f[:-9]
 			incidentName=None
 			lastOP='1' # if no entries indicate change in OP#, then initial OP is 1 by default
 			lastClue='--'
@@ -1331,10 +1334,19 @@ class MyWindow(QDialog,Ui_Dialog):
 	
 	def isRadioLogDataFile(self,filename):
 		# rprint('checking '+filename)
-		if filename.endswith('.csv') and os.path.isfile(filename):
-			with open(filename,'r') as f:
-				if '## Radio Log data file' in f.readline():
-					return True
+		# since this check is used to build the list of previous sessions, return True
+		#  if there is a valid _bak csv, even if the primary is corrupted
+		filenameList=[filename]
+		for n in range(1,6):
+			filenameList.append(filename.replace('.csv','_bak'+str(n)+'.csv'))
+		for filename in filenameList:
+			if filename.endswith('.csv') and os.path.isfile(filename):
+				try: # in case the file is corrupted
+					with open(filename,'r') as f:
+						if '## Radio Log data file' in f.readline():
+							return filename # return whichever filename was valid
+				except:
+					pass
 		return False
 
 	def readConfigFile(self):
@@ -3718,7 +3730,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						csvWriter.writerow(["## end"])
 				rprint("  done writing "+fileName)
 
-	def load(self,fileName=None):
+	def load(self,fileName=None,bakAttempt=0):
 		# loading scheme:
 		# always merge instead of overwrite; always use the loaded Begins line since it will be earlier by definition
 		# maybe provide some way to force overwrite later, but, for now that can be done just by exiting and restarting
@@ -3771,7 +3783,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			rval=ld.exec_()
 
 		else: # entry point when session is selected from load dialog
-			rprint("Loading: "+fileName)
+			if bakAttempt:
+				fName=fileName.replace('.csv','_bak'+str(bakAttempt)+'.csv')
+				rprint('Loading backup: '+fName)
+			else:
+				fName=fileName
+				rprint("Loading: "+fileName)
 			progressBox=QProgressDialog("Loading, please wait...","Abort",0,100)
 			progressBox.setWindowModality(Qt.WindowModal)
 			progressBox.setWindowTitle("Loading")
@@ -3779,24 +3796,40 @@ class MyWindow(QDialog,Ui_Dialog):
 			QCoreApplication.processEvents()
 			self.teamTimer.start(10000) # pause
 			# pass 1: count total entries for the progress box, and read incident name
-			with open(fileName,'r') as csvFile:
-				csvReader=csv.reader(csvFile)
-				totalEntries=0
-				for row in csvReader:
-					if row[0].startswith("## Incident Name:"):
-						self.incidentName=row[0][18:]
-						self.optionsDialog.ui.incidentField.setText(self.incidentName)
-						rprint("loaded incident name: '"+self.incidentName+"'")
-						self.incidentNameNormalized=normName(self.incidentName)
-						rprint("normalized loaded incident name: '"+self.incidentNameNormalized+"'")
-						self.ui.incidentNameLabel.setText(self.incidentName)
-					if not row[0].startswith('#'): # prune comment lines
-						totalEntries=totalEntries+1
-			progressBox.setMaximum(totalEntries+2)
-			progressBox.setValue(1)
-
+			# rprint('pass1: '+fName)
+			try: # in case the file is corrupted, i.e. after a power outage
+				with open(fName,'r') as csvFile:
+					csvReader=csv.reader(csvFile)
+					totalEntries=0
+					for row in csvReader:
+						if row[0].startswith("## Incident Name:"):
+							self.incidentName=row[0][18:]
+							self.optionsDialog.ui.incidentField.setText(self.incidentName)
+							rprint("loaded incident name: '"+self.incidentName+"'")
+							self.incidentNameNormalized=normName(self.incidentName)
+							rprint("normalized loaded incident name: '"+self.incidentNameNormalized+"'")
+							self.ui.incidentNameLabel.setText(self.incidentName)
+						if not row[0].startswith('#'): # prune comment lines
+							totalEntries=totalEntries+1
+				progressBox.setMaximum(totalEntries+2)
+				progressBox.setValue(1)
+			except Exception as e:
+				rprint('  CSV could not be read: '+str(e))
+				if bakAttempt<5 and os.path.isfile(fileName.replace('.csv','_bak'+str(bakAttempt+1)+'.csv')):
+					rprint('Trying to load the next most recent backup file...')
+					self.load(fileName=fileName,bakAttempt=bakAttempt+1)
+					progressBox.close()
+					return # to avoid running pass2 and subsequent code for the initial non-bak attempt
+				else:
+					progressBox.close()
+					msg='The original file was corrupted, and none of the availble backup files (if any) could be read.\n\nAborting the load operation.'
+					bakMsgBox=QMessageBox(QMessageBox.Critical,"Load failed",msg,
+								QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					bakMsgBox.exec_() # modal
+					return False # error
 			# pass 2: read and process the file
-			with open(fileName,'r') as csvFile:
+			# rprint('pass2: '+fName)
+			with open(fName,'r') as csvFile:
 				csvReader=csv.reader(csvFile)
 				loadedRadioLog=[]
 				i=0
@@ -3893,6 +3926,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			rprint('  t13')
 			self.saveRcFile()
 			rprint('  t14')
+			if bakAttempt>0:
+				msg='RadioLog data file(s) were corrupted.\n\nBackup '+str(bakAttempt)+' was automatically loaded from '+fName+'.\n\nUp to '+str(bakAttempt*5)+' of the most recent entries are lost.'
+				bakMsgBox=QMessageBox(QMessageBox.Warning,"Backup file used",msg,
+								QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				bakMsgBox.exec_() # modal
+			return True # success
 
 	def updateFileNames(self):
 		# update the filenames based on current incident name and current date/time
