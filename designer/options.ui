@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>616</width>
+    <width>653</width>
     <height>378</height>
    </rect>
   </property>
@@ -237,6 +237,18 @@
    </item>
    <item row="9" column="0">
     <widget class="QPushButton" name="fsSendButton">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="font">
+      <font>
+       <family>Segoe UI</family>
+       <pointsize>16</pointsize>
+      </font>
+     </property>
      <property name="text">
       <string>FleetSync Send Console</string>
      </property>
