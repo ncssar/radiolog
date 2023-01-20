@@ -1604,11 +1604,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		
 	def fsFilteredCallDisplay(self,state="off",fleet=0,dev=0,callsign=''):
 		if state=="on":
-			self.ui.incidentNameLabel.setText("Incoming FS call filtered/ignored:\n"+callsign+"   ("+str(fleet)+":"+str(dev)+")")
-			self.ui.incidentNameLabel.setStyleSheet("background-color:#ff5050;color:white;font-size:"+str(self.limitedFontSize/2)+"pt")
+			self.ui.incidentNameLabel.setText("Incoming FS filtered:\n"+callsign+"   ("+str(fleet)+":"+str(dev)+")")
+			self.ui.incidentNameLabel.setStyleSheet("background-color:#ff5050;color:white;font-size:"+str(int(self.limitedFontSize*3/4))+"pt")
 		elif state=="bump":
 			self.ui.incidentNameLabel.setText("Mic bump filtered:\n"+callsign+"   ("+str(fleet)+":"+str(dev)+")")
-			self.ui.incidentNameLabel.setStyleSheet("background-color:#5050ff;color:white;font-size:"+str(self.limitedFontSize/2)+"pt")
+			self.ui.incidentNameLabel.setStyleSheet("background-color:#5050ff;color:white;font-size:"+str(int(self.limitedFontSize*3/4))+"pt")
 		else:
 			self.ui.incidentNameLabel.setText(self.incidentName)
 			self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black;font-size:"+str(self.limitedFontSize)+"pt")

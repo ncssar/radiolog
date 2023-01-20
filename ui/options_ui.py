@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'options.ui'
+# Form implementation generated from reading ui file 'C:\Users\caver\Documents\GitHub\radiolog\designer\options.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.6
 #
@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_optionsDialog(object):
     def setupUi(self, optionsDialog):
         optionsDialog.setObjectName("optionsDialog")
-        optionsDialog.resize(616, 378)
+        optionsDialog.resize(653, 378)
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(16)
@@ -119,6 +119,15 @@ class Ui_optionsDialog(object):
         self.incidentField.setObjectName("incidentField")
         self.gridLayout.addWidget(self.incidentField, 0, 1, 1, 1)
         self.fsSendButton = QtWidgets.QPushButton(optionsDialog)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.fsSendButton.sizePolicy().hasHeightForWidth())
+        self.fsSendButton.setSizePolicy(sizePolicy)
+        font = QtGui.QFont()
+        font.setFamily("Segoe UI")
+        font.setPointSize(16)
+        self.fsSendButton.setFont(font)
         self.fsSendButton.setObjectName("fsSendButton")
         self.gridLayout.addWidget(self.fsSendButton, 9, 0, 1, 1)
 
