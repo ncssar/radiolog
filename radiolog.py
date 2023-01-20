@@ -1145,6 +1145,8 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		self.fsLoadLookup(startupFlag=True)
 
+		self.fsSaveLookup()
+
 		self.teamTimer=QTimer(self)
 		self.teamTimer.timeout.connect(self.updateTeamTimers)
 		self.teamTimer.timeout.connect(self.fsCheck)
@@ -2189,7 +2191,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		com='<None>'
 		if self.fsLatestComPort:
 			com=str(self.fsLatestComPort.name)
-		rprint("fsLogUpdate called: fleet="+str(fleet)+" dev="+str(dev)+" callsign="+(callsign or "<None>")+"  COM port="+com)
+		if com!='<None>': # suppress printing on initial log population during fsLoadLookup
+			rprint("updating fsLog: fleet="+str(fleet)+" dev="+str(dev)+" callsign="+(callsign or "<None>")+"  COM port="+com)
 		found=False
 		t=time.strftime("%a %H:%M:%S")
 		for row in self.fsLog:
@@ -2284,17 +2287,93 @@ class MyWindow(QDialog,Ui_Dialog):
 			# rprint('t1: fsDir='+fsDir+'  fsFileName='+fsFileName)
 			fsFullPath=os.path.join(fsDir,fsFileName)
 		try:
-			rprint("  trying "+fsFullPath)
+			# rprint("  trying "+fsFullPath)
 			with open(fsFullPath,'r') as fsFile:
 				rprint("Loading FleetSync Lookup Table from file "+fsFullPath)
 				self.fsLookup=[]
 				csvReader=csv.reader(fsFile)
+				usedCallsignList=[] # keep track of used callsigns to check for duplicates afterwards
+				usedFleetDevPairList=[] # keep track of used fleet-dev pairs to check for duplicates afterwards
+				duplicateCallsignsAllowed=False
 				for row in csvReader:
-					if row and not row[0].startswith("#"): # allow blank lines and comment lines
-						self.fsLookup.append(row)
-						self.fsLogUpdate(row[0],row[1],row[2])
+					# rprint('row:'+str(row))
+					if row:
+						if row[0].startswith('#'):
+							if 'duplicateCallsignsAllowed' in row[0]:
+								duplicateCallsignsAllowed=True
+							continue
+						[fleet,idOrRange,callsign]=row
+						if '-' in idOrRange: # range syntax
+							callsignExprRe=re.match(r'.*\[(.*)\]',callsign)
+							if not callsignExprRe:
+								msg='ERROR: range syntax callsign "'+callsign+'" does not include a valid expression inside brackets, such as "[id-1000]".  Skipping.'
+								rprint(msg)
+								self.fsMsgBox=QMessageBox(QMessageBox.Warning,"FleetSync Table Warning",'Error in FleetSync lookup file\n\n'+fsFullPath+'\n\n'+msg,
+														QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+								self.fsMsgBox.show()
+								self.fsMsgBox.raise_()
+								self.fsMsgBox.exec_() # modal
+								continue
+							callsignExpr=callsignExprRe.group(1)
+							callsign=callsign.replace(callsignExpr,'') # turn the expression into a placeholder '[]'
+							firstLast=[str(n) for n in row[1].split('-')]
+							if firstLast[1]<=firstLast[0]:
+								msg='ERROR: range syntax ending value is less than or equal to starting value: "'+row[1]+'".  Skipping.'
+								rprint(msg)
+								self.fsMsgBox=QMessageBox(QMessageBox.Warning,"FleetSync Table Warning",'Error in FleetSync lookup file\n\n'+fsFullPath+'\n\n'+msg,
+														QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+								self.fsMsgBox.show()
+								self.fsMsgBox.raise_()
+								self.fsMsgBox.exec_() # modal
+								continue
+							for id in range(int(firstLast[0]),int(firstLast[1])+1):
+								r=eval(callsignExpr)
+								cs=callsign.replace('[]',str(r))
+								row=[fleet,id,cs]
+								# rprint(' adding evaluated row: '+str(row))
+								self.fsLookup.append(row)
+								# self.fsLogUpdate(row[0],row[1],row[2])
+								usedCallsignList.append(cs)
+								usedFleetDevPairList.append(str(row[0])+':'+str(row[1]))
+						else:
+							# rprint(' adding row: '+str(row))
+							self.fsLookup.append(row)
+							# self.fsLogUpdate(row[0],row[1],row[2])
+							usedCallsignList.append(row[2])
+							usedFleetDevPairList.append(str(row[0])+':'+str(row[1]))
+				# rprint('reading done')
+				if not duplicateCallsignsAllowed and len(set(usedCallsignList))!=len(usedCallsignList):
+					seen=set()
+					duplicatedCallsigns=[x for x in usedCallsignList if x in seen or seen.add(x)]
+					n=len(duplicatedCallsigns)
+					if n>3:
+						duplicatedCallsigns=duplicatedCallsigns[0:3]+['(and '+str(n-3)+' more)']
+					msg='Callsigns were repeated in the FleetSync lookup file\n\n'+fsFullPath+'\n\nThis is allowed, but, it is probably a mistake.  Please check the file.  If you want to avoid this message in the future, please add the fillowing line to the file:\n\n# duplicateCallsignsAllowed\n\n'
+					msg+='Repeated callsigns:\n\n'+str(duplicatedCallsigns).replace('[','').replace(']','').replace("'","").replace(', (',' (')
+					rprint('FleetSync Table Warning:'+msg)
+					self.fsMsgBox=QMessageBox(QMessageBox.Warning,"FleetSync Table Warning",msg,
+											QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					self.fsMsgBox.show()
+					self.fsMsgBox.raise_()
+					self.fsMsgBox.exec_() # modal
+				if len(set(usedFleetDevPairList))!=len(usedFleetDevPairList):
+					seen=set()
+					duplicatedFleetDevPairs=[x for x in usedFleetDevPairList if x in seen or seen.add(x)]
+					n=len(duplicatedFleetDevPairs)
+					if n>3:
+						duplicatedFleetDevPairs=duplicatedFleetDevPairs[0:3]+['(and '+str(n-3)+' more)']
+					msg='Fleet-and-device pairs are repeated in the FleetSync lookup file\n\n'+fsFullPath+'\n\nFor this session, the last definition will be used, overwriting definitions that appear earlier in the file.  Please correct the file soon.\n\n'
+					msg+='Repeated pairs:\n\n'+str(duplicatedFleetDevPairs).replace('[','').replace(']','').replace("'","").replace(', (',' (')
+					rprint('FleetSync Table Warning:'+msg)
+					self.fsMsgBox=QMessageBox(QMessageBox.Warning,"FleetSync Table Warning",msg,
+											QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					self.fsMsgBox.show()
+					self.fsMsgBox.raise_()
+					self.fsMsgBox.exec_() # modal
 				if not startupFlag: # suppress message box on startup
-					self.fsMsgBox=QMessageBox(QMessageBox.Information,"Information","FleetSync ID table has been re-loaded from file "+fsFullPath+".",
+					msg='FleetSync ID table has been re-loaded from file '+fsFullPath+'.'
+					rprint(msg)
+					self.fsMsgBox=QMessageBox(QMessageBox.Information,"Information",msg,
 											QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 					self.fsMsgBox.show()
 					QCoreApplication.processEvents()
@@ -2302,10 +2381,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		except:
 			if not hideWarnings:
 				if fsEmptyFlag:
-					warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot read FleetSync ID table file '"+fsFullPath+"' and no FleetSync ID table has yet been loaded.  Callsigns for incoming FleetSync calls will be of the format 'KW-<fleet>-<device>'.\n\nThis warning will automatically close in a few seconds.",
+					msg='Cannot read FleetSync ID table file "'+fsFullPath+'" and no FleetSync ID table has yet been loaded.  Callsigns for incoming FleetSync calls will be of the format "KW-<fleet>-<device>".'
+					rprint(msg)
+					warn=QMessageBox(QMessageBox.Warning,"Warning",msg+"\n\nThis warning will automatically close in a few seconds.",
 									QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 				else:
-					warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot read FleetSync ID table file '"+fsFullPath+"'!  Using existing settings.\n\nThis warning will automatically close in a few seconds.",
+					msg='Cannot read FleetSync ID table file "'+fsFullPath+'"!  Using existing settings.'
+					rprint(msg)
+					warn=QMessageBox(QMessageBox.Warning,"Warning",msg+"\n\nThis warning will automatically close in a few seconds.",
 									QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 				warn.show()
 				warn.raise_()
@@ -5175,7 +5258,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint('Restoring previous session after unclean shutdown:')
 		self.load(fileToLoad) # loads the radio log and the clue log
 		# hide warnings about missing fleetsync file, since it does not get saved until clean shutdown time
-		self.fsLoadLookup(fsFileName=fileToLoad.replace('.csv','_fleetsync.csv'),hideWarnings=True)
+		# note, there is no need to load the default table first, since the defaults would exist
+		#  in the session fleetsync csv file
+		fsFileName=fileToLoad.replace('.csv','_fleetsync.csv')
+		if not os.path.isfile(fsFileName): # this could be the case if the incident name was not changed before crash
+			fsFileName=os.path.join(os.path.split(fsFileName)[0],'radiolog_fleetsync.csv')
+		self.fsLoadLookup(fsFileName=fsFileName,hideWarnings=True)
 		self.updateFileNames()
 		self.fsSaveLookup()
 		self.save()
