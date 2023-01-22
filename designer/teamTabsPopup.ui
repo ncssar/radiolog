@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>teamTabsPopup</class>
+ <widget class="QWidget" name="teamTabsPopup">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>525</width>
+    <height>805</height>
+   </rect>
+  </property>
+  <property name="font">
+   <font>
+    <family>Segoe UI</family>
+    <pointsize>11</pointsize>
+   </font>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0">
+   <item>
+    <widget class="QTableWidget" name="teamTabsTableWidget">
+     <attribute name="horizontalHeaderVisible">
+      <bool>false</bool>
+     </attribute>
+     <attribute name="verticalHeaderVisible">
+      <bool>false</bool>
+     </attribute>
+    </widget>
+   </item>
+   <item>
+    <widget class="QTableWidget" name="teamTabsSummaryTableWidget">
+     <property name="selectionMode">
+      <enum>QAbstractItemView::NoSelection</enum>
+     </property>
+     <row>
+      <property name="text">
+       <string>Teams</string>
+      </property>
+     </row>
+     <row>
+      <property name="text">
+       <string>Total</string>
+      </property>
+      <property name="font">
+       <font>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+     </row>
+     <column>
+      <property name="text">
+       <string>At IC</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>In Transit</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Working</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Waiting for Transport</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>STANDBY</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Available</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Off Duty</string>
+      </property>
+     </column>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Hidden tabs:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="comboBox"/>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pushButton">
+       <property name="text">
+        <string>Unhide</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

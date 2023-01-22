@@ -627,6 +627,7 @@ from ui.subjectLocatedDialog_ui import Ui_subjectLocatedDialog
 from ui.continuedIncidentDialog_ui import Ui_continuedIncidentDialog
 from ui.loadDialog_ui import Ui_loadDialog
 from ui.loginDialog_ui import Ui_loginDialog
+from ui.teamTabsPopup_ui import Ui_teamTabsPopup
 
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
@@ -787,6 +788,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.hotkeyPool=["1","2","3","4","5","6","7","8","9","0","q","w","e","r","t","y","u","i","o","p","a","s","d","f","g","h","j","k","l","z","x","c","v","b","n","m"]
 		self.homeDir=os.path.expanduser("~")
 		
+		self.teamTabsPopup=teamTabsPopup(self)
 		self.ui.teamTabsMoreButton=QtWidgets.QPushButton(self.ui.frame)
 		self.ui.teamTabsMoreButton.setVisible(False)
 		self.ui.teamTabsMoreButton.setGeometry(1,6,14,26)
@@ -1199,6 +1201,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			QTimer.singleShot(1000,self.startupOptions)
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
+		self.showTeamTabsMoreButtonIfNeeded()
 
 	def clearSelectionAllTables(self):
 		self.ui.tableView.setCurrentIndex(QModelIndex())
@@ -5192,7 +5195,8 @@ class MyWindow(QDialog,Ui_Dialog):
 	def showTeamTabsMoreButtonIfNeeded(self):
 		#595: setStyleSheet causes a second or two of lag when there are ~300 entries;
 		#  instead, just toggle visibility of the leftmost spacer tab
-		if self.hiddenTeamTabsList:
+		# if self.hiddenTeamTabsList:
+		if True:
 			# self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:14px;}')
 			if not self.ui.teamTabsMoreButton.isVisible() or not self.ui.tabWidget.tabBar().isTabVisible(0):
 				self.ui.tabWidget.tabBar().setTabVisible(0,True)
@@ -5206,60 +5210,73 @@ class MyWindow(QDialog,Ui_Dialog):
 	# need to run this slot on pressed, instead of clicked which causes redisplay with every click
 	#  due to interaction with return value from QMenu
 	def teamTabsMoreButtonPressed(self):
-		if self.teamTabsMoreMenu:
-			del(self.teamTabsMoreMenu)
-			self.teamTabsMoreMenu=None
-		else:
-			# disconnect the slot until after the action has been processed,
-			#  to allow toggling the menu by clicking the button again
-			self.ui.teamTabsMoreButton.pressed.disconnect(self.teamTabsMoreButtonPressed)
-			self.teamTabsMoreMenu=QMenu('Hidden team tabs')
-			self.teamTabsMoreMenu.setFont(self.menuFont)
-			# self.teamTabsMoreMenu.addAction('Hidden team tabs').setObjectName('action1')
-			self.teamTabsMoreMenu.addAction('Hidden team tabs').setEnabled(False)
-			self.teamTabsMoreMenu.addAction('Select a team to unhide:').setEnabled(False)
-			self.teamTabsMoreMenu.addSeparator()
-			for extTeamName in self.hiddenTeamTabsList:
-				self.teamTabsMoreMenu.addAction(getNiceTeamName(extTeamName))
-			self.teamTabsMoreMenu.setStyleSheet('QMenu::item:disabled{background-color:rgb(220,220,220);color:black;font-weight:bold}')
-			action=self.teamTabsMoreMenu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(QPoint(0,0)))
-			# clicking outside the menu will close it and will return None; capture this in order to toggle visibility
-			#  clicking the menu button while the menu is open will also return None, but the clicked signal will fire too!
-			if action is not None:
-				# self.hiddenTeamTabsList.remove(str(action.text()))
-				# self.rebuildTabs()
-				t=action.text()
-				extTeamName=getExtTeamName(t)
-				# Adding a new entry takes care of a lot of tasks; reproducing them without adding a
-				#  new entry is cryptic and therefore error-prone.  Safer to just add a new entry.
-				# values format for adding a new entry:
-				#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
-				values=["" for n in range(10)]
-				values[0]=time.strftime("%H%M")
-				values[6]=time.time()
-				values[2]=t
-				values[3]='[RADIOLOG: operator is unhiding hidden team tab for "'+t+'"]'
-				if (extTeamName in teamStatusDict) and (teamStatusDict[extTeamName]!=''):
-					values[5]=teamStatusDict[extTeamName]
-				self.newEntry(values)
-				# rprint('  t1: teamNameList='+str(self.teamNameList))
-				# rprint('      extTeamNameList='+str(self.extTeamNameList))
-				# if t not in self.extTeamNameList:
-				# 	self.extTeamNameList.append(t)
-				# if getNiceTeamName(t) not in self.teamNameList:
-				# 	self.teamNameList.append(getNiceTeamName(t))
-				# rprint('  t2: teamNameList='+str(self.teamNameList))
-				# rprint('      extTeamNameList='+str(self.extTeamNameList))
-				# self.rebuildGroupedTabDict()
-				# rprint('  t2: teamNameList='+str(self.teamNameList))
-				# rprint('      extTeamNameList='+str(self.extTeamNameList))
-				# self.addTab(t)
-			# process events then reconnect the slot after the menu has been closed
-			self.teamTabsMoreMenu.close()
-			del(self.teamTabsMoreMenu)
-			self.teamTabsMoreMenu=None
-			QApplication.processEvents()
-			self.ui.teamTabsMoreButton.pressed.connect(self.teamTabsMoreButtonPressed)
+		# self.teamTabsPopup.ui.teamTabsTableWidget.clear()
+		# self.teamTabsPopup.ui.teamTabsTableWidget.addItems(self.teamNameList)
+		row=0
+		col=0
+		self.teamTabsPopup.ui.teamTabsTableWidget.setRowCount(len(self.teamNameList))
+		self.teamTabsPopup.ui.teamTabsTableWidget.setColumnCount(1)
+		for teamName in self.teamNameList:
+			rprint('row '+str(row)+' : '+teamName)
+			self.teamTabsPopup.ui.teamTabsTableWidget.setItem(row,col,QTableWidgetItem(teamName))
+			row+=1
+		# QApplication.processEvents()
+		self.teamTabsPopup.show()
+		self.teamTabsPopup.raise_()
+		# if self.teamTabsMoreMenu:
+		# 	del(self.teamTabsMoreMenu)
+		# 	self.teamTabsMoreMenu=None
+		# else:
+		# 	# disconnect the slot until after the action has been processed,
+		# 	#  to allow toggling the menu by clicking the button again
+		# 	self.ui.teamTabsMoreButton.pressed.disconnect(self.teamTabsMoreButtonPressed)
+		# 	self.teamTabsMoreMenu=QMenu('Hidden team tabs')
+		# 	self.teamTabsMoreMenu.setFont(self.menuFont)
+		# 	# self.teamTabsMoreMenu.addAction('Hidden team tabs').setObjectName('action1')
+		# 	self.teamTabsMoreMenu.addAction('Hidden team tabs').setEnabled(False)
+		# 	self.teamTabsMoreMenu.addAction('Select a team to unhide:').setEnabled(False)
+		# 	self.teamTabsMoreMenu.addSeparator()
+		# 	for extTeamName in self.hiddenTeamTabsList:
+		# 		self.teamTabsMoreMenu.addAction(getNiceTeamName(extTeamName))
+		# 	self.teamTabsMoreMenu.setStyleSheet('QMenu::item:disabled{background-color:rgb(220,220,220);color:black;font-weight:bold}')
+		# 	action=self.teamTabsMoreMenu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(QPoint(0,0)))
+		# 	# clicking outside the menu will close it and will return None; capture this in order to toggle visibility
+		# 	#  clicking the menu button while the menu is open will also return None, but the clicked signal will fire too!
+		# 	if action is not None:
+		# 		# self.hiddenTeamTabsList.remove(str(action.text()))
+		# 		# self.rebuildTabs()
+		# 		t=action.text()
+		# 		extTeamName=getExtTeamName(t)
+		# 		# Adding a new entry takes care of a lot of tasks; reproducing them without adding a
+		# 		#  new entry is cryptic and therefore error-prone.  Safer to just add a new entry.
+		# 		# values format for adding a new entry:
+		# 		#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+		# 		values=["" for n in range(10)]
+		# 		values[0]=time.strftime("%H%M")
+		# 		values[6]=time.time()
+		# 		values[2]=t
+		# 		values[3]='[RADIOLOG: operator is unhiding hidden team tab for "'+t+'"]'
+		# 		if (extTeamName in teamStatusDict) and (teamStatusDict[extTeamName]!=''):
+		# 			values[5]=teamStatusDict[extTeamName]
+		# 		self.newEntry(values)
+		# 		# rprint('  t1: teamNameList='+str(self.teamNameList))
+		# 		# rprint('      extTeamNameList='+str(self.extTeamNameList))
+		# 		# if t not in self.extTeamNameList:
+		# 		# 	self.extTeamNameList.append(t)
+		# 		# if getNiceTeamName(t) not in self.teamNameList:
+		# 		# 	self.teamNameList.append(getNiceTeamName(t))
+		# 		# rprint('  t2: teamNameList='+str(self.teamNameList))
+		# 		# rprint('      extTeamNameList='+str(self.extTeamNameList))
+		# 		# self.rebuildGroupedTabDict()
+		# 		# rprint('  t2: teamNameList='+str(self.teamNameList))
+		# 		# rprint('      extTeamNameList='+str(self.extTeamNameList))
+		# 		# self.addTab(t)
+		# 	# process events then reconnect the slot after the menu has been closed
+		# 	self.teamTabsMoreMenu.close()
+		# 	del(self.teamTabsMoreMenu)
+		# 	self.teamTabsMoreMenu=None
+		# 	QApplication.processEvents()
+		# 	self.ui.teamTabsMoreButton.pressed.connect(self.teamTabsMoreButtonPressed)
 
 	def addNonRadioClue(self):
 		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
@@ -5324,6 +5341,13 @@ class helpWindow(QDialog,Ui_Help):
 		else:
 			self.show()
 			self.raise_()
+
+class teamTabsPopup(QWidget,Ui_teamTabsPopup):
+	def __init__(self,parent):
+		QWidget.__init__(self)
+		self.parent=parent
+		self.ui=Ui_teamTabsPopup()
+		self.ui.setupUi(self)
 
 class optionsDialog(QDialog,Ui_optionsDialog):
 	def __init__(self,parent):
@@ -7417,6 +7441,7 @@ class fsFilterDialog(QDialog,Ui_fsFilterDialog):
 			self.raise_()
 
 
+# class teamTabsListModel(QListModel)
 class fsSendDialog(QDialog,Ui_fsSendDialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
@@ -8196,7 +8221,9 @@ class fsTableModel(QAbstractTableModel):
 				if rval==False:
 					rval="Unfiltered"
 			return rval
-		
+
+
+# class teamTabsListModel(QAbstractListModel):
 
 class CustomSortFilterProxyModel(QSortFilterProxyModel):
 	def __init__(self,parent=None):
