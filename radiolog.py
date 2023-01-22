@@ -3811,7 +3811,7 @@ class MyWindow(QDialog,Ui_Dialog):
 							self.ui.incidentNameLabel.setText(self.incidentName)
 						if not row[0].startswith('#'): # prune comment lines
 							totalEntries=totalEntries+1
-				progressBox.setMaximum(totalEntries+2)
+				progressBox.setMaximum(totalEntries+14)
 				progressBox.setValue(1)
 			except Exception as e:
 				rprint('  CSV could not be read: '+str(e))
@@ -3860,12 +3860,23 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.loadFlag=True
 			i=2
 			for row in loadedRadioLog:
+				QCoreApplication.processEvents() # required to check for progress box cancel
+				if progressBox.wasCanceled():
+					progressBox.close()
+					msg='Load aborted.\n\nThe radiolog may be in an indeterminate state.\n\nYou should probably exit and restart RadioLog.'
+					rprint(msg.replace('\n',' '))
+					box=QMessageBox(QMessageBox.Critical,"Load failed",msg,
+								QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					box.exec_() # modal
+					return
 				self.newEntry(row)
 				i=i+1
 				progressBox.setValue(i)
 			self.loadFlag=False
 			rprint('  t2')
 			self.radioLog.sort(key=lambda entry: entry[6]) # sort by epoch seconds
+			i=i+1
+			progressBox.setValue(i)
 ##		self.radioLog[1:]=[x for x in self.radioLog[1:] if not x[3].startswith('Radio Log Begins:')]
 
 		# take care of the newEntry cleanup functions that have been put off due to loadFlag
@@ -3877,8 +3888,12 @@ class MyWindow(QDialog,Ui_Dialog):
 #  them here for now.
 			rprint('  t3')
 			self.ui.tableView.model().layoutChanged.emit()
+			i=i+1
+			progressBox.setValue(i)
 			rprint('  t4')
 			self.ui.tableView.scrollToBottom()
+			i=i+1
+			progressBox.setValue(i)
 			rprint('  t5')
 	##		self.ui.tableView.resizeRowsToContents()
 	##		for i in range(self.ui.tabWidget.count()):
@@ -3904,33 +3919,52 @@ class MyWindow(QDialog,Ui_Dialog):
 								lastClueNumber=int(row[1].split('(Last clue number: ')[1].replace(')',''))
 					csvFile.close()
 
+			i=i+1
+			progressBox.setValue(i)
 			rprint('  t6')
 			self.clueLogDialog.ui.tableView.model().layoutChanged.emit()
+			i=i+1
+			progressBox.setValue(i)
 			rprint('  t7')
 			# finished
 			# rprint("Starting redrawTables")
 			self.fontsChanged()
+			i=i+1
+			progressBox.setValue(i)
 			rprint('  t8')
 	##		self.ui.tableView.model().layoutChanged.emit()
 	##		QCoreApplication.processEvents()
 			# rprint("Returned from redrawTables")
-			progressBox.close()
+			# progressBox.close()
+			i=i+1
+			progressBox.setValue(i)
 			rprint('  t9')
 			self.ui.opPeriodButton.setText("OP "+str(self.opPeriod))
+			i=i+1
+			progressBox.setValue(i)
 			rprint('  t10')
 			self.teamTimer.start(1000) #resume
+			i=i+1
+			progressBox.setValue(i)
 			rprint('  t11')
 			self.lastSavedFileName="NONE"
+			i=i+1
+			progressBox.setValue(i)
 			rprint('  t12')
 			self.updateFileNames() # note, no file will be saved until the next entry is made
+			i=i+1
+			progressBox.setValue(i)
 			rprint('  t13')
 			self.saveRcFile()
+			i=i+1
+			progressBox.setValue(i)
 			rprint('  t14')
 			if bakAttempt>0:
 				msg='RadioLog data file(s) were corrupted.\n\nBackup '+str(bakAttempt)+' was automatically loaded from '+fName+'.\n\nUp to '+str(bakAttempt*5)+' of the most recent entries are lost.'
 				bakMsgBox=QMessageBox(QMessageBox.Warning,"Backup file used",msg,
 								QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 				bakMsgBox.exec_() # modal
+			progressBox.close()
 			return True # success
 
 	def updateFileNames(self):
