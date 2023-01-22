@@ -91,17 +91,17 @@
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
-      <widget class="QLabel" name="label">
+      <widget class="QLabel" name="hiddenTabsLabel">
        <property name="text">
         <string>Hidden tabs:</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QComboBox" name="comboBox"/>
+      <widget class="QComboBox" name="hiddenTabsComboBox"/>
      </item>
      <item>
-      <widget class="QPushButton" name="pushButton">
+      <widget class="QPushButton" name="unhideButton">
        <property name="text">
         <string>Unhide</string>
        </property>

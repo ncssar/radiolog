@@ -788,6 +788,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.hotkeyPool=["1","2","3","4","5","6","7","8","9","0","q","w","e","r","t","y","u","i","o","p","a","s","d","f","g","h","j","k","l","z","x","c","v","b","n","m"]
 		self.homeDir=os.path.expanduser("~")
 		
+		self.hiddenTeamTabsList=[]
 		self.teamTabsPopup=teamTabsPopup(self)
 		self.ui.teamTabsMoreButton=QtWidgets.QPushButton(self.ui.frame)
 		self.ui.teamTabsMoreButton.setVisible(False)
@@ -799,7 +800,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.teamTabsMoreButton.setIconSize(QtCore.QSize(20, 20))
 		self.ui.teamTabsMoreButton.setStyleSheet('border:0px')
 		self.ui.teamTabsMoreButton.pressed.connect(self.teamTabsMoreButtonPressed) # see comments at the function
-		self.hiddenTeamTabsList=[]
 		self.teamTabsMoreMenu=None
 
 		self.menuFont=QFont()
@@ -4346,8 +4346,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		#595: avoid right-left-shift-flicker by setting first tab visibility
 		#  before adding other tabs; tab is visible by default
 		self.addTab(self.extTeamNameList[0])
-		if not self.hiddenTeamTabsList:
-			self.ui.tabWidget.tabBar().setTabVisible(0,False)
+		# if not self.hiddenTeamTabsList:
+		# 	self.ui.tabWidget.tabBar().setTabVisible(0,False)
 		for extTeamName in self.extTeamNameList[1:]:
 			self.addTab(extTeamName)
 # 		self.rebuildTeamHotkeys()
@@ -5210,16 +5210,28 @@ class MyWindow(QDialog,Ui_Dialog):
 	# need to run this slot on pressed, instead of clicked which causes redisplay with every click
 	#  due to interaction with return value from QMenu
 	def teamTabsMoreButtonPressed(self):
+		if self.teamTabsPopup.isVisible():
+			self.teamTabsPopup.hide()
+			return
 		# self.teamTabsPopup.ui.teamTabsTableWidget.clear()
 		# self.teamTabsPopup.ui.teamTabsTableWidget.addItems(self.teamNameList)
 		row=0
 		col=0
 		self.teamTabsPopup.ui.teamTabsTableWidget.setRowCount(len(self.teamNameList))
 		self.teamTabsPopup.ui.teamTabsTableWidget.setColumnCount(1)
-		for teamName in self.teamNameList:
-			rprint('row '+str(row)+' : '+teamName)
+		for teamName in self.teamNameList[1:]: # omit first entry 'dummy'
+			# rprint('row '+str(row)+' : '+teamName)
 			self.teamTabsPopup.ui.teamTabsTableWidget.setItem(row,col,QTableWidgetItem(teamName))
 			row+=1
+		for extTeamName in self.hiddenTeamTabsList:
+			t=QTableWidgetItem('['+getNiceTeamName(extTeamName)+']')
+			f=QFont(t.font())
+			f.setItalic(True)
+			t.setFont(f)
+			self.teamTabsPopup.ui.teamTabsTableWidget.setItem(row,col,t)
+			row+=1
+		self.teamTabsPopup.ui.hiddenTabsComboBox.clear()
+		self.teamTabsPopup.ui.hiddenTabsComboBox.addItems([getNiceTeamName(x) for x in self.hiddenTeamTabsList if 'spacer' not in x.lower()])
 		# QApplication.processEvents()
 		self.teamTabsPopup.show()
 		self.teamTabsPopup.raise_()
@@ -5277,6 +5289,24 @@ class MyWindow(QDialog,Ui_Dialog):
 		# 	self.teamTabsMoreMenu=None
 		# 	QApplication.processEvents()
 		# 	self.ui.teamTabsMoreButton.pressed.connect(self.teamTabsMoreButtonPressed)
+
+	def unhideTeamTab(self,niceTeamName):
+		if not niceTeamName:
+			return
+		# Adding a new entry takes care of a lot of tasks; reproducing them without adding a
+		#  new entry is cryptic and therefore error-prone.  Safer to just add a new entry.
+		# values format for adding a new entry:
+		#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+		extTeamName=getExtTeamName(niceTeamName)
+		values=["" for n in range(10)]
+		values[0]=time.strftime("%H%M")
+		values[6]=time.time()
+		values[2]=niceTeamName
+		values[3]='[RADIOLOG: operator is unhiding hidden team tab for "'+niceTeamName+'"]'
+		if (extTeamName in teamStatusDict) and (teamStatusDict[extTeamName]!=''):
+			values[5]=teamStatusDict[extTeamName]
+		self.newEntry(values)
+		self.teamTabsPopup.ui.hiddenTabsComboBox.removeItem(self.teamTabsPopup.ui.hiddenTabsComboBox.findText(niceTeamName))
 
 	def addNonRadioClue(self):
 		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
@@ -5348,6 +5378,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		self.parent=parent
 		self.ui=Ui_teamTabsPopup()
 		self.ui.setupUi(self)
+		self.ui.unhideButton.clicked.connect(lambda:self.parent.unhideTeamTab(self.ui.hiddenTabsComboBox.currentText()))
 
 class optionsDialog(QDialog,Ui_optionsDialog):
 	def __init__(self,parent):
