@@ -5379,6 +5379,21 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		self.ui=Ui_teamTabsPopup()
 		self.ui.setupUi(self)
 		self.ui.unhideButton.clicked.connect(lambda:self.parent.unhideTeamTab(self.ui.hiddenTabsComboBox.currentText()))
+		self.ui.teamTabsTableWidget.cellClicked.connect(self.cellClicked)
+
+	def cellClicked(self,row,col):
+		ntn=self.ui.teamTabsTableWidget.currentItem().text()
+		# rprint('cell clicked: '+str(ntn))
+		etn=getExtTeamName(ntn)
+		sntn=getShortNiceTeamName(ntn)
+		try:
+			i=self.parent.extTeamNameList.index(etn)
+		except:
+			i=None
+		if i:
+			# rprint('index:'+str(i))
+			self.parent.ui.tabWidget.setCurrentIndex(i)
+			self.hide()
 
 class optionsDialog(QDialog,Ui_optionsDialog):
 	def __init__(self,parent):

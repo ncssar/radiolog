@@ -15,6 +15,7 @@ class Ui_Dialog(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName("Dialog")
         Dialog.resize(1276, 676)
+        Dialog.setMaximumSize(QtCore.QSize(2000, 1000))
         self.gridLayout_2 = QtWidgets.QGridLayout(Dialog)
         self.gridLayout_2.setObjectName("gridLayout_2")
         self.horizontalLayout = QtWidgets.QHBoxLayout()
@@ -334,10 +335,7 @@ class Ui_Dialog(object):
         self.tabWidget.setFont(font)
         self.tabWidget.setFocusPolicy(QtCore.Qt.NoFocus)
         self.tabWidget.setStyleSheet("")
-        self.tabWidget.setTabPosition(QtWidgets.QTabWidget.North)
-        self.tabWidget.setTabShape(QtWidgets.QTabWidget.Rounded)
         self.tabWidget.setIconSize(QtCore.QSize(10, 20))
-        self.tabWidget.setUsesScrollButtons(False)
         self.tabWidget.setObjectName("tabWidget")
         self.verticalLayout.addWidget(self.tabWidget)
         self.verticalLayout_2.addLayout(self.verticalLayout)
