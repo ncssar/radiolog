@@ -333,7 +333,7 @@ from FingerTabs import *
 from pygeodesy import Datums,ellipsoidalBase,dms
 from difflib import SequenceMatcher
 
-__version__ = "3.5.0"
+__version__ = "3.5.1beta"
 
 # process command-line arguments
 develMode=False
@@ -1743,7 +1743,22 @@ class MyWindow(QDialog,Ui_Dialog):
 					else:
 						if isWaiting:
 							rprint("     DATA IS WAITING!!!")
-							tmpData=comPortTry.read(comPortTry.inWaiting()).decode("utf-8")
+							d=comPortTry.read(comPortTry.inWaiting())
+							try:
+								tmpData=d.decode("utf-8")
+							except Exception as e:
+								rprint('      '+str(e))
+								rprint('      data could not be decoded in utf-8 - trying latin-1 (a.k.a. ISO-8859-1)...')
+								try:
+									tmpData=d.decode("latin-1")
+								except Exception as e:
+									rprint('      '+str(e))
+									rprint('      data could not be decoded in latin-1 either.  Skipping.')
+									try:
+										rprint('      attempted simple string conversion of data: '+str(d))
+									except Exception as e:
+										rprint('      simple string conversion also did not work: '+str(e))
+									return
 							if '\x02I' in tmpData or tmpData=='\x020\x03' or tmpData=='\x021\x03' or tmpData.startswith('\x02$PKL'):
 								rprint("      VALID FLEETSYNC DATA!!!")
 								self.fsBuffer=self.fsBuffer+tmpData
@@ -4364,7 +4379,7 @@ class MyWindow(QDialog,Ui_Dialog):
 # 		rprint("extTeamNameList before sort:"+str(self.extTeamNameList))
 # # 		self.extTeamNameList.sort()
 # 		self.rebuildGroupedTabDict()
-# 		rprint("extTeamNameList after sort:"+str(self.extTeamNameList))
+		rprint("extTeamNameList after sort:"+str(self.extTeamNameList))
 		self.ui.tabList=[]
 		self.ui.tabGridLayoutList=[]
 		self.ui.tableViewList=[]
