@@ -3873,6 +3873,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				i=i+1
 				progressBox.setValue(i)
 			self.loadFlag=False
+			self.rebuildTabs() # since rebuildTabs was disabled when loadFlag was True
 			rprint('  t2')
 			self.radioLog.sort(key=lambda entry: entry[6]) # sort by epoch seconds
 			i=i+1
@@ -4231,7 +4232,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			# NOTE the following line causes font-size to go back to system default;
 			#  can't figure out why it doesn't inherit font-size from the existing
 			#  styleSheet; so, each statusStyleDict entry must contain font-size explicitly
-			self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
+			if not self.loadFlag:
+				self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
 			# only reset the team timer if it is a 'FROM' message with non-blank message text
 			#  (prevent reset on amend, where to_from can be "AMEND" and msg can be anything)
 			# if this was an amendment, set team timer based on the team's most recent 'FROM' entry
@@ -4405,7 +4407,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		
 		self.rebuildGroupedTabDict()
 		rprint("extTeamNameList after sort:"+str(self.extTeamNameList))
-		self.rebuildTabs()
+		if not self.loadFlag:
+			self.rebuildTabs()
 		
 		if not extTeamName.startswith("spacer"):
 			# add to team name lists and dictionaries
