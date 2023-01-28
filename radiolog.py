@@ -5249,6 +5249,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		# the display list should include hidden tabs in the sequence that they would appear if not hidden
 		#  that will be a bit tricky - need to use the same logic as in rebuildTabs
 		#  for now, leave it as shown-tabs-list first, hidden-tabs-list second
+		# rprint('\nteamStatusDict:'+json.dumps(teamStatusDict,indent=3))
+		# rprint('\nteamNameList:'+str(self.teamNameList))
+		# rprint('\nhiddenTeamTabsList:'+str(self.hiddenTeamTabsList))
+		# rprint('\n')
 		row=0
 		col=0
 		self.teamTabsPopup.ui.teamTabsTableWidget.setRowCount(len(self.teamNameList))
@@ -5274,18 +5278,21 @@ class MyWindow(QDialog,Ui_Dialog):
 			rowLabel=self.teamTabsPopup.ui.teamTabsSummaryTableWidget.verticalHeaderItem(row).text()
 			if rowLabel in statusList:
 				self.teamTabsPopup.ui.teamTabsSummaryTableWidget.setItem(row-1,1,QTableWidgetItem(str(statusTableDict[rowLabel])))
+		totalItem=QTableWidgetItem(str(len(teamStatusDict)))
+		f=totalItem.font()
+		f.setBold(True)
+		totalItem.setFont(f)
+		tt='This could be greater than the sum of the statuses shown above.  Not all possible statuses are listed here.'
+		self.teamTabsPopup.ui.teamTabsSummaryTableWidget.verticalHeaderItem(5).setToolTip(tt)
+		totalItem.setToolTip(tt)
+		self.teamTabsPopup.ui.teamTabsSummaryTableWidget.setItem(4,1,totalItem)
 		notAtICCount=len([key for key,val in teamStatusDict.items() if val!='At IC'])
 		notAtICItem=QTableWidgetItem(str(notAtICCount))
 		f=notAtICItem.font()
-		f.setBold(True)
-		notAtICItem.setFont(f)
-		self.teamTabsPopup.ui.teamTabsSummaryTableWidget.setItem(4,1,notAtICItem)
-		totalItem=QTableWidgetItem(str(len(teamStatusDict)))
-		f=totalItem.font()
 		f.setPointSize(12)
 		f.setBold(True)
-		totalItem.setFont(f)
-		self.teamTabsPopup.ui.teamTabsSummaryTableWidget.setItem(5,1,totalItem)
+		notAtICItem.setFont(f)
+		self.teamTabsPopup.ui.teamTabsSummaryTableWidget.setItem(5,1,notAtICItem)
 
 		
 	# need to run this slot on pressed, instead of clicked which causes redisplay with every click
