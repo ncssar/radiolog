@@ -5443,21 +5443,37 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		self.parent=parent
 		self.ui=Ui_teamTabsPopup()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
 		self.ui.teamTabsTableWidget.cellClicked.connect(self.cellClicked)
 
 	def cellClicked(self,row,col):
 		ntn=self.ui.teamTabsTableWidget.currentItem().text()
 		# rprint('cell clicked: '+str(ntn))
 		etn=getExtTeamName(ntn)
-		sntn=getShortNiceTeamName(ntn)
 		try:
 			i=self.parent.extTeamNameList.index(etn)
-		except:
-			i=None
-		if i:
-			# rprint('index:'+str(i))
 			self.parent.ui.tabWidget.setCurrentIndex(i)
 			self.hide()
+		except:
+			try:
+				rprint('searching hiddenTeamTabsList:'+str(self.parent.hiddenTeamTabsList))
+				ntn=ntn.replace('[','').replace(']','') # might be wrapped in square brackets
+				etn=getExtTeamName(ntn)
+				i=self.parent.hiddenTeamTabsList.index(etn)
+				box=QMessageBox(QMessageBox.Warning,"Hidden tab","The tab for '"+ntn+"' is currently hidden.\n\nDo you want to unhide the tab?",
+					QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				# box.button(QMessageBox.Yes).setText('Keep callsign as-is')
+				# box.button(QMessageBox.No).setText('Modify callsign')
+				box.show()
+				box.raise_()
+				if box.exec_()==QMessageBox.No:
+					return
+				self.parent.unhideTeamTab(ntn)
+				i=self.parent.extTeamNameList.index(etn)
+				self.parent.ui.tabWidget.setCurrentIndex(i)
+				self.hide()
+			except: # not in either list
+				rprint('ERROR: clicked a cell '+etn+' that does not exist in extTeamNameList or hiddenTeamTabsList')
 
 class optionsDialog(QDialog,Ui_optionsDialog):
 	def __init__(self,parent):
