@@ -85,10 +85,11 @@
      </row>
      <row>
       <property name="text">
-       <string>Not At IC</string>
+       <string>Total</string>
       </property>
       <property name="font">
        <font>
+        <pointsize>9</pointsize>
         <weight>75</weight>
         <bold>true</bold>
        </font>
@@ -96,10 +97,11 @@
      </row>
      <row>
       <property name="text">
-       <string>Total</string>
+       <string>Not At IC</string>
       </property>
       <property name="font">
        <font>
+        <pointsize>12</pointsize>
         <weight>75</weight>
         <bold>true</bold>
        </font>
@@ -110,6 +112,29 @@
        <string>Count</string>
       </property>
      </column>
+     <item row="5" column="0">
+      <property name="text">
+       <string/>
+      </property>
+      <property name="font">
+       <font>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+     </item>
+     <item row="6" column="0">
+      <property name="text">
+       <string/>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>12</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+     </item>
     </widget>
    </item>
   </layout>

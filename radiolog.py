@@ -5245,6 +5245,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			# self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:0px;}')
 
 	def rebuildTeamTabsPopup(self):
+		# 1. build the list (or table) of all callsigns
 		# the display list should include hidden tabs in the sequence that they would appear if not hidden
 		#  that will be a bit tricky - need to use the same logic as in rebuildTabs
 		#  for now, leave it as shown-tabs-list first, hidden-tabs-list second
@@ -5263,6 +5264,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			t.setFont(f)
 			self.teamTabsPopup.ui.teamTabsTableWidget.setItem(row,col,t)
 			row+=1
+		# 2. build the summary table
 		tsdValuesList=list(teamStatusDict.values())
 		statusTableDict={}
 		statusList=['At IC','In Transit','Working','Waiting for Transport','STANDBY']
@@ -5273,8 +5275,17 @@ class MyWindow(QDialog,Ui_Dialog):
 			if rowLabel in statusList:
 				self.teamTabsPopup.ui.teamTabsSummaryTableWidget.setItem(row-1,1,QTableWidgetItem(str(statusTableDict[rowLabel])))
 		notAtICCount=len([key for key,val in teamStatusDict.items() if val!='At IC'])
-		self.teamTabsPopup.ui.teamTabsSummaryTableWidget.setItem(4,1,QTableWidgetItem(str(notAtICCount)))
-		self.teamTabsPopup.ui.teamTabsSummaryTableWidget.setItem(5,1,QTableWidgetItem(str(len(teamStatusDict))))
+		notAtICItem=QTableWidgetItem(str(notAtICCount))
+		f=notAtICItem.font()
+		f.setBold(True)
+		notAtICItem.setFont(f)
+		self.teamTabsPopup.ui.teamTabsSummaryTableWidget.setItem(4,1,notAtICItem)
+		totalItem=QTableWidgetItem(str(len(teamStatusDict)))
+		f=totalItem.font()
+		f.setPointSize(12)
+		f.setBold(True)
+		totalItem.setFont(f)
+		self.teamTabsPopup.ui.teamTabsSummaryTableWidget.setItem(5,1,totalItem)
 
 		
 	# need to run this slot on pressed, instead of clicked which causes redisplay with every click
