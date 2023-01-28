@@ -5244,14 +5244,10 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.ui.tabWidget.tabBar().setTabVisible(0,False)
 			# self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:0px;}')
 
-	# need to run this slot on pressed, instead of clicked which causes redisplay with every click
-	#  due to interaction with return value from QMenu
-	def teamTabsMoreButtonPressed(self):
-		if self.teamTabsPopup.isVisible():
-			self.teamTabsPopup.hide()
-			return
-		# self.teamTabsPopup.ui.teamTabsTableWidget.clear()
-		# self.teamTabsPopup.ui.teamTabsTableWidget.addItems(self.teamNameList)
+	def rebuildTeamTabsPopup(self):
+		# the display list should include hidden tabs in the sequence that they would appear if not hidden
+		#  that will be a bit tricky - need to use the same logic as in rebuildTabs
+		#  for now, leave it as shown-tabs-list first, hidden-tabs-list second
 		row=0
 		col=0
 		self.teamTabsPopup.ui.teamTabsTableWidget.setRowCount(len(self.teamNameList))
@@ -5267,9 +5263,31 @@ class MyWindow(QDialog,Ui_Dialog):
 			t.setFont(f)
 			self.teamTabsPopup.ui.teamTabsTableWidget.setItem(row,col,t)
 			row+=1
-		self.teamTabsPopup.ui.hiddenTabsComboBox.clear()
-		self.teamTabsPopup.ui.hiddenTabsComboBox.addItems([getNiceTeamName(x) for x in self.hiddenTeamTabsList if 'spacer' not in x.lower()])
+		tsdValuesList=list(teamStatusDict.values())
+		statusTableDict={}
+		statusList=['At IC','In Transit','Working','Waiting for Transport','STANDBY']
+		for status in statusList:
+			statusTableDict[status]=tsdValuesList.count(status)
+		for row in range(self.teamTabsPopup.ui.teamTabsSummaryTableWidget.rowCount()):
+			rowLabel=self.teamTabsPopup.ui.teamTabsSummaryTableWidget.verticalHeaderItem(row).text()
+			if rowLabel in statusList:
+				self.teamTabsPopup.ui.teamTabsSummaryTableWidget.setItem(row-1,1,QTableWidgetItem(str(statusTableDict[rowLabel])))
+		notAtICCount=len([key for key,val in teamStatusDict.items() if val!='At IC'])
+		self.teamTabsPopup.ui.teamTabsSummaryTableWidget.setItem(4,1,QTableWidgetItem(str(notAtICCount)))
+		self.teamTabsPopup.ui.teamTabsSummaryTableWidget.setItem(5,1,QTableWidgetItem(str(len(teamStatusDict))))
+
+		
+	# need to run this slot on pressed, instead of clicked which causes redisplay with every click
+	#  due to interaction with return value from QMenu
+	def teamTabsMoreButtonPressed(self):
+		if self.teamTabsPopup.isVisible():
+			self.teamTabsPopup.hide()
+			return
+		self.rebuildTeamTabsPopup()
+		# self.teamTabsPopup.ui.teamTabsTableWidget.clear()
+		# self.teamTabsPopup.ui.teamTabsTableWidget.addItems(self.teamNameList)
 		# QApplication.processEvents()
+		# self.teamTabsPopup.move(0,0)
 		self.teamTabsPopup.show()
 		self.teamTabsPopup.raise_()
 		# if self.teamTabsMoreMenu:
@@ -5343,7 +5361,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		if (extTeamName in teamStatusDict) and (teamStatusDict[extTeamName]!=''):
 			values[5]=teamStatusDict[extTeamName]
 		self.newEntry(values)
-		self.teamTabsPopup.ui.hiddenTabsComboBox.removeItem(self.teamTabsPopup.ui.hiddenTabsComboBox.findText(niceTeamName))
 
 	def addNonRadioClue(self):
 		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
@@ -5415,7 +5432,6 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		self.parent=parent
 		self.ui=Ui_teamTabsPopup()
 		self.ui.setupUi(self)
-		self.ui.unhideButton.clicked.connect(lambda:self.parent.unhideTeamTab(self.ui.hiddenTabsComboBox.currentText()))
 		self.ui.teamTabsTableWidget.cellClicked.connect(self.cellClicked)
 
 	def cellClicked(self,row,col):

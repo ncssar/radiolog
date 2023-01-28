@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>525</width>
+    <width>223</width>
     <height>805</height>
    </rect>
   </property>
@@ -19,7 +19,7 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0">
    <item>
     <widget class="QTableWidget" name="teamTabsTableWidget">
      <attribute name="horizontalHeaderVisible">
@@ -32,12 +32,66 @@
    </item>
    <item>
     <widget class="QTableWidget" name="teamTabsSummaryTableWidget">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>8</pointsize>
+      </font>
+     </property>
      <property name="selectionMode">
       <enum>QAbstractItemView::NoSelection</enum>
      </property>
+     <attribute name="horizontalHeaderVisible">
+      <bool>false</bool>
+     </attribute>
+     <attribute name="horizontalHeaderCascadingSectionResizes">
+      <bool>false</bool>
+     </attribute>
+     <attribute name="horizontalHeaderDefaultSectionSize">
+      <number>50</number>
+     </attribute>
+     <attribute name="verticalHeaderDefaultSectionSize">
+      <number>25</number>
+     </attribute>
      <row>
       <property name="text">
-       <string>Teams</string>
+       <string>At IC</string>
+      </property>
+     </row>
+     <row>
+      <property name="text">
+       <string>In Transit</string>
+      </property>
+     </row>
+     <row>
+      <property name="text">
+       <string>Working</string>
+      </property>
+     </row>
+     <row>
+      <property name="text">
+       <string>Waiting for Transport</string>
+      </property>
+     </row>
+     <row>
+      <property name="text">
+       <string>STANDBY</string>
+      </property>
+     </row>
+     <row>
+      <property name="text">
+       <string>Not At IC</string>
+      </property>
+      <property name="font">
+       <font>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
       </property>
      </row>
      <row>
@@ -53,61 +107,10 @@
      </row>
      <column>
       <property name="text">
-       <string>At IC</string>
-      </property>
-     </column>
-     <column>
-      <property name="text">
-       <string>In Transit</string>
-      </property>
-     </column>
-     <column>
-      <property name="text">
-       <string>Working</string>
-      </property>
-     </column>
-     <column>
-      <property name="text">
-       <string>Waiting for Transport</string>
-      </property>
-     </column>
-     <column>
-      <property name="text">
-       <string>STANDBY</string>
-      </property>
-     </column>
-     <column>
-      <property name="text">
-       <string>Available</string>
-      </property>
-     </column>
-     <column>
-      <property name="text">
-       <string>Off Duty</string>
+       <string>Count</string>
       </property>
      </column>
     </widget>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
-      <widget class="QLabel" name="hiddenTabsLabel">
-       <property name="text">
-        <string>Hidden tabs:</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QComboBox" name="hiddenTabsComboBox"/>
-     </item>
-     <item>
-      <widget class="QPushButton" name="unhideButton">
-       <property name="text">
-        <string>Unhide</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
    </item>
   </layout>
  </widget>
