@@ -5452,6 +5452,8 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		self.ui.setupUi(self)
 		self.setStyleSheet(globalStyleSheet)
 		self.ui.teamTabsTableWidget.cellClicked.connect(self.cellClicked)
+		# disable mouse wheel scroll: https://stackoverflow.com/a/61085704/3577105
+		self.ui.teamTabsTableWidget.wheelEvent=lambda event: None
 
 	def cellClicked(self,row,col):
 		ntn=self.ui.teamTabsTableWidget.currentItem().text()
@@ -5469,8 +5471,6 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 				i=self.parent.hiddenTeamTabsList.index(etn)
 				box=QMessageBox(QMessageBox.Warning,"Hidden tab","The tab for '"+ntn+"' is currently hidden.\n\nDo you want to unhide the tab?",
 					QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-				# box.button(QMessageBox.Yes).setText('Keep callsign as-is')
-				# box.button(QMessageBox.No).setText('Modify callsign')
 				box.show()
 				box.raise_()
 				if box.exec_()==QMessageBox.No:
@@ -5481,6 +5481,25 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 				self.hide()
 			except: # not in either list
 				rprint('ERROR: clicked a cell '+etn+' that does not exist in extTeamNameList or hiddenTeamTabsList')
+
+	def resizeEvent(self,e):
+		# 1. clear the table
+		# 2. determine required column count based on vertical size
+		# 3. set table column count
+		# 4. iterate over list of labels to display:
+		#    - calculate row and column
+		#    - set the table item
+		self.ui.teamTabsTableWidget.clear()
+		displayedRowCount=self.ui.teamTabsTableWidget.rowAt(self.ui.teamTabsTableWidget.height())
+		# rprint('resized - now showing rows through '+str(displayedRowCount))
+		requiredColumnCount=int(len(teamStatusDict)/displayedRowCount)+1
+		# rprint('  requiredColumnCount='+str(requiredColumnCount))
+		self.ui.teamTabsTableWidget.setColumnCount(requiredColumnCount)
+		for i in range(len(self.parent.extTeamNameList)):
+			col=int(i/displayedRowCount)
+			row=i-(col*displayedRowCount)
+			self.ui.teamTabsTableWidget.setItem(row,col,QTableWidgetItem(self.parent.extTeamNameList[i]))
+
 
 class optionsDialog(QDialog,Ui_optionsDialog):
 	def __init__(self,parent):

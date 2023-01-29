@@ -22,6 +22,7 @@ class Ui_teamTabsPopup(object):
         self.verticalLayout = QtWidgets.QVBoxLayout(teamTabsPopup)
         self.verticalLayout.setObjectName("verticalLayout")
         self.teamTabsTableWidget = QtWidgets.QTableWidget(teamTabsPopup)
+        self.teamTabsTableWidget.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.teamTabsTableWidget.setObjectName("teamTabsTableWidget")
         self.teamTabsTableWidget.setColumnCount(0)
         self.teamTabsTableWidget.setRowCount(0)
