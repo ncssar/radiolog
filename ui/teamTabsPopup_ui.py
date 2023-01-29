@@ -83,7 +83,8 @@ class Ui_teamTabsPopup(object):
         self.teamTabsSummaryTableWidget.setItem(6, 0, item)
         self.teamTabsSummaryTableWidget.horizontalHeader().setVisible(False)
         self.teamTabsSummaryTableWidget.horizontalHeader().setCascadingSectionResizes(False)
-        self.teamTabsSummaryTableWidget.horizontalHeader().setDefaultSectionSize(50)
+        self.teamTabsSummaryTableWidget.horizontalHeader().setDefaultSectionSize(40)
+        self.teamTabsSummaryTableWidget.horizontalHeader().setMinimumSectionSize(40)
         self.teamTabsSummaryTableWidget.verticalHeader().setDefaultSectionSize(25)
         self.verticalLayout.addWidget(self.teamTabsSummaryTableWidget)
 
@@ -92,7 +93,7 @@ class Ui_teamTabsPopup(object):
 
     def retranslateUi(self, teamTabsPopup):
         _translate = QtCore.QCoreApplication.translate
-        teamTabsPopup.setWindowTitle(_translate("teamTabsPopup", "Form"))
+        teamTabsPopup.setWindowTitle(_translate("teamTabsPopup", "Callsigns"))
         item = self.teamTabsSummaryTableWidget.verticalHeaderItem(0)
         item.setText(_translate("teamTabsPopup", "At IC"))
         item = self.teamTabsSummaryTableWidget.verticalHeaderItem(1)
@@ -100,7 +101,7 @@ class Ui_teamTabsPopup(object):
         item = self.teamTabsSummaryTableWidget.verticalHeaderItem(2)
         item.setText(_translate("teamTabsPopup", "Working"))
         item = self.teamTabsSummaryTableWidget.verticalHeaderItem(3)
-        item.setText(_translate("teamTabsPopup", "Waiting for Transport"))
+        item.setText(_translate("teamTabsPopup", "Waiting for Trans."))
         item = self.teamTabsSummaryTableWidget.verticalHeaderItem(4)
         item.setText(_translate("teamTabsPopup", "STANDBY"))
         item = self.teamTabsSummaryTableWidget.verticalHeaderItem(5)

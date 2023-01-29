@@ -17,7 +17,7 @@
    </font>
   </property>
   <property name="windowTitle">
-   <string>Form</string>
+   <string>Callsigns</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0">
    <item>
@@ -56,7 +56,10 @@
       <bool>false</bool>
      </attribute>
      <attribute name="horizontalHeaderDefaultSectionSize">
-      <number>50</number>
+      <number>40</number>
+     </attribute>
+     <attribute name="horizontalHeaderMinimumSectionSize">
+      <number>40</number>
      </attribute>
      <attribute name="verticalHeaderDefaultSectionSize">
       <number>25</number>
@@ -78,7 +81,7 @@
      </row>
      <row>
       <property name="text">
-       <string>Waiting for Transport</string>
+       <string>Waiting for Trans.</string>
       </property>
      </row>
      <row>
