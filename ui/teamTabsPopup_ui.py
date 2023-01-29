@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_teamTabsPopup(object):
     def setupUi(self, teamTabsPopup):
         teamTabsPopup.setObjectName("teamTabsPopup")
-        teamTabsPopup.resize(223, 805)
+        teamTabsPopup.resize(223, 308)
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(11)
@@ -24,8 +24,12 @@ class Ui_teamTabsPopup(object):
         self.teamTabsTableWidget = QtWidgets.QTableWidget(teamTabsPopup)
         self.teamTabsTableWidget.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.teamTabsTableWidget.setObjectName("teamTabsTableWidget")
-        self.teamTabsTableWidget.setColumnCount(0)
-        self.teamTabsTableWidget.setRowCount(0)
+        self.teamTabsTableWidget.setColumnCount(1)
+        self.teamTabsTableWidget.setRowCount(1)
+        item = QtWidgets.QTableWidgetItem()
+        self.teamTabsTableWidget.setVerticalHeaderItem(0, item)
+        item = QtWidgets.QTableWidgetItem()
+        self.teamTabsTableWidget.setHorizontalHeaderItem(0, item)
         self.teamTabsTableWidget.horizontalHeader().setVisible(False)
         self.teamTabsTableWidget.verticalHeader().setVisible(False)
         self.verticalLayout.addWidget(self.teamTabsTableWidget)
@@ -94,6 +98,10 @@ class Ui_teamTabsPopup(object):
     def retranslateUi(self, teamTabsPopup):
         _translate = QtCore.QCoreApplication.translate
         teamTabsPopup.setWindowTitle(_translate("teamTabsPopup", "Callsigns"))
+        item = self.teamTabsTableWidget.verticalHeaderItem(0)
+        item.setText(_translate("teamTabsPopup", "starter"))
+        item = self.teamTabsTableWidget.horizontalHeaderItem(0)
+        item.setText(_translate("teamTabsPopup", "starter"))
         item = self.teamTabsSummaryTableWidget.verticalHeaderItem(0)
         item.setText(_translate("teamTabsPopup", "At IC"))
         item = self.teamTabsSummaryTableWidget.verticalHeaderItem(1)

@@ -4421,7 +4421,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			if self.allTeamsList.count(niceTeamName)==0:
 				self.allTeamsList.insert(i,niceTeamName)
 				self.allTeamsList.sort()
-# 				rprint("   allTeamsList after:"+str(self.allTeamsList))
+				rprint("   allTeamsList after:"+str(self.allTeamsList))
 			teamTimersDict[extTeamName]=0
 			teamCreatedTimeDict[extTeamName]=time.time()
 			# assign team hotkey
@@ -4432,7 +4432,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			else:
 				rprint("Team hotkey pool has been used up.  Not setting any hotkeyDict entry for "+niceTeamName)
 				
-		self.rebuildTeamHotkeys()
+		if not self.loadFlag:
+			self.rebuildTeamHotkeys()
+			self.teamTabsPopup.showEvent()
 
 		"""		
 		i=self.extTeamNameList.index(extTeamName) # i is zero-based
@@ -5293,7 +5295,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		f.setBold(True)
 		notAtICItem.setFont(f)
 		self.teamTabsPopup.ui.teamTabsSummaryTableWidget.setItem(5,1,notAtICItem)
-
+		# determine height, bounded by screen height
 		
 	# need to run this slot on pressed, instead of clicked which causes redisplay with every click
 	#  due to interaction with return value from QMenu
@@ -5301,14 +5303,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		if self.teamTabsPopup.isVisible():
 			self.teamTabsPopup.hide()
 			return
-		self.rebuildTeamTabsPopup()
+		# self.rebuildTeamTabsPopup()
 		# self.teamTabsPopup.ui.teamTabsTableWidget.clear()
 		# self.teamTabsPopup.ui.teamTabsTableWidget.addItems(self.teamNameList)
 		# QApplication.processEvents()
 		# self.teamTabsPopup.move(0,0)
 		self.teamTabsPopup.show()
 		self.teamTabsPopup.raise_()
-		self.teamTabsPopup.resizeEvent() # redraw the teams table - only works after it's displayed
+		# self.teamTabsPopup.resizeEvent() # redraw the teams table - only works after it's displayed
 		# if self.teamTabsMoreMenu:
 		# 	del(self.teamTabsMoreMenu)
 		# 	self.teamTabsMoreMenu=None
@@ -5451,6 +5453,9 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		self.parent=parent
 		self.ui=Ui_teamTabsPopup()
 		self.ui.setupUi(self)
+		self.tttRowHeight=self.ui.teamTabsTableWidget.rowHeight(0)
+		self.tttColWidth=self.ui.teamTabsTableWidget.columnWidth(0)
+		self.prevWidth=self.width()
 		self.setWindowFlags(self.windowFlags() & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setStyleSheet(globalStyleSheet)
 		self.ui.teamTabsTableWidget.cellClicked.connect(self.cellClicked)
@@ -5480,9 +5485,72 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 				self.parent.unhideTeamTab(ntn)
 				i=self.parent.extTeamNameList.index(etn)
 				self.parent.ui.tabWidget.setCurrentIndex(i)
-				self.hide()
+				# self.hide()
 			except: # not in either list
 				rprint('ERROR: clicked a cell '+etn+' that does not exist in extTeamNameList or hiddenTeamTabsList')
+
+	def showEvent(self,e=None):
+		self.resize(self.width(),100) # start tiny; this also calls resizeEvent
+		self.ui.teamTabsTableWidget.setColumnCount(1)
+		# theList=self.parent.teamNameList[1:] # skip first element 'dummy'
+		theList=self.parent.allTeamsList # same as teamNamesList but hidden tabs are still included
+		theList=[x for x in theList if 'dummy' not in x and 'spacer' not in x.lower()]
+		# displayedRowCount=self.ui.teamTabsTableWidget.rowAt(self.ui.teamTabsTableWidget.height())
+		displayedRowCount=int(self.ui.teamTabsTableWidget.height()/self.tttRowHeight)
+		screenHeight=QApplication.desktop().screenGeometry().height()
+		maxDialogHeight=screenHeight-30 # to allow for window frame/decorations
+		listLength=len(theList)
+		# columns=1
+		rprint('showEvent called; initial height = '+str(self.height()))
+		rprint('theList:'+str(theList))
+		rprint('list length = '+str(listLength)+'   displayedRowCount='+str(displayedRowCount)+'  rowHeight='+str(self.tttRowHeight))
+		while displayedRowCount<listLength:
+			height=self.height()
+			newHeight=height+self.tttRowHeight
+			rprint('about to resize to new height '+str(newHeight))
+			if newHeight>maxDialogHeight:
+				rprint('  but that would be too tall; exiting the loop')
+				break
+			self.resize(self.width(),newHeight)
+			# displayedRowCount=self.ui.teamTabsTableWidget.rowAt(self.ui.teamTabsTableWidget.height())
+			displayedRowCount=int(self.ui.teamTabsTableWidget.height()/self.tttRowHeight)
+		rprint('final displayedRowCount='+str(displayedRowCount))
+		# self.ui.teamTabsTableWidget.setRowCount(displayedRowCount)
+		self.resizeEvent() # trigger the table redraw
+		# column count and cell display is handled during resizeEvent
+		# displayedCellCount=displayedRowCount*columns
+		# while displayedCellCount<listLength:
+		# 	columns+=1
+		# 	if columns>20:
+		# 		rprint('  more than 20 columns requested for some reason; exiting the loop')
+		# 	self.ui.teamTabsSummaryTableWidget.setColumnCount(columns)
+		self.move(self.x(),int((screenHeight-self.frameSize().height())/2))
+
+		# 2. build the summary table
+		tsdValuesList=list(teamStatusDict.values())
+		statusTableDict={}
+		statusList=['At IC','In Transit','Working','Waiting for Transport','STANDBY']
+		for status in statusList:
+			statusTableDict[status]=tsdValuesList.count(status)
+		for row in range(self.ui.teamTabsSummaryTableWidget.rowCount()):
+			rowLabel=self.ui.teamTabsSummaryTableWidget.verticalHeaderItem(row).text()
+			if rowLabel in statusList:
+				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,QTableWidgetItem(str(statusTableDict[rowLabel])))
+		totalItem=QTableWidgetItem(str(len(teamStatusDict)))
+		f=totalItem.font()
+		f.setBold(True)
+		totalItem.setFont(f)
+		tt='This could be greater than the sum of the statuses shown above.  Not all possible statuses are listed here.'
+		self.ui.teamTabsSummaryTableWidget.verticalHeaderItem(5).setToolTip(tt)
+		totalItem.setToolTip(tt)
+		self.ui.teamTabsSummaryTableWidget.setItem(4,1,totalItem)
+		notAtICCount=len([key for key,val in teamStatusDict.items() if val!='At IC'])
+		notAtICItem=QTableWidgetItem(str(notAtICCount))
+		f=notAtICItem.font()
+		f.setPointSize(12)
+		f.setBold(True)
+		notAtICItem.setFont(f)
+		self.ui.teamTabsSummaryTableWidget.setItem(5,1,notAtICItem)
 
 	def resizeEvent(self,e=None):
 		# 1. clear the table
@@ -5491,18 +5559,27 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		# 4. iterate over list of labels to display:
 		#    - calculate row and column
 		#    - set the table item
+		rprint(' resized')
 		self.ui.teamTabsTableWidget.clear()
 		# theList=self.parent.extTeamNameList
-		theList=self.parent.teamNameList[1:] # skip first element 'dummy'
-		displayedRowCount=self.ui.teamTabsTableWidget.rowAt(self.ui.teamTabsTableWidget.height())
-		# rprint('resized - now showing rows through '+str(displayedRowCount))
+		# theList=self.parent.teamNameList[1:] # skip first element 'dummy'
+		theList=self.parent.allTeamsList # same as teamNamesList but hidden tabs are still included
+		theList=[x for x in theList if 'dummy' not in x and 'spacer' not in x.lower()]
+		# displayedRowCount=self.ui.teamTabsTableWidget.rowAt(self.ui.teamTabsTableWidget.height())
+		displayedRowCount=int(self.ui.teamTabsTableWidget.height()/self.tttRowHeight)
+		rprint('resized - now showing rows through '+str(displayedRowCount))
 		requiredColumnCount=int(len(theList)/displayedRowCount)+1
-		# rprint('  requiredColumnCount='+str(requiredColumnCount))
+		rprint('  requiredColumnCount='+str(requiredColumnCount))
+		self.ui.teamTabsTableWidget.setRowCount(displayedRowCount)
 		self.ui.teamTabsTableWidget.setColumnCount(requiredColumnCount)
 		for i in range(len(theList)):
 			col=int(i/displayedRowCount)
 			row=i-(col*displayedRowCount)
+			# rprint('i='+str(i)+'  row='+str(row)+'  col='+str(col)+'  text='+str(theList[i]))
 			self.ui.teamTabsTableWidget.setItem(row,col,QTableWidgetItem(theList[i]))
+		newWidth=30+(self.tttColWidth*requiredColumnCount)
+		# TODO: reduce flicker / potential for endless loop
+		self.resize(newWidth,self.height())
 
 
 class optionsDialog(QDialog,Ui_optionsDialog):
