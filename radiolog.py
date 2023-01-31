@@ -5178,6 +5178,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				if self.extTeamNameList[n+1].lower().startswith("spacer"):
 					rprint("  found back-to-back spacers at indices "+str(n)+" and "+str(n+1))
 					self.deleteTeamTab(self.extTeamNameList[n+1],True)
+		if self.teamTabsPopup.isVisible():
+			self.teamTabsPopup.resizeEvent()
 
 	def getNextAvailHotkey(self):
 		# iterate through hotkey pool until finding one that is not taken
@@ -5384,6 +5386,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		if (extTeamName in teamStatusDict) and (teamStatusDict[extTeamName]!=''):
 			values[5]=teamStatusDict[extTeamName]
 		self.newEntry(values)
+		if self.teamTabsPopup.isVisible():
+			self.teamTabsPopup.resizeEvent()
 
 	def addNonRadioClue(self):
 		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
@@ -5580,8 +5584,17 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		for i in range(len(theList)):
 			col=int(i/displayedRowCount)
 			row=i-(col*displayedRowCount)
+			t=theList[i]
+			etn=getExtTeamName(t)
+			twi=QTableWidgetItem(t)
+			if etn in self.parent.hiddenTeamTabsList:
+				twi.setText('['+t+']')
+				f=twi.font()
+				f.setItalic(True)
+				twi.setFont(f)
+				twi.setForeground(QBrush(Qt.darkGray))
 			# rprint('i='+str(i)+'  row='+str(row)+'  col='+str(col)+'  text='+str(theList[i]))
-			self.ui.teamTabsTableWidget.setItem(row,col,QTableWidgetItem(theList[i]))
+			self.ui.teamTabsTableWidget.setItem(row,col,twi)
 		newWidth=30+(self.tttColWidth*requiredColumnCount)
 		# TODO: reduce flicker / potential for endless loop
 		# self.resize(newWidth,self.height())

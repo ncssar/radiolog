@@ -112,7 +112,7 @@ class Ui_teamTabsPopup(object):
         item = self.teamTabsSummaryTableWidget.verticalHeaderItem(2)
         item.setText(_translate("teamTabsPopup", "Working"))
         item = self.teamTabsSummaryTableWidget.verticalHeaderItem(3)
-        item.setText(_translate("teamTabsPopup", "Wtng.ForTrans."))
+        item.setText(_translate("teamTabsPopup", "Await.Trans."))
         item = self.teamTabsSummaryTableWidget.verticalHeaderItem(4)
         item.setText(_translate("teamTabsPopup", "STANDBY"))
         item = self.teamTabsSummaryTableWidget.verticalHeaderItem(5)
