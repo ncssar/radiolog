@@ -22,6 +22,11 @@
   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0">
    <item>
     <widget class="QTableWidget" name="teamTabsTableWidget">
+     <property name="font">
+      <font>
+       <pointsize>8</pointsize>
+      </font>
+     </property>
      <property name="verticalScrollBarPolicy">
       <enum>Qt::ScrollBarAlwaysOff</enum>
      </property>
@@ -91,7 +96,7 @@
      </row>
      <row>
       <property name="text">
-       <string>Waiting for Trans.</string>
+       <string>Await.Trans.</string>
       </property>
      </row>
      <row>

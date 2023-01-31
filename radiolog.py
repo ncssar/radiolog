@@ -3969,6 +3969,8 @@ class MyWindow(QDialog,Ui_Dialog):
 								QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 				bakMsgBox.exec_() # modal
 			progressBox.close()
+			if self.teamTabsPopup.isVisible():
+				self.teamTabsPopup.showEvent() # refresh display
 			return True # success
 
 	def updateFileNames(self):
@@ -5453,6 +5455,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		self.parent=parent
 		self.ui=Ui_teamTabsPopup()
 		self.ui.setupUi(self)
+		self.ui.teamTabsTableWidget.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 		self.tttRowHeight=self.ui.teamTabsTableWidget.rowHeight(0)
 		self.tttColWidth=self.ui.teamTabsTableWidget.columnWidth(0)
 		self.prevWidth=self.width()
@@ -5490,6 +5493,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 				rprint('ERROR: clicked a cell '+etn+' that does not exist in extTeamNameList or hiddenTeamTabsList')
 
 	def showEvent(self,e=None):
+		self.tttRowHeight=self.ui.teamTabsTableWidget.rowHeight(0) # since row height won't be computed until shown (ResizeToContents)
 		self.resize(self.width(),100) # start tiny; this also calls resizeEvent
 		self.ui.teamTabsTableWidget.setColumnCount(1)
 		# theList=self.parent.teamNameList[1:] # skip first element 'dummy'
@@ -5511,7 +5515,8 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 			if newHeight>maxDialogHeight:
 				rprint('  but that would be too tall; exiting the loop')
 				break
-			self.resize(self.width(),newHeight)
+			# self.resize(self.width(),newHeight)
+			self.setFixedSize(self.width(),newHeight)
 			# displayedRowCount=self.ui.teamTabsTableWidget.rowAt(self.ui.teamTabsTableWidget.height())
 			displayedRowCount=int(self.ui.teamTabsTableWidget.height()/self.tttRowHeight)
 		rprint('final displayedRowCount='+str(displayedRowCount))
@@ -5568,7 +5573,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		# displayedRowCount=self.ui.teamTabsTableWidget.rowAt(self.ui.teamTabsTableWidget.height())
 		displayedRowCount=int(self.ui.teamTabsTableWidget.height()/self.tttRowHeight)
 		rprint('resized - now showing rows through '+str(displayedRowCount))
-		requiredColumnCount=int(len(theList)/displayedRowCount)+1
+		requiredColumnCount=math.ceil(len(theList)/displayedRowCount)
 		rprint('  requiredColumnCount='+str(requiredColumnCount))
 		self.ui.teamTabsTableWidget.setRowCount(displayedRowCount)
 		self.ui.teamTabsTableWidget.setColumnCount(requiredColumnCount)
@@ -5579,7 +5584,8 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 			self.ui.teamTabsTableWidget.setItem(row,col,QTableWidgetItem(theList[i]))
 		newWidth=30+(self.tttColWidth*requiredColumnCount)
 		# TODO: reduce flicker / potential for endless loop
-		self.resize(newWidth,self.height())
+		# self.resize(newWidth,self.height())
+		self.setFixedSize(newWidth,self.height())
 
 
 class optionsDialog(QDialog,Ui_optionsDialog):
