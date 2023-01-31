@@ -372,6 +372,14 @@ statusStyleDict[""]="font-size:"+tabFontSize+";background:none;padding-left:1px;
 statusStyleDict["TIMED_OUT_ORANGE"]="font-size:"+tabFontSize+";background:orange;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
 statusStyleDict["TIMED_OUT_RED"]="font-size:"+tabFontSize+";background:red;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
 
+# Foreground, Background, Bold, Italic - used by teamTabsPopup but could maybe be used
+#  to replace statusStyleDict as a speedup versus style sheets
+statusFBBIDict={
+	'At IC':[None,Qt.green,None,None],
+	'In Transit':[Qt.white,Qt.blue,None,None],
+	'Hidden':[Qt.darkGray,None,None,True]
+}
+
 timeoutDisplayList=[["10 sec",10]]
 for n in range (1,13):
 	timeoutDisplayList.append([str(n*10)+" min",n*600])
@@ -5586,13 +5594,24 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 			row=i-(col*displayedRowCount)
 			t=theList[i]
 			etn=getExtTeamName(t)
+			status=teamStatusDict[etn]
+			# self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
 			twi=QTableWidgetItem(t)
 			if etn in self.parent.hiddenTeamTabsList:
+				status='Hidden'
 				twi.setText('['+t+']')
+			[fgColor,bgColor,bold,italic]=statusFBBIDict.get(status,[None,None,None,None])
+			if fgColor:
+				twi.setForeground(QBrush(fgColor))
+			if bgColor:
+				twi.setBackground(QBrush(bgColor))
+			if bold or italic:
 				f=twi.font()
-				f.setItalic(True)
+				if bold:
+					f.setBold(True)
+				if italic:
+					f.setItalic(True)
 				twi.setFont(f)
-				twi.setForeground(QBrush(Qt.darkGray))
 			# rprint('i='+str(i)+'  row='+str(row)+'  col='+str(col)+'  text='+str(theList[i]))
 			self.ui.teamTabsTableWidget.setItem(row,col,twi)
 		newWidth=30+(self.tttColWidth*requiredColumnCount)
