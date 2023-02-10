@@ -378,6 +378,20 @@ statusFBBIDict={
 	'At IC':[None,Qt.green,None,None],
 	'In Transit':[Qt.white,Qt.blue,None,None],
 	'Hidden':[Qt.darkGray,None,None,True]
+		'blink':False
+	},
+	'TIMED_OUT_RED':{
+		'foreground':Qt.black,
+		'background':Qt.red,
+		'italic':False,
+		'blink':False
+	},
+	'Hidden':{
+		'foreground':Qt.darkGray,
+		'background':None,
+		'italic':True,
+		'blink':False
+	}
 }
 
 timeoutDisplayList=[["10 sec",10]]
@@ -3422,6 +3436,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			if secondsSinceContact>-1:
 				teamTimersDict[extTeamName]=secondsSinceContact+1
 
+		if self.teamTabsPopup.isVisible():
+			self.teamTabsPopup.resizeEvent()
+
 	def keyPressEvent(self,event):
 		if type(event)==QKeyEvent:
 		# fix #336 (freeze / loss of focus when MyWindow grabs the keyPressEvent
@@ -5576,7 +5593,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		# 4. iterate over list of labels to display:
 		#    - calculate row and column
 		#    - set the table item
-		rprint(' resized')
+		# rprint(' resized')
 		self.ui.teamTabsTableWidget.clear()
 		# theList=self.parent.extTeamNameList
 		# theList=self.parent.teamNameList[1:] # skip first element 'dummy'
@@ -5584,9 +5601,9 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		theList=[x for x in theList if 'dummy' not in x and 'spacer' not in x.lower()]
 		# displayedRowCount=self.ui.teamTabsTableWidget.rowAt(self.ui.teamTabsTableWidget.height())
 		displayedRowCount=int(self.ui.teamTabsTableWidget.height()/self.tttRowHeight)
-		rprint('resized - now showing rows through '+str(displayedRowCount))
+		# rprint('resized - now showing rows through '+str(displayedRowCount))
 		requiredColumnCount=math.ceil(len(theList)/displayedRowCount)
-		rprint('  requiredColumnCount='+str(requiredColumnCount))
+		# rprint('  requiredColumnCount='+str(requiredColumnCount))
 		self.ui.teamTabsTableWidget.setRowCount(displayedRowCount)
 		self.ui.teamTabsTableWidget.setColumnCount(requiredColumnCount)
 		for i in range(len(theList)):
@@ -5600,17 +5617,27 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 			if etn in self.parent.hiddenTeamTabsList:
 				status='Hidden'
 				twi.setText('['+t+']')
-			[fgColor,bgColor,bold,italic]=statusFBBIDict.get(status,[None,None,None,None])
+			age=teamTimersDict.get(etn,0)
+			if self.parent.blinkToggle==1 and status not in ["At IC","Off Duty"]:
+				if age>=self.parent.timeoutRedSec:
+					status='TIMED_OUT_RED'
+				elif age>=self.parent.timeoutOrangeSec:
+					status='TIMED_OUT_ORANGE'
+			ad=statusAppearanceDict.get(status,{})
+			fgColor=ad.get('foreground',None)
+			bgColor=ad.get('background',None)
+			italic=ad.get('italic',False)
+			blink=ad.get('blink',False)
+			if blink and self.parent.blinkToggle==1:
+				fgColor=None
+				bgColor=None	
 			if fgColor:
 				twi.setForeground(QBrush(fgColor))
 			if bgColor:
 				twi.setBackground(QBrush(bgColor))
-			if bold or italic:
+			if italic:
 				f=twi.font()
-				if bold:
-					f.setBold(True)
-				if italic:
-					f.setItalic(True)
+				f.setItalic(True)
 				twi.setFont(f)
 			# rprint('i='+str(i)+'  row='+str(row)+'  col='+str(col)+'  text='+str(theList[i]))
 			self.ui.teamTabsTableWidget.setItem(row,col,twi)
