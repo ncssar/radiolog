@@ -4382,11 +4382,14 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.ui.tableViewList[i].scrollToBottom()
 # 					rprint("  e")
 # 		rprint("6")
+		if self.teamTabsPopup.isVisible():
+			self.teamTabsPopup.showEvent() # refresh display
+# 		rprint("7")
 		self.save()
 		self.showTeamTabsMoreButtonIfNeeded()
 ##		self.redrawTables()
 ##		QCoreApplication.processEvents()
-# 		rprint("7: finished newEntryPost")
+# 		rprint("8: finished newEntryPost")
 
 	def amendEntry(self,row): # row argument is zero-based
 		rprint("Amending row "+str(row))
@@ -5516,6 +5519,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		self.ui=Ui_teamTabsPopup()
 		self.ui.setupUi(self)
 		self.ui.teamTabsTableWidget.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+		self.ui.teamTabsSummaryTableWidget.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 		self.tttRowHeight=self.ui.teamTabsTableWidget.rowHeight(0)
 		self.tttColWidth=self.ui.teamTabsTableWidget.columnWidth(0)
 		self.prevWidth=self.width()
@@ -5594,28 +5598,33 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		# 2. build the summary table
 		tsdValuesList=list(teamStatusDict.values())
 		statusTableDict={}
-		statusList=['At IC','In Transit','Working','Waiting for Transport','STANDBY']
+		# 'other' status could include any status not specifically listed, or no status; mainly shown to
+		#   reduce confusion that would arise when 'Total' is greater than the sum of the listed statuses
+		# statusList=['At IC','In Transit','Working',['Waiting for Transport','Await.Trans.'],'STANDBY']
+		statusList=['At IC','In Transit','Working']
 		for status in statusList:
 			statusTableDict[status]=tsdValuesList.count(status)
+		otherCount=len([x for x in tsdValuesList if x not in statusList])
 		for row in range(self.ui.teamTabsSummaryTableWidget.rowCount()):
 			rowLabel=self.ui.teamTabsSummaryTableWidget.verticalHeaderItem(row).text()
 			if rowLabel in statusList:
 				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,QTableWidgetItem(str(statusTableDict[rowLabel])))
-		totalItem=QTableWidgetItem(str(len(teamStatusDict)))
-		f=totalItem.font()
-		f.setBold(True)
-		totalItem.setFont(f)
-		tt='This could be greater than the sum of the statuses shown above.  Not all possible statuses are listed here.'
-		self.ui.teamTabsSummaryTableWidget.verticalHeaderItem(5).setToolTip(tt)
-		totalItem.setToolTip(tt)
-		self.ui.teamTabsSummaryTableWidget.setItem(4,1,totalItem)
-		notAtICCount=len([key for key,val in teamStatusDict.items() if val!='At IC'])
-		notAtICItem=QTableWidgetItem(str(notAtICCount))
-		f=notAtICItem.font()
-		f.setPointSize(12)
-		f.setBold(True)
-		notAtICItem.setFont(f)
-		self.ui.teamTabsSummaryTableWidget.setItem(5,1,notAtICItem)
+			elif rowLabel=='Other':
+				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,QTableWidgetItem(str(otherCount)))
+			elif rowLabel=='Total':
+				totalItem=QTableWidgetItem(str(len(tsdValuesList)))
+				f=totalItem.font()
+				f.setBold(True)
+				totalItem.setFont(f)
+				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,totalItem)
+			elif rowLabel=='Not At IC':
+				notAtICCount=len([key for key,val in teamStatusDict.items() if val!='At IC'])
+				notAtICItem=QTableWidgetItem(str(notAtICCount))
+				f=notAtICItem.font()
+				f.setPointSize(12)
+				f.setBold(True)
+				notAtICItem.setFont(f)
+				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,notAtICItem)
 
 	def resizeEvent(self,e=None):
 		# 1. clear the table
@@ -5642,36 +5651,37 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 			row=i-(col*displayedRowCount)
 			t=theList[i]
 			etn=getExtTeamName(t)
-			status=teamStatusDict[etn]
-			# self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
-			twi=QTableWidgetItem(t)
-			if etn in self.parent.hiddenTeamTabsList:
-				status='Hidden'
-				twi.setText('['+t+']')
-			age=teamTimersDict.get(etn,0)
-			if self.parent.blinkToggle==1 and status not in ["At IC","Off Duty"]:
-				if age>=self.parent.timeoutRedSec:
-					status='TIMED_OUT_RED'
-				elif age>=self.parent.timeoutOrangeSec:
-					status='TIMED_OUT_ORANGE'
-			ad=statusAppearanceDict.get(status,{})
-			fgColor=ad.get('foreground',None)
-			bgColor=ad.get('background',None)
-			italic=ad.get('italic',False)
-			blink=ad.get('blink',False)
-			if blink and self.parent.blinkToggle==1:
-				fgColor=None
-				bgColor=None	
-			if fgColor:
-				twi.setForeground(QBrush(fgColor))
-			if bgColor:
-				twi.setBackground(QBrush(bgColor))
-			if italic:
-				f=twi.font()
-				f.setItalic(True)
-				twi.setFont(f)
-			# rprint('i='+str(i)+'  row='+str(row)+'  col='+str(col)+'  text='+str(theList[i]))
-			self.ui.teamTabsTableWidget.setItem(row,col,twi)
+			status=teamStatusDict.get(etn,None)
+			if status is not None: # could be empty string
+				# self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
+				twi=QTableWidgetItem(t)
+				if etn in self.parent.hiddenTeamTabsList:
+					status='Hidden'
+					twi.setText('['+t+']')
+				age=teamTimersDict.get(etn,0)
+				if self.parent.blinkToggle==1 and status not in ["At IC","Off Duty"]:
+					if age>=self.parent.timeoutRedSec:
+						status='TIMED_OUT_RED'
+					elif age>=self.parent.timeoutOrangeSec:
+						status='TIMED_OUT_ORANGE'
+				ad=statusAppearanceDict.get(status,{})
+				fgColor=ad.get('foreground',None)
+				bgColor=ad.get('background',None)
+				italic=ad.get('italic',False)
+				blink=ad.get('blink',False)
+				if blink and self.parent.blinkToggle==1:
+					fgColor=None
+					bgColor=None	
+				if fgColor:
+					twi.setForeground(QBrush(fgColor))
+				if bgColor:
+					twi.setBackground(QBrush(bgColor))
+				if italic:
+					f=twi.font()
+					f.setItalic(True)
+					twi.setFont(f)
+				# rprint('i='+str(i)+'  row='+str(row)+'  col='+str(col)+'  text='+str(theList[i]))
+				self.ui.teamTabsTableWidget.setItem(row,col,twi)
 		newWidth=30+(self.tttColWidth*requiredColumnCount)
 		# TODO: reduce flicker / potential for endless loop
 		# self.resize(newWidth,self.height())
