@@ -374,10 +374,41 @@ statusStyleDict["TIMED_OUT_RED"]="font-size:"+tabFontSize+";background:red;borde
 
 # Foreground, Background, Bold, Italic - used by teamTabsPopup but could maybe be used
 #  to replace statusStyleDict as a speedup versus style sheets
-statusFBBIDict={
-	'At IC':[None,Qt.green,None,None],
-	'In Transit':[Qt.white,Qt.blue,None,None],
-	'Hidden':[Qt.darkGray,None,None,True]
+statusAppearanceDict={
+	# 'default':{
+	# 	'foreground':Qt.black,
+	# 	'background':None,
+	# 	'italic':False,
+	# 	'blink':False
+	# },
+	'At IC':{
+		'foreground':None,
+		'background':Qt.green,
+		'italic':False,
+		'blink':False
+	},
+	'In Transit':{
+		'foreground':Qt.white,
+		'background':Qt.blue,
+		'italic':False,
+		'blink':False
+	},
+	'Waiting for Transport':{
+		'foreground':Qt.white,
+		'background':Qt.blue,
+		'italic':False,
+		'blink':True
+	},
+	'STANDBY':{
+		'foreground':Qt.white,
+		'background':Qt.black,
+		'italic':False,
+		'blink':True
+	},
+	'TIMED_OUT_ORANGE':{
+		'foreground':Qt.black,
+		'background':QColor(255,128,0),
+		'italic':False,
 		'blink':False
 	},
 	'TIMED_OUT_RED':{
