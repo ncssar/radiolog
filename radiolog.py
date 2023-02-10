@@ -4478,7 +4478,7 @@ class MyWindow(QDialog,Ui_Dialog):
 # 			rprint("   niceTeamName="+str(niceTeamName)+"  allTeamsList before:"+str(self.allTeamsList)+"  count:"+str(self.allTeamsList.count(niceTeamName)))
 			if self.allTeamsList.count(niceTeamName)==0:
 				self.allTeamsList.insert(i,niceTeamName)
-				self.allTeamsList.sort()
+				self.allTeamsList.sort(key=lambda x:getExtTeamName(x))
 				rprint("   allTeamsList after:"+str(self.allTeamsList))
 			teamTimersDict[extTeamName]=0
 			teamCreatedTimeDict[extTeamName]=time.time()
