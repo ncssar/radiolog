@@ -10,16 +10,46 @@
     <height>308</height>
    </rect>
   </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>200</width>
+    <height>0</height>
+   </size>
+  </property>
   <property name="font">
    <font>
     <family>Segoe UI</family>
     <pointsize>11</pointsize>
    </font>
   </property>
+  <property name="focusPolicy">
+   <enum>Qt::StrongFocus</enum>
+  </property>
   <property name="windowTitle">
    <string>Callsigns</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0">
+   <property name="spacing">
+    <number>5</number>
+   </property>
+   <property name="leftMargin">
+    <number>3</number>
+   </property>
+   <property name="topMargin">
+    <number>3</number>
+   </property>
+   <property name="rightMargin">
+    <number>3</number>
+   </property>
+   <property name="bottomMargin">
+    <number>3</number>
+   </property>
    <item>
     <widget class="QTableWidget" name="teamTabsTableWidget">
      <property name="font">
@@ -113,6 +143,15 @@
       <property name="text">
        <string>Other</string>
       </property>
+      <property name="foreground">
+       <brush brushstyle="SolidPattern">
+        <color alpha="255">
+         <red>150</red>
+         <green>150</green>
+         <blue>150</blue>
+        </color>
+       </brush>
+      </property>
      </row>
      <row>
       <property name="text">
@@ -143,6 +182,20 @@
        <string>Count</string>
       </property>
      </column>
+     <item row="3" column="0">
+      <property name="text">
+       <string/>
+      </property>
+      <property name="foreground">
+       <brush brushstyle="SolidPattern">
+        <color alpha="255">
+         <red>150</red>
+         <green>150</green>
+         <blue>150</blue>
+        </color>
+       </brush>
+      </property>
+     </item>
      <item row="4" column="0">
       <property name="text">
        <string/>

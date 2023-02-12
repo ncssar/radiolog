@@ -5536,7 +5536,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		try:
 			i=self.parent.extTeamNameList.index(etn)
 			self.parent.ui.tabWidget.setCurrentIndex(i)
-			self.hide()
+			# self.hide()
 		except:
 			try:
 				rprint('searching hiddenTeamTabsList:'+str(self.parent.hiddenTeamTabsList))
@@ -5610,7 +5610,9 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 			if rowLabel in statusList:
 				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,QTableWidgetItem(str(statusTableDict[rowLabel])))
 			elif rowLabel=='Other':
-				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,QTableWidgetItem(str(otherCount)))
+				otherItem=QTableWidgetItem(str(otherCount))
+				otherItem.setForeground(QColor(100,100,100))
+				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,otherItem)
 			elif rowLabel=='Total':
 				totalItem=QTableWidgetItem(str(len(tsdValuesList)))
 				f=totalItem.font()
@@ -5682,7 +5684,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 					twi.setFont(f)
 				# rprint('i='+str(i)+'  row='+str(row)+'  col='+str(col)+'  text='+str(theList[i]))
 				self.ui.teamTabsTableWidget.setItem(row,col,twi)
-		newWidth=30+(self.tttColWidth*requiredColumnCount)
+		newWidth=30+(self.tttColWidth*max([1,requiredColumnCount]))
 		# TODO: reduce flicker / potential for endless loop
 		# self.resize(newWidth,self.height())
 		self.setFixedSize(newWidth,self.height())
