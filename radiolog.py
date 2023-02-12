@@ -4469,6 +4469,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint("extTeamNameList before sort:"+str(self.extTeamNameList))
 # 		self.extTeamNameList.sort()
 		
+		# remove from hiddenTeamTabsList immediately, to prevent downsteram errors in teamTabsPopup
+		if extTeamName in self.hiddenTeamTabsList:
+			self.hiddenTeamTabsList=[x for x in self.hiddenTeamTabsList if extTeamName!=x]
+
 		self.rebuildGroupedTabDict()
 		rprint("extTeamNameList after sort:"+str(self.extTeamNameList))
 		if not self.loadFlag:
@@ -4678,7 +4682,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		for grp in self.tabGroups:
 			grouped[grp[0]]=[]
 		grouped["other"]=[]
-		for etn in [x for x in self.extTeamNameList if not x.startswith("spacer")]: # spacerless list
+		# for etn in [getExtTeamName(x) for x in self.allTeamsList if not x.startswith("spacer")]: # spacerless list, including hidden tabs
+		for etn in [x for x in self.extTeamNameList+self.hiddenTeamTabsList if not x.startswith("spacer")]: # spacerless list, including hidden tabs
 			g="other" # default to the 'other' group
 			for grp in self.tabGroups:
 				if re.match(grp[1].replace("^","^z_0*").replace("Team ","Team"),etn,re.IGNORECASE):
@@ -4697,20 +4702,26 @@ class MyWindow(QDialog,Ui_Dialog):
 		# rebuild self.extTeamNameList, with groups and spacers in the correct order,
 		#  since everything throughout the code keys off its sequence;
 		#  note the spacer names need to be unique for later processing
+		# also rebuild allTeamsList in the same sequence, which includes hidden teams
 		self.extTeamNameList=['spacerLeft']
+		self.allTeamsList=[]
 		spacerIndex=1 # start with 1 so trailing 0 doesn't get deleted in getNiceTeamName
 		for grp in self.tabGroups:
 # 			rprint("group:"+str(grp)+":"+str(grouped[grp[0]]))
 			for val in grouped[grp[0]]:
-# 				rprint("appending:"+val)
-				self.extTeamNameList.append(val)
+				self.allTeamsList.append(getNiceTeamName(val))
+				if val not in self.hiddenTeamTabsList:
+	# 				rprint("appending:"+val)
+					self.extTeamNameList.append(val)
 			if len(grouped[grp[0]])>0:
 				self.extTeamNameList.append("spacer"+str(spacerIndex))
 				spacerIndex=spacerIndex+1
 		for val in grouped["other"]:
 			if val!="dummy":
-# 				rprint("appending other:"+val)
-				self.extTeamNameList.append(val)
+				self.allTeamsList.append(getNiceTeamName(val))
+				if val not in self.hiddenTeamTabsList:
+	# 				rprint("appending other:"+val)
+					self.extTeamNameList.append(val)
 			
 	def tabContextMenu(self,pos):
 		menu=QMenu()
@@ -5444,6 +5455,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		values[3]='[RADIOLOG: operator is unhiding hidden team tab for "'+niceTeamName+'"]'
 		if (extTeamName in teamStatusDict) and (teamStatusDict[extTeamName]!=''):
 			values[5]=teamStatusDict[extTeamName]
+		# remove from hiddenTeamTabsList right away, to prevent downstream errors in teamTabsPopup
+		#  (this is already done at the start of addTab, which is too late)
+		self.hiddenTeamTabsList=[x for x in self.hiddenTeamTabsList if extTeamName!=x]
 		self.newEntry(values)
 		if self.teamTabsPopup.isVisible():
 			self.teamTabsPopup.resizeEvent()
@@ -5537,7 +5551,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 			i=self.parent.extTeamNameList.index(etn)
 			self.parent.ui.tabWidget.setCurrentIndex(i)
 			# self.hide()
-		except:
+		except: # this will get called if the team tab is hidden
 			try:
 				rprint('searching hiddenTeamTabsList:'+str(self.parent.hiddenTeamTabsList))
 				ntn=ntn.replace('[','').replace(']','') # might be wrapped in square brackets
@@ -5561,7 +5575,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		self.resize(self.width(),100) # start tiny; this also calls resizeEvent
 		self.ui.teamTabsTableWidget.setColumnCount(1)
 		# theList=self.parent.teamNameList[1:] # skip first element 'dummy'
-		theList=self.parent.allTeamsList # same as teamNamesList but hidden tabs are still included
+		theList=self.parent.allTeamsList # same as teamNameList but hidden tabs are still included
 		theList=[x for x in theList if 'dummy' not in x and 'spacer' not in x.lower()]
 		# displayedRowCount=self.ui.teamTabsTableWidget.rowAt(self.ui.teamTabsTableWidget.height())
 		displayedRowCount=int(self.ui.teamTabsTableWidget.height()/self.tttRowHeight)
