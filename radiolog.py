@@ -1743,11 +1743,28 @@ class MyWindow(QDialog,Ui_Dialog):
 					else:
 						if isWaiting:
 							rprint("     DATA IS WAITING!!!")
+							valid=False
 							tmpData=comPortTry.read(comPortTry.inWaiting()).decode("utf-8")
 							if '\x02I' in tmpData or tmpData=='\x020\x03' or tmpData=='\x021\x03' or tmpData.startswith('\x02$PKL'):
 								rprint("      VALID FLEETSYNC DATA!!!")
+								valid=True
+							elif '\x02gI' in tmpData:
+								rprint('      VALID NEXEDGE NXDN DATA!!!')
+								valid=True
+								# NEXEDGE format (e.g. for ID 03001; NXDN has no concept of fleet:device - just 5-decimal-digit unit ID, max=65536 (4 hex characters))
+								# BOT CID: ☻gI1U03001U03001♥
+								# EOT CID: ☻gI0U03001U03001♥
+								#   ☻gI - preamble (\x02gI)
+								#   BOT/EOT - BOT=1, EOT=0
+								#   U##### - U followed by unit ID (5 decimal digits)
+								#   repeat U#####
+								#   ♥ - postamble (\x03)
+								# GPS: same as with fleetsync, but PKNSH instead of PKLSH; arrives immediately after BOT CID rather than EOT CID
+							else:
+								rprint("      but not valid fleetsync data.  Scan continues...")
+								rprint(str(tmpData))
+							if valid:
 								self.fsBuffer=self.fsBuffer+tmpData
-
 								if not self.firstComPortFound:
 									self.firstComPort=comPortTry # pass the actual open com port object, to keep it open
 									self.firstComPortFound=True
@@ -1757,9 +1774,6 @@ class MyWindow(QDialog,Ui_Dialog):
 									self.secondComPortFound=True
 									self.fsLatestComPort=self.secondComPort
 								self.comPortTryList.remove(comPortTry) # and remove the good com port from the list of ports to try going forward
-							else:
-								rprint("      but not valid fleetsync data.  Scan continues...")
-								rprint(str(tmpData))
 						else:
 							if comLog:
 								rprint("     no data")
@@ -1863,6 +1877,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		sec=time.time()
 		fleet=None
 		dev=None
+		uid=None
 		# the line delimeters are literal backslash then n, rather than standard \n
 		for line in self.fsBuffer.split('\n'):
 			rprint(" line:"+line)
@@ -2102,7 +2117,23 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.sendPendingGet() # while getString will be non-empty if this bump had GPS, it may still have the default callsign
 					return
 					
-				rprint("CID detected (not in $PKLSH): fleet="+fleet+"  dev="+dev+"  callsign="+callsign)
+				rprint("FleetSync CID detected (not in $PKLSH): fleet="+fleet+"  dev="+dev+"  callsign="+callsign)
+
+			elif '\x02gI' in line: # NEXEDGE CID - similar to above
+				packetSet=set(re.findall(r'\x02gI[0-1]U([0-9]{5})U\1\x03',line))
+				if len(packetSet)>1:
+					rprint('NEXEDGE(NXDN) ERROR: data appears garbled; there are two complete but non-identical CID packets.  Skipping this message.')
+					return
+				if len(packetSet)==0:
+					rprint('NEXEDGE(NXDN) ERROR: data appears garbled; no complete CID packets were found in the incoming data.  Skipping this message.')
+					return
+				packet=packetSet.pop()
+				count=line.count(packet)
+				uid=packet[0:5]
+				callsign=self.getCallsign(uid)
+
+				rprint('NEXEDGE CID detected (not in $PKNSH): id='+uid+'  callsign='+callsign)
+
 		# if any new entry dialogs are already open with 'from' and the
 		#  current callsign, and that entry has been edited within the 'continue' time,
 		#  update it with the current location if available;
@@ -2155,6 +2186,10 @@ class MyWindow(QDialog,Ui_Dialog):
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 				else:
 					self.openNewEntry('fs',callsign,formattedLocString,fleet,dev,origLocString)
+			self.sendPendingGet()
+		elif uid:
+			if not found:
+				self.openNewEntry('nex',callsign,formattedLocString,uid,None,origLocString)
 			self.sendPendingGet()
 
 	def sendPendingGet(self,suffix=""):
@@ -2428,12 +2463,21 @@ class MyWindow(QDialog,Ui_Dialog):
 			warn.raise_()
 			warn.exec_()
 
-	def getCallsign(self,fleet,dev):
-		entry=[element for element in self.fsLookup if (str(element[0])==str(fleet) and str(element[1])==str(dev))]
-		if len(entry)!=1 or len(entry[0])!=3: # no match
-			return "KW-"+str(fleet)+"-"+str(dev)
+	def getCallsign(self,fleetOrUid,dev=None,treatAsFleet=100):
+		if len(fleetOrUid)>4: # 5 characters - must be NEXEDGE
+			uid=fleetOrUid
+			entry=[element for element in self.fsLookup if (str(element[0])==str(treatAsFleet) and str(element[1])==str(uid[:4]))]
+			if len(entry)!=1 or len(entry[0])!=3: # no match
+				return "KW-NXDN-"+str(uid)
+			else:
+				return entry[0][2]
 		else:
-			return entry[0][2]
+			fleet=fleetOrUid
+			entry=[element for element in self.fsLookup if (str(element[0])==str(fleet) and str(element[1])==str(dev))]
+			if len(entry)!=1 or len(entry[0])!=3: # no match
+				return "KW-"+str(fleet)+"-"+str(dev)
+			else:
+				return entry[0][2]
 
 	def getFleetDev(self,callsign):
 		entry=[element for element in self.fsLookup if (element[2]==callsign)]
@@ -4097,6 +4141,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.newEntryWindow.ui.tabWidget.setCurrentIndex(1)
 					self.newEntryWidget.ui.to_fromField.setCurrentIndex(0)
 					self.newEntryWidget.ui.messageField.setFocus()
+				elif key=='nex': # spawned by NEXEDGE (Kenwood NXDN); let addTab determine focus
+					pass
 				else: # some other keyboard key - assume it's the start of the team name
 					self.newEntryWidget.ui.to_fromField.setCurrentIndex(0)
 					# need to 'burp' the focus to prevent two blinking cursors
