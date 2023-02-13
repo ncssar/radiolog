@@ -5634,10 +5634,6 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		# 		rprint('  more than 20 columns requested for some reason; exiting the loop')
 		# 	self.ui.teamTabsSummaryTableWidget.setColumnCount(columns)
 		# self.move(self.x(),int((screenHeight-self.frameSize().height())/2))
-		dotsPos=self.parent.ui.teamTabsMoreButton.pos()
-		dotsY=self.parent.ui.teamTabsMoreButton.mapTo(self.parent,dotsPos).y()
-		rprint('3 dots y:'+str(dotsY))
-		self.move(self.x(),int(dotsY-self.height()/2))
 
 		# 2. build the summary table
 		tsdValuesList=list(teamStatusDict.values())
@@ -5674,6 +5670,20 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 
 	def resizeEvent(self,e=None):
 		rprint('resizeEvent')
+		dotsPos=self.parent.ui.teamTabsMoreButton.pos()
+		dotsY=self.parent.ui.teamTabsMoreButton.mapTo(self.parent,dotsPos).y()
+		# rprint('3 dots y:'+str(dotsY))
+		ph=self.parent.height()
+		h=self.height()
+		y=int(dotsY-(h/2)) # start with vertically centering on the 3 dots
+		if y+h>ph: # running off the bottom - move upwards as needed
+			y=ph-h
+		if y<0: # running off the top
+			if y+h<ph: # there's space to move downwards
+				y=0
+			else: # there's not space to move downards - need to add a column
+				rprint('need to add a column')
+		self.move(self.x(),y)
 		# 1. clear the table
 		# 2. determine required column count based on vertical size
 		# 3. set table column count
