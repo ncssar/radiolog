@@ -842,8 +842,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.homeDir=os.path.expanduser("~")
 		
 		self.hiddenTeamTabsList=[]
-		self.teamTabsPopup=teamTabsPopup(self)
+		# to make the sidebar a child of the mainwindow, a second argument is passed to
+		#  QWidget.__init__ in the sidebar's class __init__ function
+		self.sidebar=teamTabsPopup(self)
+		self.sidebar.resize(200,self.height())
+		self.sidebar.move(-200,0)
+		self.sidebar.show()
+		self.sidebar.raise_()
+		self.sidebar.leaveEvent=self.sidebarShowHide
+		self.sidebarAnimation=QPropertyAnimation(self.sidebar,b'pos')
+		self.sidebarAnimation.setDuration(150)
 		self.ui.teamTabsMoreButton=QtWidgets.QPushButton(self.ui.frame)
+		self.ui.teamTabsMoreButton.enterEvent=self.sidebarShowHide
 		self.ui.teamTabsMoreButton.setVisible(False)
 		self.ui.teamTabsMoreButton.setGeometry(1,6,14,26)
 		from PyQt5 import QtGui
@@ -3467,8 +3477,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			if secondsSinceContact>-1:
 				teamTimersDict[extTeamName]=secondsSinceContact+1
 
-		if self.teamTabsPopup.isVisible():
-			self.teamTabsPopup.resizeEvent()
+		if self.sidebar.isVisible():
+			self.sidebar.resizeEvent()
 
 	def keyPressEvent(self,event):
 		if type(event)==QKeyEvent:
@@ -4025,8 +4035,8 @@ class MyWindow(QDialog,Ui_Dialog):
 								QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 				bakMsgBox.exec_() # modal
 			progressBox.close()
-			if self.teamTabsPopup.isVisible():
-				self.teamTabsPopup.showEvent() # refresh display
+			if self.sidebar.isVisible():
+				self.sidebar.showEvent() # refresh display
 			return True # success
 
 	def updateFileNames(self):
@@ -4382,8 +4392,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.ui.tableViewList[i].scrollToBottom()
 # 					rprint("  e")
 # 		rprint("6")
-		if self.teamTabsPopup.isVisible():
-			self.teamTabsPopup.showEvent() # refresh display
+		if self.sidebar.isVisible():
+			self.sidebar.showEvent() # refresh display
 # 		rprint("7")
 		self.save()
 		self.showTeamTabsMoreButtonIfNeeded()
@@ -4499,7 +4509,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				
 		if not self.loadFlag:
 			self.rebuildTeamHotkeys()
-			self.teamTabsPopup.showEvent()
+			self.sidebar.showEvent()
 
 		"""		
 		i=self.extTeamNameList.index(extTeamName) # i is zero-based
@@ -5248,8 +5258,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				if self.extTeamNameList[n+1].lower().startswith("spacer"):
 					rprint("  found back-to-back spacers at indices "+str(n)+" and "+str(n+1))
 					self.deleteTeamTab(self.extTeamNameList[n+1],True)
-		if self.teamTabsPopup.isVisible():
-			self.teamTabsPopup.resizeEvent()
+		if self.sidebar.isVisible():
+			self.sidebar.resizeEvent()
 
 	def getNextAvailHotkey(self):
 		# iterate through hotkey pool until finding one that is not taken
@@ -5320,6 +5330,19 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.ui.tabWidget.tabBar().setTabVisible(0,False)
 			# self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:0px;}')
 
+	def sidebarShowHide(self,e=None):
+		rprint('sidebarShowHide')
+		# self.sidebar2.resize(200,self.height())
+		self.sidebar.resize(200,self.height())
+		self.sidebarShownPos=QPoint(0,0)
+		self.sidebarHiddenPos=QPoint(-200,0)
+		# if self.sidebar2.pos().x()>-100:
+		if self.sidebar.pos().x()>-100:
+			self.sidebarAnimation.setEndValue(self.sidebarHiddenPos)
+		else:
+			self.sidebarAnimation.setEndValue(self.sidebarShownPos)
+		self.sidebarAnimation.start()
+
 	def rebuildTeamTabsPopup(self):
 		# 1. build the list (or table) of all callsigns - though teamTabsPopup.resizeEvent handles to display
 		# the display list should include hidden tabs in the sequence that they would appear if not hidden
@@ -5331,18 +5354,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		# rprint('\n')
 		# row=0
 		# col=0
-		self.teamTabsPopup.ui.teamTabsTableWidget.setRowCount(len(self.teamNameList))
-		self.teamTabsPopup.ui.teamTabsTableWidget.setColumnCount(1)
+		self.sidebar.ui.teamTabsTableWidget.setRowCount(len(self.teamNameList))
+		self.sidebar.ui.teamTabsTableWidget.setColumnCount(1)
 		# for teamName in self.teamNameList[1:]: # omit first entry 'dummy'
 		# 	# rprint('row '+str(row)+' : '+teamName)
-		# 	self.teamTabsPopup.ui.teamTabsTableWidget.setItem(row,col,QTableWidgetItem(teamName))
+		# 	self.sidebar.ui.teamTabsTableWidget.setItem(row,col,QTableWidgetItem(teamName))
 		# 	row+=1
 		# for extTeamName in self.hiddenTeamTabsList:
 		# 	t=QTableWidgetItem('['+getNiceTeamName(extTeamName)+']')
 		# 	f=QFont(t.font())
 		# 	f.setItalic(True)
 		# 	t.setFont(f)
-		# 	self.teamTabsPopup.ui.teamTabsTableWidget.setItem(row,col,t)
+		# 	self.sidebar.ui.teamTabsTableWidget.setItem(row,col,t)
 		# 	row+=1
 		# 2. build the summary table
 		tsdValuesList=list(teamStatusDict.values())
@@ -5350,41 +5373,41 @@ class MyWindow(QDialog,Ui_Dialog):
 		statusList=['At IC','In Transit','Working','Waiting for Transport','STANDBY']
 		for status in statusList:
 			statusTableDict[status]=tsdValuesList.count(status)
-		for row in range(self.teamTabsPopup.ui.teamTabsSummaryTableWidget.rowCount()):
-			rowLabel=self.teamTabsPopup.ui.teamTabsSummaryTableWidget.verticalHeaderItem(row).text()
+		for row in range(self.sidebar.ui.teamTabsSummaryTableWidget.rowCount()):
+			rowLabel=self.sidebar.ui.teamTabsSummaryTableWidget.verticalHeaderItem(row).text()
 			if rowLabel in statusList:
-				self.teamTabsPopup.ui.teamTabsSummaryTableWidget.setItem(row-1,1,QTableWidgetItem(str(statusTableDict[rowLabel])))
+				self.sidebar.ui.teamTabsSummaryTableWidget.setItem(row-1,1,QTableWidgetItem(str(statusTableDict[rowLabel])))
 		totalItem=QTableWidgetItem(str(len(teamStatusDict)))
 		f=totalItem.font()
 		f.setBold(True)
 		totalItem.setFont(f)
 		tt='This could be greater than the sum of the statuses shown above.  Not all possible statuses are listed here.'
-		self.teamTabsPopup.ui.teamTabsSummaryTableWidget.verticalHeaderItem(5).setToolTip(tt)
+		self.sidebar.ui.teamTabsSummaryTableWidget.verticalHeaderItem(5).setToolTip(tt)
 		totalItem.setToolTip(tt)
-		self.teamTabsPopup.ui.teamTabsSummaryTableWidget.setItem(4,1,totalItem)
+		self.sidebar.ui.teamTabsSummaryTableWidget.setItem(4,1,totalItem)
 		notAtICCount=len([key for key,val in teamStatusDict.items() if val!='At IC'])
 		notAtICItem=QTableWidgetItem(str(notAtICCount))
 		f=notAtICItem.font()
 		f.setPointSize(12)
 		f.setBold(True)
 		notAtICItem.setFont(f)
-		self.teamTabsPopup.ui.teamTabsSummaryTableWidget.setItem(5,1,notAtICItem)
+		self.sidebar.ui.teamTabsSummaryTableWidget.setItem(5,1,notAtICItem)
 		# determine height, bounded by screen height
 		
 	# need to run this slot on pressed, instead of clicked which causes redisplay with every click
 	#  due to interaction with return value from QMenu
 	def teamTabsMoreButtonPressed(self):
-		if self.teamTabsPopup.isVisible():
-			self.teamTabsPopup.hide()
+		if self.sidebar.isVisible():
+			self.sidebar.hide()
 			return
 		# self.rebuildTeamTabsPopup()
-		# self.teamTabsPopup.ui.teamTabsTableWidget.clear()
-		# self.teamTabsPopup.ui.teamTabsTableWidget.addItems(self.teamNameList)
+		# self.sidebar.ui.teamTabsTableWidget.clear()
+		# self.sidebar.ui.teamTabsTableWidget.addItems(self.teamNameList)
 		# QApplication.processEvents()
-		# self.teamTabsPopup.move(0,0)
-		self.teamTabsPopup.show()
-		self.teamTabsPopup.raise_()
-		# self.teamTabsPopup.resizeEvent() # redraw the teams table - only works after it's displayed
+		# self.sidebar.move(0,0)
+		self.sidebar.show()
+		self.sidebar.raise_()
+		# self.sidebar.resizeEvent() # redraw the teams table - only works after it's displayed
 		# if self.teamTabsMoreMenu:
 		# 	del(self.teamTabsMoreMenu)
 		# 	self.teamTabsMoreMenu=None
@@ -5459,8 +5482,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  (this is already done at the start of addTab, which is too late)
 		self.hiddenTeamTabsList=[x for x in self.hiddenTeamTabsList if extTeamName!=x]
 		self.newEntry(values)
-		if self.teamTabsPopup.isVisible():
-			self.teamTabsPopup.resizeEvent()
+		if self.sidebar.isVisible():
+			self.sidebar.resizeEvent()
 
 	def addNonRadioClue(self):
 		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
@@ -5528,7 +5551,9 @@ class helpWindow(QDialog,Ui_Help):
 
 class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 	def __init__(self,parent):
-		QWidget.__init__(self)
+		# the second argument to QWidget.__init__ makes this widget a child of the main window;
+		#  without that argument, this widget would get its own top level window
+		QWidget.__init__(self,parent)
 		self.parent=parent
 		self.ui=Ui_teamTabsPopup()
 		self.ui.setupUi(self)
@@ -5537,8 +5562,8 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		self.tttRowHeight=self.ui.teamTabsTableWidget.rowHeight(0)
 		self.tttColWidth=self.ui.teamTabsTableWidget.columnWidth(0)
 		self.prevWidth=self.width()
-		self.setWindowFlags(self.windowFlags() & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
-		self.setStyleSheet(globalStyleSheet)
+		# self.setWindowFlags(self.windowFlags() & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		# self.setStyleSheet(globalStyleSheet)
 		self.ui.teamTabsTableWidget.cellClicked.connect(self.cellClicked)
 		# disable mouse wheel scroll: https://stackoverflow.com/a/61085704/3577105
 		self.ui.teamTabsTableWidget.wheelEvent=lambda event: None
@@ -5570,7 +5595,12 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 			except: # not in either list
 				rprint('ERROR: clicked a cell '+etn+' that does not exist in extTeamNameList or hiddenTeamTabsList')
 
+	def keyPressEvent(self,e=None):
+		rprint('kpe')
+		e.ignore()
+
 	def showEvent(self,e=None):
+		rprint('sidebar show')
 		self.tttRowHeight=self.ui.teamTabsTableWidget.rowHeight(0) # since row height won't be computed until shown (ResizeToContents)
 		self.resize(self.width(),100) # start tiny; this also calls resizeEvent
 		self.ui.teamTabsTableWidget.setColumnCount(1)
@@ -5643,6 +5673,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,notAtICItem)
 
 	def resizeEvent(self,e=None):
+		rprint('resizeEvent')
 		# 1. clear the table
 		# 2. determine required column count based on vertical size
 		# 3. set table column count
