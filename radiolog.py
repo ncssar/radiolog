@@ -845,7 +845,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# to make the sidebar a child of the mainwindow, a second argument is passed to
 		#  QWidget.__init__ in the sidebar's class __init__ function
 		self.sidebar=teamTabsPopup(self)
-		self.sidebar.resize(200,self.height())
+		# self.sidebar.resize(100,100)
 		self.sidebar.move(-200,0)
 		self.sidebar.show()
 		self.sidebar.raise_()
@@ -5333,9 +5333,9 @@ class MyWindow(QDialog,Ui_Dialog):
 	def sidebarShowHide(self,e=None):
 		rprint('sidebarShowHide')
 		# self.sidebar2.resize(200,self.height())
-		self.sidebar.resize(200,self.height())
-		self.sidebarShownPos=QPoint(0,0)
-		self.sidebarHiddenPos=QPoint(-200,0)
+		self.sidebar.resize(200,self.sidebar.height())
+		self.sidebarShownPos=QPoint(0,self.sidebar.y())
+		self.sidebarHiddenPos=QPoint(-200,self.sidebar.y())
 		# if self.sidebar2.pos().x()>-100:
 		if self.sidebar.pos().x()>-100:
 			self.sidebarAnimation.setEndValue(self.sidebarHiddenPos)
@@ -5381,9 +5381,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		f=totalItem.font()
 		f.setBold(True)
 		totalItem.setFont(f)
-		tt='This could be greater than the sum of the statuses shown above.  Not all possible statuses are listed here.'
-		self.sidebar.ui.teamTabsSummaryTableWidget.verticalHeaderItem(5).setToolTip(tt)
-		totalItem.setToolTip(tt)
 		self.sidebar.ui.teamTabsSummaryTableWidget.setItem(4,1,totalItem)
 		notAtICCount=len([key for key,val in teamStatusDict.items() if val!='At IC'])
 		notAtICItem=QTableWidgetItem(str(notAtICCount))
@@ -5607,8 +5604,9 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		theList=[x for x in theList if 'dummy' not in x and 'spacer' not in x.lower()]
 		# displayedRowCount=self.ui.teamTabsTableWidget.rowAt(self.ui.teamTabsTableWidget.height())
 		displayedRowCount=int(self.ui.teamTabsTableWidget.height()/self.tttRowHeight)
-		screenHeight=QApplication.desktop().screenGeometry().height()
-		maxDialogHeight=screenHeight-30 # to allow for window frame/decorations
+		# screenHeight=QApplication.desktop().screenGeometry().height()
+		# maxDialogHeight=screenHeight-30 # to allow for window frame/decorations
+		maxDialogHeight=self.parent.height()
 		listLength=len(theList)
 		# columns=1
 		rprint('showEvent called; initial height = '+str(self.height()))
@@ -5635,7 +5633,11 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		# 	if columns>20:
 		# 		rprint('  more than 20 columns requested for some reason; exiting the loop')
 		# 	self.ui.teamTabsSummaryTableWidget.setColumnCount(columns)
-		self.move(self.x(),int((screenHeight-self.frameSize().height())/2))
+		# self.move(self.x(),int((screenHeight-self.frameSize().height())/2))
+		dotsPos=self.parent.ui.teamTabsMoreButton.pos()
+		dotsY=self.parent.ui.teamTabsMoreButton.mapTo(self.parent,dotsPos).y()
+		rprint('3 dots y:'+str(dotsY))
+		self.move(self.x(),int(dotsY-self.height()/2))
 
 		# 2. build the summary table
 		tsdValuesList=list(teamStatusDict.values())
@@ -5728,7 +5730,6 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 				# rprint('i='+str(i)+'  row='+str(row)+'  col='+str(col)+'  text='+str(theList[i]))
 				self.ui.teamTabsTableWidget.setItem(row,col,twi)
 		newWidth=30+(self.tttColWidth*max([1,requiredColumnCount]))
-		# TODO: reduce flicker / potential for endless loop
 		# self.resize(newWidth,self.height())
 		self.setFixedSize(newWidth,self.height())
 
