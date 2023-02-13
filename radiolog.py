@@ -5569,35 +5569,33 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		self.ui.teamTabsTableWidget.wheelEvent=lambda event: None
 
 	def cellClicked(self,row,col):
-		ntn=self.ui.teamTabsTableWidget.currentItem().text()
-		# rprint('cell clicked: '+str(ntn))
-		etn=getExtTeamName(ntn)
-		try:
-			i=self.parent.extTeamNameList.index(etn)
-			self.parent.ui.tabWidget.setCurrentIndex(i)
-			# self.hide()
-		except: # this will get called if the team tab is hidden
+		ci=self.ui.teamTabsTableWidget.currentItem()
+		if ci:
+			ntn=self.ui.teamTabsTableWidget.currentItem().text()
+			# rprint('cell clicked: '+str(ntn))
+			etn=getExtTeamName(ntn)
 			try:
-				rprint('searching hiddenTeamTabsList:'+str(self.parent.hiddenTeamTabsList))
-				ntn=ntn.replace('[','').replace(']','') # might be wrapped in square brackets
-				etn=getExtTeamName(ntn)
-				i=self.parent.hiddenTeamTabsList.index(etn)
-				box=QMessageBox(QMessageBox.Warning,"Hidden tab","The tab for '"+ntn+"' is currently hidden.\n\nDo you want to unhide the tab?",
-					QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-				box.show()
-				box.raise_()
-				if box.exec_()==QMessageBox.No:
-					return
-				self.parent.unhideTeamTab(ntn)
 				i=self.parent.extTeamNameList.index(etn)
 				self.parent.ui.tabWidget.setCurrentIndex(i)
 				# self.hide()
-			except: # not in either list
-				rprint('ERROR: clicked a cell '+etn+' that does not exist in extTeamNameList or hiddenTeamTabsList')
-
-	def keyPressEvent(self,e=None):
-		rprint('kpe')
-		e.ignore()
+			except: # this will get called if the team tab is hidden
+				try:
+					rprint('searching hiddenTeamTabsList:'+str(self.parent.hiddenTeamTabsList))
+					ntn=ntn.replace('[','').replace(']','') # might be wrapped in square brackets
+					etn=getExtTeamName(ntn)
+					i=self.parent.hiddenTeamTabsList.index(etn)
+					box=QMessageBox(QMessageBox.Warning,"Hidden tab","The tab for '"+ntn+"' is currently hidden.\n\nDo you want to unhide the tab?",
+						QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					box.show()
+					box.raise_()
+					if box.exec_()==QMessageBox.No:
+						return
+					self.parent.unhideTeamTab(ntn)
+					i=self.parent.extTeamNameList.index(etn)
+					self.parent.ui.tabWidget.setCurrentIndex(i)
+					# self.hide()
+				except: # not in either list
+					rprint('ERROR: clicked a cell '+etn+' that does not exist in extTeamNameList or hiddenTeamTabsList')
 
 	def showEvent(self,e=None):
 		rprint('sidebar show')
