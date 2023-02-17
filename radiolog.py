@@ -1568,11 +1568,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			self.ui.fsFilterButton.setStyleSheet("QToolButton { }")
 			
-	def fsFilterEdit(self,fleet,dev,state=True):
+	def fsFilterEdit(self,fleetOrBlank,devOrUid,state=True):
 # 		rprint("editing filter for "+str(fleet)+" "+str(dev))
 		for row in self.fsLog:
 # 			rprint("row:"+str(row))
-			if row[0]==fleet and row[1]==dev:
+			if row[0]==fleetOrBlank and row[1]==devOrUid:
 # 				rprint("found")
 				row[3]=state
 				self.fsBuildTooltip()
@@ -1614,16 +1614,22 @@ class MyWindow(QDialog,Ui_Dialog):
 		# rprint('returning '+str(rval))
 		return rval
 		
-	def fsFilteredCallDisplay(self,state="off",fleet=0,dev=0,callsign=''):
-		if state=="on":
-			self.ui.incidentNameLabel.setText("Incoming FS filtered:\n"+callsign+"   ("+str(fleet)+":"+str(dev)+")")
-			self.ui.incidentNameLabel.setStyleSheet("background-color:#ff5050;color:white;font-size:"+str(int(self.limitedFontSize*3/4))+"pt")
-		elif state=="bump":
-			self.ui.incidentNameLabel.setText("Mic bump filtered:\n"+callsign+"   ("+str(fleet)+":"+str(dev)+")")
-			self.ui.incidentNameLabel.setStyleSheet("background-color:#5050ff;color:white;font-size:"+str(int(self.limitedFontSize*3/4))+"pt")
+	def fsFilteredCallDisplay(self,state='off',fleetOrBlank='',devOrUid='',callsign=''):
+		if fleetOrBlank: # fleetsync
+			typeStr='FleetSync'
+			idStr=fleetOrBlank+':'+devOrUid
+		else: #nexedge
+			typeStr='NEXEDGE'
+			idStr=devOrUid
+		if state=='on':
+			self.ui.incidentNameLabel.setText(typeStr+' filtered:\n'+callsign+'   ('+idStr+')')
+			self.ui.incidentNameLabel.setStyleSheet('background-color:#ff5050;color:white;font-size:'+str(int(self.limitedFontSize*3/4))+'pt')
+		elif state=='bump':
+			self.ui.incidentNameLabel.setText('Mic bump filtered:\n'+callsign+'   ('+idStr+')')
+			self.ui.incidentNameLabel.setStyleSheet('background-color:#5050ff;color:white;font-size:'+str(int(self.limitedFontSize*3/4))+'pt')
 		else:
 			self.ui.incidentNameLabel.setText(self.incidentName)
-			self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black;font-size:"+str(self.limitedFontSize)+"pt")
+			self.ui.incidentNameLabel.setStyleSheet('background-color:none;color:black;font-size:'+str(self.limitedFontSize)+'pt')
 				
 	def fsCheckBoxCB(self):
 		# 0 = unchecked / empty: mute fleetsync completely
@@ -2271,16 +2277,20 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsFilterDialog.ui.tableView.model().layoutChanged.emit()
 		self.fsBuildTeamFilterDict()
 	
-	def fsGetLatestComPort(self,fleet,device):
+	def fsGetLatestComPort(self,fleetOrBlank,devOrUid):
 		rprint('fsLog:'+str(self.fsLog))
-		log=[x for x in self.fsLog if x[0:2]==[int(fleet),int(device)]]
+		if fleetOrBlank:
+			idStr=fleetOrBlank+':'+devOrUid
+		else:
+			idStr=devOrUid
+		log=[x for x in self.fsLog if x[0:2]==[fleetOrBlank,devOrUid]]
 		if len(log)==1:
 			comPortName=log[0][5]
 		elif len(log)>1:
-			rprint('WARNING: there are multiple fsLog entries for '+str(fleet)+':'+str(device))
+			rprint('WARNING: there are multiple fsLog entries for '+idStr)
 			comPortName=log[0][5]
 		else:
-			rprint('WARNING: '+str(fleet)+':'+str(device)+' has no fsLog entry so it probably has not been heard from yet')
+			rprint('WARNING: '+idStr+' has no fsLog entry so it probably has not been heard from yet')
 			comPortName=None
 		# rprint('returning '+str(comPortName))
 		if self.firstComPort and self.firstComPort.name==comPortName:
@@ -2304,7 +2314,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			tt='<span style="font-size: '+str(self.toolTipFontSize)+'pt;">No devices are currently being filtered.<br>(left-click to edit)</span>'
 		self.ui.fsFilterButton.setToolTip(tt)
 
-	def fsIsFiltered(self,fleet,dev):
+	def fsIsFiltered(self,fleetOrBlank,devOrUid):
 # 		rprint("checking fsFilter: fleet="+str(fleet)+" dev="+str(dev))
 		# disable fsValidFleetList checking to allow arbitrary fleets; this
 		#  idea is probably obsolete
@@ -2314,7 +2324,7 @@ class MyWindow(QDialog,Ui_Dialog):
 # 			return True
 		# if the fleet is valid, check for filtered device ID
 		for row in self.fsLog:
-			if row[0]==fleet and row[1]==dev and row[3]==True:
+			if row[0]==fleetOrBlank and row[1]==devOrUid and row[3]==True:
 # 				rprint("  device is fitlered; returning True")
 				return True
 # 		rprint("not filtered; returning False")
