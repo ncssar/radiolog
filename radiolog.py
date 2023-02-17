@@ -2189,7 +2189,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.sendPendingGet()
 		elif uid:
 			if not found:
-				self.openNewEntry('nex',callsign,formattedLocString,uid,None,origLocString)
+				self.openNewEntry('nex',callsign,formattedLocString,None,uid,origLocString)
 			self.sendPendingGet()
 
 	def sendPendingGet(self,suffix=""):
@@ -2224,26 +2224,34 @@ class MyWindow(QDialog,Ui_Dialog):
 	# if callsign is specified, update the callsign but not the time;
 	#  if callsign is not specified, udpate the time but not the callsign;
 	#  if the entry does not yet exist, add it
-	def fsLogUpdate(self,fleet,dev,callsign=False,bump=False):
+	def fsLogUpdate(self,fleet=None,dev=None,uid=None,callsign=False,bump=False):
 		# row structure: [fleet,dev,callsign,filtered,last_received,com port]
 		# don't process the dummy default entry
 		if callsign=='Default':
 			return
-		try:
-			fleet=int(fleet)
-			dev=int(dev)
-		except:
-			rprint('ERROR in call to fsLogUpdate: fleet and dev must both be integers or integer-strings: fleet='+str(fleet)+'  dev='+str(dev))
+		if not (fleet and dev) or uid:
+			rprint('ERROR in call to fsLogUpdate: either fleet and dev must be specified, or uid must be specified.')
 			return
+		# # this clause is dead code now, since enforcing that fleet and dev are always strings throughout the code
+		# if fleet and dev: # fleetsync, not nexedge
+		# 	try:
+		# 		fleet=int(fleet)
+		# 		dev=int(dev)
+		# 	except:
+		# 		rprint('ERROR in call to fsLogUpdate: fleet and dev must both be integers or integer-strings: fleet='+str(fleet)+'  dev='+str(dev))
+		# 		return
 		com='<None>'
 		if self.fsLatestComPort:
 			com=str(self.fsLatestComPort.name)
 		if com!='<None>': # suppress printing on initial log population during fsLoadLookup
-			rprint("updating fsLog: fleet="+str(fleet)+" dev="+str(dev)+" callsign="+(callsign or "<None>")+"  COM port="+com)
+			if fleet and dev:
+				rprint("updating fsLog (fleetsync): fleet="+fleet+" dev="+dev+" callsign="+(callsign or "<None>")+"  COM port="+com)
+			elif uid:
+				rprint("updating fsLog (nexedge): user id = "+uid+" callsign="+(callsign or "<None>")+"  COM port="+com)
 		found=False
 		t=time.strftime("%a %H:%M:%S")
 		for row in self.fsLog:
-			if row[0]==fleet and row[1]==dev:
+			if (row[0]==fleet and row[1]==dev) or (row[0]=='' and row[1]==uid):
 				found=True
 				if callsign:
 					row[2]=callsign
@@ -2254,7 +2262,10 @@ class MyWindow(QDialog,Ui_Dialog):
 					row[6]+=1
 		if not found:
 			# always update callsign - it may have changed since creation
-			self.fsLog.append([fleet,dev,self.getCallsign(fleet,dev),False,t,com,int(bump)])
+			if fleet and dev: # fleetsync
+				self.fsLog.append([fleet,dev,self.getCallsign(fleet,dev),False,t,com,int(bump)])
+			elif uid: # nexedge
+				self.fsLog.append(['',uid,self.getCallsign(uid),False,t,com,int(bump)])
 # 		rprint(self.fsLog)
 # 		if self.fsFilterDialog.ui.tableView:
 		self.fsFilterDialog.ui.tableView.model().layoutChanged.emit()
@@ -2340,7 +2351,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.fsLookup=[]
 				csvReader=csv.reader(fsFile)
 				usedCallsignList=[] # keep track of used callsigns to check for duplicates afterwards
-				usedFleetDevPairList=[] # keep track of used fleet-dev pairs to check for duplicates afterwards
+				usedIDPairList=[] # keep track of used fleet-dev pairs (or blank-and-unit-ID pairs for NEXEDGE) to check for duplicates afterwards
 				duplicateCallsignsAllowed=False
 				for row in csvReader:
 					# rprint('row:'+str(row))
@@ -2381,13 +2392,13 @@ class MyWindow(QDialog,Ui_Dialog):
 								self.fsLookup.append(row)
 								# self.fsLogUpdate(row[0],row[1],row[2])
 								usedCallsignList.append(cs)
-								usedFleetDevPairList.append(str(row[0])+':'+str(row[1]))
+								usedIDPairList.append(str(row[0])+':'+str(row[1]))
 						else:
 							# rprint(' adding row: '+str(row))
 							self.fsLookup.append(row)
 							# self.fsLogUpdate(row[0],row[1],row[2])
 							usedCallsignList.append(row[2])
-							usedFleetDevPairList.append(str(row[0])+':'+str(row[1]))
+							usedIDPairList.append(str(row[0])+':'+str(row[1]))
 				# rprint('reading done')
 				if not duplicateCallsignsAllowed and len(set(usedCallsignList))!=len(usedCallsignList):
 					seen=set()
@@ -2403,14 +2414,14 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.fsMsgBox.show()
 					self.fsMsgBox.raise_()
 					self.fsMsgBox.exec_() # modal
-				if len(set(usedFleetDevPairList))!=len(usedFleetDevPairList):
+				if len(set(usedIDPairList))!=len(usedIDPairList):
 					seen=set()
-					duplicatedFleetDevPairs=[x for x in usedFleetDevPairList if x in seen or seen.add(x)]
-					n=len(duplicatedFleetDevPairs)
+					duplicatedIDPairs=[x for x in usedIDPairList if x in seen or seen.add(x)]
+					n=len(duplicatedIDPairs)
 					if n>3:
-						duplicatedFleetDevPairs=duplicatedFleetDevPairs[0:3]+['(and '+str(n-3)+' more)']
-					msg='Fleet-and-device pairs are repeated in the FleetSync lookup file\n\n'+fsFullPath+'\n\nFor this session, the last definition will be used, overwriting definitions that appear earlier in the file.  Please correct the file soon.\n\n'
-					msg+='Repeated pairs:\n\n'+str(duplicatedFleetDevPairs).replace('[','').replace(']','').replace("'","").replace(', (',' (')
+						duplicatedIDPairs=duplicatedIDPairs[0:3]+['(and '+str(n-3)+' more)']
+					msg='Device ID pairs are repeated in the FleetSync lookup file\n\n'+fsFullPath+'\n\nFor this session, the last definition will be used, overwriting definitions that appear earlier in the file.  Please correct the file soon.\n\n'
+					msg+='Repeated pairs:\n\n'+str(duplicatedIDPairs).replace('[','').replace(']','').replace("'","").replace(', (',' (')
 					rprint('FleetSync Table Warning:'+msg)
 					self.fsMsgBox=QMessageBox(QMessageBox.Warning,"FleetSync Table Warning",msg,
 											QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
@@ -2463,28 +2474,37 @@ class MyWindow(QDialog,Ui_Dialog):
 			warn.raise_()
 			warn.exec_()
 
-	def getCallsign(self,fleetOrUid,dev=None,treatAsFleet=100):
-		if isinstance(fleetOrUid,str) and len(fleetOrUid)>4: # 5 characters - must be NEXEDGE
+	def getCallsign(self,fleetOrUid,dev=None):
+		if not isinstance(fleetOrUid,str):
+			rprint('ERROR in call to getCallsign: fleetOrId is not a string.')
+			return
+		if dev and not isinstance(dev,str):
+			rprint('ERROR in call to getCallsign: dev is not a string.')
+			return
+		if len(fleetOrUid)==3: # 3 characters - must be fleetsync
+			fleet=fleetOrUid
+			entries=[element for element in self.fsLookup if (element[0]==fleet and element[1]==dev)]
+			if len(entries)!=1 or len(entries[0][0])!=3: # no match
+				return "KW-"+fleet+"-"+dev
+			else:
+				return entries[0][2]
+		elif len(fleetOrUid)==5: # 5 characters - must be NEXEDGE
 			uid=fleetOrUid
-			entry=[element for element in self.fsLookup if (str(element[0])==str(treatAsFleet) and str(element[1])==uid[:4])]
-			if len(entry)!=1 or len(entry[0])!=3: # no match
+			entries=[element for element in self.fsLookup if element[1]==uid]
+			if len(entries)!=1 or entries[0][0]!='': # no match
 				return "KW-NXDN-"+uid
 			else:
-				return entry[0][2]
+				return entries[0][2]
 		else:
-			fleet=fleetOrUid
-			entry=[element for element in self.fsLookup if (str(element[0])==str(fleet) and str(element[1])==str(dev))]
-			if len(entry)!=1 or len(entry[0])!=3: # no match
-				return "KW-"+str(fleet)+"-"+str(dev)
-			else:
-				return entry[0][2]
+			rprint('ERROR in call to getCallsign: first argument must be 3 characters (FleetSync) or 5 characters (NEXEDGE): "'+fleetOrUid+'"')
 
-	def getFleetDev(self,callsign):
-		entry=[element for element in self.fsLookup if (element[2]==callsign)]
-		if len(entry)!=1: # no match
-			return False
-		else:
-			return [entry[0][0],entry[0][1]]
+	# not called from anywhere
+	# def getIdFromCallsign(self,callsign):
+	# 	entry=[element for element in self.fsLookup if (element[2]==callsign)]
+	# 	if len(entry)!=1: # no match
+	# 		return False
+	# 	else:
+	# 		return [entry[0][0],entry[0][1]] # for nexEdge, the first value
 
 	def testConvertCoords(self):
 		coordsTestList=[
@@ -6135,8 +6155,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		# problem: changeCallsignDialog does not stay on top of newEntryWindow!
 		# only open the dialog if the newEntryWidget was created from an incoming fleetSync ID
 		#  (it has no meaning for hotkey-opened newEntryWidgets)
+		rprint('openChangeCallsignDialog: self.fleet='+str(self.fleet)+' self.dev='+str(self.dev))
 		self.needsChangeCallsign=False
-		if self.fleet:
+		 # for fleetsync, fleet and dev will both have values; for nexedge, fleet will be None but dev will have a value
+		if self.fleet or self.dev:
 			try:
 				#482: wrap in try/except, since a quick 'esc' will close the NED, deleting teamField,
 				#  before this code executes since it is called from a singleshot timer
@@ -7645,7 +7667,7 @@ class fsSendMessageDialog(QDialog,Ui_fsSendMessageDialog):
 
 class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 	openDialogCount=0
-	def __init__(self,parent,callsign,fleet,device):
+	def __init__(self,parent,callsign,fleet=None,device=None):
 		QDialog.__init__(self)
 		self.ui=Ui_changeCallsignDialog()
 		self.ui.setupUi(self)
@@ -7654,13 +7676,20 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.parent=parent
 		self.currentCallsign=callsign
-		self.fleet=int(fleet)
-		self.device=int(device)
+		self.fleet=fleet
+		self.device=device
 		
-		rprint("openChangeCallsignDialog called.  fleet="+str(self.fleet)+"  dev="+str(self.device))
+		rprint("changeCallsignDialog created.  fleet="+str(self.fleet)+"  dev="+str(self.device))
 
-		self.ui.fleetField.setText(fleet)
-		self.ui.deviceField.setText(device)
+		if fleet: # fleetsync
+			self.ui.idField1.setText(str(fleet))
+			self.ui.idField2.setText(str(device))
+		else: # nexedge
+			self.ui.idLabel.setText('NEXEDGE ID')
+			self.ui.idLabel1.setText('Unit ID')
+			self.ui.idField1.setText(str(device))
+			self.ui.idLabel2.setVisible(False)
+			self.ui.idField2.setVisible(False)
 		self.ui.currentCallsignField.setText(callsign)
 		self.ui.newCallsignField.setFocus()
 		self.ui.newCallsignField.setText("Team  ")
@@ -7681,7 +7710,7 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		self.ui.newCallsignField.setCompleter(self.completer)
 
 	def fsFilterConfirm(self):
-		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Filter (ignore) future incoming messages\n  from this FleetSync device?",
+		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Filter (ignore) future incoming messages\n  from this device?",
 			QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 		if really.exec_()==QMessageBox.No:
 			self.close()
@@ -7694,24 +7723,43 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		
 	def accept(self):
 		found=False
-		fleet=self.ui.fleetField.text()
-		dev=self.ui.deviceField.text()
+		id1=self.ui.idField1.text()
+		id2=self.ui.idField2.text()
+		fleet=''
+		dev=''
+		uid=''
+		if id2: # fleetsync
+			fleet=id1
+			dev=id2
+			rprint('accept: FleetSync fleet='+str(fleet)+'  dev='+str(dev))
+		else:
+			uid=id1
+			rprint('accept: NEXEDGE uid='+str(uid))
 		# fix #459 (and other places in the code): remove all leading and trailing spaces, and change all chains of spaces to one space
 		newCallsign=re.sub(r' +',r' ',self.ui.newCallsignField.text()).strip()
 		# change existing device entry if found, otherwise add a new entry
 		for n in range(len(self.parent.parent.fsLookup)):
 			entry=self.parent.parent.fsLookup[n]
-			if entry[0]==fleet and entry[1]==dev:
+			if (entry[0]==fleet and entry[1]==dev) or (entry[1]==uid):
 				found=True
 				self.parent.parent.fsLookup[n][2]=newCallsign
 		if not found:
-			self.parent.parent.fsLookup.append([fleet,dev,newCallsign])
+			if fleet and dev: # fleetsync
+				self.parent.parent.fsLookup.append([fleet,dev,newCallsign])
+			else: # nexedge
+				self.parent.parent.fsLookup.append(['',uid,newCallsign])
+		rprint('fsLookup after CCD:'+str(self.parent.parent.fsLookup))
 		# set the current radio log entry teamField also
 		self.parent.ui.teamField.setText(newCallsign)
 		# save the updated table (filename is set at the same times that csvFilename is set)
 		self.parent.parent.fsSaveLookup()
 		# change the callsign in fsLog
-		self.parent.parent.fsLogUpdate(int(fleet),int(dev),newCallsign)
+		if id2: # fleetsync
+			self.parent.parent.fsLogUpdate(fleet,dev,newCallsign)
+			rprint("New callsign pairing created from FleetSync: fleet="+fleet+"  dev="+dev+"  callsign="+newCallsign)
+		else: # nexedge
+			self.parent.parent.fsLogUpdate(None,uid,newCallsign)
+			rprint("New callsign pairing created from NEXEDGE: unit ID = "+uid+"  callsign="+newCallsign)
 		# finally, pass the 'accept' signal on up the tree as usual
 		changeCallsignDialog.openDialogCount-=1
 		self.parent.parent.sendPendingGet(newCallsign)
@@ -7719,7 +7767,6 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		#  the same as the new entry, as determined by addTab
 		self.parent.parent.newEntryWindow.ui.tabWidget.currentWidget().ui.messageField.setFocus()
 		super(changeCallsignDialog,self).accept()
-		rprint("New callsign pairing created: fleet="+fleet+"  dev="+dev+"  callsign="+newCallsign)
 
 
 class clickableWidget(QWidget):
