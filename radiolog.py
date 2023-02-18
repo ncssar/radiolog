@@ -2119,7 +2119,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.fsFilteredCallDisplay() # blank for a tenth of a second in case of repeated bumps
 					QTimer.singleShot(200,lambda:self.fsFilteredCallDisplay('bump',fleet,dev,callsign))
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
-					self.fsLogUpdate(int(fleet),int(dev),bump=True)
+					self.fsLogUpdate(fleet=fleet,dev=dev,bump=True)
 					self.sendPendingGet() # while getString will be non-empty if this bump had GPS, it may still have the default callsign
 					return
 					
@@ -2184,10 +2184,10 @@ class MyWindow(QDialog,Ui_Dialog):
 					except:
 						pass
 		if fleet and dev:
-			self.fsLogUpdate(int(fleet),int(dev))
+			self.fsLogUpdate(fleet=fleet,dev=dev)
 			# only open a new entry widget if the fleet/dev is not being filtered
 			if not found:
-				if self.fsIsFiltered(int(fleet),int(dev)):
+				if self.fsIsFiltered(fleet,dev):
 					self.fsFilteredCallDisplay("on",fleet,dev,callsign)
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 				else:
@@ -2235,8 +2235,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		# don't process the dummy default entry
 		if callsign=='Default':
 			return
-		if not (fleet and dev) or uid:
+		if not ((fleet and dev) or uid):
 			rprint('ERROR in call to fsLogUpdate: either fleet and dev must be specified, or uid must be specified.')
+			rprint('  fleet='+str(fleet)+'  dev='+str(dev)+'  uid='+str(uid))
 			return
 		# # this clause is dead code now, since enforcing that fleet and dev are always strings throughout the code
 		# if fleet and dev: # fleetsync, not nexedge
@@ -2272,7 +2273,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.fsLog.append([fleet,dev,self.getCallsign(fleet,dev),False,t,com,int(bump)])
 			elif uid: # nexedge
 				self.fsLog.append(['',uid,self.getCallsign(uid),False,t,com,int(bump)])
-# 		rprint(self.fsLog)
+		rprint('fsLog after fsLogUpdate:'+str(self.fsLog))
 # 		if self.fsFilterDialog.ui.tableView:
 		self.fsFilterDialog.ui.tableView.model().layoutChanged.emit()
 		self.fsBuildTeamFilterDict()
@@ -7758,17 +7759,19 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 				self.parent.parent.fsLookup.append([fleet,dev,newCallsign])
 			else: # nexedge
 				self.parent.parent.fsLookup.append(['',uid,newCallsign])
-		rprint('fsLookup after CCD:'+str(self.parent.parent.fsLookup))
+		# rprint('fsLookup after CCD:'+str(self.parent.parent.fsLookup))
 		# set the current radio log entry teamField also
 		self.parent.ui.teamField.setText(newCallsign)
 		# save the updated table (filename is set at the same times that csvFilename is set)
 		self.parent.parent.fsSaveLookup()
 		# change the callsign in fsLog
 		if id2: # fleetsync
-			self.parent.parent.fsLogUpdate(fleet,dev,newCallsign)
+			rprint('calling fsLogUpdate for fleetsync')
+			self.parent.parent.fsLogUpdate(fleet=fleet,dev=dev,callsign=newCallsign)
 			rprint("New callsign pairing created from FleetSync: fleet="+fleet+"  dev="+dev+"  callsign="+newCallsign)
 		else: # nexedge
-			self.parent.parent.fsLogUpdate(None,uid,newCallsign)
+			rprint('calling fsLogUpdate for nexedge')
+			self.parent.parent.fsLogUpdate(uid=uid,callsign=newCallsign)
 			rprint("New callsign pairing created from NEXEDGE: unit ID = "+uid+"  callsign="+newCallsign)
 		# finally, pass the 'accept' signal on up the tree as usual
 		changeCallsignDialog.openDialogCount-=1
