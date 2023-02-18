@@ -2195,7 +2195,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.sendPendingGet()
 		elif uid:
 			if not found:
-				self.openNewEntry('nex',callsign,formattedLocString,None,uid,origLocString)
+				if self.fsIsFiltered('',uid):
+					self.fsFilteredCallDisplay('on','',uid)
+					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
+				else:
+					self.openNewEntry('nex',callsign,formattedLocString,None,uid,origLocString)
 			self.sendPendingGet()
 
 	def sendPendingGet(self,suffix=""):
@@ -4750,40 +4754,40 @@ class MyWindow(QDialog,Ui_Dialog):
 			fsToggleAllAction=False # initialize, so the action checker does not die
 			fsSendTextToAllAction=False # initialize, so the action checker does not die
 			if len(devices)>0:
-				fsMenu=menu.addMenu("FleetSync...")
+				fsMenu=menu.addMenu('FleetSync/NEXEDGE...')
 				menu.addSeparator()
 				if self.enableSendText:
 					if len(devices)>1:
-						fsSendTextToAllAction=fsMenu.addAction("Send text message to all "+niceTeamName+" devices")
+						fsSendTextToAllAction=fsMenu.addAction('Send text message to all '+niceTeamName+' devices')
 						fsMenu.addSeparator()
 					for device in devices:
-						key=str(device[0])+":"+str(device[1])
-						fsMenu.addAction("Send text message to "+key).setData([device[0],device[1],'SendText'])
+						key=(device[0] or 'NX')+':'+device[1]
+						fsMenu.addAction('Send text message to '+key).setData([device[0],device[1],'SendText'])
 					fsMenu.addSeparator()
 				if self.enablePollGPS:
 					for device in devices:
-						key=str(device[0])+":"+str(device[1])
-						fsMenu.addAction("Request location from "+key).setData([device[0],device[1],'PollGPS'])
+						key=(device[0] or 'NX')+':'+device[1]
+						fsMenu.addAction('Request location from '+key).setData([device[0],device[1],'PollGPS'])
 					fsMenu.addSeparator()
 				if len(devices)>1:
 					if teamFSFilterDict[extTeamName]==2:
-						fsToggleAllAction=fsMenu.addAction("Unfilter all "+niceTeamName+" devices")
+						fsToggleAllAction=fsMenu.addAction('Unfilter all '+niceTeamName+' devices')
 					else:
-						fsToggleAllAction=fsMenu.addAction("Filter all "+niceTeamName+" devices")
+						fsToggleAllAction=fsMenu.addAction('Filter all '+niceTeamName+' devices')
 					fsMenu.addSeparator()
 					for device in devices:
-						key=str(device[0])+":"+str(device[1])
+						key=(device[0] or 'NX')+':'+device[1]
 						if self.fsIsFiltered(device[0],device[1]):
-							fsMenu.addAction("Unfilter calls from "+key).setData([device[0],device[1],'unfilter'])
+							fsMenu.addAction('Unfilter calls from '+key).setData([device[0],device[1],'unfilter'])
 						else:
-							fsMenu.addAction("Filter calls from "+key).setData([device[0],device[1],'filter'])
+							fsMenu.addAction('Filter calls from '+key).setData([device[0],device[1],'filter'])
 				else:
-					key=str(devices[0][0])+":"+str(devices[0][1])
+					key=(devices[0][0] or 'NX')+':'+devices[0][1]
 					if teamFSFilterDict[extTeamName]==2:
-						fsToggleAllAction=fsMenu.addAction("Unfilter calls from "+niceTeamName+" ("+key+")")
+						fsToggleAllAction=fsMenu.addAction('Unfilter calls from '+niceTeamName+' ('+key+')')
 					else:
-						fsToggleAllAction=fsMenu.addAction("Filter calls from "+niceTeamName+" ("+key+")")
-			deleteTeamTabAction=menu.addAction("Hide tab for "+str(niceTeamName))
+						fsToggleAllAction=fsMenu.addAction('Filter calls from '+niceTeamName+' ('+key+')')
+			deleteTeamTabAction=menu.addAction('Hide tab for '+str(niceTeamName))
 
 			# action handlers
 			action=menu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(pos))
@@ -4793,7 +4797,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.openNewEntry('tab',str(niceTeamName))
 				self.newEntryWidget.ui.to_fromField.setCurrentIndex(1)
 			elif action==printTeamLogAction:
-				rprint("printing team log for "+str(niceTeamName))
+				rprint('printing team log for '+str(niceTeamName))
 				self.printLog(self.opPeriod,str(niceTeamName))
 				self.radioLogNeedsPrint=True # since only one log has been printed; need to enhance this
 			elif action==deleteTeamTabAction:
