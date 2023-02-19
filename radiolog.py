@@ -1653,23 +1653,24 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.ui.incidentNameLabel.setText(self.incidentName)
 				self.ui.incidentNameLabel.setStyleSheet("background-color:none;color:black;font-size:"+str(self.limitedFontSize)+"pt;")
 			
-	# FleetSync - check for pending data
+	# FleetSync / NEXEDGE - check for pending data
 	# - check for pending data at regular interval (from timer)
 	#     (it's important to check for ID-only lines, since handhelds with no
-	#      GPS mic will not send $PKLSH but we still want to spawn a new entry
-	#      dialog; and, $PKLSH isn't necessarily sent on BOT (Beginning of Transmission) anyway)
-	#     (for 1 second interval, ID-only is always processed separately from $PKLSH;
+	#      GPS mic will not send $PKLSH / $PKNSH but we still want to spawn a new entry
+	#      dialog; and, $PKLSH / $PKNSH isn't necessarily sent on BOT (Beginning of Transmission) anyway)
+	#     (for 1 second interval, ID-only is always processed separately from $PKLSH/ $PKNSH;
 	#     even for 2 second interval, sometimes ID is processed separately.
-	#     So, if PKLSH is processed, add coords to any rececntly-spawned
-	#     'from' new entry dialog for the same fleetsync id.)
+	#     So, if $PKLSH / $PKNSH is processed, add coords to any rececntly-spawned
+	#     'from' new entry dialog for the same fleetsync / nexedge id.)
 	# - append any pending data to fsBuffer
-	# - if a clean end of fleetsync transmission is included in this round of data,
+	# - if a clean end of transmission packet is included in this round of data,
 	#    spawn a new entry window (unless one is already open with 'from'
-	#    and the same fleetsync fleet and ID) with any geographic data
+	#    and the same fleetsync / nexedge ID) with any geographic data
 	#    from the current fsBuffer, then empty the fsBuffer
 
 	# NOTE that the data coming in is bytes b'1234' but we want string; use bytes.decode('utf-8') to convert,
-	#  after which /x02 will show up as a happy face and /x03 will show up as a heart on standard ASCII display.
+	#  after which /x02 (a.k.a. STX a.k.a. Start of Text) will show up as a happy face 
+	#  and /x03 (a.k.a. ETX a.k.a. End of Text) will show up as a heart on standard ASCII display.
 
 	def fsCheck(self):
 		if self.fsAwaitingResponse:
@@ -1689,33 +1690,42 @@ class MyWindow(QDialog,Ui_Dialog):
 					values[0]=time.strftime("%H%M")
 					values[6]=time.time()
 					[f,dev]=self.fsAwaitingResponse[0:2]
-					callsignText=self.getCallsign(f,dev)
+					if f: # fleetsync
+						callsignText=self.getCallsign(f,dev)
+						h='FLEETSYNC'
+						idStr=f+':'+dev
+					else: # nexedge
+						uid=dev
+						callsignText=self.getCallsign(uid)
+						h='NEXEDGE'
+						idStr=uid
 					values[2]=str(callsignText)
 					if callsignText:
 						callsignText='('+callsignText+')'
 					else:
 						callsignText='(no callsign)'
 					if self.fsAwaitingResponse[2]=='Location request sent':
-						values[3]='FLEETSYNC: No response received for location request from '+str(f)+':'+str(dev)+' '+callsignText
+						values[3]=h+': No response received for location request from '+idStr+' '+callsignText
 					elif self.fsAwaitingResponse[2]=='Text message sent':
 						msg=self.fsAwaitingResponse[4]
 						values[1]='TO'
-						values[3]='FLEETSYNC: Text message sent to '+str(f)+':'+str(dev)+' '+callsignText+' but delivery was NOT confirmed: "'+msg+'"'
+						values[3]=h+': Text message sent to '+idStr+' '+callsignText+' but delivery was NOT confirmed: "'+msg+'"'
 					else:
-						values[3]='FLEETSYNC: Timeout after unknown command type "'+self.fsAwaitingResponse[2]+'"'
+						values[3]=h+': Timeout after unknown command type "'+self.fsAwaitingResponse[2]+'"'
+
 					self.newEntry(values)
-					msg='No FleetSync response: unable to confirm that the message was received by the target device(s).'
+					msg='No '+h+' response: unable to confirm that the message was received by the target device(s).'
 					if self.fsAwaitingResponse[2]=='Location request sent':
 						msg+='\n\nThis could happen after a location request for one of several reasons:\n  - The radio in question was off\n  - The radio in question was on, but not set to this channel\n  - The radio in question was on and set to this channel, but had no GPS fix'
 					self.fsAwaitingResponse=None # clear the flag
 					if len(self.fsSendList)==1:
-						box=QMessageBox(QMessageBox.Critical,'FleetSync timeout',msg,
+						box=QMessageBox(QMessageBox.Critical,h+' timeout',msg,
 							QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 						box.open()
 						box.raise_()
 						box.exec_()
 					else:
-						self.fsResponseMessage+='\n\n'+str(f)+':'+str(dev)+' '+callsignText+':'+msg
+						self.fsResponseMessage+='\n\n'+idStr+' '+callsignText+':'+msg
 			else:
 				remaining=self.fsAwaitingResponseTimeout-self.fsAwaitingResponse[3]
 				suffix=''
@@ -1767,7 +1777,7 @@ class MyWindow(QDialog,Ui_Dialog):
 								#   ♥ - postamble (\x03)
 								# GPS: same as with fleetsync, but PKNSH instead of PKLSH; arrives immediately after BOT CID rather than EOT CID
 							else:
-								rprint("      but not valid fleetsync data.  Scan continues...")
+								rprint("      but not valid FleetSync or NEXEDGE data.  Scan continues...")
 								rprint(str(tmpData))
 							if valid:
 								self.fsBuffer=self.fsBuffer+tmpData
@@ -1896,7 +1906,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				#     the next lines will include $PKLSH etc.  In this case, there is no action to take;
 				#     just move on to the next line.
 				if self.fsAwaitingResponse and self.fsAwaitingResponse[2]=='Text message sent':
-					[f,dev]=self.fsAwaitingResponse[0:2]
+					[fleet,dev]=self.fsAwaitingResponse[0:2]
 					msg=self.fsAwaitingResponse[4]
 					self.fsAwaitingResponse=None # clear the flag before closing the messagebox
 					try:
@@ -1910,22 +1920,30 @@ class MyWindow(QDialog,Ui_Dialog):
 					values=["" for n in range(10)]
 					values[0]=time.strftime("%H%M")
 					values[1]='TO'
-					if int(f)==0 and int(dev)==0:
+					if int(dev)==0:
 						recipient='all devices'
 						values[2]='ALL'
 					else:
-						callsignText=self.getCallsign(f,dev)
+						if fleet: # fleetsync
+							callsignText=self.getCallsign(fleet,dev)
+							idStr=fleet+':'+dev
+							h='FLEETSYNC'
+						else: # nexedge
+							uid=dev
+							callsignText=self.getCallsign(uid)
+							idStr=uid
+							h='NEXEDGE'
 						values[2]=str(callsignText)
 						if callsignText:
 							callsignText='('+callsignText+')'
 						else:
 							callsignText='(no callsign)'
-						recipient=str(f)+':'+str(dev)+' '+callsignText
+						recipient=idStr+' '+callsignText
 						suffix=' and delivery was confirmed'
-					values[3]='FLEETSYNC: Text message sent to '+recipient+suffix+': "'+msg+'"'
+					values[3]=h+': Text message sent to '+recipient+suffix+': "'+msg+'"'
 					values[6]=time.time()
 					self.newEntry(values)
-					rprint('FLEETSYNC: Text message sent to '+recipient+suffix)
+					rprint(h+': Text message sent to '+recipient+suffix)
 					return
 			if line=='\x021\x03': # failure response
 				if self.fsAwaitingResponse:
@@ -1935,15 +1953,23 @@ class MyWindow(QDialog,Ui_Dialog):
 						#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
 						values=["" for n in range(10)]
 						values[0]=time.strftime("%H%M")
-						[f,dev]=self.fsAwaitingResponse[0:2]
-						callsignText=self.getCallsign(f,dev)
+						[fleet,dev]=self.fsAwaitingResponse[0:2]
+						if fleet: # fleetsync
+							callsignText=self.getCallsign(fleet,dev)
+							idStr=fleet+':'+dev
+							h='FLEETSYNC'
+						else: # nexedge
+							uid=dev
+							callsignText=self.getCallsign(uid)
+							idStr=uid
+							h='NEXEDGE'
 						values[2]=str(callsignText)
 						if callsignText:
 							callsignText='('+callsignText+')'
 						else:
 							callsignText='(no callsign)'
-						recipient=str(f)+':'+str(dev)+' '+callsignText
-						values[3]='FLEETSYNC: NO RESPONSE from '+recipient
+						recipient=idStr+' '+callsignText
+						values[3]=h+': NO RESPONSE from '+recipient
 						values[6]=time.time()
 						self.newEntry(values)
 						self.fsFailedFlag=True
@@ -1952,15 +1978,30 @@ class MyWindow(QDialog,Ui_Dialog):
 						except:
 							pass
 						self.fsAwaitingResponse=None # clear the flag
-						rprint('FLEETSYNC: NO RESPONSE from '+recipient)
+						rprint(h+': NO RESPONSE from '+recipient)
 						return
-			if '$PKLSH' in line:
+			if '$PKLSH' in line or '$PKNSH' in line: # handle fleetsync and nexedge in this 'if' clause
 				lineParse=line.split(',')
+				header=lineParse[0] # $PKLSH or $PKNSH
 				# if CID packet(s) came before $PKLSH on the same line, that's OK since they don't have any commas
-				if len(lineParse)==10:
-					[pklsh,nval,nstr,wval,wstr,utc,valid,fleet,dev,chksum]=lineParse
-					callsign=self.getCallsign(fleet,dev)
-					rprint("$PKLSH detected containing CID: fleet="+fleet+"  dev="+dev+"  -->  callsign="+callsign)
+				if (header=='$PKLSH' and len(lineParse)==10) or (header=='$PKNSH' and len(lineParse==9)):
+					if header=='$PKLSH': # fleetsync
+						[header,nval,nstr,wval,wstr,utc,valid,fleet,dev,chksum]=lineParse
+						uid=''
+						callsign=self.getCallsign(fleet,dev)
+						idStr=fleet+':'+dev
+						h='FLEETSYNC'
+						rprint("$PKLSH (FleetSync) detected containing CID: fleet="+fleet+"  dev="+dev+"  -->  callsign="+callsign)
+					else: # nexedge
+						[header,nval,nstr,wval,wstr,utc,valid,uid,chksum]=lineParse
+						fleet=''
+						dev=''
+						uid=uid[1:] # get rid of the leading 'U'
+						callsign=self.getCallsign(uid)
+						idStr=uid
+						h='NEXEDGE'
+						rprint("$PKNSH (NEXEDGE) detected containing CID: Unit ID = "+uid+"  -->  callsign="+callsign)
+
 					# OLD RADIOS (2180):
 					# unusual PKLSH lines seen from log files:
 					# $PKLSH,2913.1141,N,,,175302,A,100,2016,*7A - no data for west - this caused
@@ -1982,6 +2023,11 @@ class MyWindow(QDialog,Ui_Dialog):
 					# - if valid=='A' - as with old radios
 					# so:
 					# if valid=='A':  # only process if there is a GPS lock
+					#
+					# $PKNSH (NEXEDGE equivalent of $PKLSH) - has one less comma-delimited token than $PKLSH
+					#  U01001 = unit ID 01001
+					# $PKNSH,3916.1154,N,12101.6008,W,123456,A,U01001,*4C
+
 					if valid!='Z':  # process regardless of GPS lock
 						locList=[nval,nstr,wval,wstr]
 						origLocString='|'.join(locList) # don't use comma, that would conflict with CSV delimeter
@@ -2007,18 +2053,22 @@ class MyWindow(QDialog,Ui_Dialog):
 								#  but deviceID can be any text; use the callsign to get useful names in sarsoft
 								if callsign.startswith("KW-"):
 									# did not find a good callsign; use the device number in the GET request
-									devTxt=dev
+									devTxt=dev or uid
 								else:
 									# found a good callsign; use the callsign in the GET request
 									devTxt=callsign
-								self.getString="http://"+self.sarsoftServerName+":8080/rest/location/update/position?lat="+str(lat)+"&lng="+str(lon)+"&id=FLEET:"+fleet+"-"
+								# for sending locator updates, assume fleet 100 for now - this may be dead code soon - see #598
+								self.getString="http://"+self.sarsoftServerName+":8080/rest/location/update/position?lat="+str(lat)+"&lng="+str(lon)+"&id=FLEET:"+(fleet or '100')+"-"
 								# if callsign = "Radio ..." then leave the getString ending with hyphen for now, as a sign to defer
 								#  sending until accept of change callsign dialog, or closeEvent of newEntryWidget, whichever comes first;
 								#  otherwise, append the callsign now, as a sign to send immediately
+
+								# TODO: change this hardcode to deal with other default device names - see #635
 								if not devTxt.startswith("Radio "):
 									self.getString=self.getString+devTxt
+
 							# was this a response to a location request for this device?
-							if self.fsAwaitingResponse and [int(fleet),int(dev)]==[int(x) for x in self.fsAwaitingResponse[0:2]]:
+							if self.fsAwaitingResponse and [fleet,dev]==[x for x in self.fsAwaitingResponse[0:2]]:
 								try:
 									self.fsAwaitingResponseMessageBox.close()
 								except:
@@ -2037,13 +2087,13 @@ class MyWindow(QDialog,Ui_Dialog):
 								else:
 									prefix='UNKNOWN RESPONSE CODE "'+str(valid)+'"'
 									values[4]='!'+values[4]+'!'
-								callsignText=self.getCallsign(fleet,dev)
-								values[2]=callsignText or ''
-								if callsignText:
-									callsignText='('+callsignText+')'
+								# callsignText=self.getCallsign(fleet,dev)
+								values[2]=callsign or ''
+								if callsign:
+									callsignText='('+callsign+')'
 								else:
 									callsignText='(no callsign)'
-								values[3]='FLEETSYNC LOCATION REQUEST: '+prefix+' from device '+str(fleet)+':'+str(dev)+' '+callsignText
+								values[3]=h+' LOCATION REQUEST: '+prefix+' from device '+idStr+' '+callsignText
 								values[6]=time.time()
 								self.newEntry(values)
 								rprint(values[3])
@@ -2054,26 +2104,26 @@ class MyWindow(QDialog,Ui_Dialog):
 								self.fsAwaitingResponseMessageBox.show()
 								self.fsAwaitingResponseMessageBox.raise_()
 								self.fsAwaitingResponseMessageBox.exec_()
-								return # done processing this FS traffic - don't spawn a new entry dialog
+								return # done processing this traffic - don't spawn a new entry dialog
 						else:
-							rprint("INVALID location string parsed from $PKLSH: '"+origLocString+"'")
+							rprint('INVALID location string parsed from '+header+': "'+origLocString+'"')
 							origLocString='INVALID'
 							formattedLocString='INVALID'
 					elif valid=='Z':
 						origLocString='NO FIX'
 						formattedLocString='NO FIX'
 					elif valid=='V':
-						rprint("WARNING status character parsed from $PKLSH; check the GPS mic attached to that radio")
+						rprint('WARNING status character parsed from '+header+'; check the GPS mic attached to that radio')
 						origLocString='WARNING'
 						formattedLocString='WARNING'
 					else:
 						origLocString='UNDEFINED'
 						formattedLocString='UNDEFINED'
 				else:
-					rprint("Parsed line contained "+str(len(lineParse))+" tokens instead of the expected 10; skipping.")
+					rprint("Parsed "+header+" line contained "+str(len(lineParse))+" tokens instead of the expected 10 (FleetSync) or 9 (NEXEDGE); skipping.")
 					origLocString='BAD DATA'
 					formattedLocString='BAD DATA'
-			if '\x02I' in line: # 'if' rather than 'elif' means that self.getString is available to send to sartopo
+			if '\x02I' in line: # fleetsync CID - 'if' rather than 'elif' means that self.getString is available to send to sartopo
 				# caller ID lines look like " I110040021004002" (first character is \x02, may show as a space)
 				# " I<n>" is a prefix, n is either 1 (BOT) or 0 (EOT)
 				# the next three characters (100 above) are the fleet#
@@ -2128,10 +2178,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			elif '\x02gI' in line: # NEXEDGE CID - similar to above
 				packetSet=set(re.findall(r'\x02gI[0-1]U([0-9]{5})U\1\x03',line))
 				if len(packetSet)>1:
-					rprint('NEXEDGE(NXDN) ERROR: data appears garbled; there are two complete but non-identical CID packets.  Skipping this message.')
+					rprint('NEXEDGE ERROR: data appears garbled; there are two complete but non-identical CID packets.  Skipping this message.')
 					return
 				if len(packetSet)==0:
-					rprint('NEXEDGE(NXDN) ERROR: data appears garbled; no complete CID packets were found in the incoming data.  Skipping this message.')
+					rprint('NEXEDGE ERROR: data appears garbled; no complete CID packets were found in the incoming data.  Skipping this message.')
 					return
 				packet=packetSet.pop()
 				count=line.count(packet)
