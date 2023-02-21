@@ -5176,18 +5176,22 @@ class MyWindow(QDialog,Ui_Dialog):
 
 
 	
-	def pollGPS(self,fleet,device):
+	def pollGPS(self,fleet='',device=None):
 		if self.fsShowChannelWarning:
-			m='WARNING: You are about to send FleetSync data burst noise on one or both mobile radios.\n\nMake sure that neither radio is set to any law or fire channel, or any other channel where FleetSync data bursts would cause problems.'
-			box=QMessageBox(QMessageBox.Warning,'FleetSync Channel Warning',m,
+			m='WARNING: You are about to send FleetSync or NEXEDGE data burst noise on one or both mobile radios.\n\nMake sure that neither radio is set to any law or fire channel, or any other channel where FleetSync data bursts would cause problems.'
+			box=QMessageBox(QMessageBox.Warning,'FleetSync / NEXEDGE Channel Warning',m,
 							QMessageBox.Ok|QMessageBox.Cancel,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			box.show()
 			box.raise_()
 			box.exec_()
 			if box.clickedButton().text()=='Cancel':
 				return
-		rprint('polling GPS for fleet='+str(fleet)+' device='+str(device))
-		d='\x02\x52\x33'+str(fleet)+str(device)+'\x03'
+		if fleet: # fleetsync
+			rprint('polling GPS for fleet='+str(fleet)+' device='+str(device))
+			d='\x02\x52\x33'+str(fleet)+str(device)+'\x03'
+		else: # nexedge
+			rprint('polling GPS for NEXEDGE unit ID = '+str(device))
+			d='\x02g\x52\x33U'+str(device)+'\x03'
 		rprint('com data: '+str(d))
 		self.fsTimedOut=False
 		self.fsFailedFlag=False
@@ -5203,7 +5207,16 @@ class MyWindow(QDialog,Ui_Dialog):
 		fsFirstPortToTry.write(d.encode())
 		self.fsAwaitingResponse=[fleet,device,'Location request sent',0]
 		[f,dev,t]=self.fsAwaitingResponse[0:3]
-		self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.NoIcon,t,t+' to '+str(f)+':'+str(dev)+' on preferred COM port; awaiting response up to '+str(self.fsAwaitingResponseTimeout)+' seconds...',
+		if f: # fleetsync
+			idStr=f+':'+dev
+			h='FleetSync'
+			callsignText=self.getCallsign(f,dev)
+		else: # nexedge
+			idStr=dev
+			h='NEXEDGE'
+			uid=dev
+			callsignText=self.getCallsign(uid)
+		self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.NoIcon,t,t+' to '+idStr+' on preferred COM port; awaiting response up to '+str(self.fsAwaitingResponseTimeout)+' seconds...',
 						QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 		self.fsAwaitingResponseMessageBox.show()
 		self.fsAwaitingResponseMessageBox.raise_()
@@ -5214,13 +5227,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
 			values=["" for n in range(10)]
 			values[0]=time.strftime("%H%M")
-			callsignText=self.getCallsign(f,dev)
 			values[2]=str(callsignText)
 			if callsignText:
 				callsignText='('+callsignText+')'
 			else:
 				callsignText='(no callsign)'
-			values[3]='FLEETSYNC: GPS location request set to '+str(f)+':'+str(dev)+' '+callsignText+' but radiolog operator clicked Abort before response was received'
+			values[3]=h+': GPS location request set to '+idStr+' '+callsignText+' but radiolog operator clicked Abort before response was received'
 			values[6]=time.time()
 			self.newEntry(values)
 		if self.fsFailedFlag: # timed out, or, got a '1' response
@@ -5232,7 +5244,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				# rprint('5: fsThereWillBeAnotherTry='+str(self.fsThereWillBeAnotherTry))
 				self.fsSecondPortToTry.write(d.encode())
 				self.fsAwaitingResponse[3]=0 # reset the timer
-				self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.NoIcon,t,t+' to '+str(f)+':'+str(dev)+' on alternate COM port; awaiting response up to '+str(self.fsAwaitingResponseTimeout)+' seconds...',
+				self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.NoIcon,t,t+' to '+idStr+' on alternate COM port; awaiting response up to '+str(self.fsAwaitingResponseTimeout)+' seconds...',
 								QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 				self.fsAwaitingResponseMessageBox.show()
 				self.fsAwaitingResponseMessageBox.raise_()
@@ -5243,13 +5255,12 @@ class MyWindow(QDialog,Ui_Dialog):
 					#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
 					values=["" for n in range(10)]
 					values[0]=time.strftime("%H%M")
-					callsignText=self.getCallsign(f,dev)
 					values[2]=str(callsignText)
 					if callsignText:
 						callsignText='('+callsignText+')'
 					else:
 						callsignText='(no callsign)'
-					values[3]='FLEETSYNC: GPS location request set to '+str(f)+':'+str(dev)+' '+callsignText+' but radiolog operator clicked Abort before response was received'
+					values[3]=h+': GPS location request set to '+idStr+' '+callsignText+' but radiolog operator clicked Abort before response was received'
 					values[6]=time.time()
 					self.newEntry(values)
 				if self.fsFailedFlag: # timed out, or, got a '1' response
