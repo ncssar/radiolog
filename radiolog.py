@@ -1675,7 +1675,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	def fsCheck(self):
 		if self.fsAwaitingResponse:
 			if self.fsAwaitingResponse[3]>=self.fsAwaitingResponseTimeout:
-				rprint('Fleetsync timed out awaiting response')
+				rprint('Timed out awaiting FleetSync or NEXEDGE response')
 				self.fsFailedFlag=True
 				try:
 					self.fsTimedOut=True
@@ -1982,17 +1982,24 @@ class MyWindow(QDialog,Ui_Dialog):
 						return
 			if '$PKLSH' in line or '$PKNSH' in line: # handle fleetsync and nexedge in this 'if' clause
 				lineParse=line.split(',')
-				header=lineParse[0] # $PKLSH or $PKNSH
+				header=lineParse[0] # $PKLSH or $PKNSH, possibly following CID STX thru ETX
+				# rprint('header:'+header+'  tokens:'+str(len(lineParse)))
 				# if CID packet(s) came before $PKLSH on the same line, that's OK since they don't have any commas
-				if (header=='$PKLSH' and len(lineParse)==10) or (header=='$PKNSH' and len(lineParse==9)):
-					if header=='$PKLSH': # fleetsync
+				if '$PKLSH' in header: # fleetsync
+					if len(lineParse)==10:
 						[header,nval,nstr,wval,wstr,utc,valid,fleet,dev,chksum]=lineParse
 						uid=''
 						callsign=self.getCallsign(fleet,dev)
 						idStr=fleet+':'+dev
 						h='FLEETSYNC'
 						rprint("$PKLSH (FleetSync) detected containing CID: fleet="+fleet+"  dev="+dev+"  -->  callsign="+callsign)
-					else: # nexedge
+					else:
+						rprint("Parsed $PKLSH line contained "+str(len(lineParse))+" tokens instead of the expected 10 tokens; skipping.")
+						origLocString='BAD DATA'
+						formattedLocString='BAD DATA'
+						continue
+				elif '$PKNSH' in header: # nexedge
+					if len(lineParse)==9:
 						[header,nval,nstr,wval,wstr,utc,valid,uid,chksum]=lineParse
 						fleet=''
 						dev=''
@@ -2001,128 +2008,129 @@ class MyWindow(QDialog,Ui_Dialog):
 						idStr=uid
 						h='NEXEDGE'
 						rprint("$PKNSH (NEXEDGE) detected containing CID: Unit ID = "+uid+"  -->  callsign="+callsign)
-
-					# OLD RADIOS (2180):
-					# unusual PKLSH lines seen from log files:
-					# $PKLSH,2913.1141,N,,,175302,A,100,2016,*7A - no data for west - this caused
-					#   parsing error "ValueError: invalid literal for int() with base 10: ''"
-					# $PKLSH,3851.3330,N,09447.9417,W,012212,V,100,1202,*23 - what's 'V'?
-					#   in standard NMEA sentences, status 'V' = 'warning'.  Dead GPS mic?
-					#   we should flag these to the user somehow; note, the coordinates are
-					#   for the Garmin factory in Olathe, KS
-					# - if valid=='V' set coord field to 'WARNING', do not attempt to parse, and carry on
-					# - if valid=='A' and coords are incomplete or otherwise invalid, set coord field
-					#    to 'INVALID', do not attempt to parse, and carry on
-					# 
-					# NEW RADIOS (NX5200):
-					# $PKLSH can contain status 'V' if it had a GPS lock before but does not currently,
-					#   in which case the real coodinates of the last known lock will be included.
-					#   If this happens, we do want to see the coordinates in the entry body, but we do not want
-					#   to update the sartopo locator.
-					# - iv valid=='V', append the formatted string with an asterisk, but do not update the locator
-					# - if valid=='A' - as with old radios
-					# so:
-					# if valid=='A':  # only process if there is a GPS lock
-					#
-					# $PKNSH (NEXEDGE equivalent of $PKLSH) - has one less comma-delimited token than $PKLSH
-					#  U01001 = unit ID 01001
-					# $PKNSH,3916.1154,N,12101.6008,W,123456,A,U01001,*4C
-
-					if valid!='Z':  # process regardless of GPS lock
-						locList=[nval,nstr,wval,wstr]
-						origLocString='|'.join(locList) # don't use comma, that would conflict with CSV delimeter
-						validated=True
-						try:
-							float(nval)
-						except ValueError:
-							validated=False
-						try:
-							float(wval)
-						except ValueError:
-							validated=False
-						validated=validated and nstr in ['N','S'] and wstr in ['W','E']
-						if validated:
-							rprint("Valid location string:'"+origLocString+"'")
-							formattedLocString=self.convertCoords(locList,self.datum,self.coordFormat)
-							rprint("Formatted location string:'"+formattedLocString+"'")
-							[lat,lon]=self.convertCoords(locList,targetDatum="WGS84",targetFormat="D.dList")
-							rprint("WGS84 lat="+str(lat)+"  lon="+str(lon))
-							if valid=='A': # don't update the locator if valid=='V'
-								# sarsoft requires &id=FLEET:<fleet#>-<deviceID>
-								#  fleet# must match the locatorGroup fleet number in sarsoft
-								#  but deviceID can be any text; use the callsign to get useful names in sarsoft
-								if callsign.startswith("KW-"):
-									# did not find a good callsign; use the device number in the GET request
-									devTxt=dev or uid
-								else:
-									# found a good callsign; use the callsign in the GET request
-									devTxt=callsign
-								# for sending locator updates, assume fleet 100 for now - this may be dead code soon - see #598
-								self.getString="http://"+self.sarsoftServerName+":8080/rest/location/update/position?lat="+str(lat)+"&lng="+str(lon)+"&id=FLEET:"+(fleet or '100')+"-"
-								# if callsign = "Radio ..." then leave the getString ending with hyphen for now, as a sign to defer
-								#  sending until accept of change callsign dialog, or closeEvent of newEntryWidget, whichever comes first;
-								#  otherwise, append the callsign now, as a sign to send immediately
-
-								# TODO: change this hardcode to deal with other default device names - see #635
-								if not devTxt.startswith("Radio "):
-									self.getString=self.getString+devTxt
-
-							# was this a response to a location request for this device?
-							if self.fsAwaitingResponse and [fleet,dev]==[x for x in self.fsAwaitingResponse[0:2]]:
-								try:
-									self.fsAwaitingResponseMessageBox.close()
-								except:
-									pass
-								# values format for adding a new entry:
-								#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
-								values=["" for n in range(10)]
-								values[0]=time.strftime("%H%M")
-								values[1]='FROM'
-								values[4]=formattedLocString
-								if valid=='A':
-									prefix='SUCCESSFUL RESPONSE'
-								elif valid=='V':
-									prefix='RESPONSE WITH WARNING CODE (probably indicates a stale GPS lock)'
-									values[4]='*'+values[4]+'*'
-								else:
-									prefix='UNKNOWN RESPONSE CODE "'+str(valid)+'"'
-									values[4]='!'+values[4]+'!'
-								# callsignText=self.getCallsign(fleet,dev)
-								values[2]=callsign or ''
-								if callsign:
-									callsignText='('+callsign+')'
-								else:
-									callsignText='(no callsign)'
-								values[3]=h+' LOCATION REQUEST: '+prefix+' from device '+idStr+' '+callsignText
-								values[6]=time.time()
-								self.newEntry(values)
-								rprint(values[3])
-								t=self.fsAwaitingResponse[2]
-								self.fsAwaitingResponse=None # clear the flag
-								self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,values[3]+':\n\n'+formattedLocString+'\n\nNew entry created with response coordinates.',
-												QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-								self.fsAwaitingResponseMessageBox.show()
-								self.fsAwaitingResponseMessageBox.raise_()
-								self.fsAwaitingResponseMessageBox.exec_()
-								return # done processing this traffic - don't spawn a new entry dialog
-						else:
-							rprint('INVALID location string parsed from '+header+': "'+origLocString+'"')
-							origLocString='INVALID'
-							formattedLocString='INVALID'
-					elif valid=='Z':
-						origLocString='NO FIX'
-						formattedLocString='NO FIX'
-					elif valid=='V':
-						rprint('WARNING status character parsed from '+header+'; check the GPS mic attached to that radio')
-						origLocString='WARNING'
-						formattedLocString='WARNING'
 					else:
-						origLocString='UNDEFINED'
-						formattedLocString='UNDEFINED'
+						rprint("Parsed $PKNSH line contained "+str(len(lineParse))+" tokens instead of the expected 9 tokens; skipping.")
+						origLocString='BAD DATA'
+						formattedLocString='BAD DATA'
+						continue
+
+				# OLD RADIOS (2180):
+				# unusual PKLSH lines seen from log files:
+				# $PKLSH,2913.1141,N,,,175302,A,100,2016,*7A - no data for west - this caused
+				#   parsing error "ValueError: invalid literal for int() with base 10: ''"
+				# $PKLSH,3851.3330,N,09447.9417,W,012212,V,100,1202,*23 - what's 'V'?
+				#   in standard NMEA sentences, status 'V' = 'warning'.  Dead GPS mic?
+				#   we should flag these to the user somehow; note, the coordinates are
+				#   for the Garmin factory in Olathe, KS
+				# - if valid=='V' set coord field to 'WARNING', do not attempt to parse, and carry on
+				# - if valid=='A' and coords are incomplete or otherwise invalid, set coord field
+				#    to 'INVALID', do not attempt to parse, and carry on
+				# 
+				# NEW RADIOS (NX5200):
+				# $PKLSH can contain status 'V' if it had a GPS lock before but does not currently,
+				#   in which case the real coodinates of the last known lock will be included.
+				#   If this happens, we do want to see the coordinates in the entry body, but we do not want
+				#   to update the sartopo locator.
+				# - iv valid=='V', append the formatted string with an asterisk, but do not update the locator
+				# - if valid=='A' - as with old radios
+				# so:
+				# if valid=='A':  # only process if there is a GPS lock
+				#
+				# $PKNSH (NEXEDGE equivalent of $PKLSH) - has one less comma-delimited token than $PKLSH
+				#  U01001 = unit ID 01001
+				# $PKNSH,3916.1154,N,12101.6008,W,123456,A,U01001,*4C
+
+				if valid!='Z':  # process regardless of GPS lock
+					locList=[nval,nstr,wval,wstr]
+					origLocString='|'.join(locList) # don't use comma, that would conflict with CSV delimeter
+					validated=True
+					try:
+						float(nval)
+					except ValueError:
+						validated=False
+					try:
+						float(wval)
+					except ValueError:
+						validated=False
+					validated=validated and nstr in ['N','S'] and wstr in ['W','E']
+					if validated:
+						rprint("Valid location string:'"+origLocString+"'")
+						formattedLocString=self.convertCoords(locList,self.datum,self.coordFormat)
+						rprint("Formatted location string:'"+formattedLocString+"'")
+						[lat,lon]=self.convertCoords(locList,targetDatum="WGS84",targetFormat="D.dList")
+						rprint("WGS84 lat="+str(lat)+"  lon="+str(lon))
+						if valid=='A': # don't update the locator if valid=='V'
+							# sarsoft requires &id=FLEET:<fleet#>-<deviceID>
+							#  fleet# must match the locatorGroup fleet number in sarsoft
+							#  but deviceID can be any text; use the callsign to get useful names in sarsoft
+							if callsign.startswith("KW-"):
+								# did not find a good callsign; use the device number in the GET request
+								devTxt=dev or uid
+							else:
+								# found a good callsign; use the callsign in the GET request
+								devTxt=callsign
+							# for sending locator updates, assume fleet 100 for now - this may be dead code soon - see #598
+							self.getString="http://"+self.sarsoftServerName+":8080/rest/location/update/position?lat="+str(lat)+"&lng="+str(lon)+"&id=FLEET:"+(fleet or '100')+"-"
+							# if callsign = "Radio ..." then leave the getString ending with hyphen for now, as a sign to defer
+							#  sending until accept of change callsign dialog, or closeEvent of newEntryWidget, whichever comes first;
+							#  otherwise, append the callsign now, as a sign to send immediately
+
+							# TODO: change this hardcode to deal with other default device names - see #635
+							if not devTxt.startswith("Radio "):
+								self.getString=self.getString+devTxt
+
+						# was this a response to a location request for this device?
+						if self.fsAwaitingResponse and [fleet,dev]==[x for x in self.fsAwaitingResponse[0:2]]:
+							try:
+								self.fsAwaitingResponseMessageBox.close()
+							except:
+								pass
+							# values format for adding a new entry:
+							#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+							values=["" for n in range(10)]
+							values[0]=time.strftime("%H%M")
+							values[1]='FROM'
+							values[4]=formattedLocString
+							if valid=='A':
+								prefix='SUCCESSFUL RESPONSE'
+							elif valid=='V':
+								prefix='RESPONSE WITH WARNING CODE (probably indicates a stale GPS lock)'
+								values[4]='*'+values[4]+'*'
+							else:
+								prefix='UNKNOWN RESPONSE CODE "'+str(valid)+'"'
+								values[4]='!'+values[4]+'!'
+							# callsignText=self.getCallsign(fleet,dev)
+							values[2]=callsign or ''
+							if callsign:
+								callsignText='('+callsign+')'
+							else:
+								callsignText='(no callsign)'
+							values[3]=h+' LOCATION REQUEST: '+prefix+' from device '+idStr+' '+callsignText
+							values[6]=time.time()
+							self.newEntry(values)
+							rprint(values[3])
+							t=self.fsAwaitingResponse[2]
+							self.fsAwaitingResponse=None # clear the flag
+							self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.Information,t,values[3]+':\n\n'+formattedLocString+'\n\nNew entry created with response coordinates.',
+											QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+							self.fsAwaitingResponseMessageBox.show()
+							self.fsAwaitingResponseMessageBox.raise_()
+							self.fsAwaitingResponseMessageBox.exec_()
+							return # done processing this traffic - don't spawn a new entry dialog
+					else:
+						rprint('INVALID location string parsed from '+header+': "'+origLocString+'"')
+						origLocString='INVALID'
+						formattedLocString='INVALID'
+				elif valid=='Z':
+					origLocString='NO FIX'
+					formattedLocString='NO FIX'
+				elif valid=='V':
+					rprint('WARNING status character parsed from '+header+'; check the GPS mic attached to that radio')
+					origLocString='WARNING'
+					formattedLocString='WARNING'
 				else:
-					rprint("Parsed "+header+" line contained "+str(len(lineParse))+" tokens instead of the expected 10 (FleetSync) or 9 (NEXEDGE); skipping.")
-					origLocString='BAD DATA'
-					formattedLocString='BAD DATA'
+					origLocString='UNDEFINED'
+					formattedLocString='UNDEFINED'
 			if '\x02I' in line: # fleetsync CID - 'if' rather than 'elif' means that self.getString is available to send to sartopo
 				# caller ID lines look like " I110040021004002" (first character is \x02, may show as a space)
 				# " I<n>" is a prefix, n is either 1 (BOT) or 0 (EOT)
