@@ -2777,7 +2777,10 @@ class MyWindow(QDialog,Ui_Dialog):
 							style=styles['operator']
 						printRow=[row[0],row[1],row[2],Paragraph(row[3],style),Paragraph(row[4],styles['Normal']),Paragraph(row[5],styles['Normal'])]
 						if self.useOperatorLogin:
-							printRow.append(row[10])
+							if len(row)>10:
+								printRow.append(row[10])
+							else:
+								printRow.append('')
 						radioLogPrint.append(printRow)
 ##						hits=True
 			if not teams:
@@ -2922,7 +2925,10 @@ class MyWindow(QDialog,Ui_Dialog):
 					locationText='[Radio GPS:\n'+(row[8].replace('\n',' '))+'] '+row[6]
 				printRows=[row[0],Paragraph(row[1],styles['Normal']),row[2],row[3],row[4],Paragraph(locationText,styles['Normal']),Paragraph(row[7],styles['Normal'])]
 				if self.useOperatorLogin:
-					printRows.append(row[9])
+					if len(row)>9:
+						printRows.append(row[9])
+					else:
+						printRows.append('')
 				clueLogPrint.append(printRows)
 			# #523: avoid exception	
 			try:
@@ -3755,7 +3761,9 @@ class MyWindow(QDialog,Ui_Dialog):
 # 			crit.exec_() # make sure it's modal
 # 			return
 
-
+		colCount=10
+		if self.useOperatorLogin:
+			colCount=11
 		if not fileName:
 			sessions=self.getSessions(reverse=True,omitCurrentSession=True)
 			if not sessions:
@@ -3836,7 +3844,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				for row in csvReader:
 					if not row[0].startswith('#'): # prune comment lines
 						row[6]=float(row[6]) # convert epoch seconds back to float, for sorting
-						row += [''] * (10-len(row)) # pad the row up to 10 elements if needed, to avoid index errors elsewhere
+						row += [''] * (colCount-len(row)) # pad the row up to 10 or 11 elements if needed, to avoid index errors elsewhere
 						loadedRadioLog.append(row)
 						i=i+1
 						newOp=None
