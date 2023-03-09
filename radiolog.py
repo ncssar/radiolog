@@ -328,7 +328,7 @@ from reportlab.lib.pagesizes import letter,landscape,portrait
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.units import inch
-from PyPDF2 import PdfFileReader,PdfFileWriter
+from PyPDF2 import PdfReader,PdfWriter
 from FingerTabs import *
 from pygeodesy import Datums,ellipsoidalBase,dms
 from difflib import SequenceMatcher
@@ -3190,12 +3190,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		doc.build(elements)
 
 		# overlaying on the template https://gist.github.com/vsajip/8166dc0935ee7807c5bd4daa22a20937
-		templatePDF=PdfFileReader(self.clueReportPdfFileName,'rb')
-		templatePage=templatePDF.getPage(0)
-		overlayPDF=PdfFileReader(cluePdfOverlayName,'rb')
-		templatePage.mergePage(overlayPDF.getPage(0))
-		outputPDF=PdfFileWriter()
-		outputPDF.addPage(templatePage)
+		templatePDF=PdfReader(self.clueReportPdfFileName,'rb')
+		templatePage=templatePDF.pages[0]
+		overlayPDF=PdfReader(cluePdfOverlayName,'rb')
+		templatePage.merge_page(overlayPDF.pages[0])
+		outputPDF=PdfWriter()
+		outputPDF.add_page(templatePage)
 		with open(cluePdfName,'wb') as out_pdf:
 			outputPDF.write(out_pdf)
 
