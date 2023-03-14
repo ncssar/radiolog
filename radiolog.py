@@ -1375,9 +1375,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			if shutil.which("powershell.exe"):
 				rprint("PowerShell.exe is in the path.")
 				#601 - use absolute path
-				self.rotateScript="powershell.exe -ExecutionPolicy Bypass "+installDir+"\\rotateCsvBackups.ps1 -filenames "
-				rprint('rotate script command: "'+self.rotateScript+'"')
-				self.rotateDelimiter=","
+				#643: use an argument list rather than a single string;
+				# as long as -File is in the argument list immediately before the script name,
+				# spaces in the script name and in arguments will be handled correctly;
+				# see comments at the end of https://stackoverflow.com/a/44250252/3577105
+				self.rotateScript=''
+				self.rotateCmdArgs=['powershell.exe','-ExecutionPolicy','Bypass','-File',installDir+'\\rotateCsvBackups.ps1','-filenames']
 			else:
 				rprint("PowerShell.exe is not in the path; poweshell-based backup rotation script cannot be used.")
 		else:
@@ -1427,6 +1430,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.sarsoftServerName=tokens[1]
 			elif tokens[0]=="rotateScript":
 				self.rotateScript=tokens[1]
+				self.rotateCmdArgs=[self.rotateScript]
 			elif tokens[0]=="rotateDelimiter":
 				self.rotateDelimiter=tokens[1]
 			elif tokens[0]=="tabGroups":
@@ -1516,18 +1520,25 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.sarsoftServerName="localhost" # DEVEL
 
 	def rotateCsvBackups(self,filenames):
-		if self.rotateScript and self.rotateDelimiter:
+		# if self.rotateScript and self.rotateDelimiter:
 			# #442: wrap each filename in quotes, to allow spaces in filenames
 			#  from https://stackoverflow.com/a/12007707
 			#  wrapping in one or two sets of double quotes still doesn't work
 			#   since the quotes are stripped by powershell; wrapping in three
 			#   double quotes does work:
-			quotedFilenames=[f'"""{filename}"""' for filename in filenames]
-			cmd=self.rotateScript+' '+self.rotateDelimiter.join(quotedFilenames)
-			rprint("Invoking backup rotation script: "+cmd)
+			# quotedFilenames=[f'"""{filename}"""' for filename in filenames]
+			# cmd=self.rotateScript+' '+self.rotateDelimiter.join(quotedFilenames)
+		if self.rotateCmdArgs:
+			#643: use an argument list rather than a single string;
+			# as long as -File is in the argument list immediately before the script name,
+			# spaces in the script name and in arguments will be handled correctly;
+			# see comments at the end of https://stackoverflow.com/a/44250252/3577105;
+			# (this elimiates the need to wrap things in three sets of double quotes per #442)
+			cmd=self.rotateCmdArgs+filenames
+			rprint("Invoking backup rotation script (with arguments): "+str(cmd))
 			subprocess.Popen(cmd)
 		else:
-			rprint("No backup rotation script and/or delimiter was specified; no rotation is being performed.")
+			rprint("No backup rotation script was specified; no rotation is being performed.")
 		
 	def updateOptionsDialog(self):
 		rprint("updating options dialog: datum="+self.datum)
