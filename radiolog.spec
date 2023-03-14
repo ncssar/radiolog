@@ -3,12 +3,20 @@
 
 block_cipher = None
 
+added_files=[
+    ('LICENSE.txt', '.'),
+    ('config_default/', 'config_default/'),
+    ('clueReport.pdf', '.'),
+    ('radio.ico','.'),
+    ('rotateCsvBackups.ps1','.'),
+    ('icons/user_icon_80px.png','icons')
+]
 
 a = Analysis(
     ['radiolog.py'],
     pathex=[],
     binaries=[],
-    datas=[('LICENSE.txt', '.'), ('config_default/', 'config_default/'), ('clueReport.pdf', '.'), ('radio.ico','.'), ('rotateCsvBackups.ps1','.')],
+    datas=added_files,
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
