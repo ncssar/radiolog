@@ -6266,11 +6266,27 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			# the 'child' dialogs are not technically children; use the NED's
 			#  childDialogs attribute instead, which was populated in the __init__
 			#  of each child dialog class
-			for child in self.childDialogs:
-				child.raise_()
 			warn.show()
 			warn.raise_()
-			warn.exec_() # make sure it's modal
+			#642 - to make sure the operator sees the child, move it to a location roughly centered on the warning message box
+			# warnPos=self.mapToGlobal(warn.pos())
+			warnPos=warn.pos()
+			warnX=warnPos.x()
+			warnY=warnPos.y()
+			warnW=warn.width()
+			warnH=warn.height()
+			warnCenterX=int(warnX+(warnW/2))
+			warnCenterY=int(warnY+(warnH/2))
+			warn.exec_() # make sure it's modal; raise and center children after the message box is closed
+			for child in self.childDialogs:
+				child.show()
+				child.activateWindow()
+				child.raise_() # don't call setFocus on the child - that steals focus from the child's first widget
+				#center on the warning message box, then adjust size in case it was moved from a different-resolution screen
+				childW=child.width()
+				childH=child.height()
+				child.move(int(warnCenterX-(childW/2)),int(warnCenterY-(childH/2)))
+				child.adjustSize() # in case it was moved to a different-resolution screen
 			event.ignore()
 			return
 		else:
@@ -6505,11 +6521,12 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			newStatus=prevStatus
 		
 		#577 #578 - check for text that looks like a clue or interview, and show popup as needed
-		if not self.cluePopupShown:
+		#642 - don't show the popup if subject located dialog is open
+		if not self.cluePopupShown and not self.subjectLocatedDialogOpen:
 			msg=None
 			for keyword in self.clueKeywords:
 				if keyword in message:
-					msg='Since you typed "'+keyword+'", it looks like you meant to click "LOCATED A CLUE".\n\nDo you want to open a clue report now?\n\n(If so, everything typed so far will be copied to the Clue Description field.)\n\nPress the \'Escape\' key to close this popup.'
+					msg='Since you typed "'+keyword+'", it looks like you meant to click "LOCATED A CLUE".\n\nDo you want to open a clue report now?\n\n(If so, everything typed so far will be copied to the Clue Description field.)\n\n(If not, click \'No\' or press the \'Escape\' key to close this popup and continue the message.)'
 			if msg:
 				box=CustomMessageBox(QMessageBox.Information,"Looks like a clue",msg,
 					QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
@@ -6520,7 +6537,9 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				box.show()
 				messageFieldTopLeft=self.mapToGlobal(self.ui.messageField.pos())
 				messageFieldHeight=self.ui.messageField.height()
-				box.move(messageFieldTopLeft.x()+10,messageFieldTopLeft.y()+messageFieldHeight+10)
+				boxX=messageFieldTopLeft.x()+10
+				boxY=messageFieldTopLeft.y()+messageFieldHeight+10
+				box.move(boxX,boxY)
 				box.raise_()
 				self.cluePopupShown=True
 				QTimer.singleShot(100,QApplication.beep)
@@ -6528,6 +6547,9 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				QTimer.singleShot(700,QApplication.beep)
 				if box.exec_()==QMessageBox.Yes:
 					self.quickTextClueAction()
+					#642 - to make sure the operator sees the clue dialog, move it to the same location
+					#  as the 'looks like a clue' pupop (hardcode to 50px above and left, no less than 10,10)
+					self.newClueDialog.move(max(10,boxX-50),max(10,boxY-50))
 					self.newClueDialog.ui.descriptionField.setPlainText(self.ui.messageField.text())
 					# move cursor to end since it doesn't happen automatically
 					cursor=self.newClueDialog.ui.descriptionField.textCursor()
