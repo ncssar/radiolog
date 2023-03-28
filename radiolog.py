@@ -2165,6 +2165,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.fsFilteredCallDisplay("on",fleet,dev,callsign)
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 				else:
+					rprint('found=True inside fsParse: calling openNewEntry')
 					self.openNewEntry('fs',callsign,formattedLocString,fleet,dev,origLocString)
 			self.sendPendingGet()
 
@@ -3450,18 +3451,24 @@ class MyWindow(QDialog,Ui_Dialog):
 				if self.ui.teamHotkeysWidget.isVisible():
 					# these key handlers apply only if hotkeys are enabled:
 					if key in self.hotkeyDict.keys():
+						rprint('team hotkey "'+str(key)+'" pressed; calling openNewEntry')
 						self.openNewEntry(key)
 				else:
 					# these key handlers apply only if hotkeys are disabled:
 					if re.match("\d",key):
+						rprint('non-team-hotkey "'+str(key)+'" pressed; calling openNewEntry')
 						self.openNewEntry(key)
 					elif key=='t' or event.key()==Qt.Key_Right:
+						rprint('non-team-hotkey "'+str(key)+'" pressed; calling openNewEntry')
 						self.openNewEntry('t')
 					elif key=='f' or event.key()==Qt.Key_Left:
+						rprint('non-team-hotkey "'+str(key)+'" pressed; calling openNewEntry')
 						self.openNewEntry('f')
 					elif key=='a':
+						rprint('non-team-hotkey "'+str(key)+'" pressed; calling openNewEntry')
 						self.openNewEntry('a')
 					elif key=='s':
+						rprint('non-team-hotkey "'+str(key)+'" pressed; calling openNewEntry')
 						self.openNewEntry('s')
 				# these key handlers apply regardless of hotkeys enabled state:
 				if key=='=' or key=='+':
@@ -3495,6 +3502,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				elif event.key()==Qt.Key_F12:
 					self.toggleTeamHotkeys()
 				elif event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
+					rprint('Enter or Return pressed; calling openNewEntry')
 					self.openNewEntry('pop')
 				event.accept()
 		else:
@@ -4366,6 +4374,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			rprint('did not find a newer entry for '+team+' than the one being amended')
 		isMostRecent=not found
+		rprint('calling openNewEntry from amendEntry')
 		amendDialog=self.openNewEntry(amendFlag=True,amendRow=row,isMostRecentForCallsign=isMostRecent)
 
 	def rebuildTabs(self):
@@ -4730,8 +4739,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			# action handlers
 			action=menu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(pos))
 			if action==newEntryFromAction:
+				rprint('calling openNewEntry (from '+str(niceTeamName)+') from team tab context menu')
 				self.openNewEntry('tab',str(niceTeamName))
 			elif action==newEntryToAction:
+				rprint('calling openNewEntry (to '+str(niceTeamName)+') from team tab context menu')
 				self.openNewEntry('tab',str(niceTeamName))
 				self.newEntryWidget.ui.to_fromField.setCurrentIndex(1)
 			elif action==printTeamLogAction:
@@ -5628,12 +5639,14 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 	def addTab(self,labelText,widget=None): # always adds at index=1 (index 0 = "NEWEST") i.e. the top of the stack
 ##		self.i+=1
 ##		self.ui.tabWidget.insertTab(1,newEntryTabWidget(self,self.i),tabText)
+		rprint('newEntryWidget.addTab called: labelText='+str(labelText)+'  widget='+str(widget))
 		if widget:
 ##			widget=newEntryWidget(self.parent) # newEntryWidget constructor calls this function
 ##			widget=QWidget()
 ##			self.ui.tabWidget.insertTab(1,widget,labelText)
 
 
+			rprint('inserting tab')
 			self.ui.tabWidget.insertTab(1,widget,"")
 
 			label=QLabel(labelText)
@@ -5692,6 +5705,7 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 
 ##			self.ui.tabWidget.setStyleSheet("QTabWidget::tab {background-color:lightgray;}")
 		else: # this should be fallback dead code since addTab is always called with a widget:
+			rprint('widget was None in call to newEntryWidget.addTab; calling self.parent.openNewEntry')
 			self.parent.openNewEntry()
 
 ##	def clearHold(self):
@@ -5786,6 +5800,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 
 		self.ui=Ui_newEntryWidget()
 
+		rprint('newEntryWidget __init__ called: formattedLocString='+str(formattedLocString)+' fleet='+str(fleet)+' dev='+str(dev)+' origLocString='+str(origLocString)+' amendFlag='+str(amendFlag)+' amendRow='+str(amendRow)+' isMostRecentForCallsign='+str(isMostRecentForCallsign))
 		self.throbTimer=None
 		self.amendFlag=amendFlag
 		self.amendRow=amendRow
