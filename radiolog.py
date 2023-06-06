@@ -432,6 +432,15 @@ phonetics=[
 ]
 lowerPhonetics=[x.lower() for x in phonetics]
 
+capsList=['SAR'] # can be overridden using config file
+
+def preserveCapsIfNeeded(w):
+	# use global variable capsList
+	if w.upper() in capsList:
+		return w.upper()
+	else:
+		return w
+	
 def getExtTeamName(teamName):
 	if teamName.lower().startswith("all ") or teamName.lower()=="all":
 		return "ALL TEAMS"
@@ -466,7 +475,10 @@ def getExtTeamName(teamName):
 	# 	prefix="z_"+prefix
 
 	# #503 - extTeamName should always start with 'z_' then a capital letter
-	prefix='z_'+prefix.capitalize()
+	# #452 - preserve caps if needed after capitalize but before prepending with 'z_'
+	prefix=prefix.capitalize()
+	prefix=preserveCapsIfNeeded(prefix)
+	prefix='z_'+prefix
 
 	if firstNum!=None:
 		rest=name[firstNumIndex:].zfill(5)
@@ -495,6 +507,10 @@ def getNiceTeamName(extTeamName):
 		prefix=extTeamName[:splitIndex]
 #		name=prefix.capitalize()+" "+str(int(str(extTeamName[firstNumIndex:])))
 		name=prefix.capitalize()+" "+str(extTeamName[splitIndex:]).lstrip('0')
+		# #452 - preserve caps if needed after capitalize but before appending tail
+		prefix=prefix.capitalize()
+		prefix=preserveCapsIfNeeded(prefix)
+		name=prefix+" "+str(extTeamName[splitIndex:]).lstrip('0')
 	else:
 		name=extTeamName
 	# finally, remove any leading zeros (necessary for non-'Team' callsigns)
@@ -1442,6 +1458,9 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.useOperatorLogin=eval(tokens[1])
 				except:
 					pass
+			elif tokens[0]=='capsList':
+				global capsList
+				capsList=eval(tokens[1])
 		configFile.close()
 		
 		# validation and post-processing of each item
@@ -2119,9 +2138,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  update it with the current location if available;
 		# otherwise, spawn a new entry dialog
 		found=False
+		rprint('checking for existing open new entry tabs: callsign='+str(callsign)+' continueSec='+str(continueSec))
 		for widget in newEntryWidget.instances:
-##			rprint("checking against existing widget: to_from="+widget.ui.to_fromField.currentText()" team="+widget.ui.teamField.text()
-			if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text()==callsign and widget.lastModAge<continueSec:
+			rprint('checking against existing widget: to_from='+widget.ui.to_fromField.currentText()+' team='+widget.ui.teamField.text()+' lastModAge:'+str(widget.lastModAge))
+			# #452 - do a case-insensitive and spaces-removed comparison, in case Sar 1 and SAR 1 both exist, or trans 1 and Trans 1 and TRANS1, etc.
+			if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ','') and widget.lastModAge<continueSec:
 ##				widget.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 				found=True
 				rprint("  new entry widget is already open from this callsign within the 'continue time'; not opening a new one")
@@ -2159,13 +2180,14 @@ class MyWindow(QDialog,Ui_Dialog):
 						pass
 		if fleet and dev:
 			self.fsLogUpdate(int(fleet),int(dev))
-			# only open a new entry widget if the fleet/dev is not being filtered
+			# only open a new entry widget if none is alredy open within the continue time, 
+			#  and the fleet/dev is not being filtered
 			if not found:
 				if self.fsIsFiltered(int(fleet),int(dev)):
 					self.fsFilteredCallDisplay("on",fleet,dev,callsign)
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 				else:
-					rprint('found=True inside fsParse: calling openNewEntry')
+					rprint('no other new entry tab was found for this callsign; inside fsParse: calling openNewEntry')
 					self.openNewEntry('fs',callsign,formattedLocString,fleet,dev,origLocString)
 			self.sendPendingGet()
 
