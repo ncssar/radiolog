@@ -2374,7 +2374,7 @@ class MyWindow(QDialog,Ui_Dialog):
 							for id in range(int(firstLast[0]),int(firstLast[1])+1):
 								r=eval(callsignExpr)
 								cs=callsign.replace('[]',str(r))
-								row=[fleet,id,cs]
+								row=[int(fleet),int(id),cs]
 								# rprint(' adding evaluated row: '+str(row))
 								self.fsLookup.append(row)
 								# self.fsLogUpdate(row[0],row[1],row[2])
@@ -2382,7 +2382,7 @@ class MyWindow(QDialog,Ui_Dialog):
 								usedFleetDevPairList.append(str(row[0])+':'+str(row[1]))
 						else:
 							# rprint(' adding row: '+str(row))
-							self.fsLookup.append(row)
+							self.fsLookup.append([int(fleet),int(idOrRange),callsign])
 							# self.fsLogUpdate(row[0],row[1],row[2])
 							usedCallsignList.append(row[2])
 							usedFleetDevPairList.append(str(row[0])+':'+str(row[1]))
@@ -2462,11 +2462,25 @@ class MyWindow(QDialog,Ui_Dialog):
 			warn.exec_()
 
 	def getCallsign(self,fleet,dev):
-		entry=[element for element in self.fsLookup if (str(element[0])==str(fleet) and str(element[1])==str(dev))]
-		if len(entry)!=1 or len(entry[0])!=3: # no match
+		rprint('getCallsign called for fleet='+str(fleet)+' dev='+str(dev))
+		matches=[]
+		for entry in self.fsLookup:
+			if int(entry[0])==int(fleet) and int(entry[1])==int(dev):
+				# check each potential match against existing matches before adding to the list of matches
+				found=False
+				for match in matches:
+					if int(match[0])==int(fleet) and int(match[1])==int(dev) and match[2].lower().replace(' ','')==entry[2].lower().replace(' ',''):
+						found=True
+				if not found:
+					matches.append(entry)
+		# matches=[element for element in self.fsLookup if (str(element[0])==str(fleet) and str(element[1])==str(dev))]
+		rprint('found matching entry/entries:'+str(matches))
+		if len(matches)!=1 or len(matches[0])!=3: # no match
+			rprint(' no match; returning default callsign.')
+			rprint(' self.fsLookup:'+str(self.fsLookup))
 			return "KW-"+str(fleet)+"-"+str(dev)
 		else:
-			return entry[0][2]
+			return matches[0][2]
 
 	def getFleetDev(self,callsign):
 		entry=[element for element in self.fsLookup if (element[2]==callsign)]
@@ -7718,11 +7732,11 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		# change existing device entry if found, otherwise add a new entry
 		for n in range(len(self.parent.parent.fsLookup)):
 			entry=self.parent.parent.fsLookup[n]
-			if entry[0]==fleet and entry[1]==dev:
+			if int(entry[0])==int(fleet) and int(entry[1])==int(dev):
 				found=True
 				self.parent.parent.fsLookup[n][2]=newCallsign
 		if not found:
-			self.parent.parent.fsLookup.append([fleet,dev,newCallsign])
+			self.parent.parent.fsLookup.append([int(fleet),int(dev),newCallsign])
 		# set the current radio log entry teamField also
 		self.parent.ui.teamField.setText(newCallsign)
 		# save the updated table (filename is set at the same times that csvFilename is set)
@@ -7736,7 +7750,7 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		#  the same as the new entry, as determined by addTab
 		self.parent.parent.newEntryWindow.ui.tabWidget.currentWidget().ui.messageField.setFocus()
 		super(changeCallsignDialog,self).accept()
-		rprint("New callsign pairing created: fleet="+fleet+"  dev="+dev+"  callsign="+newCallsign)
+		rprint("New callsign pairing created: fleet="+str(fleet)+"  dev="+str(dev)+"  callsign="+newCallsign)
 
 
 class clickableWidget(QWidget):
