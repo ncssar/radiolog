@@ -506,7 +506,6 @@ def getNiceTeamName(extTeamName):
 	if splitIndex>0:
 		prefix=extTeamName[:splitIndex]
 #		name=prefix.capitalize()+" "+str(int(str(extTeamName[firstNumIndex:])))
-		name=prefix.capitalize()+" "+str(extTeamName[splitIndex:]).lstrip('0')
 		# #452 - preserve caps if needed after capitalize but before appending tail
 		prefix=prefix.capitalize()
 		prefix=preserveCapsIfNeeded(prefix)
