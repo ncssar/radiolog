@@ -1546,7 +1546,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			#   double quotes does work:
 			# quotedFilenames=[f'"""{filename}"""' for filename in filenames]
 			# cmd=self.rotateScript+' '+self.rotateDelimiter.join(quotedFilenames)
-		if self.rotateCmdArgs:
+		if self.rotateCmdArgs and isinstance(self.rotateCmdArgs,list) and self.rotateCmdArgs[0]:
 			#643: use an argument list rather than a single string;
 			# as long as -File is in the argument list immediately before the script name,
 			# spaces in the script name and in arguments will be handled correctly;
@@ -1554,7 +1554,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			# (this elimiates the need to wrap things in three sets of double quotes per #442)
 			cmd=self.rotateCmdArgs+filenames
 			rprint("Invoking backup rotation script (with arguments): "+str(cmd))
-			subprocess.Popen(cmd)
+			# #650, #651 - fail gracefully, so that the caller can proceed as normal
+			try:
+				subprocess.Popen(cmd)
+			except Exception as e:
+				rprint("  Backup rotation script failed with this exception; proceeding:"+str(e))
 		else:
 			rprint("No backup rotation script was specified; no rotation is being performed.")
 		
