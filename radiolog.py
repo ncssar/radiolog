@@ -814,6 +814,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.teamTabsMoreButton.pressed.connect(self.teamTabsMoreButtonPressed) # see comments at the function
 		self.hiddenTeamTabsList=[]
 		self.teamTabsMoreMenu=None
+		self.CCD1List=['KW-'] # if needed, KW- is appended to CCD1List after loading from config file
 
 		self.menuFont=QFont()
 		self.menuFont.setPointSize(14)
@@ -1460,6 +1461,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			elif tokens[0]=='capsList':
 				global capsList
 				capsList=eval(tokens[1])
+			elif tokens[0]=='CCD1List':
+				self.CCD1List=eval(tokens[1])
+				# KW- should always be a part of CCD1List
+				if 'KW-' not in self.CCD1List:
+					self.CCD1List.append('KW-')
+					
 		configFile.close()
 		
 		# validation and post-processing of each item
@@ -2227,7 +2234,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	#  if callsign is not specified, udpate the time but not the callsign;
 	#  if the entry does not yet exist, add it
 	def fsLogUpdate(self,fleet,dev,callsign=False,bump=False):
-		# row structure: [fleet,dev,callsign,filtered,last_received,com port]
+		# row structure: [fleet,dev,callsign,filtered,last_received,com_port,bump_count,total_count]
 		# don't process the dummy default entry
 		if callsign=='Default':
 			return
@@ -2254,9 +2261,10 @@ class MyWindow(QDialog,Ui_Dialog):
 				row[5]=com
 				if bump:
 					row[6]+=1
+				row[7]+=1
 		if not found:
 			# always update callsign - it may have changed since creation
-			self.fsLog.append([fleet,dev,self.getCallsign(fleet,dev),False,t,com,int(bump)])
+			self.fsLog.append([fleet,dev,self.getCallsign(fleet,dev),False,t,com,int(bump),0])
 # 		rprint(self.fsLog)
 # 		if self.fsFilterDialog.ui.tableView:
 		self.fsFilterDialog.ui.tableView.model().layoutChanged.emit()
@@ -2481,7 +2489,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint('found matching entry/entries:'+str(matches))
 		if len(matches)!=1 or len(matches[0])!=3: # no match
 			rprint(' no match; returning default callsign.')
-			rprint(' self.fsLookup:'+str(self.fsLookup))
+			# rprint(' self.fsLookup:'+str(self.fsLookup))
 			return "KW-"+str(fleet)+"-"+str(dev)
 		else:
 			return matches[0][2]
@@ -4185,17 +4193,24 @@ class MyWindow(QDialog,Ui_Dialog):
 			if callsign[0:3]=='KW-':
 				self.newEntryWidget.ui.teamField.setFocus()
 				self.newEntryWidget.ui.teamField.selectAll()
-			if callsign[0:6]=="Radio " or callsign[0:3]=="KW-":
-				rprint("setting needsChangeCallsign")
-				self.newEntryWidget.needsChangeCallsign=True
-				# if it's the only item on the stack, open the change callsign
-				#   dialog right now, since the normal event loop won't process
-				#   needsChangeCallsign until the tab changes
-				if self.newEntryWidget==self.newEntryWindow.ui.tabWidget.currentWidget():
-					QTimer.singleShot(500,lambda:self.newEntryWidget.openChangeCallsignDialog())
-				# note that changeCallsignDialog.accept is responsible for
-				#  setting focus back to the messageField of the active message
-				#  (not always the same as the new message)
+			# i[7] = total call count; i[6] = mic bump count; we want to look at the total non-bump count, i[7]-i[6]
+			if fleet and dev and len([i for i in self.fsLog if i[0]==int(fleet) and i[1]==int(dev) and (i[7]-i[6])<2])>0: # this is the device's first non-mic-bump call
+				rprint('First non-mic-bump call from this device.')
+				found=False
+				for i in self.CCD1List:
+					if isinstance(i,str) and callsign.lower().startswith(i.lower()):
+						found=True
+				if found:
+					rprint('Setting needsChangeCallsign since this is the first call from the device and the beginning of its default callsign "'+callsign+'" is specified in CCD1List')
+					self.newEntryWidget.needsChangeCallsign=True
+					# if it's the only item on the stack, open the change callsign
+					#   dialog right now, since the normal event loop won't process
+					#   needsChangeCallsign until the tab changes
+					if self.newEntryWidget==self.newEntryWindow.ui.tabWidget.currentWidget():
+						QTimer.singleShot(500,lambda:self.newEntryWidget.openChangeCallsignDialog())
+					# note that changeCallsignDialog.accept is responsible for
+					#  setting focus back to the messageField of the active message
+					#  (not always the same as the new message)
 
 		if formattedLocString:
 			datumFormatString="("+self.datum+"  "+self.coordFormat+")"
