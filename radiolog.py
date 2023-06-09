@@ -6581,6 +6581,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			newStatus="In Transit"
 		elif "starting assignment" in message:
 			newStatus="Working"
+		elif "completed assignment" in message:
+			newStatus=""
 		elif "departing ic" in message:
 			newStatus="In Transit"
 		elif "standby" in message:
