@@ -40,7 +40,7 @@
     <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
    </property>
   </widget>
-  <widget class="QLineEdit" name="fleetField">
+  <widget class="QLineEdit" name="idField1">
    <property name="enabled">
     <bool>false</bool>
    </property>
@@ -48,7 +48,7 @@
     <rect>
      <x>210</x>
      <y>20</y>
-     <width>111</width>
+     <width>141</width>
      <height>41</height>
     </rect>
    </property>
@@ -62,15 +62,15 @@
     <bool>true</bool>
    </property>
   </widget>
-  <widget class="QLineEdit" name="deviceField">
+  <widget class="QLineEdit" name="idField2">
    <property name="enabled">
     <bool>false</bool>
    </property>
    <property name="geometry">
     <rect>
-     <x>390</x>
+     <x>380</x>
      <y>20</y>
-     <width>131</width>
+     <width>141</width>
      <height>41</height>
     </rect>
    </property>
@@ -128,12 +128,12 @@
     <bool>false</bool>
    </property>
   </widget>
-  <widget class="QLabel" name="label">
+  <widget class="QLabel" name="idLabel1">
    <property name="geometry">
     <rect>
      <x>220</x>
      <y>60</y>
-     <width>55</width>
+     <width>101</width>
      <height>21</height>
     </rect>
    </property>
@@ -147,12 +147,12 @@
     <string>Fleet</string>
    </property>
   </widget>
-  <widget class="QLabel" name="label_2">
+  <widget class="QLabel" name="idLabel2">
    <property name="geometry">
     <rect>
-     <x>400</x>
+     <x>390</x>
      <y>60</y>
-     <width>61</width>
+     <width>111</width>
      <height>21</height>
     </rect>
    </property>
@@ -210,7 +210,7 @@
     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
    </property>
   </widget>
-  <widget class="QLabel" name="label_5">
+  <widget class="QLabel" name="idLabel">
    <property name="geometry">
     <rect>
      <x>10</x>

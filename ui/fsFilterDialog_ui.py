@@ -83,7 +83,7 @@ class Ui_fsFilterDialog(object):
 
     def retranslateUi(self, fsFilterDialog):
         _translate = QtCore.QCoreApplication.translate
-        fsFilterDialog.setWindowTitle(_translate("fsFilterDialog", "Radio Log - FleetSync Filter Setup"))
-        self.label.setText(_translate("fsFilterDialog", "FleetSync Filter Setup"))
+        fsFilterDialog.setWindowTitle(_translate("fsFilterDialog", "RadioLog - FleetSync / NEXEDGE Filter Setup"))
+        self.label.setText(_translate("fsFilterDialog", "FleetSync / NEXEDGE Filter Setup"))
         self.label_2.setText(_translate("fsFilterDialog", "- No New Entry dialog will be created for filtered devices."))
         self.label_3.setText(_translate("fsFilterDialog", "- Click in the \'Filtered?\' column to toggle a device\'s filter."))

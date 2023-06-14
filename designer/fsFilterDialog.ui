@@ -17,7 +17,7 @@
    </sizepolicy>
   </property>
   <property name="windowTitle">
-   <string>Radio Log - FleetSync Filter Setup</string>
+   <string>RadioLog - FleetSync / NEXEDGE Filter Setup</string>
   </property>
   <property name="sizeGripEnabled">
    <bool>false</bool>
@@ -34,7 +34,7 @@
       </font>
      </property>
      <property name="text">
-      <string>FleetSync Filter Setup</string>
+      <string>FleetSync / NEXEDGE Filter Setup</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>
