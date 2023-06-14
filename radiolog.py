@@ -328,12 +328,12 @@ from reportlab.lib.pagesizes import letter,landscape,portrait
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.units import inch
-from PyPDF2 import PdfFileReader,PdfFileWriter
+from PyPDF2 import PdfReader,PdfWriter
 from FingerTabs import *
 from pygeodesy import Datums,ellipsoidalBase,dms
 from difflib import SequenceMatcher
 
-__version__ = "3.5.0"
+__version__ = "3.7.0"
 
 # process command-line arguments
 develMode=False
@@ -432,6 +432,15 @@ phonetics=[
 ]
 lowerPhonetics=[x.lower() for x in phonetics]
 
+capsList=['SAR'] # can be overridden using config file
+
+def preserveCapsIfNeeded(w):
+	# use global variable capsList
+	if w.upper() in capsList:
+		return w.upper()
+	else:
+		return w
+	
 def getExtTeamName(teamName):
 	if teamName.lower().startswith("all ") or teamName.lower()=="all":
 		return "ALL TEAMS"
@@ -466,7 +475,10 @@ def getExtTeamName(teamName):
 	# 	prefix="z_"+prefix
 
 	# #503 - extTeamName should always start with 'z_' then a capital letter
-	prefix='z_'+prefix.capitalize()
+	# #452 - preserve caps if needed after capitalize but before prepending with 'z_'
+	prefix=prefix.capitalize()
+	prefix=preserveCapsIfNeeded(prefix)
+	prefix='z_'+prefix
 
 	if firstNum!=None:
 		rest=name[firstNumIndex:].zfill(5)
@@ -494,7 +506,10 @@ def getNiceTeamName(extTeamName):
 	if splitIndex>0:
 		prefix=extTeamName[:splitIndex]
 #		name=prefix.capitalize()+" "+str(int(str(extTeamName[firstNumIndex:])))
-		name=prefix.capitalize()+" "+str(extTeamName[splitIndex:]).lstrip('0')
+		# #452 - preserve caps if needed after capitalize but before appending tail
+		prefix=prefix.capitalize()
+		prefix=preserveCapsIfNeeded(prefix)
+		name=prefix+" "+str(extTeamName[splitIndex:]).lstrip('0')
 	else:
 		name=extTeamName
 	# finally, remove any leading zeros (necessary for non-'Team' callsigns)
@@ -799,6 +814,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.teamTabsMoreButton.pressed.connect(self.teamTabsMoreButtonPressed) # see comments at the function
 		self.hiddenTeamTabsList=[]
 		self.teamTabsMoreMenu=None
+		self.CCD1List=['KW-'] # if needed, KW- is appended to CCD1List after loading from config file
 
 		self.menuFont=QFont()
 		self.menuFont.setPointSize(14)
@@ -1375,9 +1391,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			if shutil.which("powershell.exe"):
 				rprint("PowerShell.exe is in the path.")
 				#601 - use absolute path
-				self.rotateScript="powershell.exe -ExecutionPolicy Bypass "+installDir+"\\rotateCsvBackups.ps1 -filenames "
-				rprint('rotate script command: "'+self.rotateScript+'"')
-				self.rotateDelimiter=","
+				#643: use an argument list rather than a single string;
+				# as long as -File is in the argument list immediately before the script name,
+				# spaces in the script name and in arguments will be handled correctly;
+				# see comments at the end of https://stackoverflow.com/a/44250252/3577105
+				self.rotateScript=''
+				self.rotateCmdArgs=['powershell.exe','-ExecutionPolicy','Bypass','-File',installDir+'\\rotateCsvBackups.ps1','-filenames']
 			else:
 				rprint("PowerShell.exe is not in the path; poweshell-based backup rotation script cannot be used.")
 		else:
@@ -1427,6 +1446,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.sarsoftServerName=tokens[1]
 			elif tokens[0]=="rotateScript":
 				self.rotateScript=tokens[1]
+				self.rotateCmdArgs=[self.rotateScript]
 			elif tokens[0]=="rotateDelimiter":
 				self.rotateDelimiter=tokens[1]
 			elif tokens[0]=="tabGroups":
@@ -1438,6 +1458,15 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.useOperatorLogin=eval(tokens[1])
 				except:
 					pass
+			elif tokens[0]=='capsList':
+				global capsList
+				capsList=eval(tokens[1])
+			elif tokens[0]=='CCD1List':
+				self.CCD1List=eval(tokens[1])
+				# KW- should always be a part of CCD1List
+				if 'KW-' not in self.CCD1List:
+					self.CCD1List.append('KW-')
+					
 		configFile.close()
 		
 		# validation and post-processing of each item
@@ -1516,18 +1545,29 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.sarsoftServerName="localhost" # DEVEL
 
 	def rotateCsvBackups(self,filenames):
-		if self.rotateScript and self.rotateDelimiter:
+		# if self.rotateScript and self.rotateDelimiter:
 			# #442: wrap each filename in quotes, to allow spaces in filenames
 			#  from https://stackoverflow.com/a/12007707
 			#  wrapping in one or two sets of double quotes still doesn't work
 			#   since the quotes are stripped by powershell; wrapping in three
 			#   double quotes does work:
-			quotedFilenames=[f'"""{filename}"""' for filename in filenames]
-			cmd=self.rotateScript+' '+self.rotateDelimiter.join(quotedFilenames)
-			rprint("Invoking backup rotation script: "+cmd)
-			subprocess.Popen(cmd)
+			# quotedFilenames=[f'"""{filename}"""' for filename in filenames]
+			# cmd=self.rotateScript+' '+self.rotateDelimiter.join(quotedFilenames)
+		if self.rotateCmdArgs and isinstance(self.rotateCmdArgs,list) and self.rotateCmdArgs[0]:
+			#643: use an argument list rather than a single string;
+			# as long as -File is in the argument list immediately before the script name,
+			# spaces in the script name and in arguments will be handled correctly;
+			# see comments at the end of https://stackoverflow.com/a/44250252/3577105;
+			# (this elimiates the need to wrap things in three sets of double quotes per #442)
+			cmd=self.rotateCmdArgs+filenames
+			rprint("Invoking backup rotation script (with arguments): "+str(cmd))
+			# #650, #651 - fail gracefully, so that the caller can proceed as normal
+			try:
+				subprocess.Popen(cmd)
+			except Exception as e:
+				rprint("  Backup rotation script failed with this exception; proceeding:"+str(e))
 		else:
-			rprint("No backup rotation script and/or delimiter was specified; no rotation is being performed.")
+			rprint("No backup rotation script was specified; no rotation is being performed.")
 		
 	def updateOptionsDialog(self):
 		rprint("updating options dialog: datum="+self.datum)
@@ -2203,9 +2243,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  update it with the current location if available;
 		# otherwise, spawn a new entry dialog
 		found=False
+		rprint('checking for existing open new entry tabs: callsign='+str(callsign)+' continueSec='+str(continueSec))
 		for widget in newEntryWidget.instances:
-##			rprint("checking against existing widget: to_from="+widget.ui.to_fromField.currentText()" team="+widget.ui.teamField.text()
-			if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text()==callsign and widget.lastModAge<continueSec:
+			rprint('checking against existing widget: to_from='+widget.ui.to_fromField.currentText()+' team='+widget.ui.teamField.text()+' lastModAge:'+str(widget.lastModAge))
+			# #452 - do a case-insensitive and spaces-removed comparison, in case Sar 1 and SAR 1 both exist, or trans 1 and Trans 1 and TRANS1, etc.
+			if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ','') and widget.lastModAge<continueSec:
 ##				widget.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 				found=True
 				rprint("  new entry widget is already open from this callsign within the 'continue time'; not opening a new one")
@@ -2243,12 +2285,14 @@ class MyWindow(QDialog,Ui_Dialog):
 						pass
 		if fleet and dev:
 			self.fsLogUpdate(fleet=fleet,dev=dev)
-			# only open a new entry widget if the fleet/dev is not being filtered
+			# only open a new entry widget if none is alredy open within the continue time, 
+			#  and the fleet/dev is not being filtered
 			if not found:
 				if self.fsIsFiltered(fleet,dev):
 					self.fsFilteredCallDisplay("on",fleet,dev,callsign)
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 				else:
+					rprint('no other new entry tab was found for this callsign; inside fsParse: calling openNewEntry')
 					self.openNewEntry('fs',callsign,formattedLocString,fleet,dev,origLocString)
 			self.sendPendingGet()
 		elif uid:
@@ -2292,8 +2336,9 @@ class MyWindow(QDialog,Ui_Dialog):
 	# if callsign is specified, update the callsign but not the time;
 	#  if callsign is not specified, udpate the time but not the callsign;
 	#  if the entry does not yet exist, add it
+
 	def fsLogUpdate(self,fleet=None,dev=None,uid=None,callsign=False,bump=False):
-		# row structure: [fleet,dev,callsign,filtered,last_received,com port]
+		# row structure: [fleet,dev,callsign,filtered,last_received,com_port,bump_count,total_count]
 		# don't process the dummy default entry
 		if callsign=='Default':
 			return
@@ -2329,13 +2374,14 @@ class MyWindow(QDialog,Ui_Dialog):
 				row[5]=com
 				if bump:
 					row[6]+=1
+				row[7]+=1
 		if not found:
 			# always update callsign - it may have changed since creation
 			if fleet and dev: # fleetsync
-				self.fsLog.append([fleet,dev,self.getCallsign(fleet,dev),False,t,com,int(bump)])
+				self.fsLog.append([fleet,dev,self.getCallsign(fleet,dev),False,t,com,int(bump),0])
 			elif uid: # nexedge
 				self.fsLog.append(['',uid,self.getCallsign(uid),False,t,com,int(bump)])
-		rprint('fsLog after fsLogUpdate:'+str(self.fsLog))
+#		rprint('fsLog after fsLogUpdate:'+str(self.fsLog))
 # 		if self.fsFilterDialog.ui.tableView:
 		self.fsFilterDialog.ui.tableView.model().layoutChanged.emit()
 		self.fsBuildTeamFilterDict()
@@ -2460,7 +2506,7 @@ class MyWindow(QDialog,Ui_Dialog):
 							for id in range(int(firstLast[0]),int(firstLast[1])+1):
 								r=eval(callsignExpr)
 								cs=callsign.replace('[]',str(r))
-								row=[fleet,id,cs]
+								row=[int(fleet),int(id),cs]
 								# rprint(' adding evaluated row: '+str(row))
 								self.fsLookup.append(row)
 								# self.fsLogUpdate(row[0],row[1],row[2])
@@ -2468,7 +2514,7 @@ class MyWindow(QDialog,Ui_Dialog):
 								usedIDPairList.append(str(row[0])+':'+str(row[1]))
 						else:
 							# rprint(' adding row: '+str(row))
-							self.fsLookup.append(row)
+							self.fsLookup.append([int(fleet),int(idOrRange),callsign])
 							# self.fsLogUpdate(row[0],row[1],row[2])
 							usedCallsignList.append(row[2])
 							usedIDPairList.append(str(row[0])+':'+str(row[1]))
@@ -2554,20 +2600,42 @@ class MyWindow(QDialog,Ui_Dialog):
 		if dev and not isinstance(dev,str):
 			rprint('ERROR in call to getCallsign: dev is not a string.')
 			return
+		matches=[]
 		if len(fleetOrUid)==3: # 3 characters - must be fleetsync
 			fleet=fleetOrUid
-			entries=[element for element in self.fsLookup if (element[0]==fleet and element[1]==dev)]
-			if len(entries)!=1 or len(entries[0][0])!=3: # no match
-				return "KW-"+fleet+"-"+dev
-			else:
-				return entries[0][2]
+		  rprint('getCallsign called for fleet='+str(fleet)+' dev='+str(dev))
+      for entry in self.fsLookup:
+        if int(entry[0])==int(fleet) and int(entry[1])==int(dev):
+          # check each potential match against existing matches before adding to the list of matches
+          found=False
+          for match in matches:
+            if int(match[0])==int(fleet) and int(match[1])==int(dev) and match[2].lower().replace(' ','')==entry[2].lower().replace(' ',''):
+              found=True
+          if not found:
+            matches.append(entry)
+# 			  matches=[element for element in self.fsLookup if (element[0]==fleet and element[1]==dev)]
+        rprint('found matching entry/entries:'+str(matches))
+        if len(matches)!=1 or len(matches[0][0])!=3: # no match
+          return "KW-"+fleet+"-"+dev
+        else:
+          return matches[0][2]
 		elif len(fleetOrUid)==5: # 5 characters - must be NEXEDGE
 			uid=fleetOrUid
-			entries=[element for element in self.fsLookup if element[1]==uid]
-			if len(entries)!=1 or entries[0][0]!='': # no match
+		  rprint('getCallsign called for uid='+str(uid))
+      for entry in self.fsLookup:
+        if int(entry[1])==uid:
+          # check each potential match against existing matches before adding to the list of matches
+          found=False
+          for match in matches:
+            if str(match[1])==str(uid) and match[2].lower().replace(' ','')==entry[2].lower().replace(' ',''):
+              found=True
+          if not found:
+            matches.append(entry)
+# 			matches=[element for element in self.fsLookup if element[1]==uid]
+			if len(matches)!=1 or matches[0][0]!='': # no match
 				return "KW-NXDN-"+uid
 			else:
-				return entries[0][2]
+				return matches[0][2]
 		else:
 			rprint('ERROR in call to getCallsign: first argument must be 3 characters (FleetSync) or 5 characters (NEXEDGE): "'+fleetOrUid+'"')
 
@@ -2914,7 +2982,10 @@ class MyWindow(QDialog,Ui_Dialog):
 							style=styles['operator']
 						printRow=[row[0],row[1],row[2],Paragraph(row[3],style),Paragraph(row[4],styles['Normal']),Paragraph(row[5],styles['Normal'])]
 						if self.useOperatorLogin:
-							printRow.append(row[10])
+							if len(row)>10:
+								printRow.append(row[10])
+							else:
+								printRow.append('')
 						radioLogPrint.append(printRow)
 ##						hits=True
 			if not teams:
@@ -3059,7 +3130,10 @@ class MyWindow(QDialog,Ui_Dialog):
 					locationText='[Radio GPS:\n'+(row[8].replace('\n',' '))+'] '+row[6]
 				printRows=[row[0],Paragraph(row[1],styles['Normal']),row[2],row[3],row[4],Paragraph(locationText,styles['Normal']),Paragraph(row[7],styles['Normal'])]
 				if self.useOperatorLogin:
-					printRows.append(row[9])
+					if len(row)>9:
+						printRows.append(row[9])
+					else:
+						printRows.append('')
 				clueLogPrint.append(printRows)
 			# #523: avoid exception	
 			try:
@@ -3321,12 +3395,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		doc.build(elements)
 
 		# overlaying on the template https://gist.github.com/vsajip/8166dc0935ee7807c5bd4daa22a20937
-		templatePDF=PdfFileReader(self.clueReportPdfFileName,'rb')
-		templatePage=templatePDF.getPage(0)
-		overlayPDF=PdfFileReader(cluePdfOverlayName,'rb')
-		templatePage.mergePage(overlayPDF.getPage(0))
-		outputPDF=PdfFileWriter()
-		outputPDF.addPage(templatePage)
+		templatePDF=PdfReader(self.clueReportPdfFileName,'rb')
+		templatePage=templatePDF.pages[0]
+		overlayPDF=PdfReader(cluePdfOverlayName,'rb')
+		templatePage.merge_page(overlayPDF.pages[0])
+		outputPDF=PdfWriter()
+		outputPDF.add_page(templatePage)
 		with open(cluePdfName,'wb') as out_pdf:
 			outputPDF.write(out_pdf)
 
@@ -3570,18 +3644,24 @@ class MyWindow(QDialog,Ui_Dialog):
 				if self.ui.teamHotkeysWidget.isVisible():
 					# these key handlers apply only if hotkeys are enabled:
 					if key in self.hotkeyDict.keys():
+						rprint('team hotkey "'+str(key)+'" pressed; calling openNewEntry')
 						self.openNewEntry(key)
 				else:
 					# these key handlers apply only if hotkeys are disabled:
 					if re.match("\d",key):
+						rprint('non-team-hotkey "'+str(key)+'" pressed; calling openNewEntry')
 						self.openNewEntry(key)
 					elif key=='t' or event.key()==Qt.Key_Right:
+						rprint('non-team-hotkey "'+str(key)+'" pressed; calling openNewEntry')
 						self.openNewEntry('t')
 					elif key=='f' or event.key()==Qt.Key_Left:
+						rprint('non-team-hotkey "'+str(key)+'" pressed; calling openNewEntry')
 						self.openNewEntry('f')
 					elif key=='a':
+						rprint('non-team-hotkey "'+str(key)+'" pressed; calling openNewEntry')
 						self.openNewEntry('a')
 					elif key=='s':
+						rprint('non-team-hotkey "'+str(key)+'" pressed; calling openNewEntry')
 						self.openNewEntry('s')
 				# these key handlers apply regardless of hotkeys enabled state:
 				if key=='=' or key=='+':
@@ -3615,6 +3695,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				elif event.key()==Qt.Key_F12:
 					self.toggleTeamHotkeys()
 				elif event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
+					rprint('Enter or Return pressed; calling openNewEntry')
 					self.openNewEntry('pop')
 				event.accept()
 		else:
@@ -3892,7 +3973,9 @@ class MyWindow(QDialog,Ui_Dialog):
 # 			crit.exec_() # make sure it's modal
 # 			return
 
-
+		colCount=10
+		if self.useOperatorLogin:
+			colCount=11
 		if not fileName:
 			sessions=self.getSessions(reverse=True,omitCurrentSession=True)
 			if not sessions:
@@ -3973,7 +4056,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				for row in csvReader:
 					if not row[0].startswith('#'): # prune comment lines
 						row[6]=float(row[6]) # convert epoch seconds back to float, for sorting
-						row += [''] * (10-len(row)) # pad the row up to 10 elements if needed, to avoid index errors elsewhere
+						row += [''] * (colCount-len(row)) # pad the row up to 10 or 11 elements if needed, to avoid index errors elsewhere
 						loadedRadioLog.append(row)
 						i=i+1
 						newOp=None
@@ -4258,17 +4341,24 @@ class MyWindow(QDialog,Ui_Dialog):
 			if callsign[0:3]=='KW-':
 				self.newEntryWidget.ui.teamField.setFocus()
 				self.newEntryWidget.ui.teamField.selectAll()
-			if callsign[0:6]=="Radio " or callsign[0:3]=="KW-":
-				rprint("setting needsChangeCallsign")
-				self.newEntryWidget.needsChangeCallsign=True
-				# if it's the only item on the stack, open the change callsign
-				#   dialog right now, since the normal event loop won't process
-				#   needsChangeCallsign until the tab changes
-				if self.newEntryWidget==self.newEntryWindow.ui.tabWidget.currentWidget():
-					QTimer.singleShot(500,lambda:self.newEntryWidget.openChangeCallsignDialog())
-				# note that changeCallsignDialog.accept is responsible for
-				#  setting focus back to the messageField of the active message
-				#  (not always the same as the new message)
+			# i[7] = total call count; i[6] = mic bump count; we want to look at the total non-bump count, i[7]-i[6]
+			if fleet and dev and len([i for i in self.fsLog if i[0]==int(fleet) and i[1]==int(dev) and (i[7]-i[6])<2])>0: # this is the device's first non-mic-bump call
+				rprint('First non-mic-bump call from this device.')
+				found=False
+				for i in self.CCD1List:
+					if isinstance(i,str) and callsign.lower().startswith(i.lower()):
+						found=True
+				if found:
+					rprint('Setting needsChangeCallsign since this is the first call from the device and the beginning of its default callsign "'+callsign+'" is specified in CCD1List')
+					self.newEntryWidget.needsChangeCallsign=True
+					# if it's the only item on the stack, open the change callsign
+					#   dialog right now, since the normal event loop won't process
+					#   needsChangeCallsign until the tab changes
+					if self.newEntryWidget==self.newEntryWindow.ui.tabWidget.currentWidget():
+						QTimer.singleShot(500,lambda:self.newEntryWidget.openChangeCallsignDialog())
+					# note that changeCallsignDialog.accept is responsible for
+					#  setting focus back to the messageField of the active message
+					#  (not always the same as the new message)
 
 		if formattedLocString:
 			datumFormatString="("+self.datum+"  "+self.coordFormat+")"
@@ -4486,6 +4576,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			rprint('did not find a newer entry for '+team+' than the one being amended')
 		isMostRecent=not found
+		rprint('calling openNewEntry from amendEntry')
 		amendDialog=self.openNewEntry(amendFlag=True,amendRow=row,isMostRecentForCallsign=isMostRecent)
 
 	def rebuildTabs(self):
@@ -4850,8 +4941,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			# action handlers
 			action=menu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(pos))
 			if action==newEntryFromAction:
+				rprint('calling openNewEntry (from '+str(niceTeamName)+') from team tab context menu')
 				self.openNewEntry('tab',str(niceTeamName))
 			elif action==newEntryToAction:
+				rprint('calling openNewEntry (to '+str(niceTeamName)+') from team tab context menu')
 				self.openNewEntry('tab',str(niceTeamName))
 				self.newEntryWidget.ui.to_fromField.setCurrentIndex(1)
 			elif action==printTeamLogAction:
@@ -5773,12 +5866,14 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 	def addTab(self,labelText,widget=None): # always adds at index=1 (index 0 = "NEWEST") i.e. the top of the stack
 ##		self.i+=1
 ##		self.ui.tabWidget.insertTab(1,newEntryTabWidget(self,self.i),tabText)
+		rprint('newEntryWidget.addTab called: labelText='+str(labelText)+'  widget='+str(widget))
 		if widget:
 ##			widget=newEntryWidget(self.parent) # newEntryWidget constructor calls this function
 ##			widget=QWidget()
 ##			self.ui.tabWidget.insertTab(1,widget,labelText)
 
 
+			rprint('inserting tab')
 			self.ui.tabWidget.insertTab(1,widget,"")
 
 			label=QLabel(labelText)
@@ -5837,6 +5932,7 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 
 ##			self.ui.tabWidget.setStyleSheet("QTabWidget::tab {background-color:lightgray;}")
 		else: # this should be fallback dead code since addTab is always called with a widget:
+			rprint('widget was None in call to newEntryWidget.addTab; calling self.parent.openNewEntry')
 			self.parent.openNewEntry()
 
 ##	def clearHold(self):
@@ -5931,6 +6027,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 
 		self.ui=Ui_newEntryWidget()
 
+		rprint('newEntryWidget __init__ called: formattedLocString='+str(formattedLocString)+' fleet='+str(fleet)+' dev='+str(dev)+' origLocString='+str(origLocString)+' amendFlag='+str(amendFlag)+' amendRow='+str(amendRow)+' isMostRecentForCallsign='+str(isMostRecentForCallsign))
 		self.throbTimer=None
 		self.amendFlag=amendFlag
 		self.amendRow=amendRow
@@ -6424,11 +6521,27 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			# the 'child' dialogs are not technically children; use the NED's
 			#  childDialogs attribute instead, which was populated in the __init__
 			#  of each child dialog class
-			for child in self.childDialogs:
-				child.raise_()
 			warn.show()
 			warn.raise_()
-			warn.exec_() # make sure it's modal
+			#642 - to make sure the operator sees the child, move it to a location roughly centered on the warning message box
+			# warnPos=self.mapToGlobal(warn.pos())
+			warnPos=warn.pos()
+			warnX=warnPos.x()
+			warnY=warnPos.y()
+			warnW=warn.width()
+			warnH=warn.height()
+			warnCenterX=int(warnX+(warnW/2))
+			warnCenterY=int(warnY+(warnH/2))
+			warn.exec_() # make sure it's modal; raise and center children after the message box is closed
+			for child in self.childDialogs:
+				child.show()
+				child.activateWindow()
+				child.raise_() # don't call setFocus on the child - that steals focus from the child's first widget
+				#center on the warning message box, then adjust size in case it was moved from a different-resolution screen
+				childW=child.width()
+				childH=child.height()
+				child.move(int(warnCenterX-(childW/2)),int(warnCenterY-(childH/2)))
+				child.adjustSize() # in case it was moved to a different-resolution screen
 			event.ignore()
 			return
 		else:
@@ -6643,6 +6756,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			newStatus="In Transit"
 		elif "starting assignment" in message:
 			newStatus="Working"
+		elif "completed assignment" in message:
+			newStatus=""
 		elif "departing ic" in message:
 			newStatus="In Transit"
 		elif "standby" in message:
@@ -6663,11 +6778,12 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			newStatus=prevStatus
 		
 		#577 #578 - check for text that looks like a clue or interview, and show popup as needed
-		if not self.cluePopupShown:
+		#642 - don't show the popup if subject located dialog is open
+		if not self.cluePopupShown and not self.subjectLocatedDialogOpen:
 			msg=None
 			for keyword in self.clueKeywords:
 				if keyword in message:
-					msg='Since you typed "'+keyword+'", it looks like you meant to click "LOCATED A CLUE".\n\nDo you want to open a clue report now?\n\n(If so, everything typed so far will be copied to the Clue Description field.)\n\nPress the \'Escape\' key to close this popup.'
+					msg='Since you typed "'+keyword+'", it looks like you meant to click "LOCATED A CLUE".\n\nDo you want to open a clue report now?\n\n(If so, everything typed so far will be copied to the Clue Description field.)\n\n(If not, click \'No\' or press the \'Escape\' key to close this popup and continue the message.)'
 			if msg:
 				box=CustomMessageBox(QMessageBox.Information,"Looks like a clue",msg,
 					QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
@@ -6678,7 +6794,9 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				box.show()
 				messageFieldTopLeft=self.mapToGlobal(self.ui.messageField.pos())
 				messageFieldHeight=self.ui.messageField.height()
-				box.move(messageFieldTopLeft.x()+10,messageFieldTopLeft.y()+messageFieldHeight+10)
+				boxX=messageFieldTopLeft.x()+10
+				boxY=messageFieldTopLeft.y()+messageFieldHeight+10
+				box.move(boxX,boxY)
 				box.raise_()
 				self.cluePopupShown=True
 				QTimer.singleShot(100,QApplication.beep)
@@ -6686,6 +6804,9 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				QTimer.singleShot(700,QApplication.beep)
 				if box.exec_()==QMessageBox.Yes:
 					self.quickTextClueAction()
+					#642 - to make sure the operator sees the clue dialog, move it to the same location
+					#  as the 'looks like a clue' pupop (hardcode to 50px above and left, no less than 10,10)
+					self.newClueDialog.move(max(10,boxX-50),max(10,boxY-50))
 					self.newClueDialog.ui.descriptionField.setPlainText(self.ui.messageField.text())
 					# move cursor to end since it doesn't happen automatically
 					cursor=self.newClueDialog.ui.descriptionField.textCursor()
@@ -7853,6 +7974,7 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		#  the same as the new entry, as determined by addTab
 		self.parent.parent.newEntryWindow.ui.tabWidget.currentWidget().ui.messageField.setFocus()
 		super(changeCallsignDialog,self).accept()
+		rprint("New callsign pairing created: fleet="+str(fleet)+"  dev="+str(dev)+"  uid="+str(uid)+"  callsign="+newCallsign)
 
 
 class clickableWidget(QWidget):
