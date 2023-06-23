@@ -2506,15 +2506,15 @@ class MyWindow(QDialog,Ui_Dialog):
 							for id in range(int(firstLast[0]),int(firstLast[1])+1):
 								r=eval(callsignExpr)
 								cs=callsign.replace('[]',str(r))
-								row=[int(fleet),int(id),cs]
+								row=[str(fleet),str(id),cs]
 								# rprint(' adding evaluated row: '+str(row))
 								self.fsLookup.append(row)
 								# self.fsLogUpdate(row[0],row[1],row[2])
 								usedCallsignList.append(cs)
-								usedIDPairList.append(str(row[0])+':'+str(row[1]))
+								usedIDPairList.append(row[0]+':'+row[1])
 						else:
 							# rprint(' adding row: '+str(row))
-							self.fsLookup.append([int(fleet),int(idOrRange),callsign])
+							self.fsLookup.append([str(fleet),str(idOrRange),callsign])
 							# self.fsLogUpdate(row[0],row[1],row[2])
 							usedCallsignList.append(row[2])
 							usedIDPairList.append(str(row[0])+':'+str(row[1]))
