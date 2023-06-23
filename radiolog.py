@@ -6807,7 +6807,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				if box.exec_()==QMessageBox.Yes:
 					self.quickTextClueAction()
 					#642 - to make sure the operator sees the clue dialog, move it to the same location
-					#  as the 'looks like a clue' pupop (hardcode to 50px above and left, no less than 10,10)
+					#  as the 'looks like a clue' popup (hardcode to 50px above and left, no less than 10,10)
 					self.newClueDialog.move(max(10,boxX-50),max(10,boxY-50))
 					self.newClueDialog.ui.descriptionField.setPlainText(self.ui.messageField.text())
 					# move cursor to end since it doesn't happen automatically
@@ -7889,6 +7889,7 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		rprint("changeCallsignDialog created.  fleet="+str(self.fleet)+"  dev="+str(self.device))
 
 		if fleet: # fleetsync
+			self.ui.idLabel.setText('FleetSync ID')
 			self.ui.idField1.setText(str(fleet))
 			self.ui.idField2.setText(str(device))
 		else: # nexedge
