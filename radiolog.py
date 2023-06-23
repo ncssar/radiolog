@@ -4344,7 +4344,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.newEntryWidget.ui.teamField.setFocus()
 				self.newEntryWidget.ui.teamField.selectAll()
 			# i[7] = total call count; i[6] = mic bump count; we want to look at the total non-bump count, i[7]-i[6]
-			if fleet and dev and len([i for i in self.fsLog if i[0]==int(fleet) and i[1]==int(dev) and (i[7]-i[6])<2])>0: # this is the device's first non-mic-bump call
+			if fleet and dev and len([i for i in self.fsLog if i[0]==str(fleet) and i[1]==str(dev) and (i[7]-i[6])<2])>0: # this is the device's first non-mic-bump call
 				rprint('First non-mic-bump call from this device.')
 				found=False
 				for i in self.CCD1List:
