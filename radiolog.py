@@ -2601,41 +2601,43 @@ class MyWindow(QDialog,Ui_Dialog):
 			rprint('ERROR in call to getCallsign: dev is not a string.')
 			return
 		matches=[]
+
 		if len(fleetOrUid)==3: # 3 characters - must be fleetsync
+			rprint('getCallsign called for FleetSync fleet='+str(fleetOrUid)+' dev='+str(dev))
 			fleet=fleetOrUid
-		  rprint('getCallsign called for fleet='+str(fleet)+' dev='+str(dev))
-      for entry in self.fsLookup:
-        if int(entry[0])==int(fleet) and int(entry[1])==int(dev):
-          # check each potential match against existing matches before adding to the list of matches
-          found=False
-          for match in matches:
-            if int(match[0])==int(fleet) and int(match[1])==int(dev) and match[2].lower().replace(' ','')==entry[2].lower().replace(' ',''):
-              found=True
-          if not found:
-            matches.append(entry)
-# 			  matches=[element for element in self.fsLookup if (element[0]==fleet and element[1]==dev)]
-        rprint('found matching entry/entries:'+str(matches))
-        if len(matches)!=1 or len(matches[0][0])!=3: # no match
-          return "KW-"+fleet+"-"+dev
-        else:
-          return matches[0][2]
+			for entry in self.fsLookup:
+				if int(entry[0])==int(fleet) and int(entry[1])==int(dev):
+					# check each potential match against existing matches before adding to the list of matches
+					found=False
+					for match in matches:
+						if int(match[0])==int(fleet) and int(match[1])==int(dev) and match[2].lower().replace(' ','')==entry[2].lower().replace(' ',''):
+							found=True
+					if not found:
+						matches.append(entry)
+						# matches=[element for element in self.fsLookup if (element[0]==fleet and element[1]==dev)]
+					rprint('found matching entry/entries:'+str(matches))
+					if len(matches)!=1 or len(matches[0][0])!=3: # no match
+						return "KW-"+fleet+"-"+dev
+					else:
+						return matches[0][2]
+	
 		elif len(fleetOrUid)==5: # 5 characters - must be NEXEDGE
 			uid=fleetOrUid
-		  rprint('getCallsign called for uid='+str(uid))
-      for entry in self.fsLookup:
-        if int(entry[1])==uid:
-          # check each potential match against existing matches before adding to the list of matches
-          found=False
-          for match in matches:
-            if str(match[1])==str(uid) and match[2].lower().replace(' ','')==entry[2].lower().replace(' ',''):
-              found=True
-          if not found:
-            matches.append(entry)
-# 			matches=[element for element in self.fsLookup if element[1]==uid]
-			if len(matches)!=1 or matches[0][0]!='': # no match
-				return "KW-NXDN-"+uid
-			else:
-				return matches[0][2]
+			rprint('getCallsign called for NXDN UID='+str(uid))
+			for entry in self.fsLookup:
+				if int(entry[1])==uid:
+					# check each potential match against existing matches before adding to the list of matches
+					found=False
+					for match in matches:
+						if str(match[1])==str(uid) and match[2].lower().replace(' ','')==entry[2].lower().replace(' ',''):
+							found=True
+					if not found:
+						matches.append(entry)
+						# matches=[element for element in self.fsLookup if element[1]==uid]
+					if len(matches)!=1 or matches[0][0]!='': # no match
+						return "KW-NXDN-"+uid
+					else:
+						return matches[0][2]
 		else:
 			rprint('ERROR in call to getCallsign: first argument must be 3 characters (FleetSync) or 5 characters (NEXEDGE): "'+fleetOrUid+'"')
 
