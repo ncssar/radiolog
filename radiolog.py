@@ -2380,7 +2380,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			if fleet and dev: # fleetsync
 				self.fsLog.append([fleet,dev,self.getCallsign(fleet,dev),False,t,com,int(bump),0])
 			elif uid: # nexedge
-				self.fsLog.append(['',uid,self.getCallsign(uid),False,t,com,int(bump)])
+				self.fsLog.append(['',uid,self.getCallsign(uid),False,t,com,int(bump),0])
 #		rprint('fsLog after fsLogUpdate:'+str(self.fsLog))
 # 		if self.fsFilterDialog.ui.tableView:
 		self.fsFilterDialog.ui.tableView.model().layoutChanged.emit()
