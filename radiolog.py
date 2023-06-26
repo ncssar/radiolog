@@ -2615,11 +2615,14 @@ class MyWindow(QDialog,Ui_Dialog):
 					if not found:
 						matches.append(entry)
 						# matches=[element for element in self.fsLookup if (element[0]==fleet and element[1]==dev)]
-					rprint('found matching entry/entries:'+str(matches))
-					if len(matches)!=1 or len(matches[0][0])!=3: # no match
-						return "KW-"+fleet+"-"+dev
-					else:
-						return matches[0][2]
+			if len(matches)>0:
+				rprint('  found matching entry/entries:'+str(matches))
+			else:
+				rprint('  no matches')
+			if len(matches)!=1 or len(matches[0][0])!=3: # no match
+				return "KW-"+fleet+"-"+dev
+			else:
+				return matches[0][2]
 	
 		elif len(fleetOrUid)==5: # 5 characters - must be NEXEDGE
 			uid=fleetOrUid
@@ -2634,10 +2637,14 @@ class MyWindow(QDialog,Ui_Dialog):
 					if not found:
 						matches.append(entry)
 						# matches=[element for element in self.fsLookup if element[1]==uid]
-					if len(matches)!=1 or matches[0][0]!='': # no match
-						return "KW-NXDN-"+uid
-					else:
-						return matches[0][2]
+			if len(matches)>0:
+				rprint('  found matching entry/entries:'+str(matches))
+			else:
+				rprint('  no matches')
+			if len(matches)!=1 or matches[0][0]!='': # no match
+				return "KW-NXDN-"+uid
+			else:
+				return matches[0][2]
 		else:
 			rprint('ERROR in call to getCallsign: first argument must be 3 characters (FleetSync) or 5 characters (NEXEDGE): "'+fleetOrUid+'"')
 
@@ -2955,6 +2962,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			if self.useOperatorLogin:
 				operatorImageFile=os.path.join(iconsDir,'user_icon_80px.png')
 				if os.path.isfile(operatorImageFile):
+					rprint('operator image file found: '+operatorImageFile)
 					headers.append(Image(operatorImageFile,width=0.16*inch,height=0.16*inch))
 				else:
 					rprint('operator image file not found: '+operatorImageFile)
@@ -4032,6 +4040,8 @@ class MyWindow(QDialog,Ui_Dialog):
 							rprint("normalized loaded incident name: '"+self.incidentNameNormalized+"'")
 							self.ui.incidentNameLabel.setText(self.incidentName)
 						if not row[0].startswith('#'): # prune comment lines
+							if len(row)<9:
+								raise Exception('Row does not contain enough columns; the file may be corrupted.\n  File:'+fName+'\n  Row:'+str(row))
 							totalEntries=totalEntries+1
 				progressBox.setMaximum(totalEntries+14)
 				progressBox.setValue(1)
@@ -4056,7 +4066,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				loadedRadioLog=[]
 				i=0
 				for row in csvReader:
-					if not row[0].startswith('#'): # prune comment lines
+					if not row[0].startswith('#') and len(row)>9: # prune comment lines and lines with not enough elements
 						row[6]=float(row[6]) # convert epoch seconds back to float, for sorting
 						row += [''] * (colCount-len(row)) # pad the row up to 10 or 11 elements if needed, to avoid index errors elsewhere
 						loadedRadioLog.append(row)
