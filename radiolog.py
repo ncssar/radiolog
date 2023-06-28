@@ -2188,6 +2188,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				#    even for a mic bump, the second packet is identical to the first, so set() will only have one member;
 				#    if set length != 1 then we know there's garbled data and there's nothing else we can do here
 				packetSet=set(re.findall('\x02I[0-1]([0-9]{6,19})\x03',line))
+				# rprint('FleetSync packetSet: '+str(list(packetSet)))
 				if len(packetSet)>1:
 					rprint('FLEETSYNC ERROR: data appears garbled; there are two complete but non-identical CID packets.  Skipping this message.')
 					return
@@ -2197,7 +2198,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				packet=packetSet.pop()
 				count=line.count(packet)
 				# rprint('packet:'+str(packet))
-				# rprint('packet count on this line:'+str(count))
+				# rprint('packet count on this line: '+str(count))
 				
 				# 2. within a well-defined packed, the 7-digit fid (fleet&ID) should begin at index 0 (first character)
 				fid=packet[0:7] # returns indices 0 thru 6 = 7 digits
@@ -2213,7 +2214,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 				# passive mic bump filter: if BOT and EOT packets are in the same line, return without opening a new dialog
 				if count>1:
-					rprint(' Mic bump filtered from '+callsign)
+					rprint(' Mic bump filtered from '+callsign+' (FleetSync)')
 					self.fsFilteredCallDisplay() # blank for a tenth of a second in case of repeated bumps
 					QTimer.singleShot(200,lambda:self.fsFilteredCallDisplay('bump',fleet,dev,callsign))
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
@@ -2224,7 +2225,10 @@ class MyWindow(QDialog,Ui_Dialog):
 				rprint("FleetSync CID detected (not in $PKLSH): fleet="+fleet+"  dev="+dev+"  callsign="+callsign)
 
 			elif '\x02gI' in line: # NEXEDGE CID - similar to above
-				packetSet=set(re.findall(r'\x02gI[0-1]U([0-9]{5})U\1\x03',line))
+				match=re.findall('\x02gI[0-1](U\d{5}U\d{5})\x03',line)
+				# rprint('match:'+str(match))
+				packetSet=set(match)
+				# rprint('NXDN packetSet: '+str(list(packetSet)))
 				if len(packetSet)>1:
 					rprint('NEXEDGE ERROR: data appears garbled; there are two complete but non-identical CID packets.  Skipping this message.')
 					return
@@ -2233,9 +2237,21 @@ class MyWindow(QDialog,Ui_Dialog):
 					return
 				packet=packetSet.pop()
 				count=line.count(packet)
-				uid=packet[0:5]
+				# rprint('packet:'+str(packet))
+				# rprint('packet count on this line: '+str(count))
+				uid=packet[1:6] # 'U' not included - this is a 5-character string of integers
 				callsign=self.getCallsign(uid)
 
+				# passive mic bump filter: if BOT and EOT packets are in the same line, return without opening a new dialog
+				if count>1:
+					rprint(' Mic bump filtered from '+callsign+' (NXDN)')
+					self.fsFilteredCallDisplay() # blank for a tenth of a second in case of repeated bumps
+					QTimer.singleShot(200,lambda:self.fsFilteredCallDisplay('bump',None,uid,callsign))
+					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
+					self.fsLogUpdate(uid=uid,bump=True)
+					self.sendPendingGet() # while getString will be non-empty if this bump had GPS, it may still have the default callsign
+					return
+				
 				rprint('NEXEDGE CID detected (not in $PKNSH): id='+uid+'  callsign='+callsign)
 
 		# if any new entry dialogs are already open with 'from' and the
@@ -2296,9 +2312,12 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.openNewEntry('fs',callsign,formattedLocString,fleet,dev,origLocString)
 			self.sendPendingGet()
 		elif uid:
+			self.fsLogUpdate(uid=uid)
+			# only open a new entry widget if none is alredy open within the continue time, 
+			#  and the fleet/dev is not being filtered
 			if not found:
 				if self.fsIsFiltered('',uid):
-					self.fsFilteredCallDisplay('on','',uid)
+					self.fsFilteredCallDisplay('on','',uid,callsign)
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 				else:
 					self.openNewEntry('nex',callsign,formattedLocString,None,uid,origLocString)
@@ -2606,7 +2625,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			rprint('getCallsign called for FleetSync fleet='+str(fleetOrUid)+' dev='+str(dev))
 			fleet=fleetOrUid
 			for entry in self.fsLookup:
-				if int(entry[0])==int(fleet) and int(entry[1])==int(dev):
+				if entry[0] and int(entry[0])==int(fleet) and entry[1] and int(entry[1])==int(dev):
 					# check each potential match against existing matches before adding to the list of matches
 					found=False
 					for match in matches:
@@ -2628,7 +2647,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			uid=fleetOrUid
 			rprint('getCallsign called for NXDN UID='+str(uid))
 			for entry in self.fsLookup:
-				if int(entry[1])==uid:
+				if entry[1]==uid:
 					# check each potential match against existing matches before adding to the list of matches
 					found=False
 					for match in matches:
@@ -4353,8 +4372,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			if callsign[0:3]=='KW-':
 				self.newEntryWidget.ui.teamField.setFocus()
 				self.newEntryWidget.ui.teamField.selectAll()
+			rprint('fsLog:')
+			rprint(str(self.fsLog))
 			# i[7] = total call count; i[6] = mic bump count; we want to look at the total non-bump count, i[7]-i[6]
-			if fleet and dev and len([i for i in self.fsLog if i[0]==str(fleet) and i[1]==str(dev) and (i[7]-i[6])<2])>0: # this is the device's first non-mic-bump call
+			if (fleet and dev and len([i for i in self.fsLog if i[0]==str(fleet) and i[1]==str(dev) and (i[7]-i[6])<2])>0) or \
+			     (dev and not fleet and len([i for i in self.fsLog if i[0]=='' and i[1]==str(dev) and (i[7]-i[6])<2])>0) : # this is the device's first non-mic-bump call
 				rprint('First non-mic-bump call from this device.')
 				found=False
 				for i in self.CCD1List:
