@@ -5151,6 +5151,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 
 	def sendText(self,fleetOrListOrAll,device=None,message=None):
+		rprint('sendText called: fleetOrListOrAll='+str(fleetOrListOrAll)+'  device='+str(device)+'  message='+str(message))
 		self.fsTimedOut=False
 		self.fsResponseMessage=''
 		broadcast=False
@@ -5178,7 +5179,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			if broadcast:
 				# portable radios will not attempt to send acknowledgement for broadcast
 				rprint('broadcasting text message to all devices')
-				d='\x02\x460000000'+timestamp+' '+message+'\x03'
+				# d='\x02\x460000000'+timestamp+' '+message+'\x03'
+				d='\x02gFG00000'+timestamp+' '+message+'\x03'
 				rprint('com data: '+str(d))
 				suffix=' using one mobile radio'
 				self.firstComPort.write(d.encode())
@@ -5200,20 +5202,25 @@ class MyWindow(QDialog,Ui_Dialog):
 				box.exec_()
 			else:
 				# recipient portable will send acknowledgement when fleet and device ase specified
-				for [fleet,device] in self.fsSendList:
+				for [fleetOrNone,device] in self.fsSendList:
 					# values format for adding a new entry:
 					#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
 					values=["" for n in range(10)]
-					callsignText=self.getCallsign(fleet,device)
+					if fleetOrNone: # fleetsync
+						callsignText=self.getCallsign(fleetOrNone,device)
+						rprint('sending FleetSync text message to fleet='+str(fleet)+' device='+str(device)+' '+callsignText)
+						d='\x02F'+str(fleetOrNone)+str(device)+timestamp+' '+message+'\x03'
+					else: # NXDN
+						callsignText=self.getCallsign(device,None)
+						rprint('sending NXDN text message to device='+str(device)+' '+callsignText)
+						d='\x02gFU'+str(device)+timestamp+' '+message+'\x03'
 					values[2]=str(callsignText)
 					if callsignText:
 						callsignText='('+callsignText+')'
 					else:
 						callsignText='(no callsign)'
-					rprint('sending text message to fleet='+str(fleet)+' device='+str(device)+' '+callsignText)
-					d='\x02\x46'+str(fleet)+str(device)+timestamp+' '+message+'\x03'
 					rprint('com data: '+str(d))
-					fsFirstPortToTry=self.fsGetLatestComPort(fleet,device) or self.firstComPort
+					fsFirstPortToTry=self.fsGetLatestComPort(fleetOrNone,device) or self.firstComPort
 					if fsFirstPortToTry==self.firstComPort:
 						self.fsSecondPortToTry=self.secondComPort # could be None; inst var so fsCheck can see it
 					else:
@@ -5224,7 +5231,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					# rprint('1: fsThereWillBeAnotherTry='+str(self.fsThereWillBeAnotherTry))
 					fsFirstPortToTry.write(d.encode())
 					# if self.fsSendData(d,fsFirstPortToTry):
-					self.fsAwaitingResponse=[fleet,device,'Text message sent',0,message]
+					self.fsAwaitingResponse=[fleetOrNone,device,'Text message sent',0,message]
 					[f,dev,t]=self.fsAwaitingResponse[0:3]
 					self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.NoIcon,t,t+' to '+str(f)+':'+str(dev)+' on preferred COM port; awaiting response for '+str(self.fsAwaitingResponseTimeout)+' more seconds...',
 									QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
