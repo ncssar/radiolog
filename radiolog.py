@@ -1805,7 +1805,7 @@ class MyWindow(QDialog,Ui_Dialog):
 								rprint("      VALID FLEETSYNC DATA!!!")
 								valid=True
 							elif '\x02gI' in tmpData:
-								rprint('      VALID NEXEDGE NXDN DATA!!!')
+								rprint('      VALID NEXEDGE DATA!!!')
 								valid=True
 								# NEXEDGE format (e.g. for ID 03001; NXDN has no concept of fleet:device - just 5-decimal-digit unit ID, max=65536 (4 hex characters))
 								# BOT CID: ☻gI1U03001U03001♥
@@ -2244,7 +2244,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 				# passive mic bump filter: if BOT and EOT packets are in the same line, return without opening a new dialog
 				if count>1:
-					rprint(' Mic bump filtered from '+callsign+' (NXDN)')
+					rprint(' Mic bump filtered from '+callsign+' (NEXEDGE)')
 					self.fsFilteredCallDisplay() # blank for a tenth of a second in case of repeated bumps
 					QTimer.singleShot(200,lambda:self.fsFilteredCallDisplay('bump',None,uid,callsign))
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
@@ -2645,7 +2645,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	
 		elif len(fleetOrUid)==5: # 5 characters - must be NEXEDGE
 			uid=fleetOrUid
-			rprint('getCallsign called for NXDN UID='+str(uid))
+			rprint('getCallsign called for NEXEDGE UID='+str(uid))
 			for entry in self.fsLookup:
 				if entry[1]==uid:
 					# check each potential match against existing matches before adding to the list of matches
@@ -4993,7 +4993,10 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.fsFilterEdit(d[0],d[1],d[2].lower()=='filter')
 					self.fsBuildTeamFilterDict()
 				elif d[2]=='SendText':
-					callsignText=self.getCallsign(d[0],d[1])
+					if d[0]: # fleetsync
+						callsignText=self.getCallsign(d[0],d[1])
+					else: # nxdn
+						callsignText=self.getCallsign(d[1],None)
 					if callsignText:
 						callsignText='('+callsignText+')'
 					else:
@@ -5179,8 +5182,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			if broadcast:
 				# portable radios will not attempt to send acknowledgement for broadcast
 				rprint('broadcasting text message to all devices')
-				# d='\x02\x460000000'+timestamp+' '+message+'\x03'
-				d='\x02gFG00000'+timestamp+' '+message+'\x03'
+				# d='\x02F0000000'+timestamp+' '+message+'\x03' # fleetsync
+				d='\x02gFG00000'+timestamp+' '+message+'\x03' # nexedge
 				rprint('com data: '+str(d))
 				suffix=' using one mobile radio'
 				self.firstComPort.write(d.encode())
@@ -5203,6 +5206,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			else:
 				# recipient portable will send acknowledgement when fleet and device ase specified
 				for [fleetOrNone,device] in self.fsSendList:
+					aborted=False
 					# values format for adding a new entry:
 					#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
 					values=["" for n in range(10)]
@@ -5212,7 +5216,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						d='\x02F'+str(fleetOrNone)+str(device)+timestamp+' '+message+'\x03'
 					else: # NXDN
 						callsignText=self.getCallsign(device,None)
-						rprint('sending NXDN text message to device='+str(device)+' '+callsignText)
+						rprint('sending NEXEDGE text message to device='+str(device)+' '+callsignText)
 						d='\x02gFU'+str(device)+timestamp+' '+message+'\x03'
 					values[2]=str(callsignText)
 					if callsignText:
@@ -5233,19 +5237,28 @@ class MyWindow(QDialog,Ui_Dialog):
 					# if self.fsSendData(d,fsFirstPortToTry):
 					self.fsAwaitingResponse=[fleetOrNone,device,'Text message sent',0,message]
 					[f,dev,t]=self.fsAwaitingResponse[0:3]
-					self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.NoIcon,t,t+' to '+str(f)+':'+str(dev)+' on preferred COM port; awaiting response for '+str(self.fsAwaitingResponseTimeout)+' more seconds...',
+					if f:
+						h='FLEETSYNC'
+						h2='FleetSync'
+						sep=':'
+					else:
+						h='NEXEDGE'
+						h2='NEXEDGE'
+						sep=''
+					self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.NoIcon,h2+' '+t,h2+' '+t+' to '+str(f)+sep+str(dev)+' on preferred COM port; awaiting response for '+str(self.fsAwaitingResponseTimeout)+' more seconds...',
 									QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 					self.fsAwaitingResponseMessageBox.show()
 					self.fsAwaitingResponseMessageBox.raise_()
 					self.fsAwaitingResponseMessageBox.exec_()
 					# add a log entry when Abort is pressed
 					if self.fsAwaitingResponse and not self.fsTimedOut:
+						aborted=True
 						values[0]=time.strftime("%H%M")
 						values[1]='TO'
-						values[3]='FLEETSYNC: Text message sent to '+str(f)+':'+str(dev)+' '+callsignText+' but radiolog operator clicked Abort before delivery could be confirmed: "'+str(message)+'"'
+						values[3]=h+': Text message sent to '+str(f)+sep+str(dev)+' '+callsignText+' but radiolog operator clicked Abort before delivery could be confirmed: "'+str(message)+'"'
 						values[6]=time.time()
 						self.newEntry(values)
-						self.fsResponseMessage+='\n\n'+str(f)+':'+str(dev)+' '+callsignText+': radiolog operator clicked Abort before delivery could be confirmed'
+						self.fsResponseMessage+='\n\n'+str(f)+sep+str(dev)+' '+callsignText+': radiolog operator clicked Abort before delivery could be confirmed'
 					if self.fsFailedFlag: # timed out, or, got a '1' response
 						if self.fsSecondPortToTry:
 							rprint('failed on preferred COM port; sending on alternate COM port')
@@ -5255,7 +5268,7 @@ class MyWindow(QDialog,Ui_Dialog):
 							self.fsThereWillBeAnotherTry=False
 							# rprint('2: fsThereWillBeAnotherTry='+str(self.fsThereWillBeAnotherTry))
 							self.fsAwaitingResponse[3]=0 # reset the timer
-							self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.NoIcon,t,t+' to '+str(f)+':'+str(dev)+' on alternate COM port; awaiting response up to '+str(self.fsAwaitingResponseTimeout)+' seconds...',
+							self.fsAwaitingResponseMessageBox=QMessageBox(QMessageBox.NoIcon,t,t+' to '+str(f)+sep+str(dev)+' on alternate COM port; awaiting response up to '+str(self.fsAwaitingResponseTimeout)+' seconds...',
 											QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 							self.fsAwaitingResponseMessageBox.show()
 							self.fsAwaitingResponseMessageBox.raise_()
@@ -5264,23 +5277,23 @@ class MyWindow(QDialog,Ui_Dialog):
 							if self.fsAwaitingResponse and not self.fsTimedOut:
 								values[0]=time.strftime("%H%M")
 								values[1]='TO'
-								values[3]='FLEETSYNC: Text message sent to '+str(f)+':'+str(dev)+' '+callsignText+' but radiolog operator clicked Abort before delivery could be confirmed: "'+str(message)+'"'
+								values[3]=h+': Text message sent to '+str(f)+sep+str(dev)+' '+callsignText+' but radiolog operator clicked Abort before delivery could be confirmed: "'+str(message)+'"'
 								values[6]=time.time()
 								self.newEntry(values)
-								self.fsResponseMessage+='\n\n'+str(f)+':'+str(dev)+' '+callsignText+': radiolog operator clicked Abort before delivery could be confirmed'
+								self.fsResponseMessage+='\n\n'+str(f)+sep+str(dev)+' '+callsignText+': radiolog operator clicked Abort before delivery could be confirmed'
 							if self.fsFailedFlag: # timed out, or, got a '1' response
 								rprint('failed on alternate COM port: message delivery not confirmed')
 							else:
 								rprint('apparently successful on alternate COM port')
-								self.fsResponseMessage+='\n\n'+str(f)+':'+str(dev)+' '+callsignText+': delivery confirmed'
+								self.fsResponseMessage+='\n\n'+str(f)+sep+str(dev)+' '+callsignText+': delivery confirmed'
 						else:
 							rprint('failed on preferred COM port; no alternate COM port available')
-					else:
+					elif not aborted:
 						rprint('apparently successful on preferred COM port')
-						self.fsResponseMessage+='\n\n'+str(f)+':'+str(dev)+' '+callsignText+': delivery confirmed'
+						self.fsResponseMessage+='\n\n'+str(f)+sep+str(dev)+' '+callsignText+': delivery confirmed'
 					self.fsAwaitingResponse=None # clear the flag - this will happen after the messagebox is closed (due to valid response, or timeout in fsCheck, or Abort clicked)
 				if self.fsResponseMessage:
-					box=QMessageBox(QMessageBox.Information,'FleetSync Response Summary','FleetSync response summary:'+self.fsResponseMessage,
+					box=QMessageBox(QMessageBox.Information,h2+' Response Summary',h2+' response summary:'+self.fsResponseMessage,
 						QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 					box.open()
 					box.raise_()
@@ -7890,11 +7903,15 @@ class fsSendMessageDialog(QDialog,Ui_fsSendMessageDialog):
 		self.ui.messageField.setValidator(QRegExpValidator(QRegExp('.{1,36}'),self.ui.messageField))
 		if len(fdcList)==1:
 			[fleet,device,callsignText]=fdcList[0]
+			if not fleet:
+				fleet='NEXEDGE'
 			self.ui.theLabel.setText('Message for '+str(fleet)+':'+str(device)+' '+str(callsignText)+':')
 		else:
 			label='Message for multiple radios:'
 			for fdc in fdcList:
 				[fleet,device,callsignText]=fdc
+				if not fleet:
+					fleet='NEXEDGE'
 				label+='\n  '+str(fleet)+':'+str(device)+' '+str(callsignText)
 			self.ui.theLabel.setText(label)
 
