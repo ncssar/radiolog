@@ -1765,7 +1765,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						box.raise_()
 						box.exec_()
 					else:
-						self.fsResponseMessage+='\n\n'+idStr+' '+callsignText+':'+msg
+						self.fsResponseMessage+='\n\n'+idStr+' '+callsignText+': '+msg
 			else:
 				remaining=self.fsAwaitingResponseTimeout-self.fsAwaitingResponse[3]
 				suffix=''
@@ -5017,7 +5017,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			elif action==fsSendTextToAllAction:
 				theList=[]
 				for device in self.fsGetTeamDevices(extTeamName):
-					callsignText=self.getCallsign(device[0],device[1])
+					if device[0]: # fleetsync
+						callsignText=self.getCallsign(device[0],device[1])
+					else: # nxdn
+						callsignText=self.getCallsign(device[1],None)
 					if callsignText:
 						callsignText='('+callsignText+')'
 					else:
@@ -7907,7 +7910,7 @@ class fsSendMessageDialog(QDialog,Ui_fsSendMessageDialog):
 				fleet='NEXEDGE'
 			self.ui.theLabel.setText('Message for '+str(fleet)+':'+str(device)+' '+str(callsignText)+':')
 		else:
-			label='Message for multiple radios:'
+			label='Message for multiple radios:\n\n(NOTE: This could take a while: the system will wait up to '+str(self.parent.fsAwaitingResponseTimeout)+' seconds for an acknowledge response from each radio.  If each acknowledge is quick, this might just take a second or so per radio.  Consider whether this is what you really want to do.)\n'
 			for fdc in fdcList:
 				[fleet,device,callsignText]=fdc
 				if not fleet:
