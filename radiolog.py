@@ -7817,13 +7817,14 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 		sendText=self.ui.sendTextRadioButton.isChecked()
 		sendAll=self.ui.sendToAllCheckbox.isChecked()
 		fs=self.ui.fsRadioButton.isChecked()
+		IDNeeded=not sendText or not sendAll
 		self.ui.sendToAllCheckbox.setEnabled(sendText)
-		self.ui.fsRadioButton.setEnabled(not sendAll)
-		self.ui.nxRadioButton.setEnabled(not sendAll)
-		self.ui.fleetField.setEnabled(fs and not sendAll)
-		self.ui.fleetLabel.setEnabled(fs and not sendAll)
-		self.ui.deviceField.setEnabled(not sendAll)
-		self.ui.deviceLabel.setEnabled(not sendAll)
+		self.ui.fsRadioButton.setEnabled(IDNeeded)
+		self.ui.nxRadioButton.setEnabled(IDNeeded)
+		self.ui.fleetField.setEnabled(fs and IDNeeded)
+		self.ui.fleetLabel.setEnabled(fs and IDNeeded)
+		self.ui.deviceField.setEnabled(IDNeeded)
+		self.ui.deviceLabel.setEnabled(IDNeeded)
 		digitRE='[0-9]'
 		if fs:
 			deviceDigits=4
