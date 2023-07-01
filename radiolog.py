@@ -7809,30 +7809,42 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 		# need to connect apply signal by hand https://stackoverflow.com/a/35444005
 		btn=self.ui.buttonBox.button(QDialogButtonBox.Apply)
 		btn.clicked.connect(self.apply)
-		self.ui.fleetField.setValidator(QRegExpValidator(QRegExp('[1-9][0-9][0-9]'),self.ui.fleetField))
 		# 36 character max length - see sendText notes
 		self.ui.messageField.setValidator(QRegExpValidator(QRegExp('.{1,36}'),self.ui.messageField))
-		self.functionChanged() # to set device validator
+		self.updateGUI() # to set device validator
 
-	def functionChanged(self):
+	def updateGUI(self):
 		sendText=self.ui.sendTextRadioButton.isChecked()
-		self.ui.sendToAllCheckbox.setEnabled(sendText)
-		self.ui.messageField.setEnabled(sendText)
-		# if sending, a comma-or-space-delimited list of device IDs can be specified;
-		# if polling GPS, only one device ID can be specified
-		if sendText:
-			self.ui.deviceLabel.setText('Device ID(s)')
-			self.ui.deviceField.setValidator(QRegExpValidator(QRegExp('^([1-9][0-9][0-9][0-9][, ]?)*$'),self.ui.deviceField))
-		else:
-			self.ui.sendToAllCheckbox.setChecked(False) # this should automatically enable fleet/device fields
-			self.ui.deviceField.setText('') # easier than overriding fixup() in a custom validator
-			self.ui.deviceLabel.setText('Device ID')
-			self.ui.deviceField.setValidator(QRegExpValidator(QRegExp('[1-9][0-9][0-9][0-9]'),self.ui.deviceField))
-
-	def sendAllCheckboxChanged(self):
 		sendAll=self.ui.sendToAllCheckbox.isChecked()
-		self.ui.fleetField.setEnabled(not sendAll)
+		fs=self.ui.fsRadioButton.isChecked()
+		self.ui.sendToAllCheckbox.setEnabled(sendText)
+		self.ui.fsRadioButton.setEnabled(not sendAll)
+		self.ui.nxRadioButton.setEnabled(not sendAll)
+		self.ui.fleetField.setEnabled(fs and not sendAll)
+		self.ui.fleetLabel.setEnabled(fs and not sendAll)
 		self.ui.deviceField.setEnabled(not sendAll)
+		self.ui.deviceLabel.setEnabled(not sendAll)
+		digitRE='[0-9]'
+		if fs:
+			deviceDigits=4
+			firstDigitRE=digitRE
+		else:
+			deviceDigits=5
+			firstDigitRE='[1-9]'
+		deviceSuffix='(s)'
+		if not sendText:
+			deviceSuffix=''
+		self.ui.deviceLabel.setText(str(deviceDigits)+'-digit Device ID'+deviceSuffix)
+		# allow multiple devices when sending text, but just one when polling GPS
+		coreRE=firstDigitRE+(digitRE*(deviceDigits-1)) # '[1-9][0-9][0-9][0-9]' or '[0-9][0-9][0-9][0-9][0-9]'
+		if sendText:
+			devValRE='^('+coreRE+'[, ]?)*$'
+		else:
+			devValRE=coreRE
+		self.ui.deviceField.setValidator(QRegExpValidator(QRegExp(devValRE),self.ui.deviceField))
+		self.ui.messageField.setEnabled(sendText)
+		self.ui.messageLabel1.setEnabled(sendText)
+		self.ui.messageLabel2.setEnabled(sendText)
 
 	def apply(self):
 		if not self.parent.firstComPort:
