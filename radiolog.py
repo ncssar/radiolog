@@ -5185,15 +5185,22 @@ class MyWindow(QDialog,Ui_Dialog):
 			if broadcast:
 				# portable radios will not attempt to send acknowledgement for broadcast
 				rprint('broadcasting text message to all devices')
-				# d='\x02F0000000'+timestamp+' '+message+'\x03' # fleetsync
-				d='\x02gFG00000'+timestamp+' '+message+'\x03' # nexedge
-				rprint('com data: '+str(d))
-				suffix=' using one mobile radio'
-				self.firstComPort.write(d.encode())
-				if self.secondComPort:
-					time.sleep(3) # yes, we do want a blocking sleep
-					suffix=' using two mobile radios'
-					self.secondComPort.write(d.encode())
+				# - send fleetsync to all com ports, then nexedge to all com ports
+				# - wait 2 seconds between each send - arbitrary amount of time to let
+				#   the mobile radio(s) recover between transmissions
+				d_fs='\x02F0000000'+timestamp+' '+message+'\x03' # fleetsync
+				d_nx='\x02gFG00000'+timestamp+' '+message+'\x03' # nexedge
+				stringList=[d_fs,d_nx]
+				for d in stringList:
+					rprint('com data: '+str(d))
+					suffix=' using one mobile radio'
+					self.firstComPort.write(d.encode())
+					if self.secondComPort:
+						time.sleep(2) # yes, we do want a blocking sleep
+						suffix=' using two mobile radios'
+						self.secondComPort.write(d.encode())
+					if d!=stringList[-1]:
+						time.sleep(2)
 				# values format for adding a new entry:
 				#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
 				values=["" for n in range(10)]
@@ -5201,7 +5208,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				values[3]='TEXT MESSAGE SENT TO ALL DEVICES'+suffix+': "'+str(message)+'"'
 				values[6]=time.time()
 				self.newEntry(values)
-				box=QMessageBox(QMessageBox.Information,'FleetSync Broadcast Sent',values[3]+'\n\nNo confirmation signal is expected.  This only indicates that instructions were sent from the computer to the mobile radio, and is not a guarantee that the message was actually transmitted.',
+				box=QMessageBox(QMessageBox.Information,'FleetSync & NEXEDGE Broadcast Sent',values[3]+'\n\nNo confirmation signal is expected.  This only indicates that instructions were sent from the computer to the mobile radio, and is not a guarantee that the message was actually transmitted.',
 								QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 				box.show()
 				box.raise_()
@@ -5215,7 +5222,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					values=["" for n in range(10)]
 					if fleetOrNone: # fleetsync
 						callsignText=self.getCallsign(fleetOrNone,device)
-						rprint('sending FleetSync text message to fleet='+str(fleet)+' device='+str(device)+' '+callsignText)
+						rprint('sending FleetSync text message to fleet='+str(fleetOrNone)+' device='+str(device)+' '+callsignText)
 						d='\x02F'+str(fleetOrNone)+str(device)+timestamp+' '+message+'\x03'
 					else: # NXDN
 						callsignText=self.getCallsign(device,None)
