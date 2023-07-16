@@ -3795,6 +3795,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				elif event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
 					rprint('Enter or Return pressed; calling openNewEntry')
 					self.openNewEntry('pop')
+				elif key=='`' or key=='~':
+					self.sidebarShowHide()
 				event.accept()
 		else:
 			event.ignore()
