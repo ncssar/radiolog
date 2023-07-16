@@ -15,7 +15,9 @@ class Ui_teamTabsPopup(object):
     def setupUi(self, teamTabsPopup):
         teamTabsPopup.setObjectName("teamTabsPopup")
         teamTabsPopup.resize(193, 325)
+        teamTabsPopup.setAutoFillBackground(True)
         self.verticalLayout = QtWidgets.QVBoxLayout(teamTabsPopup)
+        self.verticalLayout.setContentsMargins(5, 5, 5, 5)
         self.verticalLayout.setObjectName("verticalLayout")
         self.teamTabsTableWidget = QtWidgets.QTableWidget(teamTabsPopup)
         font = QtGui.QFont()

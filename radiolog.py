@@ -850,7 +850,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.loadFlag=False # set this to true during load, to prevent save on each newEntry
 		self.totalEntryCount=0 # rotate backups after every 5 entries; see newEntryWidget.accept
 		
-		self.ui.teamHotkeysWidget.setVisible(False) # disabled by default		
+		self.ui.teamHotkeysWidget.setVisible(False) # disabled by default
 		self.hotkeyDict={}
 		self.nextAvailHotkeyIndex=0
 		self.hotkeyPool=["1","2","3","4","5","6","7","8","9","0","q","w","e","r","t","y","u","i","o","p","a","s","d","f","g","h","j","k","l","z","x","c","v","b","n","m"]
@@ -5635,6 +5635,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		if not vis:
 			self.rebuildTeamHotkeys()
 		self.ui.teamHotkeysWidget.setVisible(not vis)
+		self.sidebar.resizeEvent()
 
 	def showTeamTabsMoreButtonIfNeeded(self):
 		#595: setStyleSheet causes a second or two of lag when there are ~300 entries;
@@ -6031,11 +6032,14 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		# rprint('  requiredColumnCount='+str(requiredColumnCount))
 		self.ui.teamTabsTableWidget.setRowCount(displayedRowCount)
 		self.ui.teamTabsTableWidget.setColumnCount(requiredColumnCount)
+		hotkeyRDict={v:k for k,v in self.parent.hotkeyDict.items()}
+		showTeamHotkeys=self.parent.ui.teamHotkeysWidget.isVisible()
 		for i in range(len(theList)):
 			col=int(i/displayedRowCount)
 			row=i-(col*displayedRowCount)
 			t=theList[i]
 			etn=getExtTeamName(t)
+			hotkey=hotkeyRDict.get(t,"")
 			status=teamStatusDict.get(etn,None)
 			if status is not None: # could be empty string
 				# self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
@@ -6043,6 +6047,8 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 				if etn in self.parent.hiddenTeamTabsList:
 					status='Hidden'
 					twi.setText('['+t+']')
+				if showTeamHotkeys:
+					twi.setText(hotkey+': '+twi.text())
 				age=teamTimersDict.get(etn,0)
 				if self.parent.blinkToggle==1 and status not in ["At IC","Off Duty"]:
 					if age>=self.parent.timeoutRedSec:
