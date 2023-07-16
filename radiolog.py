@@ -5895,6 +5895,9 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		ci=self.ui.teamTabsTableWidget.currentItem()
 		if ci:
 			ntn=self.ui.teamTabsTableWidget.currentItem().text()
+			# remove any leading team hotkey text (character+colon+space)
+			if ntn[1]==':' and len(ntn)>3:
+				ntn=ntn[3:]
 			etn=getExtTeamName(ntn)
 			# rprint('cell clicked: '+str(ntn)+'  extTeamName='+str(etn))
 			# rprint('extTeamNameList: '+str(self.parent.extTeamNameList))
@@ -6075,6 +6078,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 				self.ui.teamTabsTableWidget.setItem(row,col,twi)
 		newWidth=30+(self.tttColWidth*max([1,requiredColumnCount]))
 		# self.resize(newWidth,self.height())
+		self.ui.teamTabsTableWidget.resizeColumnsToContents()
 		self.setFixedSize(newWidth,self.height())
 
 
