@@ -5652,7 +5652,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			# self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:0px;}')
 
 	def sidebarShowHide(self,e=None):
-		rprint('sidebarShowHide')
+		# rprint('sidebarShowHide: x='+str(self.sidebar.pos().x())+'  e='+str(e))
+		hideEvent=False
+		if e and e.type()==11: # hide event
+			hideEvent=True
+		# rprint(' hide event? '+str(hideEvent))
 		# self.sidebar2.resize(200,self.height())
 		self.sidebar.resize(200,self.sidebar.height())
 		self.sidebarShownPos=QPoint(0,self.sidebar.y())
@@ -5660,7 +5664,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# if self.sidebar2.pos().x()>-100:
 		if self.sidebar.pos().x()>-100:
 			self.sidebarAnimation.setEndValue(self.sidebarHiddenPos)
-		else:
+		elif not hideEvent: # don't show if this is a hideEvent and it's already hidden, as happens on the first mouse move after clicking a cell
 			self.sidebarAnimation.setEndValue(self.sidebarShownPos)
 		self.sidebarAnimation.start()
 
@@ -5890,15 +5894,18 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		ci=self.ui.teamTabsTableWidget.currentItem()
 		if ci:
 			ntn=self.ui.teamTabsTableWidget.currentItem().text()
-			# rprint('cell clicked: '+str(ntn))
 			etn=getExtTeamName(ntn)
+			# rprint('cell clicked: '+str(ntn)+'  extTeamName='+str(etn))
+			# rprint('extTeamNameList: '+str(self.parent.extTeamNameList))
 			try:
 				i=self.parent.extTeamNameList.index(etn)
+				# rprint('  i='+str(i))
 				self.parent.ui.tabWidget.setCurrentIndex(i)
-				# self.hide()
+				# self.hide() # after self.hide, the popup doesn't show again on hover
+				self.parent.sidebarShowHide() # sidebarShowHide does a proper hide, but then any mouse movement shows it again - must be leaveEvent even though it's been moved away
 			except: # this will get called if the team tab is hidden
 				try:
-					rprint('searching hiddenTeamTabsList:'+str(self.parent.hiddenTeamTabsList))
+					# rprint('searching hiddenTeamTabsList:'+str(self.parent.hiddenTeamTabsList))
 					ntn=ntn.replace('[','').replace(']','') # might be wrapped in square brackets
 					etn=getExtTeamName(ntn)
 					i=self.parent.hiddenTeamTabsList.index(etn)
@@ -5990,7 +5997,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,notAtICItem)
 
 	def resizeEvent(self,e=None):
-		rprint('resizeEvent')
+		# rprint('resizeEvent')
 		dotsPos=self.parent.ui.teamTabsMoreButton.pos()
 		dotsY=self.parent.ui.teamTabsMoreButton.mapTo(self.parent,dotsPos).y()
 		# rprint('3 dots y:'+str(dotsY))
