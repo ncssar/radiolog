@@ -861,7 +861,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  QWidget.__init__ in the sidebar's class __init__ function
 		self.sidebar=teamTabsPopup(self)
 		# self.sidebar.resize(100,100)
-		self.sidebar.move(-200,0)
+		self.sidebar.move(-self.sidebar.width(),0)
 		self.sidebar.show()
 		self.sidebar.raise_()
 		self.sidebar.leaveEvent=self.sidebarShowHide
@@ -5657,13 +5657,13 @@ class MyWindow(QDialog,Ui_Dialog):
 	def sidebarShowHide(self,e=None):
 		# rprint('sidebarShowHide: x='+str(self.sidebar.pos().x())+'  e='+str(e))
 		hideEvent=False
+		w=self.sidebar.width()
 		if e and e.type()==11: # hide event
 			hideEvent=True
 		# rprint(' hide event? '+str(hideEvent))
-		# self.sidebar2.resize(200,self.height())
-		self.sidebar.resize(200,self.sidebar.height())
+		self.sidebar.resize(w,self.sidebar.height())
 		self.sidebarShownPos=QPoint(0,self.sidebar.y())
-		self.sidebarHiddenPos=QPoint(-200,self.sidebar.y())
+		self.sidebarHiddenPos=QPoint(-w,self.sidebar.y())
 		# if self.sidebar2.pos().x()>-100:
 		if self.sidebar.pos().x()>-100:
 			self.sidebarAnimation.setEndValue(self.sidebarHiddenPos)
@@ -6001,6 +6001,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 				f.setBold(True)
 				notAtICItem.setFont(f)
 				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,notAtICItem)
+		self.move(-self.width(),0)
 
 	def resizeEvent(self,e=None):
 		# rprint('resizeEvent')
