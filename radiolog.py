@@ -3797,6 +3797,9 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.openNewEntry('pop')
 				elif key=='`' or key=='~':
 					self.sidebarShowHide()
+				elif event.key()==Qt.Key_Escape:
+					if self.sidebar.pos().x()>-100:
+						self.sidebarShowHide()
 				event.accept()
 		else:
 			event.ignore()
