@@ -6053,7 +6053,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 				if etn in self.parent.hiddenTeamTabsList:
 					status='Hidden'
 					twi.setText('['+t+']')
-				if showTeamHotkeys:
+				if showTeamHotkeys and hotkey:
 					twi.setText(hotkey+': '+twi.text())
 				age=teamTimersDict.get(etn,0)
 				if self.parent.blinkToggle==1 and status not in ["At IC","Off Duty"]:
