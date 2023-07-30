@@ -5886,10 +5886,15 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		self.ui=Ui_teamTabsPopup()
 		self.ui.setupUi(self)
 		# self.ui.teamTabsTableWidget.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-		self.ui.teamTabsTableWidget.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+		# self.ui.teamTabsTableWidget.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 		# self.ui.teamTabsTableWidget.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
 		# self.ui.teamTabsTableWidget.setSizePolicy(QSizePolicy.Maximum,QSizePolicy.Expanding)
 		# self.ui.teamTabsSummaryTableWidget.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+		self.ui.teamTabsSummaryTableWidget.verticalHeader().setFixedWidth(100)
+		# hardcode the summary table height to be the sum of row heights, plus arbitrary pixel count to account for borders
+		self.ui.teamTabsSummaryTableWidget.setFixedHeight(\
+				sum([self.ui.teamTabsSummaryTableWidget.verticalHeader().sectionSize(n)\
+	 			for n in range(self.ui.teamTabsSummaryTableWidget.rowCount())])+2)
 		self.tttRowHeight=self.ui.teamTabsTableWidget.rowHeight(0)
 		# self.tttColWidth=self.ui.teamTabsTableWidget.columnWidth(0)
 		# self.prevWidth=self.width()
@@ -6024,7 +6029,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		if y<0: # running off the top
 			if y+h<ph: # there's space to move downwards
 				y=0
-			else: # there's not space to move downards - need to add a column
+			else: # there's not space to move downwards - need to add a column
 				rprint('need to add a column')
 		self.move(self.x(),y)
 		# 1. clear the table
@@ -6092,7 +6097,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		# widthBeforeResize=self.ui.teamTabsTableWidget.width()
 		self.ui.teamTabsTableWidget.resizeColumnsToContents()
 		colCount=self.ui.teamTabsTableWidget.columnCount()
-		teamTabsTableRequiredWidth=colCount+1 # grid lines
+		teamTabsTableRequiredWidth=(colCount-1)*2+3 # grid lines, padding, borders
 		for n in range(colCount):
 			teamTabsTableRequiredWidth+=self.ui.teamTabsTableWidget.columnWidth(n)
 		# rprint('  required width: '+str(teamTabsTableRequiredWidth))
