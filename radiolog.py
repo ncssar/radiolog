@@ -5899,6 +5899,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		# disable mouse wheel scroll: https://stackoverflow.com/a/61085704/3577105
 		self.ui.teamTabsTableWidget.wheelEvent=lambda event: None
 		self.initialWidth=self.width()
+		self.ui.teamTabsSummaryTableWidget.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
 
 	def cellClicked(self,row,col):
 		ci=self.ui.teamTabsTableWidget.currentItem()

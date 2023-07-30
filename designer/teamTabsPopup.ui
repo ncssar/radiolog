@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>154</width>
-    <height>343</height>
+    <height>238</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -28,7 +28,7 @@
   <property name="autoFillBackground">
    <bool>true</bool>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0">
    <property name="leftMargin">
     <number>5</number>
    </property>
@@ -42,224 +42,266 @@
     <number>5</number>
    </property>
    <item>
-    <widget class="QTableWidget" name="teamTabsTableWidget">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="font">
-      <font>
-       <pointsize>8</pointsize>
-      </font>
-     </property>
-     <property name="focusPolicy">
-      <enum>Qt::NoFocus</enum>
-     </property>
-     <property name="verticalScrollBarPolicy">
-      <enum>Qt::ScrollBarAlwaysOff</enum>
-     </property>
-     <property name="horizontalScrollBarPolicy">
-      <enum>Qt::ScrollBarAlwaysOff</enum>
-     </property>
-     <property name="editTriggers">
-      <set>QAbstractItemView::NoEditTriggers</set>
-     </property>
-     <property name="tabKeyNavigation">
+    <widget class="QFrame" name="frame">
+     <property name="autoFillBackground">
       <bool>false</bool>
      </property>
-     <property name="showDropIndicator" stdset="0">
-      <bool>false</bool>
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
      </property>
-     <property name="dragDropOverwriteMode">
-      <bool>false</bool>
+     <property name="frameShadow">
+      <enum>QFrame::Raised</enum>
      </property>
-     <property name="selectionMode">
-      <enum>QAbstractItemView::SingleSelection</enum>
+     <property name="lineWidth">
+      <number>2</number>
      </property>
-     <attribute name="horizontalHeaderVisible">
-      <bool>false</bool>
-     </attribute>
-     <attribute name="verticalHeaderVisible">
-      <bool>false</bool>
-     </attribute>
-     <row>
-      <property name="text">
-       <string>starter</string>
-      </property>
-     </row>
-     <column>
-      <property name="text">
-       <string>starter</string>
-      </property>
-     </column>
-     <item row="0" column="0">
-      <property name="text">
-       <string/>
-      </property>
-      <property name="flags">
-       <set>ItemIsEnabled</set>
-      </property>
-     </item>
-    </widget>
-   </item>
-   <item>
-    <widget class="QTableWidget" name="teamTabsSummaryTableWidget">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
+     <property name="midLineWidth">
+      <number>0</number>
      </property>
-     <property name="font">
-      <font>
-       <pointsize>8</pointsize>
-      </font>
-     </property>
-     <property name="focusPolicy">
-      <enum>Qt::NoFocus</enum>
-     </property>
-     <property name="verticalScrollBarPolicy">
-      <enum>Qt::ScrollBarAlwaysOff</enum>
-     </property>
-     <property name="sizeAdjustPolicy">
-      <enum>QAbstractScrollArea::AdjustToContents</enum>
-     </property>
-     <property name="editTriggers">
-      <set>QAbstractItemView::NoEditTriggers</set>
-     </property>
-     <property name="tabKeyNavigation">
-      <bool>false</bool>
-     </property>
-     <property name="showDropIndicator" stdset="0">
-      <bool>false</bool>
-     </property>
-     <property name="dragDropOverwriteMode">
-      <bool>false</bool>
-     </property>
-     <property name="selectionMode">
-      <enum>QAbstractItemView::NoSelection</enum>
-     </property>
-     <attribute name="horizontalHeaderVisible">
-      <bool>false</bool>
-     </attribute>
-     <attribute name="horizontalHeaderCascadingSectionResizes">
-      <bool>false</bool>
-     </attribute>
-     <attribute name="horizontalHeaderDefaultSectionSize">
-      <number>40</number>
-     </attribute>
-     <attribute name="horizontalHeaderHighlightSections">
-      <bool>false</bool>
-     </attribute>
-     <attribute name="horizontalHeaderMinimumSectionSize">
-      <number>40</number>
-     </attribute>
-     <attribute name="verticalHeaderDefaultSectionSize">
-      <number>22</number>
-     </attribute>
-     <attribute name="verticalHeaderHighlightSections">
-      <bool>false</bool>
-     </attribute>
-     <attribute name="verticalHeaderMinimumSectionSize">
-      <number>22</number>
-     </attribute>
-     <row>
-      <property name="text">
-       <string>At IC</string>
+     <layout class="QVBoxLayout" name="verticalLayout_3">
+      <property name="leftMargin">
+       <number>0</number>
       </property>
-     </row>
-     <row>
-      <property name="text">
-       <string>In Transit</string>
+      <property name="topMargin">
+       <number>0</number>
       </property>
-     </row>
-     <row>
-      <property name="text">
-       <string>Working</string>
+      <property name="rightMargin">
+       <number>0</number>
       </property>
-     </row>
-     <row>
-      <property name="text">
-       <string>Other</string>
+      <property name="bottomMargin">
+       <number>0</number>
       </property>
-      <property name="foreground">
-       <brush brushstyle="SolidPattern">
-        <color alpha="255">
-         <red>150</red>
-         <green>150</green>
-         <blue>150</blue>
-        </color>
-       </brush>
-      </property>
-     </row>
-     <row>
-      <property name="text">
-       <string>Total</string>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>9</pointsize>
-        <weight>75</weight>
-        <bold>true</bold>
-       </font>
-      </property>
-     </row>
-     <row>
-      <property name="text">
-       <string>Not At IC</string>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>12</pointsize>
-        <weight>75</weight>
-        <bold>true</bold>
-       </font>
-      </property>
-     </row>
-     <column>
-      <property name="text">
-       <string>Count</string>
-      </property>
-     </column>
-     <item row="3" column="0">
-      <property name="text">
-       <string/>
-      </property>
-      <property name="foreground">
-       <brush brushstyle="SolidPattern">
-        <color alpha="255">
-         <red>150</red>
-         <green>150</green>
-         <blue>150</blue>
-        </color>
-       </brush>
-      </property>
-     </item>
-     <item row="4" column="0">
-      <property name="text">
-       <string/>
-      </property>
-      <property name="font">
-       <font>
-        <weight>75</weight>
-        <bold>true</bold>
-       </font>
-      </property>
-     </item>
-     <item row="5" column="0">
-      <property name="text">
-       <string/>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>12</pointsize>
-        <weight>75</weight>
-        <bold>true</bold>
-       </font>
-      </property>
-     </item>
+      <item>
+       <widget class="QTableWidget" name="teamTabsTableWidget">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>10</pointsize>
+         </font>
+        </property>
+        <property name="focusPolicy">
+         <enum>Qt::NoFocus</enum>
+        </property>
+        <property name="verticalScrollBarPolicy">
+         <enum>Qt::ScrollBarAlwaysOff</enum>
+        </property>
+        <property name="horizontalScrollBarPolicy">
+         <enum>Qt::ScrollBarAlwaysOff</enum>
+        </property>
+        <property name="sizeAdjustPolicy">
+         <enum>QAbstractScrollArea::AdjustToContents</enum>
+        </property>
+        <property name="editTriggers">
+         <set>QAbstractItemView::NoEditTriggers</set>
+        </property>
+        <property name="tabKeyNavigation">
+         <bool>false</bool>
+        </property>
+        <property name="showDropIndicator" stdset="0">
+         <bool>false</bool>
+        </property>
+        <property name="dragDropOverwriteMode">
+         <bool>false</bool>
+        </property>
+        <property name="selectionMode">
+         <enum>QAbstractItemView::SingleSelection</enum>
+        </property>
+        <attribute name="horizontalHeaderVisible">
+         <bool>false</bool>
+        </attribute>
+        <attribute name="verticalHeaderVisible">
+         <bool>false</bool>
+        </attribute>
+        <attribute name="verticalHeaderDefaultSectionSize">
+         <number>25</number>
+        </attribute>
+        <attribute name="verticalHeaderMinimumSectionSize">
+         <number>25</number>
+        </attribute>
+        <row>
+         <property name="text">
+          <string>starter</string>
+         </property>
+        </row>
+        <column>
+         <property name="text">
+          <string>starter</string>
+         </property>
+        </column>
+        <item row="0" column="0">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="flags">
+          <set>ItemIsEnabled</set>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item>
+       <widget class="QTableWidget" name="teamTabsSummaryTableWidget">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>8</pointsize>
+         </font>
+        </property>
+        <property name="focusPolicy">
+         <enum>Qt::NoFocus</enum>
+        </property>
+        <property name="verticalScrollBarPolicy">
+         <enum>Qt::ScrollBarAlwaysOff</enum>
+        </property>
+        <property name="sizeAdjustPolicy">
+         <enum>QAbstractScrollArea::AdjustToContents</enum>
+        </property>
+        <property name="editTriggers">
+         <set>QAbstractItemView::NoEditTriggers</set>
+        </property>
+        <property name="tabKeyNavigation">
+         <bool>false</bool>
+        </property>
+        <property name="showDropIndicator" stdset="0">
+         <bool>false</bool>
+        </property>
+        <property name="dragDropOverwriteMode">
+         <bool>false</bool>
+        </property>
+        <property name="selectionMode">
+         <enum>QAbstractItemView::NoSelection</enum>
+        </property>
+        <attribute name="horizontalHeaderVisible">
+         <bool>false</bool>
+        </attribute>
+        <attribute name="horizontalHeaderCascadingSectionResizes">
+         <bool>false</bool>
+        </attribute>
+        <attribute name="horizontalHeaderDefaultSectionSize">
+         <number>40</number>
+        </attribute>
+        <attribute name="horizontalHeaderHighlightSections">
+         <bool>false</bool>
+        </attribute>
+        <attribute name="horizontalHeaderMinimumSectionSize">
+         <number>40</number>
+        </attribute>
+        <attribute name="verticalHeaderDefaultSectionSize">
+         <number>22</number>
+        </attribute>
+        <attribute name="verticalHeaderHighlightSections">
+         <bool>false</bool>
+        </attribute>
+        <attribute name="verticalHeaderMinimumSectionSize">
+         <number>22</number>
+        </attribute>
+        <row>
+         <property name="text">
+          <string>At IC</string>
+         </property>
+        </row>
+        <row>
+         <property name="text">
+          <string>In Transit</string>
+         </property>
+        </row>
+        <row>
+         <property name="text">
+          <string>Working</string>
+         </property>
+        </row>
+        <row>
+         <property name="text">
+          <string>Other</string>
+         </property>
+         <property name="foreground">
+          <brush brushstyle="SolidPattern">
+           <color alpha="255">
+            <red>150</red>
+            <green>150</green>
+            <blue>150</blue>
+           </color>
+          </brush>
+         </property>
+        </row>
+        <row>
+         <property name="text">
+          <string>Total</string>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>9</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+        </row>
+        <row>
+         <property name="text">
+          <string>Not At IC</string>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>12</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+        </row>
+        <column>
+         <property name="text">
+          <string>Count</string>
+         </property>
+        </column>
+        <item row="3" column="0">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="foreground">
+          <brush brushstyle="SolidPattern">
+           <color alpha="255">
+            <red>150</red>
+            <green>150</green>
+            <blue>150</blue>
+           </color>
+          </brush>
+         </property>
+        </item>
+        <item row="4" column="0">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+        </item>
+        <item row="5" column="0">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>12</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+        </item>
+       </widget>
+      </item>
+     </layout>
     </widget>
    </item>
   </layout>
