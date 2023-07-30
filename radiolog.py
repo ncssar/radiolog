@@ -5885,16 +5885,20 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		self.parent=parent
 		self.ui=Ui_teamTabsPopup()
 		self.ui.setupUi(self)
-		self.ui.teamTabsTableWidget.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-		self.ui.teamTabsSummaryTableWidget.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+		# self.ui.teamTabsTableWidget.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+		self.ui.teamTabsTableWidget.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+		# self.ui.teamTabsTableWidget.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
+		# self.ui.teamTabsTableWidget.setSizePolicy(QSizePolicy.Maximum,QSizePolicy.Expanding)
+		# self.ui.teamTabsSummaryTableWidget.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 		self.tttRowHeight=self.ui.teamTabsTableWidget.rowHeight(0)
-		self.tttColWidth=self.ui.teamTabsTableWidget.columnWidth(0)
-		self.prevWidth=self.width()
+		# self.tttColWidth=self.ui.teamTabsTableWidget.columnWidth(0)
+		# self.prevWidth=self.width()
 		# self.setWindowFlags(self.windowFlags() & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		# self.setStyleSheet(globalStyleSheet)
 		self.ui.teamTabsTableWidget.cellClicked.connect(self.cellClicked)
 		# disable mouse wheel scroll: https://stackoverflow.com/a/61085704/3577105
 		self.ui.teamTabsTableWidget.wheelEvent=lambda event: None
+		self.initialWidth=self.width()
 
 	def cellClicked(self,row,col):
 		ci=self.ui.teamTabsTableWidget.currentItem()
@@ -6036,7 +6040,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		theList=[x for x in theList if 'dummy' not in x and 'spacer' not in x.lower()]
 		# displayedRowCount=self.ui.teamTabsTableWidget.rowAt(self.ui.teamTabsTableWidget.height())
 		displayedRowCount=int(self.ui.teamTabsTableWidget.height()/self.tttRowHeight)
-		# rprint('resized - now showing rows through '+str(displayedRowCount))
+		# rprint('resized - height is '+str(self.ui.teamTabsSummaryTableWidget.height())+'; now showing rows through '+str(displayedRowCount))
 		requiredColumnCount=math.ceil(len(theList)/displayedRowCount)
 		# rprint('  requiredColumnCount='+str(requiredColumnCount))
 		self.ui.teamTabsTableWidget.setRowCount(displayedRowCount)
@@ -6082,10 +6086,23 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 					twi.setFont(f)
 				# rprint('i='+str(i)+'  row='+str(row)+'  col='+str(col)+'  text='+str(theList[i]))
 				self.ui.teamTabsTableWidget.setItem(row,col,twi)
-		newWidth=30+(self.tttColWidth*max([1,requiredColumnCount]))
+		# newWidth=30+(self.tttColWidth*max([1,requiredColumnCount]))
 		# self.resize(newWidth,self.height())
+		# widthBeforeResize=self.ui.teamTabsTableWidget.width()
 		self.ui.teamTabsTableWidget.resizeColumnsToContents()
+		colCount=self.ui.teamTabsTableWidget.columnCount()
+		teamTabsTableRequiredWidth=colCount+1 # grid lines
+		for n in range(colCount):
+			teamTabsTableRequiredWidth+=self.ui.teamTabsTableWidget.columnWidth(n)
+		# rprint('  required width: '+str(teamTabsTableRequiredWidth))
+		newWidth=max(self.initialWidth,teamTabsTableRequiredWidth)
+		widthAfterResize=self.ui.teamTabsTableWidget.width()
+		# after the first call to setFixedSize (below), both before and after width are zero
+		#   maybe because resizeColumnsToContents is done while hidden?
+		# but if the call to setFixedSize is omitted, before and after are both 183
+		# rprint('tttColWidth='+str(self.tttColWidth)+'  newWidth='+str(newWidth)+'  before='+str(widthBeforeResize)+'  after='+str(widthAfterResize))
 		self.setFixedSize(newWidth,self.height())
+		# self.setFixedSize(widthBeforeResize,self.height())
 
 
 class optionsDialog(QDialog,Ui_optionsDialog):
