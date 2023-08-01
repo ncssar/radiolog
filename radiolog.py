@@ -860,13 +860,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		# to make the sidebar a child of the mainwindow, a second argument is passed to
 		#  QWidget.__init__ in the sidebar's class __init__ function
 		self.sidebar=teamTabsPopup(self)
-		# self.sidebar.resize(100,100)
 		self.sidebar.move(-self.sidebar.width(),0)
 		self.sidebar.show()
 		self.sidebar.raise_()
 		self.sidebar.leaveEvent=self.sidebarShowHide
 		self.sidebarAnimation=QPropertyAnimation(self.sidebar,b'pos')
 		self.sidebarAnimation.setDuration(150)
+		self.sidebarIsVisible=False # .isVisible would always return True; it's just slid left when 'hidden'
 		self.ui.teamTabsMoreButton=QtWidgets.QPushButton(self.ui.frame)
 		self.ui.teamTabsMoreButton.enterEvent=self.sidebarShowHide
 		self.ui.teamTabsMoreButton.setVisible(False)
@@ -877,8 +877,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.teamTabsMoreButton.setIcon(icon)
 		self.ui.teamTabsMoreButton.setIconSize(QtCore.QSize(20, 20))
 		self.ui.teamTabsMoreButton.setStyleSheet('border:0px')
-		self.ui.teamTabsMoreButton.pressed.connect(self.teamTabsMoreButtonPressed) # see comments at the function
-		self.teamTabsMoreMenu=None
 		self.CCD1List=['KW-'] # if needed, KW- is appended to CCD1List after loading from config file
 
 		self.menuFont=QFont()
@@ -3717,7 +3715,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			if secondsSinceContact>-1:
 				teamTimersDict[extTeamName]=secondsSinceContact+1
 
-		if self.sidebar.isVisible():
+		if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
 			self.sidebar.resizeEvent()
 
 	def keyPressEvent(self,event):
@@ -5584,7 +5582,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				if self.extTeamNameList[n+1].lower().startswith("spacer"):
 					rprint("  found back-to-back spacers at indices "+str(n)+" and "+str(n+1))
 					self.deleteTeamTab(self.extTeamNameList[n+1],True)
-		if self.sidebar.isVisible():
+		if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
 			self.sidebar.resizeEvent()
 
 	def getNextAvailHotkey(self):
@@ -5670,126 +5668,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		# if self.sidebar2.pos().x()>-100:
 		if self.sidebar.pos().x()>-100:
 			self.sidebarAnimation.setEndValue(self.sidebarHiddenPos)
+			self.sidebarIsVisible=False
 		elif not hideEvent: # don't show if this is a hideEvent and it's already hidden, as happens on the first mouse move after clicking a cell
 			self.sidebarAnimation.setEndValue(self.sidebarShownPos)
+			self.sidebarIsVisible=True
 		self.sidebarAnimation.start()
-
-	def rebuildTeamTabsPopup(self):
-		# 1. build the list (or table) of all callsigns - though teamTabsPopup.resizeEvent handles to display
-		# the display list should include hidden tabs in the sequence that they would appear if not hidden
-		#  that will be a bit tricky - need to use the same logic as in rebuildTabs
-		#  for now, leave it as shown-tabs-list first, hidden-tabs-list second
-		# rprint('\nteamStatusDict:'+json.dumps(teamStatusDict,indent=3))
-		# rprint('\nteamNameList:'+str(self.teamNameList))
-		# rprint('\nhiddenTeamTabsList:'+str(self.hiddenTeamTabsList))
-		# rprint('\n')
-		# row=0
-		# col=0
-		self.sidebar.ui.teamTabsTableWidget.setRowCount(len(self.teamNameList))
-		self.sidebar.ui.teamTabsTableWidget.setColumnCount(1)
-		# for teamName in self.teamNameList[1:]: # omit first entry 'dummy'
-		# 	# rprint('row '+str(row)+' : '+teamName)
-		# 	self.sidebar.ui.teamTabsTableWidget.setItem(row,col,QTableWidgetItem(teamName))
-		# 	row+=1
-		# for extTeamName in self.hiddenTeamTabsList:
-		# 	t=QTableWidgetItem('['+getNiceTeamName(extTeamName)+']')
-		# 	f=QFont(t.font())
-		# 	f.setItalic(True)
-		# 	t.setFont(f)
-		# 	self.sidebar.ui.teamTabsTableWidget.setItem(row,col,t)
-		# 	row+=1
-		# 2. build the summary table
-		tsdValuesList=list(teamStatusDict.values())
-		statusTableDict={}
-		statusList=['At IC','In Transit','Working','Waiting for Transport','STANDBY']
-		for status in statusList:
-			statusTableDict[status]=tsdValuesList.count(status)
-		for row in range(self.sidebar.ui.teamTabsSummaryTableWidget.rowCount()):
-			rowLabel=self.sidebar.ui.teamTabsSummaryTableWidget.verticalHeaderItem(row).text()
-			if rowLabel in statusList:
-				self.sidebar.ui.teamTabsSummaryTableWidget.setItem(row-1,1,QTableWidgetItem(str(statusTableDict[rowLabel])))
-		totalItem=QTableWidgetItem(str(len(teamStatusDict)))
-		f=totalItem.font()
-		f.setBold(True)
-		totalItem.setFont(f)
-		self.sidebar.ui.teamTabsSummaryTableWidget.setItem(4,1,totalItem)
-		notAtICCount=len([key for key,val in teamStatusDict.items() if val!='At IC'])
-		notAtICItem=QTableWidgetItem(str(notAtICCount))
-		f=notAtICItem.font()
-		f.setPointSize(12)
-		f.setBold(True)
-		notAtICItem.setFont(f)
-		self.sidebar.ui.teamTabsSummaryTableWidget.setItem(5,1,notAtICItem)
-		# determine height, bounded by screen height
-		
-	# need to run this slot on pressed, instead of clicked which causes redisplay with every click
-	#  due to interaction with return value from QMenu
-	def teamTabsMoreButtonPressed(self):
-		if self.sidebar.isVisible():
-			self.sidebar.hide()
-			return
-		# self.rebuildTeamTabsPopup()
-		# self.sidebar.ui.teamTabsTableWidget.clear()
-		# self.sidebar.ui.teamTabsTableWidget.addItems(self.teamNameList)
-		# QApplication.processEvents()
-		# self.sidebar.move(0,0)
-		self.sidebar.show()
-		self.sidebar.raise_()
-		# self.sidebar.resizeEvent() # redraw the teams table - only works after it's displayed
-		# if self.teamTabsMoreMenu:
-		# 	del(self.teamTabsMoreMenu)
-		# 	self.teamTabsMoreMenu=None
-		# else:
-		# 	# disconnect the slot until after the action has been processed,
-		# 	#  to allow toggling the menu by clicking the button again
-		# 	self.ui.teamTabsMoreButton.pressed.disconnect(self.teamTabsMoreButtonPressed)
-		# 	self.teamTabsMoreMenu=QMenu('Hidden team tabs')
-		# 	self.teamTabsMoreMenu.setFont(self.menuFont)
-		# 	# self.teamTabsMoreMenu.addAction('Hidden team tabs').setObjectName('action1')
-		# 	self.teamTabsMoreMenu.addAction('Hidden team tabs').setEnabled(False)
-		# 	self.teamTabsMoreMenu.addAction('Select a team to unhide:').setEnabled(False)
-		# 	self.teamTabsMoreMenu.addSeparator()
-		# 	for extTeamName in self.hiddenTeamTabsList:
-		# 		self.teamTabsMoreMenu.addAction(getNiceTeamName(extTeamName))
-		# 	self.teamTabsMoreMenu.setStyleSheet('QMenu::item:disabled{background-color:rgb(220,220,220);color:black;font-weight:bold}')
-		# 	action=self.teamTabsMoreMenu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(QPoint(0,0)))
-		# 	# clicking outside the menu will close it and will return None; capture this in order to toggle visibility
-		# 	#  clicking the menu button while the menu is open will also return None, but the clicked signal will fire too!
-		# 	if action is not None:
-		# 		# self.hiddenTeamTabsList.remove(str(action.text()))
-		# 		# self.rebuildTabs()
-		# 		t=action.text()
-		# 		extTeamName=getExtTeamName(t)
-		# 		# Adding a new entry takes care of a lot of tasks; reproducing them without adding a
-		# 		#  new entry is cryptic and therefore error-prone.  Safer to just add a new entry.
-		# 		# values format for adding a new entry:
-		# 		#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
-		# 		values=["" for n in range(10)]
-		# 		values[0]=time.strftime("%H%M")
-		# 		values[6]=time.time()
-		# 		values[2]=t
-		# 		values[3]='[RADIOLOG: operator is unhiding hidden team tab for "'+t+'"]'
-		# 		if (extTeamName in teamStatusDict) and (teamStatusDict[extTeamName]!=''):
-		# 			values[5]=teamStatusDict[extTeamName]
-		# 		self.newEntry(values)
-		# 		# rprint('  t1: teamNameList='+str(self.teamNameList))
-		# 		# rprint('      extTeamNameList='+str(self.extTeamNameList))
-		# 		# if t not in self.extTeamNameList:
-		# 		# 	self.extTeamNameList.append(t)
-		# 		# if getNiceTeamName(t) not in self.teamNameList:
-		# 		# 	self.teamNameList.append(getNiceTeamName(t))
-		# 		# rprint('  t2: teamNameList='+str(self.teamNameList))
-		# 		# rprint('      extTeamNameList='+str(self.extTeamNameList))
-		# 		# self.rebuildGroupedTabDict()
-		# 		# rprint('  t2: teamNameList='+str(self.teamNameList))
-		# 		# rprint('      extTeamNameList='+str(self.extTeamNameList))
-		# 		# self.addTab(t)
-		# 	# process events then reconnect the slot after the menu has been closed
-		# 	self.teamTabsMoreMenu.close()
-		# 	del(self.teamTabsMoreMenu)
-		# 	self.teamTabsMoreMenu=None
-		# 	QApplication.processEvents()
-		# 	self.ui.teamTabsMoreButton.pressed.connect(self.teamTabsMoreButtonPressed)
 
 	def unhideTeamTab(self,niceTeamName):
 		if not niceTeamName:
@@ -5810,7 +5693,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  (this is already done at the start of addTab, which is too late)
 		self.hiddenTeamTabsList=[x for x in self.hiddenTeamTabsList if extTeamName!=x]
 		self.newEntry(values)
-		if self.sidebar.isVisible():
+		if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
 			self.sidebar.resizeEvent()
 
 	def addNonRadioClue(self):
@@ -5885,26 +5768,19 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		self.parent=parent
 		self.ui=Ui_teamTabsPopup()
 		self.ui.setupUi(self)
-		# self.ui.teamTabsTableWidget.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-		# self.ui.teamTabsTableWidget.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-		# self.ui.teamTabsTableWidget.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
-		# self.ui.teamTabsTableWidget.setSizePolicy(QSizePolicy.Maximum,QSizePolicy.Expanding)
-		# self.ui.teamTabsSummaryTableWidget.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 		self.ui.teamTabsSummaryTableWidget.verticalHeader().setFixedWidth(100)
 		# hardcode the summary table height to be the sum of row heights, plus arbitrary pixel count to account for borders
-		self.ui.teamTabsSummaryTableWidget.setFixedHeight(\
+		self.ui.teamTabsSummaryTableWidget.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
+		self.ttsHeight=\
 				sum([self.ui.teamTabsSummaryTableWidget.verticalHeader().sectionSize(n)\
-	 			for n in range(self.ui.teamTabsSummaryTableWidget.rowCount())])+2)
-		self.tttRowHeight=self.ui.teamTabsTableWidget.rowHeight(0)
-		# self.tttColWidth=self.ui.teamTabsTableWidget.columnWidth(0)
-		# self.prevWidth=self.width()
-		# self.setWindowFlags(self.windowFlags() & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
-		# self.setStyleSheet(globalStyleSheet)
+	 			for n in range(self.ui.teamTabsSummaryTableWidget.rowCount())])+2
+		self.ui.teamTabsSummaryTableWidget.setFixedHeight(self.ttsHeight)
+		self.tttRowHeight=self.ui.teamTabsTableWidget.verticalHeader().defaultSectionSize() # assuming all rows are the same height
 		self.ui.teamTabsTableWidget.cellClicked.connect(self.cellClicked)
 		# disable mouse wheel scroll: https://stackoverflow.com/a/61085704/3577105
 		self.ui.teamTabsTableWidget.wheelEvent=lambda event: None
 		self.initialWidth=self.width()
-		self.ui.teamTabsSummaryTableWidget.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
+		self.initialHeight=self.height()
 
 	def cellClicked(self,row,col):
 		ci=self.ui.teamTabsTableWidget.currentItem()
@@ -5942,120 +5818,45 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 					rprint('ERROR: clicked a cell '+etn+' that does not exist in extTeamNameList or hiddenTeamTabsList')
 
 	def showEvent(self,e=None):
-		rprint('sidebar show')
-		self.tttRowHeight=self.ui.teamTabsTableWidget.rowHeight(0) # since row height won't be computed until shown (ResizeToContents)
-		self.resize(self.width(),100) # start tiny; this also calls resizeEvent
-		self.ui.teamTabsTableWidget.setColumnCount(1)
-		# theList=self.parent.teamNameList[1:] # skip first element 'dummy'
-		theList=self.parent.allTeamsList # same as teamNameList but hidden tabs are still included
-		theList=[x for x in theList if 'dummy' not in x and 'spacer' not in x.lower()]
-		# displayedRowCount=self.ui.teamTabsTableWidget.rowAt(self.ui.teamTabsTableWidget.height())
-		displayedRowCount=int(self.ui.teamTabsTableWidget.height()/self.tttRowHeight)
-		# screenHeight=QApplication.desktop().screenGeometry().height()
-		# maxDialogHeight=screenHeight-30 # to allow for window frame/decorations
-		maxDialogHeight=self.parent.height()
-		listLength=len(theList)
-		# columns=1
-		rprint('showEvent called; initial height = '+str(self.height()))
-		rprint('theList:'+str(theList))
-		rprint('list length = '+str(listLength)+'   displayedRowCount='+str(displayedRowCount)+'  rowHeight='+str(self.tttRowHeight))
-		while displayedRowCount<listLength:
-			height=self.height()
-			newHeight=height+self.tttRowHeight
-			rprint('about to resize to new height '+str(newHeight))
-			if newHeight>maxDialogHeight:
-				rprint('  but that would be too tall; exiting the loop')
-				break
-			# self.resize(self.width(),newHeight)
-			self.setFixedSize(self.width(),newHeight)
-			# displayedRowCount=self.ui.teamTabsTableWidget.rowAt(self.ui.teamTabsTableWidget.height())
-			displayedRowCount=int(self.ui.teamTabsTableWidget.height()/self.tttRowHeight)
-		rprint('final displayedRowCount='+str(displayedRowCount))
-		# self.ui.teamTabsTableWidget.setRowCount(displayedRowCount)
-		self.resizeEvent() # trigger the table redraw
-		# column count and cell display is handled during resizeEvent
-		# displayedCellCount=displayedRowCount*columns
-		# while displayedCellCount<listLength:
-		# 	columns+=1
-		# 	if columns>20:
-		# 		rprint('  more than 20 columns requested for some reason; exiting the loop')
-		# 	self.ui.teamTabsSummaryTableWidget.setColumnCount(columns)
-		# self.move(self.x(),int((screenHeight-self.frameSize().height())/2))
-
-		# 2. build the summary table
-		tsdValuesList=list(teamStatusDict.values())
-		statusTableDict={}
-		# 'other' status could include any status not specifically listed, or no status; mainly shown to
-		#   reduce confusion that would arise when 'Total' is greater than the sum of the listed statuses
-		# statusList=['At IC','In Transit','Working',['Waiting for Transport','Await.Trans.'],'STANDBY']
-		statusList=['At IC','In Transit','Working']
-		for status in statusList:
-			statusTableDict[status]=tsdValuesList.count(status)
-		otherCount=len([x for x in tsdValuesList if x not in statusList])
-		for row in range(self.ui.teamTabsSummaryTableWidget.rowCount()):
-			rowLabel=self.ui.teamTabsSummaryTableWidget.verticalHeaderItem(row).text()
-			if rowLabel in statusList:
-				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,QTableWidgetItem(str(statusTableDict[rowLabel])))
-			elif rowLabel=='Other':
-				otherItem=QTableWidgetItem(str(otherCount))
-				otherItem.setForeground(QColor(100,100,100))
-				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,otherItem)
-			elif rowLabel=='Total':
-				totalItem=QTableWidgetItem(str(len(tsdValuesList)))
-				f=totalItem.font()
-				f.setBold(True)
-				totalItem.setFont(f)
-				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,totalItem)
-			elif rowLabel=='Not At IC':
-				notAtICCount=len([key for key,val in teamStatusDict.items() if val!='At IC'])
-				notAtICItem=QTableWidgetItem(str(notAtICCount))
-				f=notAtICItem.font()
-				f.setPointSize(12)
-				f.setBold(True)
-				notAtICItem.setFont(f)
-				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,notAtICItem)
-		self.move(-self.width(),0)
+		# rprint('sidebar showEvent called')
+		self.redraw()
 
 	def resizeEvent(self,e=None):
-		# rprint('resizeEvent')
-		dotsPos=self.parent.ui.teamTabsMoreButton.pos()
-		dotsY=self.parent.ui.teamTabsMoreButton.mapTo(self.parent,dotsPos).y()
-		# rprint('3 dots y:'+str(dotsY))
-		ph=self.parent.height()
-		h=self.height()
-		y=int(dotsY-(h/2)) # start with vertically centering on the 3 dots
-		if y+h>ph: # running off the bottom - move upwards as needed
-			y=ph-h
-		if y<0: # running off the top
-			if y+h<ph: # there's space to move downwards
-				y=0
-			else: # there's not space to move downwards - need to add a column
-				rprint('need to add a column')
-		self.move(self.x(),y)
-		# 1. clear the table
-		# 2. determine required column count based on vertical size
-		# 3. set table column count
-		# 4. iterate over list of labels to display:
-		#    - calculate row and column
-		#    - set the table item
-		# rprint(' resized')
-		self.ui.teamTabsTableWidget.clear()
-		# theList=self.parent.extTeamNameList
-		# theList=self.parent.teamNameList[1:] # skip first element 'dummy'
-		theList=self.parent.allTeamsList # same as teamNamesList but hidden tabs are still included
+		# rprint('sidebar resizeEvent called')
+		self.redraw()
+
+	def redraw(self):
+		# rprint('redrawing sidebar')
+		# 1. calculate and set number of rows and columns required for team table
+		# 2. populate team table - done before determining total width, due to resizeColumnsToContents
+		# 3. populate summary table
+		# 4. set sidebar fixed size based on team table size (and fixed summary table size)
+		# 5. move sidebar to correct vertical position
+
+		# 1. calculate and set number of rows and columns required for team table
+
+		theList=self.parent.allTeamsList # same as teamNameList but hidden tabs are still included
 		theList=[x for x in theList if 'dummy' not in x and 'spacer' not in x.lower()]
-		# displayedRowCount=self.ui.teamTabsTableWidget.rowAt(self.ui.teamTabsTableWidget.height())
-		displayedRowCount=int(self.ui.teamTabsTableWidget.height()/self.tttRowHeight)
-		# rprint('resized - height is '+str(self.ui.teamTabsSummaryTableWidget.height())+'; now showing rows through '+str(displayedRowCount))
-		requiredColumnCount=math.ceil(len(theList)/displayedRowCount)
-		# rprint('  requiredColumnCount='+str(requiredColumnCount))
-		self.ui.teamTabsTableWidget.setRowCount(displayedRowCount)
-		self.ui.teamTabsTableWidget.setColumnCount(requiredColumnCount)
+		listCount=len(theList)
+		maxSidebarHeight=self.parent.height()
+		maxTeamTableHeight=maxSidebarHeight-self.ui.teamTabsSummaryTableWidget.height()-15 # arbirary for padding etc
+		maxRowCount=int(maxTeamTableHeight/self.tttRowHeight)
+		rowCount=min(listCount,maxRowCount)
+		colCount=int((listCount+maxRowCount-1)/maxRowCount) # do the math - this works
+		# rprint(' listCount='+str(listCount)+' maxRowCount='+str(maxRowCount)+' : setting rows='+str(rowCount)+' cols='+str(colCount))
+		self.ui.teamTabsTableWidget.setRowCount(rowCount)
+		self.ui.teamTabsTableWidget.setColumnCount(colCount)
+		if not self.parent.sidebarIsVisible:
+			self.move(-self.width(),self.y())
+
+		# 2. populate team table - done before determining total width, due to resizeColumnsToContents
+
+		self.ui.teamTabsTableWidget.clear()
 		hotkeyRDict={v:k for k,v in self.parent.hotkeyDict.items()}
 		showTeamHotkeys=self.parent.ui.teamHotkeysWidget.isVisible()
-		for i in range(len(theList)):
-			col=int(i/displayedRowCount)
-			row=i-(col*displayedRowCount)
+		for i in range(listCount):
+			col=int(i/rowCount)
+			row=i-(col*rowCount)
 			t=theList[i]
 			etn=getExtTeamName(t)
 			hotkey=hotkeyRDict.get(t,"")
@@ -6092,23 +5893,65 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 					twi.setFont(f)
 				# rprint('i='+str(i)+'  row='+str(row)+'  col='+str(col)+'  text='+str(theList[i]))
 				self.ui.teamTabsTableWidget.setItem(row,col,twi)
-		# newWidth=30+(self.tttColWidth*max([1,requiredColumnCount]))
-		# self.resize(newWidth,self.height())
-		# widthBeforeResize=self.ui.teamTabsTableWidget.width()
+
+		# 3. populate summary table
+
+		tsdValuesList=list(teamStatusDict.values())
+		statusTableDict={}
+		# 'other' status could include any status not specifically listed, or no status; mainly shown to
+		#   reduce confusion that would arise when 'Total' is greater than the sum of the listed statuses
+		# statusList=['At IC','In Transit','Working',['Waiting for Transport','Await.Trans.'],'STANDBY']
+		statusList=['At IC','In Transit','Working']
+		for status in statusList:
+			statusTableDict[status]=tsdValuesList.count(status)
+		otherCount=len([x for x in tsdValuesList if x not in statusList])
+		for row in range(self.ui.teamTabsSummaryTableWidget.rowCount()):
+			rowLabel=self.ui.teamTabsSummaryTableWidget.verticalHeaderItem(row).text()
+			if rowLabel in statusList:
+				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,QTableWidgetItem(str(statusTableDict[rowLabel])))
+			elif rowLabel=='Other':
+				otherItem=QTableWidgetItem(str(otherCount))
+				otherItem.setForeground(QColor(100,100,100))
+				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,otherItem)
+			elif rowLabel=='Total':
+				totalItem=QTableWidgetItem(str(len(tsdValuesList)))
+				f=totalItem.font()
+				f.setBold(True)
+				totalItem.setFont(f)
+				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,totalItem)
+			elif rowLabel=='Not At IC':
+				notAtICCount=len([key for key,val in teamStatusDict.items() if val!='At IC'])
+				notAtICItem=QTableWidgetItem(str(notAtICCount))
+				f=notAtICItem.font()
+				f.setPointSize(12)
+				f.setBold(True)
+				notAtICItem.setFont(f)
+				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,notAtICItem)
+
+		# 4. set sidebar fixed size based on team table size (and fixed summary table size)
+
 		self.ui.teamTabsTableWidget.resizeColumnsToContents()
-		colCount=self.ui.teamTabsTableWidget.columnCount()
-		teamTabsTableRequiredWidth=(colCount-1)*2+3 # grid lines, padding, borders
+		teamTabsTableRequiredWidth=4 # initial size = borders
 		for n in range(colCount):
-			teamTabsTableRequiredWidth+=self.ui.teamTabsTableWidget.columnWidth(n)
-		# rprint('  required width: '+str(teamTabsTableRequiredWidth))
+			teamTabsTableRequiredWidth+=self.ui.teamTabsTableWidget.columnWidth(n)+4
 		newWidth=max(self.initialWidth,teamTabsTableRequiredWidth)
-		widthAfterResize=self.ui.teamTabsTableWidget.width()
-		# after the first call to setFixedSize (below), both before and after width are zero
-		#   maybe because resizeColumnsToContents is done while hidden?
-		# but if the call to setFixedSize is omitted, before and after are both 183
-		# rprint('tttColWidth='+str(self.tttColWidth)+'  newWidth='+str(newWidth)+'  before='+str(widthBeforeResize)+'  after='+str(widthAfterResize))
-		self.setFixedSize(newWidth,self.height())
-		# self.setFixedSize(widthBeforeResize,self.height())
+		newHeight=max(self.initialHeight,rowCount*self.tttRowHeight+self.ttsHeight+18)
+		self.setFixedSize(newWidth,newHeight)
+
+		# 5. move sidebar to correct vertical position
+
+		dotsPos=self.parent.ui.teamTabsMoreButton.pos()
+		dotsY=self.parent.ui.teamTabsMoreButton.mapTo(self.parent,dotsPos).y()
+		y=int(dotsY-(newHeight/2)) # start with vertically centering on the 3 dots
+		if y+newHeight>maxSidebarHeight: # running off the bottom - move upwards as needed
+			y=maxSidebarHeight-newHeight
+		if y<0: # running off the top
+			if y+newHeight<maxSidebarHeight: # there's space to move downwards
+				y=0
+			else: # there's not space to move downwards - need to add a column, to reduce row count;
+				# note, this code should never be reached, if sizing calcs above are working correctly
+				rprint('need to add a column')
+		self.move(self.x(),y)
 
 
 class optionsDialog(QDialog,Ui_optionsDialog):
