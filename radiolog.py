@@ -872,11 +872,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.teamTabsMoreButton.setVisible(False)
 		self.ui.teamTabsMoreButton.setGeometry(1,6,14,26)
 		from PyQt5 import QtGui
-		icon = QtGui.QIcon()
-		icon.addPixmap(QtGui.QPixmap(":/radiolog_ui/icons/3dots.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-		self.ui.teamTabsMoreButton.setIcon(icon)
+		self.teamTabsMoreButtonIcon = QtGui.QIcon()
+		self.blankIcon=QtGui.QIcon()
+		self.teamTabsMoreButtonIcon.addPixmap(QtGui.QPixmap(":/radiolog_ui/icons/3dots.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+		self.ui.teamTabsMoreButton.setIcon(self.teamTabsMoreButtonIcon)
 		self.ui.teamTabsMoreButton.setIconSize(QtCore.QSize(20, 20))
 		self.ui.teamTabsMoreButton.setStyleSheet('border:0px')
+		self.teamTabsMoreButtonIsBlinking=False
 		self.CCD1List=['KW-'] # if needed, KW- is appended to CCD1List after loading from config file
 
 		self.menuFont=QFont()
@@ -3661,6 +3663,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.helpWindow.ui.colorLabel7.setStyleSheet(statusStyleDict["STANDBY"])
 			self.helpWindow.ui.fsSomeFilteredLabel.setFont(self.helpFont1)
 
+		teamTabsMoreButtonBlinkNeeded=False
 		for extTeamName in teamTimersDict:
 			# if there is a newEntryWidget currently open for this team, don't blink,
 			#  but don't reset the timer.  Only reset the timer when the dialog is accepted.
@@ -3675,6 +3678,11 @@ class MyWindow(QDialog,Ui_Dialog):
 # 			rprint("fsFilter "+extTeamName+": "+str(fsFilter))
 			secondsSinceContact=teamTimersDict.get(extTeamName,0)
 			if status in ["Waiting for Transport","STANDBY","Available"] or (secondsSinceContact>=self.timeoutOrangeSec):
+				# if a team status is blinking, and the tab is not visible due to scrolling of a very wide tab bar,
+				#  then blink the three-dots icon; but this test may be expensive so don't test again after the first hit
+				#  https://stackoverflow.com/a/28805583/3577105
+				if not teamTabsMoreButtonBlinkNeeded and self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).visibleRegion().isEmpty():
+					teamTabsMoreButtonBlinkNeeded=True
 				if self.blinkToggle==0:
 					# blink 0: style is one of these:
 					# - style as normal per status
@@ -3714,6 +3722,17 @@ class MyWindow(QDialog,Ui_Dialog):
 			# once they have timed out, keep incrementing; but if the timer is '-1', they will never timeout
 			if secondsSinceContact>-1:
 				teamTimersDict[extTeamName]=secondsSinceContact+1
+
+		if teamTabsMoreButtonBlinkNeeded:
+			self.teamTabsMoreButtonIsBlinking=True
+			if self.blinkToggle==0:
+				self.ui.teamTabsMoreButton.setIcon(self.blankIcon)
+			else:
+				self.ui.teamTabsMoreButton.setIcon(self.teamTabsMoreButtonIcon)
+		# when blinking stops, make sure the normal icon is shown
+		elif self.teamTabsMoreButtonIsBlinking:
+			self.ui.teamTabsMoreButton.setIcon(self.teamTabsMoreButtonIcon)
+			self.teamTabsMoreButtonIsBlinking=False
 
 		if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
 			self.sidebar.resizeEvent()
