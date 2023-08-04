@@ -3,7 +3,7 @@
 
 
 #define MyAppName "RadioLog"
-#define MyAppVersion "3.8.0"
+#define MyAppVersion "3.9.0"
 #define MyAppPublisher "Nevada County Sheriff's Search and Rescue"
 #define MyAppURL "https://www.nevadacountysar.org"
 #define MyAppExeName "RadioLog.exe"
