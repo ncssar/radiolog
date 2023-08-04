@@ -10,6 +10,12 @@
     <height>676</height>
    </rect>
   </property>
+  <property name="maximumSize">
+   <size>
+    <width>2000</width>
+    <height>1000</height>
+   </size>
+  </property>
   <property name="windowTitle">
    <string>Radio Log</string>
   </property>
@@ -718,12 +724,6 @@ QWidget#loginWidget:hover{
            <property name="styleSheet">
             <string notr="true"/>
            </property>
-           <property name="tabPosition">
-            <enum>QTabWidget::North</enum>
-           </property>
-           <property name="tabShape">
-            <enum>QTabWidget::Rounded</enum>
-           </property>
            <property name="currentIndex">
             <number>-1</number>
            </property>
@@ -732,9 +732,6 @@ QWidget#loginWidget:hover{
              <width>10</width>
              <height>20</height>
             </size>
-           </property>
-           <property name="usesScrollButtons">
-            <bool>false</bool>
            </property>
           </widget>
          </item>

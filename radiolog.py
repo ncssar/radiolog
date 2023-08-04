@@ -372,6 +372,59 @@ statusStyleDict[""]="font-size:"+tabFontSize+";background:none;padding-left:1px;
 statusStyleDict["TIMED_OUT_ORANGE"]="font-size:"+tabFontSize+";background:orange;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
 statusStyleDict["TIMED_OUT_RED"]="font-size:"+tabFontSize+";background:red;border:1px outset black;padding-left:0px;padding-right:0px;padding-top:-1px;padding-bottom:-1px"
 
+# Foreground, Background, Bold, Italic - used by teamTabsPopup but could maybe be used
+#  to replace statusStyleDict as a speedup versus style sheets
+statusAppearanceDict={
+	# 'default':{
+	# 	'foreground':Qt.black,
+	# 	'background':None,
+	# 	'italic':False,
+	# 	'blink':False
+	# },
+	'At IC':{
+		'foreground':None,
+		'background':Qt.green,
+		'italic':False,
+		'blink':False
+	},
+	'In Transit':{
+		'foreground':Qt.white,
+		'background':Qt.blue,
+		'italic':False,
+		'blink':False
+	},
+	'Waiting for Transport':{
+		'foreground':Qt.white,
+		'background':Qt.blue,
+		'italic':False,
+		'blink':True
+	},
+	'STANDBY':{
+		'foreground':Qt.white,
+		'background':Qt.black,
+		'italic':False,
+		'blink':True
+	},
+	'TIMED_OUT_ORANGE':{
+		'foreground':Qt.black,
+		'background':QColor(255,128,0),
+		'italic':False,
+		'blink':False
+	},
+	'TIMED_OUT_RED':{
+		'foreground':Qt.black,
+		'background':Qt.red,
+		'italic':False,
+		'blink':False
+	},
+	'Hidden':{
+		'foreground':Qt.darkGray,
+		'background':None,
+		'italic':True,
+		'blink':False
+	}
+}
+
 timeoutDisplayList=[["10 sec",10]]
 for n in range (1,13):
 	timeoutDisplayList.append([str(n*10)+" min",n*600])
@@ -642,6 +695,7 @@ from ui.subjectLocatedDialog_ui import Ui_subjectLocatedDialog
 from ui.continuedIncidentDialog_ui import Ui_continuedIncidentDialog
 from ui.loadDialog_ui import Ui_loadDialog
 from ui.loginDialog_ui import Ui_loginDialog
+from ui.teamTabsPopup_ui import Ui_teamTabsPopup
 
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
@@ -796,24 +850,34 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.loadFlag=False # set this to true during load, to prevent save on each newEntry
 		self.totalEntryCount=0 # rotate backups after every 5 entries; see newEntryWidget.accept
 		
-		self.ui.teamHotkeysWidget.setVisible(False) # disabled by default		
+		self.ui.teamHotkeysWidget.setVisible(False) # disabled by default
 		self.hotkeyDict={}
 		self.nextAvailHotkeyIndex=0
 		self.hotkeyPool=["1","2","3","4","5","6","7","8","9","0","q","w","e","r","t","y","u","i","o","p","a","s","d","f","g","h","j","k","l","z","x","c","v","b","n","m"]
 		self.homeDir=os.path.expanduser("~")
 		
-		self.ui.teamTabsMoreButton=QtWidgets.QPushButton(self.ui.frame)
-		self.ui.teamTabsMoreButton.setVisible(False)
-		self.ui.teamTabsMoreButton.setGeometry(1,6,14,26)
-		from PyQt5 import QtGui
-		icon = QtGui.QIcon()
-		icon.addPixmap(QtGui.QPixmap(":/radiolog_ui/icons/3dots.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-		self.ui.teamTabsMoreButton.setIcon(icon)
-		self.ui.teamTabsMoreButton.setIconSize(QtCore.QSize(20, 20))
-		self.ui.teamTabsMoreButton.setStyleSheet('border:0px')
-		self.ui.teamTabsMoreButton.pressed.connect(self.teamTabsMoreButtonPressed) # see comments at the function
 		self.hiddenTeamTabsList=[]
-		self.teamTabsMoreMenu=None
+		# to make the sidebar a child of the mainwindow, a second argument is passed to
+		#  QWidget.__init__ in the sidebar's class __init__ function
+		self.sidebar=teamTabsPopup(self)
+		self.sidebar.move(-self.sidebar.width(),0)
+		self.sidebar.show()
+		self.sidebar.raise_()
+		self.sidebar.leaveEvent=self.sidebarShowHide
+		self.sidebarAnimation=QPropertyAnimation(self.sidebar,b'pos')
+		self.sidebarAnimation.setDuration(150)
+		self.sidebarIsVisible=False # .isVisible would always return True; it's just slid left when 'hidden'
+		self.ui.teamTabsMoreButton=QtWidgets.QPushButton(self.ui.frame)
+		self.ui.teamTabsMoreButton.enterEvent=self.sidebarShowHide
+		self.ui.teamTabsMoreButton.setVisible(False)
+		self.ui.teamTabsMoreButton.setGeometry(1,1,30,35)
+		from PyQt5 import QtGui
+		self.teamTabsMoreButtonIcon = QtGui.QIcon()
+		self.blankIcon=QtGui.QIcon()
+		self.teamTabsMoreButtonIcon.addPixmap(QtGui.QPixmap(":/radiolog_ui/icons/3dots.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+		self.ui.teamTabsMoreButton.setIcon(self.teamTabsMoreButtonIcon)
+		self.ui.teamTabsMoreButton.setIconSize(QtCore.QSize(20, 20))
+		self.teamTabsMoreButtonIsBlinking=False
 		self.CCD1List=['KW-'] # if needed, KW- is appended to CCD1List after loading from config file
 
 		self.menuFont=QFont()
@@ -1116,6 +1180,13 @@ class MyWindow(QDialog,Ui_Dialog):
 			# QTabWidget::tab-bar[shifted=false] {
 			# 	left:0px;
 			# }
+		# the tab bar left margin can vary when the tab scrolls side to side,
+		#  for large team count.  It is biggest initially, before it has been scrolled
+		#  or if the team count is low enough that all tabs fit; it is smallest when
+		#  the bar has been scrolled to the right; and it is somewhere in the middle
+		#  when scrolled back all the way left again.  We need to make sure the left
+		#  margin is large enough so that the first team tab is not clipped by an
+		#  opaque teamTabsMoreButton, by trial-and-error of the tab-bar 'left' value.
 		self.ui.tabWidget.setStyleSheet("""
 			QTabBar::tab {
 				margin:0px;
@@ -1142,6 +1213,9 @@ class MyWindow(QDialog,Ui_Dialog):
 				background:transparent;
 				border:transparent;
 				padding-bottom:3px;
+			}
+			QTabWidget::tab-bar {
+				left: 22px;
 			}
 		""")
 		self.tabWidgetStyleSheetBase=self.ui.tabWidget.styleSheet()
@@ -1215,6 +1289,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			QTimer.singleShot(1000,self.startupOptions)
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
+		self.showTeamTabsMoreButtonIfNeeded()
 
 	def clearSelectionAllTables(self):
 		self.ui.tableView.setCurrentIndex(QModelIndex())
@@ -3597,6 +3672,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.helpWindow.ui.colorLabel7.setStyleSheet(statusStyleDict["STANDBY"])
 			self.helpWindow.ui.fsSomeFilteredLabel.setFont(self.helpFont1)
 
+		teamTabsMoreButtonBlinkNeeded=False
 		for extTeamName in teamTimersDict:
 			# if there is a newEntryWidget currently open for this team, don't blink,
 			#  but don't reset the timer.  Only reset the timer when the dialog is accepted.
@@ -3611,6 +3687,11 @@ class MyWindow(QDialog,Ui_Dialog):
 # 			rprint("fsFilter "+extTeamName+": "+str(fsFilter))
 			secondsSinceContact=teamTimersDict.get(extTeamName,0)
 			if status in ["Waiting for Transport","STANDBY","Available"] or (secondsSinceContact>=self.timeoutOrangeSec):
+				# if a team status is blinking, and the tab is not visible due to scrolling of a very wide tab bar,
+				#  then blink the three-dots icon; but this test may be expensive so don't test again after the first hit
+				#  https://stackoverflow.com/a/28805583/3577105
+				if not teamTabsMoreButtonBlinkNeeded and self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).visibleRegion().isEmpty():
+					teamTabsMoreButtonBlinkNeeded=True
 				if self.blinkToggle==0:
 					# blink 0: style is one of these:
 					# - style as normal per status
@@ -3650,6 +3731,20 @@ class MyWindow(QDialog,Ui_Dialog):
 			# once they have timed out, keep incrementing; but if the timer is '-1', they will never timeout
 			if secondsSinceContact>-1:
 				teamTimersDict[extTeamName]=secondsSinceContact+1
+
+		if teamTabsMoreButtonBlinkNeeded:
+			self.teamTabsMoreButtonIsBlinking=True
+			if self.blinkToggle==0:
+				self.ui.teamTabsMoreButton.setIcon(self.blankIcon)
+			else:
+				self.ui.teamTabsMoreButton.setIcon(self.teamTabsMoreButtonIcon)
+		# when blinking stops, make sure the normal icon is shown
+		elif self.teamTabsMoreButtonIsBlinking:
+			self.ui.teamTabsMoreButton.setIcon(self.teamTabsMoreButtonIcon)
+			self.teamTabsMoreButtonIsBlinking=False
+
+		if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
+			self.sidebar.resizeEvent()
 
 	def keyPressEvent(self,event):
 		if type(event)==QKeyEvent:
@@ -3726,6 +3821,11 @@ class MyWindow(QDialog,Ui_Dialog):
 				elif event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
 					rprint('Enter or Return pressed; calling openNewEntry')
 					self.openNewEntry('pop')
+				elif key=='`' or key=='~':
+					self.sidebarShowHide()
+				elif event.key()==Qt.Key_Escape:
+					if self.sidebar.pos().x()>-100:
+						self.sidebarShowHide()
 				event.accept()
 		else:
 			event.ignore()
@@ -4217,6 +4317,8 @@ class MyWindow(QDialog,Ui_Dialog):
 								QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 				bakMsgBox.exec_() # modal
 			progressBox.close()
+			if self.sidebar.isVisible():
+				self.sidebar.showEvent() # refresh display
 			return True # success
 
 	def updateFileNames(self):
@@ -4584,11 +4686,14 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.ui.tableViewList[i].scrollToBottom()
 # 					rprint("  e")
 # 		rprint("6")
+		if self.sidebar.isVisible():
+			self.sidebar.showEvent() # refresh display
+# 		rprint("7")
 		self.save()
 		self.showTeamTabsMoreButtonIfNeeded()
 ##		self.redrawTables()
 ##		QCoreApplication.processEvents()
-# 		rprint("7: finished newEntryPost")
+# 		rprint("8: finished newEntryPost")
 
 	def amendEntry(self,row): # row argument is zero-based
 		rprint("Amending row "+str(row))
@@ -4643,8 +4748,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		#595: avoid right-left-shift-flicker by setting first tab visibility
 		#  before adding other tabs; tab is visible by default
 		self.addTab(self.extTeamNameList[0])
-		if not self.hiddenTeamTabsList:
-			self.ui.tabWidget.tabBar().setTabVisible(0,False)
+		# if not self.hiddenTeamTabsList:
+		# 	self.ui.tabWidget.tabBar().setTabVisible(0,False)
 		for extTeamName in self.extTeamNameList[1:]:
 			self.addTab(extTeamName)
 # 		self.rebuildTeamHotkeys()
@@ -4669,6 +4774,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint("extTeamNameList before sort:"+str(self.extTeamNameList))
 # 		self.extTeamNameList.sort()
 		
+		# remove from hiddenTeamTabsList immediately, to prevent downsteram errors in teamTabsPopup
+		if extTeamName in self.hiddenTeamTabsList:
+			self.hiddenTeamTabsList=[x for x in self.hiddenTeamTabsList if extTeamName!=x]
+
 		self.rebuildGroupedTabDict()
 		rprint("extTeamNameList after sort:"+str(self.extTeamNameList))
 		if not self.loadFlag:
@@ -4681,8 +4790,8 @@ class MyWindow(QDialog,Ui_Dialog):
 # 			rprint("   niceTeamName="+str(niceTeamName)+"  allTeamsList before:"+str(self.allTeamsList)+"  count:"+str(self.allTeamsList.count(niceTeamName)))
 			if self.allTeamsList.count(niceTeamName)==0:
 				self.allTeamsList.insert(i,niceTeamName)
-				self.allTeamsList.sort()
-# 				rprint("   allTeamsList after:"+str(self.allTeamsList))
+				self.allTeamsList.sort(key=lambda x:getExtTeamName(x))
+				rprint("   allTeamsList after:"+str(self.allTeamsList))
 			teamTimersDict[extTeamName]=0
 			teamCreatedTimeDict[extTeamName]=time.time()
 			# assign team hotkey
@@ -4693,7 +4802,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			else:
 				rprint("Team hotkey pool has been used up.  Not setting any hotkeyDict entry for "+niceTeamName)
 				
-		self.rebuildTeamHotkeys()
+		if not self.loadFlag:
+			self.rebuildTeamHotkeys()
+			self.sidebar.showEvent()
 
 		"""		
 		i=self.extTeamNameList.index(extTeamName) # i is zero-based
@@ -4876,7 +4987,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		for grp in self.tabGroups:
 			grouped[grp[0]]=[]
 		grouped["other"]=[]
-		for etn in [x for x in self.extTeamNameList if not x.startswith("spacer")]: # spacerless list
+		# for etn in [getExtTeamName(x) for x in self.allTeamsList if not x.startswith("spacer")]: # spacerless list, including hidden tabs
+		for etn in [x for x in self.extTeamNameList+self.hiddenTeamTabsList if not x.startswith("spacer")]: # spacerless list, including hidden tabs
 			g="other" # default to the 'other' group
 			for grp in self.tabGroups:
 				if re.match(grp[1].replace("^","^z_0*").replace("Team ","Team"),etn,re.IGNORECASE):
@@ -4895,20 +5007,26 @@ class MyWindow(QDialog,Ui_Dialog):
 		# rebuild self.extTeamNameList, with groups and spacers in the correct order,
 		#  since everything throughout the code keys off its sequence;
 		#  note the spacer names need to be unique for later processing
+		# also rebuild allTeamsList in the same sequence, which includes hidden teams
 		self.extTeamNameList=['spacerLeft']
+		self.allTeamsList=[]
 		spacerIndex=1 # start with 1 so trailing 0 doesn't get deleted in getNiceTeamName
 		for grp in self.tabGroups:
 # 			rprint("group:"+str(grp)+":"+str(grouped[grp[0]]))
 			for val in grouped[grp[0]]:
-# 				rprint("appending:"+val)
-				self.extTeamNameList.append(val)
+				self.allTeamsList.append(getNiceTeamName(val))
+				if val not in self.hiddenTeamTabsList:
+	# 				rprint("appending:"+val)
+					self.extTeamNameList.append(val)
 			if len(grouped[grp[0]])>0:
 				self.extTeamNameList.append("spacer"+str(spacerIndex))
 				spacerIndex=spacerIndex+1
 		for val in grouped["other"]:
 			if val!="dummy":
-# 				rprint("appending other:"+val)
-				self.extTeamNameList.append(val)
+				self.allTeamsList.append(getNiceTeamName(val))
+				if val not in self.hiddenTeamTabsList:
+	# 				rprint("appending other:"+val)
+					self.extTeamNameList.append(val)
 			
 	def tabContextMenu(self,pos):
 		menu=QMenu()
@@ -5492,6 +5610,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				if self.extTeamNameList[n+1].lower().startswith("spacer"):
 					rprint("  found back-to-back spacers at indices "+str(n)+" and "+str(n+1))
 					self.deleteTeamTab(self.extTeamNameList[n+1],True)
+		if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
+			self.sidebar.resizeEvent()
 
 	def getNextAvailHotkey(self):
 		# iterate through hotkey pool until finding one that is not taken
@@ -5546,78 +5666,63 @@ class MyWindow(QDialog,Ui_Dialog):
 		if not vis:
 			self.rebuildTeamHotkeys()
 		self.ui.teamHotkeysWidget.setVisible(not vis)
+		self.sidebar.resizeEvent()
 
 	def showTeamTabsMoreButtonIfNeeded(self):
 		#595: setStyleSheet causes a second or two of lag when there are ~300 entries;
 		#  instead, just toggle visibility of the leftmost spacer tab
-		if self.hiddenTeamTabsList:
-			# self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:14px;}')
+		# if self.hiddenTeamTabsList:
+		if True:
 			if not self.ui.teamTabsMoreButton.isVisible() or not self.ui.tabWidget.tabBar().isTabVisible(0):
 				self.ui.tabWidget.tabBar().setTabVisible(0,True)
 				self.ui.teamTabsMoreButton.setVisible(True)
+				bgColor=self.ui.frame.palette().color(QPalette.Background).name()
+				self.ui.teamTabsMoreButton.setStyleSheet('border:0px;background:'+bgColor)
 		else:
 			if self.ui.teamTabsMoreButton.isVisible() or self.ui.tabWidget.tabBar().isTabVisible(0):
 				self.ui.teamTabsMoreButton.setVisible(False)
 				self.ui.tabWidget.tabBar().setTabVisible(0,False)
-			# self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:0px;}')
 
-	# need to run this slot on pressed, instead of clicked which causes redisplay with every click
-	#  due to interaction with return value from QMenu
-	def teamTabsMoreButtonPressed(self):
-		if self.teamTabsMoreMenu:
-			del(self.teamTabsMoreMenu)
-			self.teamTabsMoreMenu=None
-		else:
-			# disconnect the slot until after the action has been processed,
-			#  to allow toggling the menu by clicking the button again
-			self.ui.teamTabsMoreButton.pressed.disconnect(self.teamTabsMoreButtonPressed)
-			self.teamTabsMoreMenu=QMenu('Hidden team tabs')
-			self.teamTabsMoreMenu.setFont(self.menuFont)
-			# self.teamTabsMoreMenu.addAction('Hidden team tabs').setObjectName('action1')
-			self.teamTabsMoreMenu.addAction('Hidden team tabs').setEnabled(False)
-			self.teamTabsMoreMenu.addAction('Select a team to unhide:').setEnabled(False)
-			self.teamTabsMoreMenu.addSeparator()
-			for extTeamName in self.hiddenTeamTabsList:
-				self.teamTabsMoreMenu.addAction(getNiceTeamName(extTeamName))
-			self.teamTabsMoreMenu.setStyleSheet('QMenu::item:disabled{background-color:rgb(220,220,220);color:black;font-weight:bold}')
-			action=self.teamTabsMoreMenu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(QPoint(0,0)))
-			# clicking outside the menu will close it and will return None; capture this in order to toggle visibility
-			#  clicking the menu button while the menu is open will also return None, but the clicked signal will fire too!
-			if action is not None:
-				# self.hiddenTeamTabsList.remove(str(action.text()))
-				# self.rebuildTabs()
-				t=action.text()
-				extTeamName=getExtTeamName(t)
-				# Adding a new entry takes care of a lot of tasks; reproducing them without adding a
-				#  new entry is cryptic and therefore error-prone.  Safer to just add a new entry.
-				# values format for adding a new entry:
-				#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
-				values=["" for n in range(10)]
-				values[0]=time.strftime("%H%M")
-				values[6]=time.time()
-				values[2]=t
-				values[3]='[RADIOLOG: operator is unhiding hidden team tab for "'+t+'"]'
-				if (extTeamName in teamStatusDict) and (teamStatusDict[extTeamName]!=''):
-					values[5]=teamStatusDict[extTeamName]
-				self.newEntry(values)
-				# rprint('  t1: teamNameList='+str(self.teamNameList))
-				# rprint('      extTeamNameList='+str(self.extTeamNameList))
-				# if t not in self.extTeamNameList:
-				# 	self.extTeamNameList.append(t)
-				# if getNiceTeamName(t) not in self.teamNameList:
-				# 	self.teamNameList.append(getNiceTeamName(t))
-				# rprint('  t2: teamNameList='+str(self.teamNameList))
-				# rprint('      extTeamNameList='+str(self.extTeamNameList))
-				# self.rebuildGroupedTabDict()
-				# rprint('  t2: teamNameList='+str(self.teamNameList))
-				# rprint('      extTeamNameList='+str(self.extTeamNameList))
-				# self.addTab(t)
-			# process events then reconnect the slot after the menu has been closed
-			self.teamTabsMoreMenu.close()
-			del(self.teamTabsMoreMenu)
-			self.teamTabsMoreMenu=None
-			QApplication.processEvents()
-			self.ui.teamTabsMoreButton.pressed.connect(self.teamTabsMoreButtonPressed)
+	def sidebarShowHide(self,e=None):
+		# rprint('sidebarShowHide: x='+str(self.sidebar.pos().x())+'  e='+str(e))
+		hideEvent=False
+		w=self.sidebar.width()
+		if e and e.type()==11: # hide event
+			hideEvent=True
+		# rprint(' hide event? '+str(hideEvent))
+		self.sidebar.resize(w,self.sidebar.height())
+		self.sidebarShownPos=QPoint(0,self.sidebar.y())
+		self.sidebarHiddenPos=QPoint(-w,self.sidebar.y())
+		# if self.sidebar2.pos().x()>-100:
+		if self.sidebar.pos().x()>-100:
+			self.sidebarAnimation.setEndValue(self.sidebarHiddenPos)
+			self.sidebarIsVisible=False
+		elif not hideEvent: # don't show if this is a hideEvent and it's already hidden, as happens on the first mouse move after clicking a cell
+			self.sidebarAnimation.setEndValue(self.sidebarShownPos)
+			self.sidebarIsVisible=True
+		self.sidebarAnimation.start()
+
+	def unhideTeamTab(self,niceTeamName):
+		if not niceTeamName:
+			return
+		# Adding a new entry takes care of a lot of tasks; reproducing them without adding a
+		#  new entry is cryptic and therefore error-prone.  Safer to just add a new entry.
+		# values format for adding a new entry:
+		#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
+		extTeamName=getExtTeamName(niceTeamName)
+		values=["" for n in range(10)]
+		values[0]=time.strftime("%H%M")
+		values[6]=time.time()
+		values[2]=niceTeamName
+		values[3]='[RADIOLOG: operator is unhiding hidden team tab for "'+niceTeamName+'"]'
+		if (extTeamName in teamStatusDict) and (teamStatusDict[extTeamName]!=''):
+			values[5]=teamStatusDict[extTeamName]
+		# remove from hiddenTeamTabsList right away, to prevent downstream errors in teamTabsPopup
+		#  (this is already done at the start of addTab, which is too late)
+		self.hiddenTeamTabsList=[x for x in self.hiddenTeamTabsList if extTeamName!=x]
+		self.newEntry(values)
+		if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
+			self.sidebar.resizeEvent()
 
 	def addNonRadioClue(self):
 		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
@@ -5682,6 +5787,197 @@ class helpWindow(QDialog,Ui_Help):
 		else:
 			self.show()
 			self.raise_()
+
+class teamTabsPopup(QWidget,Ui_teamTabsPopup):
+	def __init__(self,parent):
+		# the second argument to QWidget.__init__ makes this widget a child of the main window;
+		#  without that argument, this widget would get its own top level window
+		QWidget.__init__(self,parent)
+		self.parent=parent
+		self.ui=Ui_teamTabsPopup()
+		self.ui.setupUi(self)
+		self.ui.teamTabsSummaryTableWidget.verticalHeader().setFixedWidth(100)
+		# hardcode the summary table height to be the sum of row heights, plus arbitrary pixel count to account for borders
+		self.ui.teamTabsSummaryTableWidget.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
+		self.ttsHeight=\
+				sum([self.ui.teamTabsSummaryTableWidget.verticalHeader().sectionSize(n)\
+	 			for n in range(self.ui.teamTabsSummaryTableWidget.rowCount())])+2
+		self.ui.teamTabsSummaryTableWidget.setFixedHeight(self.ttsHeight)
+		self.tttRowHeight=self.ui.teamTabsTableWidget.verticalHeader().defaultSectionSize() # assuming all rows are the same height
+		self.ui.teamTabsTableWidget.cellClicked.connect(self.cellClicked)
+		# disable mouse wheel scroll: https://stackoverflow.com/a/61085704/3577105
+		self.ui.teamTabsTableWidget.wheelEvent=lambda event: None
+		self.initialWidth=self.width()
+		self.initialHeight=self.height()
+
+	def cellClicked(self,row,col):
+		ci=self.ui.teamTabsTableWidget.currentItem()
+		if ci:
+			ntn=self.ui.teamTabsTableWidget.currentItem().text()
+			# remove any leading team hotkey text (character+colon+space)
+			if ntn[1]==':' and len(ntn)>3:
+				ntn=ntn[3:]
+			etn=getExtTeamName(ntn)
+			# rprint('cell clicked: '+str(ntn)+'  extTeamName='+str(etn))
+			# rprint('extTeamNameList: '+str(self.parent.extTeamNameList))
+			try:
+				i=self.parent.extTeamNameList.index(etn)
+				# rprint('  i='+str(i))
+				self.parent.ui.tabWidget.setCurrentIndex(i)
+				# self.hide() # after self.hide, the popup doesn't show again on hover
+				self.parent.sidebarShowHide() # sidebarShowHide does a proper hide, but then any mouse movement shows it again - must be leaveEvent even though it's been moved away
+			except: # this will get called if the team tab is hidden
+				try:
+					# rprint('searching hiddenTeamTabsList:'+str(self.parent.hiddenTeamTabsList))
+					ntn=ntn.replace('[','').replace(']','') # might be wrapped in square brackets
+					etn=getExtTeamName(ntn)
+					i=self.parent.hiddenTeamTabsList.index(etn)
+					box=QMessageBox(QMessageBox.Warning,"Hidden tab","The tab for '"+ntn+"' is currently hidden.\n\nDo you want to unhide the tab?",
+						QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					box.show()
+					box.raise_()
+					if box.exec_()==QMessageBox.No:
+						return
+					self.parent.unhideTeamTab(ntn)
+					i=self.parent.extTeamNameList.index(etn)
+					self.parent.ui.tabWidget.setCurrentIndex(i)
+					# self.hide()
+				except: # not in either list
+					rprint('ERROR: clicked a cell '+etn+' that does not exist in extTeamNameList or hiddenTeamTabsList')
+
+	def showEvent(self,e=None):
+		# rprint('sidebar showEvent called')
+		self.redraw()
+
+	def resizeEvent(self,e=None):
+		# rprint('sidebar resizeEvent called')
+		self.redraw()
+
+	def redraw(self):
+		# rprint('redrawing sidebar')
+		# 1. calculate and set number of rows and columns required for team table
+		# 2. populate team table - done before determining total width, due to resizeColumnsToContents
+		# 3. populate summary table
+		# 4. set sidebar fixed size based on team table size (and fixed summary table size)
+		# 5. move sidebar to correct vertical position
+
+		# 1. calculate and set number of rows and columns required for team table
+
+		theList=self.parent.allTeamsList # same as teamNameList but hidden tabs are still included
+		theList=[x for x in theList if 'dummy' not in x and 'spacer' not in x.lower()]
+		listCount=len(theList)
+		maxSidebarHeight=self.parent.height()
+		maxTeamTableHeight=maxSidebarHeight-self.ui.teamTabsSummaryTableWidget.height()-15 # arbirary for padding etc
+		maxRowCount=int(maxTeamTableHeight/self.tttRowHeight)
+		rowCount=min(listCount,maxRowCount)
+		colCount=int((listCount+maxRowCount-1)/maxRowCount) # do the math - this works
+		# rprint(' listCount='+str(listCount)+' maxRowCount='+str(maxRowCount)+' : setting rows='+str(rowCount)+' cols='+str(colCount))
+		self.ui.teamTabsTableWidget.setRowCount(rowCount)
+		self.ui.teamTabsTableWidget.setColumnCount(colCount)
+		if not self.parent.sidebarIsVisible:
+			self.move(-self.width(),self.y())
+
+		# 2. populate team table - done before determining total width, due to resizeColumnsToContents
+
+		self.ui.teamTabsTableWidget.clear()
+		hotkeyRDict={v:k for k,v in self.parent.hotkeyDict.items()}
+		showTeamHotkeys=self.parent.ui.teamHotkeysWidget.isVisible()
+		for i in range(listCount):
+			col=int(i/rowCount)
+			row=i-(col*rowCount)
+			t=theList[i]
+			etn=getExtTeamName(t)
+			hotkey=hotkeyRDict.get(t,"")
+			status=teamStatusDict.get(etn,None)
+			if status is not None: # could be empty string
+				# self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
+				twi=QTableWidgetItem(t)
+				if etn in self.parent.hiddenTeamTabsList:
+					status='Hidden'
+					twi.setText('['+t+']')
+				if showTeamHotkeys and hotkey:
+					twi.setText(hotkey+': '+twi.text())
+				age=teamTimersDict.get(etn,0)
+				if self.parent.blinkToggle==1 and status not in ["At IC","Off Duty"]:
+					if age>=self.parent.timeoutRedSec:
+						status='TIMED_OUT_RED'
+					elif age>=self.parent.timeoutOrangeSec:
+						status='TIMED_OUT_ORANGE'
+				ad=statusAppearanceDict.get(status,{})
+				fgColor=ad.get('foreground',None)
+				bgColor=ad.get('background',None)
+				italic=ad.get('italic',False)
+				blink=ad.get('blink',False)
+				if blink and self.parent.blinkToggle==1:
+					fgColor=None
+					bgColor=None	
+				if fgColor:
+					twi.setForeground(QBrush(fgColor))
+				if bgColor:
+					twi.setBackground(QBrush(bgColor))
+				if italic:
+					f=twi.font()
+					f.setItalic(True)
+					twi.setFont(f)
+				# rprint('i='+str(i)+'  row='+str(row)+'  col='+str(col)+'  text='+str(theList[i]))
+				self.ui.teamTabsTableWidget.setItem(row,col,twi)
+
+		# 3. populate summary table
+
+		tsdValuesList=list(teamStatusDict.values())
+		statusTableDict={}
+		# 'other' status could include any status not specifically listed, or no status; mainly shown to
+		#   reduce confusion that would arise when 'Total' is greater than the sum of the listed statuses
+		# statusList=['At IC','In Transit','Working',['Waiting for Transport','Await.Trans.'],'STANDBY']
+		statusList=['At IC','In Transit','Working']
+		for status in statusList:
+			statusTableDict[status]=tsdValuesList.count(status)
+		otherCount=len([x for x in tsdValuesList if x not in statusList])
+		for row in range(self.ui.teamTabsSummaryTableWidget.rowCount()):
+			rowLabel=self.ui.teamTabsSummaryTableWidget.verticalHeaderItem(row).text()
+			if rowLabel in statusList:
+				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,QTableWidgetItem(str(statusTableDict[rowLabel])))
+			elif rowLabel=='Other':
+				otherItem=QTableWidgetItem(str(otherCount))
+				otherItem.setForeground(QColor(100,100,100))
+				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,otherItem)
+			elif rowLabel=='Total':
+				totalItem=QTableWidgetItem(str(len(tsdValuesList)))
+				f=totalItem.font()
+				f.setBold(True)
+				totalItem.setFont(f)
+				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,totalItem)
+			elif rowLabel=='Not At IC':
+				notAtICCount=len([key for key,val in teamStatusDict.items() if val!='At IC'])
+				notAtICItem=QTableWidgetItem(str(notAtICCount))
+				f=notAtICItem.font()
+				f.setPointSize(12)
+				f.setBold(True)
+				notAtICItem.setFont(f)
+				self.ui.teamTabsSummaryTableWidget.setItem(row-1,1,notAtICItem)
+
+		# 4. set sidebar fixed size based on team table size (and fixed summary table size)
+
+		self.ui.teamTabsTableWidget.resizeColumnsToContents()
+		teamTabsTableRequiredWidth=4 # initial size = borders
+		for n in range(colCount):
+			teamTabsTableRequiredWidth+=self.ui.teamTabsTableWidget.columnWidth(n)+4
+		newWidth=max(self.initialWidth,teamTabsTableRequiredWidth)
+		newHeight=max(self.initialHeight,rowCount*self.tttRowHeight+self.ttsHeight+18)
+		self.setFixedSize(newWidth,newHeight)
+
+		# 5. move sidebar to correct vertical position
+
+		dotsPos=self.parent.ui.teamTabsMoreButton.pos()
+		dotsY=self.parent.ui.teamTabsMoreButton.mapTo(self.parent,dotsPos).y()
+		y=int(dotsY-(newHeight/2)) # start with vertically centering on the 3 dots
+		if y+newHeight>maxSidebarHeight: # running off the bottom - move upwards as needed
+			y=maxSidebarHeight-newHeight
+		if y<0: # running off the top
+			if y+newHeight<maxSidebarHeight: # there's space to move downwards
+				y=0
+		self.move(self.x(),y)
+
 
 class optionsDialog(QDialog,Ui_optionsDialog):
 	def __init__(self,parent):
@@ -7805,6 +8101,7 @@ class fsFilterDialog(QDialog,Ui_fsFilterDialog):
 			self.raise_()
 
 
+# class teamTabsListModel(QListModel)
 class fsSendDialog(QDialog,Ui_fsSendDialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
@@ -8630,7 +8927,9 @@ class fsTableModel(QAbstractTableModel):
 				if rval==False:
 					rval="Unfiltered"
 			return rval
-		
+
+
+# class teamTabsListModel(QAbstractListModel):
 
 class CustomSortFilterProxyModel(QSortFilterProxyModel):
 	def __init__(self,parent=None):
