@@ -870,14 +870,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.teamTabsMoreButton=QtWidgets.QPushButton(self.ui.frame)
 		self.ui.teamTabsMoreButton.enterEvent=self.sidebarShowHide
 		self.ui.teamTabsMoreButton.setVisible(False)
-		self.ui.teamTabsMoreButton.setGeometry(1,6,14,26)
+		self.ui.teamTabsMoreButton.setGeometry(1,1,30,35)
 		from PyQt5 import QtGui
 		self.teamTabsMoreButtonIcon = QtGui.QIcon()
 		self.blankIcon=QtGui.QIcon()
 		self.teamTabsMoreButtonIcon.addPixmap(QtGui.QPixmap(":/radiolog_ui/icons/3dots.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
 		self.ui.teamTabsMoreButton.setIcon(self.teamTabsMoreButtonIcon)
 		self.ui.teamTabsMoreButton.setIconSize(QtCore.QSize(20, 20))
-		self.ui.teamTabsMoreButton.setStyleSheet('border:0px')
 		self.teamTabsMoreButtonIsBlinking=False
 		self.CCD1List=['KW-'] # if needed, KW- is appended to CCD1List after loading from config file
 
@@ -1181,6 +1180,13 @@ class MyWindow(QDialog,Ui_Dialog):
 			# QTabWidget::tab-bar[shifted=false] {
 			# 	left:0px;
 			# }
+		# the tab bar left margin can vary when the tab scrolls side to side,
+		#  for large team count.  It is biggest initially, before it has been scrolled
+		#  or if the team count is low enough that all tabs fit; it is smallest when
+		#  the bar has been scrolled to the right; and it is somewhere in the middle
+		#  when scrolled back all the way left again.  We need to make sure the left
+		#  margin is large enough so that the first team tab is not clipped by an
+		#  opaque teamTabsMoreButton, by trial-and-error of the tab-bar 'left' value.
 		self.ui.tabWidget.setStyleSheet("""
 			QTabBar::tab {
 				margin:0px;
@@ -1207,6 +1213,9 @@ class MyWindow(QDialog,Ui_Dialog):
 				background:transparent;
 				border:transparent;
 				padding-bottom:3px;
+			}
+			QTabWidget::tab-bar {
+				left: 22px;
 			}
 		""")
 		self.tabWidgetStyleSheetBase=self.ui.tabWidget.styleSheet()
@@ -5664,15 +5673,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  instead, just toggle visibility of the leftmost spacer tab
 		# if self.hiddenTeamTabsList:
 		if True:
-			# self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:14px;}')
 			if not self.ui.teamTabsMoreButton.isVisible() or not self.ui.tabWidget.tabBar().isTabVisible(0):
 				self.ui.tabWidget.tabBar().setTabVisible(0,True)
 				self.ui.teamTabsMoreButton.setVisible(True)
+				bgColor=self.ui.frame.palette().color(QPalette.Background).name()
+				self.ui.teamTabsMoreButton.setStyleSheet('border:0px;background:'+bgColor)
 		else:
 			if self.ui.teamTabsMoreButton.isVisible() or self.ui.tabWidget.tabBar().isTabVisible(0):
 				self.ui.teamTabsMoreButton.setVisible(False)
 				self.ui.tabWidget.tabBar().setTabVisible(0,False)
-			# self.ui.tabWidget.setStyleSheet(self.tabWidgetStyleSheetBase+'\nQTabWidget::tab-bar {left:0px;}')
 
 	def sidebarShowHide(self,e=None):
 		# rprint('sidebarShowHide: x='+str(self.sidebar.pos().x())+'  e='+str(e))
@@ -5967,9 +5976,6 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		if y<0: # running off the top
 			if y+newHeight<maxSidebarHeight: # there's space to move downwards
 				y=0
-			else: # there's not space to move downwards - need to add a column, to reduce row count;
-				# note, this code should never be reached, if sizing calcs above are working correctly
-				rprint('need to add a column')
 		self.move(self.x(),y)
 
 
