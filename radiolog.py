@@ -696,6 +696,7 @@ from ui.continuedIncidentDialog_ui import Ui_continuedIncidentDialog
 from ui.loadDialog_ui import Ui_loadDialog
 from ui.loginDialog_ui import Ui_loginDialog
 from ui.teamTabsPopup_ui import Ui_teamTabsPopup
+from ui.findDialog_ui import Ui_findDialog
 
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
@@ -1291,6 +1292,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
 		self.showTeamTabsMoreButtonIfNeeded()
+		self.findDialog=findDialog(self)
 
 	def clearSelectionAllTables(self):
 		self.ui.tableView.setCurrentIndex(QModelIndex())
@@ -3765,8 +3767,13 @@ class MyWindow(QDialog,Ui_Dialog):
 			else:
 				key=event.text().lower() # hotkeys are case insensitive
 				mod=event.modifiers()
-# 				rprint("  key:"+QKeySequence(event.key()).toString()+"  mod:"+str(mod))
-				if self.ui.teamHotkeysWidget.isVisible():
+				# rprint("  key:"+QKeySequence(event.key()).toString()+"  mod:"+str(mod))
+				# rprint("  key:"+QKeySequence(event.key()).toString())
+				# rprint('  key:'+key+'  mod:'+str(mod))
+				if mod==Qt.ControlModifier and event.key()==Qt.Key_F:
+					self.findDialog.show()
+					self.findDialog.exec_()
+				elif self.ui.teamHotkeysWidget.isVisible():
 					# these key handlers apply only if hotkeys are enabled:
 					if key in self.hotkeyDict.keys():
 						rprint('team hotkey "'+str(key)+'" pressed; calling openNewEntry')
@@ -5789,6 +5796,7 @@ class helpWindow(QDialog,Ui_Help):
 			self.show()
 			self.raise_()
 
+
 class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 	def __init__(self,parent):
 		# the second argument to QWidget.__init__ makes this widget a child of the main window;
@@ -6028,6 +6036,35 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		else:
 			self.show()
 			self.raise_()
+
+
+class findDialog(QDialog,Ui_findDialog):
+	def __init__(self,parent):
+		QDialog.__init__(self)
+		self.parent=parent
+		self.ui=Ui_findDialog()
+		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
+		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		self.setFixedSize(self.size())
+
+	def showEvent(self,e):
+		self.theList=[entry[0]+' : '+entry[2]+' : '+entry[3] for entry in self.parent.radioLog]
+		# rprint(' completer list:'+str(self.theList))
+		self.completer=QCompleter(self.theList)
+		self.completer.setFilterMode(Qt.MatchContains)
+		self.ui.findField.setCompleter(self.completer)
+		# performance speedups: see https://stackoverflow.com/questions/33447843
+		self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+		self.completer.setModelSorting(QCompleter.CaseSensitivelySortedModel)
+		self.completer.popup().setUniformItemSizes(True)
+		self.completer.popup().setLayoutMode(QListView.Batched)
+		self.completer.popup().setMouseTracking(True)
+		self.completer.popup().entered.connect(self.mouseEnter)
+
+	def mouseEnter(self,index):
+		rprint('mouse enter:'+str(index.data()))
+
 
 class printDialog(QDialog,Ui_printDialog):
 	def __init__(self,parent):
