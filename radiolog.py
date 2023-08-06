@@ -851,6 +851,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.totalEntryCount=0 # rotate backups after every 5 entries; see newEntryWidget.accept
 		
 		self.ui.teamHotkeysWidget.setVisible(False) # disabled by default
+		# self.ui.teamHotkeysWidget.setStyleSheet('left:50') # same as QTabWidget::tab-bar
 		self.hotkeyDict={}
 		self.nextAvailHotkeyIndex=0
 		self.hotkeyPool=["1","2","3","4","5","6","7","8","9","0","q","w","e","r","t","y","u","i","o","p","a","s","d","f","g","h","j","k","l","z","x","c","v","b","n","m"]
@@ -5621,9 +5622,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		return None # no available hotkeys
 
 	def rebuildTeamHotkeys(self):
-		# delete all child widgets
-		while self.ui.teamHotkeysHLayout.count():
-			child=self.ui.teamHotkeysHLayout.takeAt(0)
+		# delete all child widgets after the first spacer widget
+		while self.ui.teamHotkeysHLayout.count()-1:
+			child=self.ui.teamHotkeysHLayout.takeAt(1)
 			if child.widget():
 				child.widget().deleteLater()
 						

@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName("Dialog")
-        Dialog.resize(1276, 676)
+        Dialog.resize(1274, 676)
         Dialog.setMaximumSize(QtCore.QSize(2000, 1000))
         self.gridLayout_2 = QtWidgets.QGridLayout(Dialog)
         self.gridLayout_2.setObjectName("gridLayout_2")
@@ -324,6 +324,8 @@ class Ui_Dialog(object):
         self.teamHotkeysHLayout = QtWidgets.QHBoxLayout()
         self.teamHotkeysHLayout.setSpacing(0)
         self.teamHotkeysHLayout.setObjectName("teamHotkeysHLayout")
+        spacerItem4 = QtWidgets.QSpacerItem(22, 20, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Minimum)
+        self.teamHotkeysHLayout.addItem(spacerItem4)
         self.verticalLayout_3.addLayout(self.teamHotkeysHLayout)
         self.verticalLayout_2.addWidget(self.teamHotkeysWidget)
         self.verticalLayout = QtWidgets.QVBoxLayout()
