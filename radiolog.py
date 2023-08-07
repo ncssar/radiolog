@@ -696,7 +696,7 @@ from ui.continuedIncidentDialog_ui import Ui_continuedIncidentDialog
 from ui.loadDialog_ui import Ui_loadDialog
 from ui.loginDialog_ui import Ui_loginDialog
 from ui.teamTabsPopup_ui import Ui_teamTabsPopup
-from ui.findDialog_ui import Ui_findDialog
+from ui.findPopup_ui import Ui_findPopup
 
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
@@ -881,6 +881,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.teamTabsMoreButton.setIconSize(QtCore.QSize(20, 20))
 		self.teamTabsMoreButtonIsBlinking=False
 		self.CCD1List=['KW-'] # if needed, KW- is appended to CCD1List after loading from config file
+
+		self.findPopup=findPopup(self)
+		self.findPopup.move(200,200)
+		self.findPopup.show()
+		self.findPopup.raise_()
+		# self.findPopup.leaveEvent=self.findPopupShowHide
+		self.findPopupAnimation=QPropertyAnimation(self.findPopup,b'pos')
+		self.findPopupAnimation.setDuration(150)
+		self.findPopupIsVisible=False # .isVisible would always return True; it's just slid left when 'hidden'
 
 		self.menuFont=QFont()
 		self.menuFont.setPointSize(14)
@@ -1292,7 +1301,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
 		self.showTeamTabsMoreButtonIfNeeded()
-		self.findDialog=findDialog(self)
 
 	def clearSelectionAllTables(self):
 		self.ui.tableView.setCurrentIndex(QModelIndex())
@@ -3771,8 +3779,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				# rprint("  key:"+QKeySequence(event.key()).toString())
 				# rprint('  key:'+key+'  mod:'+str(mod))
 				if mod==Qt.ControlModifier and event.key()==Qt.Key_F:
-					self.findDialog.show()
-					self.findDialog.exec_()
+					self.findPopupShowHide()
 				elif self.ui.teamHotkeysWidget.isVisible():
 					# these key handlers apply only if hotkeys are enabled:
 					if key in self.hotkeyDict.keys():
@@ -5710,6 +5717,25 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.sidebarIsVisible=True
 		self.sidebarAnimation.start()
 
+	def findPopupShowHide(self,e=None):
+		# rprint('sidebarShowHide: x='+str(self.sidebar.pos().x())+'  e='+str(e))
+		hideEvent=False
+		# w=self.findPopup.width()
+		if e and e.type()==11: # hide event
+			hideEvent=True
+		# # rprint(' hide event? '+str(hideEvent))
+		# self.sidebar.resize(w,self.sidebar.height())
+		self.findPopupShownPos=QPoint(self.findPopup.x(),200)
+		self.findPopupHiddenPos=QPoint(self.findPopup.x(),150)
+		# if self.sidebar2.pos().x()>-100:
+		if self.findPopup.pos().y()>150:
+			self.findPopupAnimation.setEndValue(self.findPopupHiddenPos)
+			self.findPopupIsVisible=False
+		elif not hideEvent: # don't show if this is a hideEvent and it's already hidden, as happens on the first mouse move after clicking a cell
+			self.findPopupAnimation.setEndValue(self.findPopupShownPos)
+			self.findPopupIsVisible=True
+		self.findPopupAnimation.start()
+
 	def unhideTeamTab(self,niceTeamName):
 		if not niceTeamName:
 			return
@@ -6038,14 +6064,14 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.raise_()
 
 
-class findDialog(QDialog,Ui_findDialog):
+class findPopup(QWidget,Ui_findPopup):
 	def __init__(self,parent):
-		QDialog.__init__(self)
 		self.parent=parent
-		self.ui=Ui_findDialog()
+		QWidget.__init__(self,parent)
+		self.ui=Ui_findPopup()
 		self.ui.setupUi(self)
 		self.setStyleSheet(globalStyleSheet)
-		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		# self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setFixedSize(self.size())
 
 	def showEvent(self,e):
@@ -6062,8 +6088,10 @@ class findDialog(QDialog,Ui_findDialog):
 		self.completer.popup().setMouseTracking(True)
 		self.completer.popup().entered.connect(self.mouseEnter)
 
-	def mouseEnter(self,index):
-		rprint('mouse enter:'+str(index.data()))
+	def mouseEnter(self,i):
+		idx=self.theList.index(i.data())
+		# rprint('mouse enter: row '+str(idx)+' : '+str(i.data()))
+		self.parent.ui.tableView.scrollTo(self.parent.ui.tableView.model().index(idx,0))
 
 
 class printDialog(QDialog,Ui_printDialog):
