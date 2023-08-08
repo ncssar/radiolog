@@ -6120,16 +6120,29 @@ class findPopup(QWidget,Ui_findPopup):
 		self.completer.popup().setMouseTracking(True)
 		self.completer.popup().entered.connect(self.mouseEnter)
 		self.completer.popup().clicked.connect(self.clicked)
-		self.completer.popup().setStyleSheet("::item:hover{background-color:#CBD7FB;}")
+		# style of individual row doesn't seem to work - looks like a delegate might be needed
+		# self.completer.popup().setStyleSheet("::item:hover{background-color:#CBD7FB;}")
 
 	def mouseEnter(self,i):
 		idx=self.theList.index(i.data())
 		# rprint('mouse enter: row '+str(idx)+' : '+str(i.data()))
 		# self.completer.popup().setRowColor(self.completer.popup().model(),i.row(),Qt.green)
 		self.parent.ui.tableView.scrollTo(self.parent.ui.tableView.model().index(idx,0))
+		completerRowText=i.data()
+		teamName=completerRowText.split(' : ')[1]
+		extTeamName=getExtTeamName(teamName)
+		tabIndex=self.parent.extTeamNameList.index(extTeamName)
+		rprint('mouse enter: row '+str(idx)+' : '+str(i.data()))
+		rprint('  teamName='+str(teamName)+'  extTeamName='+str(extTeamName)+'  tabIndex='+str(tabIndex))
+		self.parent.ui.tabWidget.setCurrentIndex(tabIndex)
+
+	def keyPressEvent(self,event):
+		key=event.key()
+		if key in [Qt.Key_Enter,Qt.Key_Return,Qt.Key_Escape]:
+			self.close()
 
 	def clicked(self,i):
-		self.hide()
+		self.close()
 
 
 class printDialog(QDialog,Ui_printDialog):
