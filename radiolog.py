@@ -883,13 +883,20 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.CCD1List=['KW-'] # if needed, KW- is appended to CCD1List after loading from config file
 
 		self.findPopup=findPopup(self)
-		self.findPopup.move(200,200)
-		self.findPopup.show()
-		self.findPopup.raise_()
+				# messageFieldTopLeft=self.mapToGlobal(self.ui.messageField.pos())
+		# tvp=self.mapToGlobal(self.ui.tableView.pos())
+		# tvp=self.ui.tableView.mapToGlobal(QPoint(0,0))
+		# tvp=self.ui.tableView.parentWidget().mapToGlobal(self.ui.tableView.pos())
+		# tvw=self.ui.tableView.width()
+		# rprint('tableView x='+str(tvp.x())+' y='+str(tvp.y())+' w='+str(tvw))
+		# self.findPopup.move(tvp.x()+tvw-200,tvp.y())
+		# self.findPopup.show()
+		# self.findPopup.raise_()
 		# self.findPopup.leaveEvent=self.findPopupShowHide
-		self.findPopupAnimation=QPropertyAnimation(self.findPopup,b'pos')
-		self.findPopupAnimation.setDuration(150)
-		self.findPopupIsVisible=False # .isVisible would always return True; it's just slid left when 'hidden'
+		# self.findPopupAnimation=QPropertyAnimation(self.findPopup,b'pos')
+		# self.findPopupAnimation=QPropertyAnimation(self.findPopup.ui.findField,b'geometry')
+		# self.findPopupAnimation.setDuration(150)
+		# self.findPopupIsVisible=False # .isVisible would always return True; it's just slid left when 'hidden'
 
 		self.menuFont=QFont()
 		self.menuFont.setPointSize(14)
@@ -5719,22 +5726,43 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def findPopupShowHide(self,e=None):
 		# rprint('sidebarShowHide: x='+str(self.sidebar.pos().x())+'  e='+str(e))
+		# rprint('sidebarShowHide: h='+str(self.findPopup.height())+'  e='+str(e))
 		hideEvent=False
 		# w=self.findPopup.width()
 		if e and e.type()==11: # hide event
 			hideEvent=True
-		# # rprint(' hide event? '+str(hideEvent))
+		# rprint(' hide event? '+str(hideEvent))
 		# self.sidebar.resize(w,self.sidebar.height())
-		self.findPopupShownPos=QPoint(self.findPopup.x(),200)
-		self.findPopupHiddenPos=QPoint(self.findPopup.x(),150)
-		# if self.sidebar2.pos().x()>-100:
-		if self.findPopup.pos().y()>150:
-			self.findPopupAnimation.setEndValue(self.findPopupHiddenPos)
-			self.findPopupIsVisible=False
-		elif not hideEvent: # don't show if this is a hideEvent and it's already hidden, as happens on the first mouse move after clicking a cell
-			self.findPopupAnimation.setEndValue(self.findPopupShownPos)
-			self.findPopupIsVisible=True
-		self.findPopupAnimation.start()
+		
+		# tvp=self.ui.tableView.pos()
+		# tvp=self.ui.tableView.parentWidget().mapToGlobal(self.ui.tableView.pos())
+		# tvp=self.ui.tableView.mapToGlobal(QPoint(0,0))
+		# tvp=self.ui.tableView.mapToParent(self.ui.tableView.pos())
+		tvp=self.ui.tableView.mapTo(self.ui.tableView.parentWidget().parentWidget(),self.ui.tableView.pos())
+		tvw=self.ui.tableView.width()
+		fpw=self.findPopup.width()
+		# rprint('tableView x='+str(tvp.x())+' y='+str(tvp.y())+' w='+str(tvw))
+		self.findPopup.move(tvp.x()+tvw-fpw-7,tvp.y()-7)
+
+		if self.findPopup.isVisible():
+			self.findPopup.setVisible(False)
+		elif not hideEvent:
+			self.findPopup.setVisible(True)
+			self.findPopup.ui.findField.setFocus()
+
+		# animation attempts
+		# self.findPopupShownPos=QPoint(self.findPopup.x(),200)
+		# self.findPopupHiddenPos=QPoint(self.findPopup.x(),150)
+		# self.findPopupShownGeom=QRect(200,250,300,50)
+		# self.findPopupHiddenGeom=QRect(200,200,200,10)
+		# # if self.sidebar2.pos().x()>-100:
+		# if self.findPopup.pos().y()>210:
+		# 	self.findPopupAnimation.setEndValue(self.findPopupHiddenGeom)
+		# 	self.findPopupIsVisible=False
+		# elif not hideEvent: # don't show if this is a hideEvent and it's already hidden, as happens on the first mouse move after clicking a cell
+		# 	self.findPopupAnimation.setEndValue(self.findPopupShownGeom)
+		# 	self.findPopupIsVisible=True
+		# self.findPopupAnimation.start()
 
 	def unhideTeamTab(self,niceTeamName):
 		if not niceTeamName:
@@ -5804,6 +5832,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsSaveLookup()
 		self.save()
 		self.saveRcFile()
+
+	def resizeEvent(self,e):
+		self.findPopup.setVisible(False)
+
 
 class helpWindow(QDialog,Ui_Help):
 	def __init__(self, *args):
@@ -6070,9 +6102,9 @@ class findPopup(QWidget,Ui_findPopup):
 		QWidget.__init__(self,parent)
 		self.ui=Ui_findPopup()
 		self.ui.setupUi(self)
-		self.setStyleSheet(globalStyleSheet)
 		# self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setFixedSize(self.size())
+		# self.setStyleSheet("QListView::item:hover{background-color:#FFFF00;}")
 
 	def showEvent(self,e):
 		self.theList=[entry[0]+' : '+entry[2]+' : '+entry[3] for entry in self.parent.radioLog]
@@ -6087,11 +6119,17 @@ class findPopup(QWidget,Ui_findPopup):
 		self.completer.popup().setLayoutMode(QListView.Batched)
 		self.completer.popup().setMouseTracking(True)
 		self.completer.popup().entered.connect(self.mouseEnter)
+		self.completer.popup().clicked.connect(self.clicked)
+		self.completer.popup().setStyleSheet("::item:hover{background-color:#CBD7FB;}")
 
 	def mouseEnter(self,i):
 		idx=self.theList.index(i.data())
 		# rprint('mouse enter: row '+str(idx)+' : '+str(i.data()))
+		# self.completer.popup().setRowColor(self.completer.popup().model(),i.row(),Qt.green)
 		self.parent.ui.tableView.scrollTo(self.parent.ui.tableView.model().index(idx,0))
+
+	def clicked(self,i):
+		self.hide()
 
 
 class printDialog(QDialog,Ui_printDialog):
