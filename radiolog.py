@@ -6127,6 +6127,7 @@ class findPopup(QWidget,Ui_findPopup):
 		# self.completer.popup().exited.connect(self.mouseExit)
 		self.completer.popup().clicked.connect(self.clicked)
 		self.completer.popup().focusOutEvent=self.focusOutEvent
+		self.completer.popup().keyPressEvent=self.keyPressEvent
 		# self.completer.popup().viewportEntered.connect(self.viewportEntered)
 		# self.completer.popup().leaveEvent=self.mouseOutEvent
 		# self.completer.popup().onMouseOut=self.mouseExit
@@ -6136,7 +6137,6 @@ class findPopup(QWidget,Ui_findPopup):
 		self.ui.findField.setCompleter(self.completer)
 
 	def mouseEnter(self,i):
-		idx=self.theList.index(i.data())
 		# rprint('mouse enter: row '+str(idx)+' : '+str(i.data()))
 		# self.completer.popup().setRowColor(self.completer.popup().model(),i.row(),Qt.green)
 		# model=self.completer.popup().model()
@@ -6144,19 +6144,49 @@ class findPopup(QWidget,Ui_findPopup):
 		# row=self.parent.ui.tableView.model().row(idx)
 		# self.completer.popup().model().setData(i,QBrush(Qt.red),Qt.BackgroundRole)
 		# self.parent.ui.tableView.scrollTo(self.parent.ui.tableView.model().index(idx,0))
-		# self.parent.ui.tableView.selectRow(idx)
 
-		# this is the line that highlights the hovered row in the popup:
+		# select the correct row in the main tableView
+		idx=self.theList.index(i.data())
+		self.parent.ui.tableView.selectRow(idx)
+
+		# select and highlight the hovered row in the popup:
 		self.completer.popup().setCurrentIndex(i)
 
 		completerRowText=i.data()
-		teamName=completerRowText.split(' : ')[1]
+		[entryTime,teamName,entryText]=completerRowText.split(' : ')[0:3]
 		if teamName: # only if it's a valid team name
 			extTeamName=getExtTeamName(teamName)
 			tabIndex=self.parent.extTeamNameList.index(extTeamName)
 			rprint('mouse enter: row '+str(idx)+' : '+str(i.data()))
 			rprint('  teamName='+str(teamName)+'  extTeamName='+str(extTeamName)+'  tabIndex='+str(tabIndex))
+
+			# select the team tab
 			self.parent.ui.tabWidget.setCurrentIndex(tabIndex)
+
+			# select and highlight the correct row in the team's tableView, based on time and text
+			model=self.parent.ui.tableViewList[tabIndex].model()
+			teamTableIndicesByTime=model.match(model.index(0,0),Qt.DisplayRole,entryTime,-1)
+			teamTableRowsByTime=[i.row() for i in teamTableIndicesByTime]
+			rprint('  match rows by time:'+str(teamTableRowsByTime))
+			# if there is more than one entry from that team at that time, search for the right one based on text
+			if len(teamTableIndicesByTime)>1:
+				teamTableIndicesByText=model.match(model.index(0,3),Qt.DisplayRole,entryText)
+				teamTableRowsByText=[i.row() for i in teamTableIndicesByText]
+				rprint('  match rows by text:'+str(teamTableRowsByText))
+				# select the row that is in both lists, in case the team has multiple entries with identical text
+				commonIndices=[c for c in teamTableIndicesByText if c.row() in teamTableRowsByTime]
+				if len(commonIndices)==0:
+					rprint('ERROR: there are no entries that match both the time and the text selected from the search result popup')
+					return
+				elif len(commonIndices)>1:
+					rprint('WARNING: there are multiple entries that match the time and text selected from the search result popup; selecting the first one')
+				i=commonIndices[0]
+			else:
+				i=teamTableIndicesByTime[0]
+			# rprint('  match indices:'+str(teamTableIndices))
+			# rprint('  match rows:'+str([i.row() for i in teamTableIndices]))
+			# rprint('  first row:'+str(model.itemData(model.index(0,0))))
+			self.parent.ui.tableViewList[tabIndex].selectRow(i.row())
 
 	# def findFieldDestroyed(self,e):
 	# 	rprint('   findFieldDestroyed')
@@ -6191,6 +6221,7 @@ class findPopup(QWidget,Ui_findPopup):
 	def keyPressEvent(self,event):
 		key=event.key()
 		if key in [Qt.Key_Enter,Qt.Key_Return,Qt.Key_Escape]:
+			rprint('  enter/return/esc pressed; closing')
 			self.close()
 
 	def clicked(self,i):
