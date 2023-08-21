@@ -6105,13 +6105,16 @@ class findPopup(QWidget,Ui_findPopup):
 		# self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setFixedSize(self.size())
 		# self.setStyleSheet("QListView::item:hover{background-color:#FFFF00;}")
+		# self.ui.findField.focusOutEvent=self.focusOutEvent
+		# self.ui.findField.destroyed.connect(self.findFieldDestroyed)
+		self.teamTabIndexBeforeFind=1
 
 	def showEvent(self,e):
+		self.teamTabIndexBeforeFind=self.parent.ui.tabWidget.currentIndex()
 		self.theList=[entry[0]+' : '+entry[2]+' : '+entry[3] for entry in self.parent.radioLog]
 		# rprint(' completer list:'+str(self.theList))
 		self.completer=QCompleter(self.theList)
 		self.completer.setFilterMode(Qt.MatchContains)
-		self.ui.findField.setCompleter(self.completer)
 		# performance speedups: see https://stackoverflow.com/questions/33447843
 		self.completer.setCaseSensitivity(Qt.CaseInsensitive)
 		self.completer.setModelSorting(QCompleter.CaseSensitivelySortedModel)
@@ -6119,22 +6122,71 @@ class findPopup(QWidget,Ui_findPopup):
 		self.completer.popup().setLayoutMode(QListView.Batched)
 		self.completer.popup().setMouseTracking(True)
 		self.completer.popup().entered.connect(self.mouseEnter)
+		# self.completer.popup().dragLeaveEvent=self.dragLeaveEvent
+		# self.completer.popup().entered=self.mouseEnter # doesn't work
+		# self.completer.popup().exited.connect(self.mouseExit)
 		self.completer.popup().clicked.connect(self.clicked)
+		self.completer.popup().focusOutEvent=self.focusOutEvent
+		# self.completer.popup().viewportEntered.connect(self.viewportEntered)
+		# self.completer.popup().leaveEvent=self.mouseOutEvent
+		# self.completer.popup().onMouseOut=self.mouseExit
+		# self.completer.onMouseOut=self.mouseExit
 		# style of individual row doesn't seem to work - looks like a delegate might be needed
 		# self.completer.popup().setStyleSheet("::item:hover{background-color:#CBD7FB;}")
+		self.ui.findField.setCompleter(self.completer)
 
 	def mouseEnter(self,i):
 		idx=self.theList.index(i.data())
 		# rprint('mouse enter: row '+str(idx)+' : '+str(i.data()))
 		# self.completer.popup().setRowColor(self.completer.popup().model(),i.row(),Qt.green)
-		self.parent.ui.tableView.scrollTo(self.parent.ui.tableView.model().index(idx,0))
+		# model=self.completer.popup().model()
+		# model.setData(model.index(idx,0),QBrush(Qt.red),Qt.BackgroundRole)
+		# row=self.parent.ui.tableView.model().row(idx)
+		# self.completer.popup().model().setData(i,QBrush(Qt.red),Qt.BackgroundRole)
+		# self.parent.ui.tableView.scrollTo(self.parent.ui.tableView.model().index(idx,0))
+		# self.parent.ui.tableView.selectRow(idx)
+
+		# this is the line that highlights the hovered row in the popup:
+		self.completer.popup().setCurrentIndex(i)
+
 		completerRowText=i.data()
 		teamName=completerRowText.split(' : ')[1]
-		extTeamName=getExtTeamName(teamName)
-		tabIndex=self.parent.extTeamNameList.index(extTeamName)
-		rprint('mouse enter: row '+str(idx)+' : '+str(i.data()))
-		rprint('  teamName='+str(teamName)+'  extTeamName='+str(extTeamName)+'  tabIndex='+str(tabIndex))
-		self.parent.ui.tabWidget.setCurrentIndex(tabIndex)
+		if teamName: # only if it's a valid team name
+			extTeamName=getExtTeamName(teamName)
+			tabIndex=self.parent.extTeamNameList.index(extTeamName)
+			rprint('mouse enter: row '+str(idx)+' : '+str(i.data()))
+			rprint('  teamName='+str(teamName)+'  extTeamName='+str(extTeamName)+'  tabIndex='+str(tabIndex))
+			self.parent.ui.tabWidget.setCurrentIndex(tabIndex)
+
+	# def findFieldDestroyed(self,e):
+	# 	rprint('   findFieldDestroyed')
+
+	# def viewportEntered(self,e):
+	# 	rprint('   viewportEntered')
+
+	# def dragLeaveEvent(self,e):
+	# 	rprint('   dragLeaveEvent')
+	# 	self.onExit()
+
+	def mouseExit(self,e):
+		rprint('   mouseExit')
+		self.onExit()
+
+	def closeEvent(self,e):
+		rprint('  closeEvent')
+		self.onExit()
+
+	def onExit(self):
+		rprint('    onExit')
+		self.parent.ui.tableView.clearSelection()
+		self.parent.ui.tableView.scrollToBottom()
+		self.parent.ui.tabWidget.setCurrentIndex(self.teamTabIndexBeforeFind)
+		self.parent.ui.tableViewList[self.teamTabIndexBeforeFind].clearSelection()
+		self.parent.ui.tableViewList[self.teamTabIndexBeforeFind].scrollToBottom()
+
+	def focusOutEvent(self,e):
+		rprint('  focusOutEvent')
+		self.onExit()
 
 	def keyPressEvent(self,event):
 		key=event.key()
