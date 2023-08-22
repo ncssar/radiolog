@@ -851,6 +851,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.loadFlag=False # set this to true during load, to prevent save on each newEntry
 		self.totalEntryCount=0 # rotate backups after every 5 entries; see newEntryWidget.accept
 		
+		# set the team table palette - copied from main table compiled _ui.py
+		self.teamTablePalette = QPalette()
+		brush = QBrush(QColor(0, 120, 215))
+		brush.setStyle(QtCore.Qt.SolidPattern)
+		self.teamTablePalette.setBrush(QPalette.Active, QPalette.Highlight, brush)
+		brush = QBrush(QColor(85, 170, 255))
+		brush.setStyle(QtCore.Qt.SolidPattern)
+		self.teamTablePalette.setBrush(QPalette.Inactive, QPalette.Highlight, brush)
+		brush = QBrush(QColor(0, 120, 215))
+		brush.setStyle(QtCore.Qt.SolidPattern)
+		self.teamTablePalette.setBrush(QPalette.Disabled, QPalette.Highlight, brush)
+		   
 		self.ui.teamHotkeysWidget.setVisible(False) # disabled by default
 		# self.ui.teamHotkeysWidget.setStyleSheet('left:50') # same as QTabWidget::tab-bar
 		self.hotkeyDict={}
@@ -874,9 +886,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.teamTabsMoreButton.setVisible(False)
 		self.ui.teamTabsMoreButton.setGeometry(1,1,30,35)
 		from PyQt5 import QtGui
-		self.teamTabsMoreButtonIcon = QtGui.QIcon()
-		self.blankIcon=QtGui.QIcon()
-		self.teamTabsMoreButtonIcon.addPixmap(QtGui.QPixmap(":/radiolog_ui/icons/3dots.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+		self.teamTabsMoreButtonIcon = QIcon()
+		self.blankIcon=QIcon()
+		self.teamTabsMoreButtonIcon.addPixmap(QPixmap(":/radiolog_ui/icons/3dots.png"), QIcon.Normal, QIcon.Off)
 		self.ui.teamTabsMoreButton.setIcon(self.teamTabsMoreButtonIcon)
 		self.ui.teamTabsMoreButton.setIconSize(QtCore.QSize(20, 20))
 		self.teamTabsMoreButtonIsBlinking=False
@@ -4936,6 +4948,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableViewList[i].setFocusPolicy(Qt.ClickFocus)
 		self.ui.tableViewList[i].setSelectionMode(QAbstractItemView.ContiguousSelection)
 		self.ui.tableViewList[i].setStyleSheet("font-size:"+str(self.fontSize)+"pt")
+		self.ui.tableViewList[i].setPalette(self.teamTablePalette)
 		# self.ui.tableViewList[i].horizontalHeader().setMinimumSectionSize(10) # allow tiny column for operator initials
 		self.ui.tabGridLayoutList[i].addWidget(self.ui.tableViewList[i],0,0,1,1)
 		self.ui.tabWidget.insertTab(i,self.ui.tabList[i],'')
