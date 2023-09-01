@@ -1231,6 +1231,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			}
 			QTabBar::tab:selected {
 				background:white;
+				border: 3px outset blue;
 				border-bottom-color:white;
 			}
 			QTabBar::tab:!selected {
@@ -6173,7 +6174,7 @@ class findPopup(QWidget,Ui_findPopup):
 			rprint('mouse enter: row '+str(idx)+' : '+str(i.data()))
 			rprint('  teamName='+str(teamName)+'  extTeamName='+str(extTeamName)+'  tabIndex='+str(tabIndex))
 
-			# select the team tab
+			# select the team tab, combined with more prominent :selected border in tabWidget styleSheet
 			self.parent.ui.tabWidget.setCurrentIndex(tabIndex)
 
 			# select and highlight the correct row in the team's tableView, based on time and text
