@@ -11,12 +11,23 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-class Ui_findPopup(object):
-    def setupUi(self, findPopup):
-        findPopup.setObjectName("findPopup")
-        findPopup.resize(339, 31)
-        self.findField = QtWidgets.QLineEdit(findPopup)
-        self.findField.setGeometry(QtCore.QRect(0, 0, 321, 31))
+class Ui_findDialog(object):
+    def setupUi(self, findDialog):
+        findDialog.setObjectName("findDialog")
+        findDialog.resize(311, 56)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(findDialog.sizePolicy().hasHeightForWidth())
+        findDialog.setSizePolicy(sizePolicy)
+        self.verticalLayout = QtWidgets.QVBoxLayout(findDialog)
+        self.verticalLayout.setObjectName("verticalLayout")
+        self.findField = QtWidgets.QLineEdit(findDialog)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Ignored)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.findField.sizePolicy().hasHeightForWidth())
+        self.findField.setSizePolicy(sizePolicy)
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(12)
@@ -24,11 +35,12 @@ class Ui_findPopup(object):
         font.setWeight(50)
         self.findField.setFont(font)
         self.findField.setObjectName("findField")
+        self.verticalLayout.addWidget(self.findField)
 
-        self.retranslateUi(findPopup)
-        QtCore.QMetaObject.connectSlotsByName(findPopup)
+        self.retranslateUi(findDialog)
+        QtCore.QMetaObject.connectSlotsByName(findDialog)
 
-    def retranslateUi(self, findPopup):
+    def retranslateUi(self, findDialog):
         _translate = QtCore.QCoreApplication.translate
-        findPopup.setWindowTitle(_translate("findPopup", "Find"))
-        self.findField.setPlaceholderText(_translate("findPopup", "Enter text to search for..."))
+        findDialog.setWindowTitle(_translate("findDialog", "Find"))
+        self.findField.setPlaceholderText(_translate("findDialog", "Enter text to search for..."))
