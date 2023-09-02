@@ -6149,10 +6149,12 @@ class customCompleterPopup(QListView):
 	# NOTE: this doesn't appear to be specific enought - after the popup is shown, it will then be hidden
 	#  when more typing in the QLineEdit results in no more matches, but, we don't want this case
 	#  to close the popup and dialog
-	# def hideEvent(self,e):
-	# 	rprint('hide from subclass')
-	# 	self.parent.close()
-	# 	super(customCompleterPopup,self).hideEvent(e)
+
+	# unselect everything when text is changed such that there is no match
+	def hideEvent(self,e):
+		rprint('hide from subclass')
+		self.parent.onExit()
+		super(customCompleterPopup,self).hideEvent(e)
 
 	# def event(self,e):
 	# 	rprint('generic event from customCompleterPopup: '+str(e.type()))
