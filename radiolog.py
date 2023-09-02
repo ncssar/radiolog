@@ -6110,6 +6110,17 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.raise_()
 
 
+# class customCompleter(QCompleter):
+# 	def __init__(self,parent=None):
+# 		self.parent=parent
+# 		super(customCompleter,self).__init__(parent)
+
+# 	def closeEvent(self,e):
+# 		rprint('closeEvent in customCompleter')
+# 		self.parent.closeEvent(e)
+# 		super(customCompleter,self).closeEvent(e)
+
+
 class customCompleterPopup(QListView):
 	def __init__(self,parent=None):
 		self.parent=parent
@@ -6123,6 +6134,13 @@ class customCompleterPopup(QListView):
 		else:
 			self.parent.onExit()
 		super(customCompleterPopup,self).selectionChanged(selected,deselected)
+	
+	# when esc is pressed when the list popup is open, hideEvent is called
+	# (this was determined by adding an .event() function and observing QEvent.HideToParent (27))
+	def hideEvent(self,e):
+		# rprint('hide from subclass')
+		self.parent.close()
+		super(customCompleterPopup,self).hideEvent(e)
 
 
 class findDialog(QWidget,Ui_findDialog):
@@ -6147,8 +6165,13 @@ class findDialog(QWidget,Ui_findDialog):
 		# performance speedups: see https://stackoverflow.com/questions/33447843
 		self.completer.setCaseSensitivity(Qt.CaseInsensitive)
 		self.completer.setModelSorting(QCompleter.CaseSensitivelySortedModel)
+		# self.completer.closed.connect(self.close)
+		# self.completer.destroyed.connect(self.close)
 		self.customPopup=customCompleterPopup(self)
 		self.completer.setPopup(self.customPopup)
+		# self.completer.keyPressEvent=self.keyPressEvent
+		# self.completer.popup().closed.connect(self.close)
+		# self.completer.popup().destroyed.connect(self.close)
 		self.completer.popup().setUniformItemSizes(True)
 		self.completer.popup().setLayoutMode(QListView.Batched)
 		self.completer.popup().setMouseTracking(True)
@@ -6257,6 +6280,7 @@ class findDialog(QWidget,Ui_findDialog):
 		self.onExit()
 
 	def keyPressEvent(self,event):
+		rprint('keyPress event')
 		key=event.key()
 		if key in [Qt.Key_Enter,Qt.Key_Return,Qt.Key_Escape]:
 			rprint('  enter/return/esc pressed; closing')
