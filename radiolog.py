@@ -6119,6 +6119,7 @@ class customCompleterPopup(QListView):
 	def __init__(self,parent=None):
 		self.parent=parent
 		super(customCompleterPopup,self).__init__(parent)
+		self.resize(self.parent.width()-25,self.height())
 
 	def selectionChanged(self,selected,deselected):
 		# rprint('selection changed in subclass')
@@ -6128,10 +6129,6 @@ class customCompleterPopup(QListView):
 		else:
 			self.parent.onExit()
 		super(customCompleterPopup,self).selectionChanged(selected,deselected)
-
-	# def focusOutEvent(self,e):
-	# 	rprint('focus out (popup)')
-	# 	super(customCompleterPopup,self).focusOutEvent(e)
 
 
 class findDialog(QWidget,Ui_findDialog):
@@ -6190,6 +6187,7 @@ class findDialog(QWidget,Ui_findDialog):
 		self.ui.countLabel.setText(prefix+str(count)+suffix)
 
 	def processChangedSelection(self,i):
+		self.customPopup.resize(self.width()-25,self.customPopup.height())
 		self.updateCountLabel()
 		# select the correct row in the main tableView
 		idx=self.theList.index(i.data())
@@ -6254,6 +6252,7 @@ class findDialog(QWidget,Ui_findDialog):
 			# rprint('  esc pressed; closing, and clearing selecti0on and scroll settings')
 			self.onExit()
 			self.close()
+		self.customPopup.resize(self.width()-25,self.customPopup.height())
 
 	def clicked(self,i):
 		self.close()
@@ -6278,6 +6277,7 @@ class findDialog(QWidget,Ui_findDialog):
 		elif t==QEvent.MouseMove:
 			self.onExit()
 			self.updateCountLabel()
+			self.customPopup.resize(self.width()-25,self.customPopup.height())
 			return True
 		elif t==QEvent.Hide:
 			# Hide is called for different reasons:
@@ -6295,8 +6295,10 @@ class findDialog(QWidget,Ui_findDialog):
 				self.onExit()
 				self.close()
 			self.updateCountLabel()
+			self.customPopup.resize(self.width()-25,self.customPopup.height())
 			return True
 		else:
+			self.customPopup.resize(self.width()-25,self.customPopup.height())
 			return False
 
 
