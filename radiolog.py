@@ -6129,6 +6129,10 @@ class customCompleterPopup(QListView):
 			self.parent.onExit()
 		super(customCompleterPopup,self).selectionChanged(selected,deselected)
 
+	# def focusOutEvent(self,e):
+	# 	rprint('focus out (popup)')
+	# 	super(customCompleterPopup,self).focusOutEvent(e)
+
 
 class findDialog(QWidget,Ui_findDialog):
 	def __init__(self,parent):
@@ -6138,6 +6142,7 @@ class findDialog(QWidget,Ui_findDialog):
 		self.ui.setupUi(self)
 		self.setFixedSize(self.size())
 		self.teamTabIndexBeforeFind=1
+		self.ui.findField.textChanged.connect(self.updateCountLabel)
 
 	def showEvent(self,e):
 		self.teamTabIndexBeforeFind=self.parent.ui.tabWidget.currentIndex()
@@ -6162,7 +6167,30 @@ class findDialog(QWidget,Ui_findDialog):
 		self.completer.popup().setCurrentIndex(i)
 		self.processChangedSelection(i)
 
+	def updateCountLabel(self,*args):
+		count=self.completer.completionCount()
+		i=self.customPopup.currentIndex().row() # initially -1 if no row is selected
+		# Note that after the first time any popup row has been selected,
+		#  moving up (from the first row) or down (from the last row) back to the QLineEdit field, such that no rows are selected,
+		#  leaves the currentIndex().row() at the last selected row number, instead of going back to -1.
+		# Maybe this is a PyQt bug?
+		# Catch this case by comparing QLineEdit text to the currentIndex text;
+		#  if it's a match, then the corresponding row of the popup is really selected;
+		#  if it's not a match, then nothing is really selected.
+		# rprint('updateCountLabel: i='+str(i))
+		# if i>0 or (i==0 and self.ui.findField.text()==self.completer.popup().currentIndex().data()): # works for up-from-first, but not for down-from-last
+		if self.ui.findField.text()==self.completer.popup().currentIndex().data(): # works for up-from-first and for down-from-last
+			prefix=str(i+1)+' of '
+			suffix=''
+		else:
+			prefix=''
+			suffix=' match'
+			if count!=1:
+				suffix+='es'
+		self.ui.countLabel.setText(prefix+str(count)+suffix)
+
 	def processChangedSelection(self,i):
+		self.updateCountLabel()
 		# select the correct row in the main tableView
 		idx=self.theList.index(i.data())
 		self.parent.ui.tableView.selectRow(idx)
@@ -6249,6 +6277,7 @@ class findDialog(QWidget,Ui_findDialog):
 				return False
 		elif t==QEvent.MouseMove:
 			self.onExit()
+			self.updateCountLabel()
 			return True
 		elif t==QEvent.Hide:
 			# Hide is called for different reasons:
@@ -6265,6 +6294,7 @@ class findDialog(QWidget,Ui_findDialog):
 			if self.lastEventType==QEvent.HideToParent:
 				self.onExit()
 				self.close()
+			self.updateCountLabel()
 			return True
 		else:
 			return False
