@@ -6110,25 +6110,10 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.raise_()
 
 
-# class customCompleter(QCompleter):
-# 	def __init__(self,parent=None):
-# 		self.parent=parent
-# 		super(customCompleter,self).__init__(parent)
-
-# 	def closeEvent(self,e):
-# 		rprint('closeEvent in customCompleter')
-# 		self.parent.closeEvent(e)
-# 		super(customCompleter,self).closeEvent(e)
-
-# find dialog/completer/popup events:
+# find dialog/completer/popup structure:
 #  - the dialog holds the QLineEdit
 #  - the completer contains the model (see QCompleter)
 #  - the popup is the QListView of matches, so, is not always open
-#  - moving the mouse outide of the popup causes QEvent.MouseMove in the popup, caught by event() override
-#  - pressing escape while the popup is open causes the popup to hide, but, this is not specific enough,
-#     since adding more text that causes no matches will also cause the popup to hide - but we don't want
-#     to close the dialog in the latter case; so, install an event filter on the dialog that catches
-#     the esc key to close the popup and dialog instead
 
 class customCompleterPopup(QListView):
 	def __init__(self,parent=None):
@@ -6143,24 +6128,6 @@ class customCompleterPopup(QListView):
 		else:
 			self.parent.onExit()
 		super(customCompleterPopup,self).selectionChanged(selected,deselected)
-	
-	# when esc is pressed when the list popup is open, hideEvent is called
-	# (this was determined by adding an .event() function and observing QEvent.HideToParent (27))
-	# NOTE: this doesn't appear to be specific enought - after the popup is shown, it will then be hidden
-	#  when more typing in the QLineEdit results in no more matches, but, we don't want this case
-	#  to close the popup and dialog
-
-	# unselect everything when text is changed such that there is no match
-	def hideEvent(self,e):
-		rprint('hide from subclass')
-		self.parent.onExit()
-		super(customCompleterPopup,self).hideEvent(e)
-
-	# def event(self,e):
-	# 	rprint('generic event from customCompleterPopup: '+str(e.type()))
-	# 	if e.type()==QEvent.MouseMove:
-	# 		self.parent.onExit()
-	# 	return super(customCompleterPopup,self).event(e)
 
 
 class findDialog(QWidget,Ui_findDialog):
@@ -6169,46 +6136,25 @@ class findDialog(QWidget,Ui_findDialog):
 		QWidget.__init__(self,parent)
 		self.ui=Ui_findDialog()
 		self.ui.setupUi(self)
-		# self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setFixedSize(self.size())
-		# self.setStyleSheet("QListView::item:hover{background-color:#FFFF00;}")
-		# self.ui.findField.focusOutEvent=self.focusOutEvent
-		# self.ui.findField.destroyed.connect(self.findFieldDestroyed)
 		self.teamTabIndexBeforeFind=1
 
 	def showEvent(self,e):
 		self.teamTabIndexBeforeFind=self.parent.ui.tabWidget.currentIndex()
 		self.theList=[entry[0]+' : '+entry[2]+' : '+entry[3] for entry in self.parent.radioLog]
-		# rprint(' completer list:'+str(self.theList))
 		self.completer=QCompleter(self.theList)
 		self.completer.setFilterMode(Qt.MatchContains)
 		# performance speedups: see https://stackoverflow.com/questions/33447843
 		self.completer.setCaseSensitivity(Qt.CaseInsensitive)
 		self.completer.setModelSorting(QCompleter.CaseSensitivelySortedModel)
-		# self.completer.closed.connect(self.close)
-		# self.completer.destroyed.connect(self.close)
 		self.customPopup=customCompleterPopup(self)
 		self.completer.setPopup(self.customPopup)
 		self.completer.popup().installEventFilter(self)
-		# self.completer.keyPressEvent=self.keyPressEvent
-		# self.completer.popup().closed.connect(self.close)
-		# self.completer.popup().destroyed.connect(self.close)
 		self.completer.popup().setUniformItemSizes(True)
 		self.completer.popup().setLayoutMode(QListView.Batched)
 		self.completer.popup().setMouseTracking(True)
 		self.completer.popup().entered.connect(self.mouseEnter)
-		# self.completer.popup().dragLeaveEvent=self.dragLeaveEvent
-		# self.completer.popup().entered=self.mouseEnter # doesn't work
-		# self.completer.popup().exited.connect(self.mouseExit)
 		self.completer.popup().clicked.connect(self.clicked)
-		# self.completer.popup().focusOutEvent=self.focusOutEvent
-		# self.completer.popup().keyPressEvent=self.keyPressEvent
-		# self.completer.popup().viewportEntered.connect(self.viewportEntered)
-		# self.completer.popup().leaveEvent=self.mouseOutEvent
-		# self.completer.popup().onMouseOut=self.mouseExit
-		# self.completer.onMouseOut=self.mouseExit
-		# style of individual row doesn't seem to work - looks like a delegate might be needed
-		# self.completer.popup().setStyleSheet("::item:hover{background-color:#CBD7FB;}")
 		self.ui.findField.setCompleter(self.completer)
 
 	def mouseEnter(self,i):
@@ -6216,24 +6162,10 @@ class findDialog(QWidget,Ui_findDialog):
 		self.completer.popup().setCurrentIndex(i)
 		self.processChangedSelection(i)
 
-	# mouse hover is handled within this class (mouseEnter), then sent to the custom popup class,
-	#  which then calls this function;
-	# keyboard up/down arrows are handled initially in the custom popup class,
-	#  which also then calls this function
-
 	def processChangedSelection(self,i):
-		# rprint('mouse enter: row '+str(idx)+' : '+str(i.data()))
-		# self.completer.popup().setRowColor(self.completer.popup().model(),i.row(),Qt.green)
-		# model=self.completer.popup().model()
-		# model.setData(model.index(idx,0),QBrush(Qt.red),Qt.BackgroundRole)
-		# row=self.parent.ui.tableView.model().row(idx)
-		# self.completer.popup().model().setData(i,QBrush(Qt.red),Qt.BackgroundRole)
-		# self.parent.ui.tableView.scrollTo(self.parent.ui.tableView.model().index(idx,0))
-
 		# select the correct row in the main tableView
 		idx=self.theList.index(i.data())
 		self.parent.ui.tableView.selectRow(idx)
-
 		completerRowText=i.data()
 		[entryTime,teamName,entryText]=completerRowText.split(' : ')[0:3]
 		if teamName: # only if it's a valid team name
@@ -6270,26 +6202,13 @@ class findDialog(QWidget,Ui_findDialog):
 			# rprint('  first row:'+str(model.itemData(model.index(0,0))))
 			self.parent.ui.tableViewList[tabIndex].selectRow(i.row())
 
-	# def findFieldDestroyed(self,e):
-	# 	rprint('   findFieldDestroyed')
-
-	# def viewportEntered(self,e):
-	# 	rprint('   viewportEntered')
-
-	# def dragLeaveEvent(self,e):
-	# 	rprint('   dragLeaveEvent')
-	# 	self.onExit()
-
-	def mouseExit(self,e):
-		rprint('   mouseExit')
-		self.onExit()
-
 	def closeEvent(self,e):
-		rprint('  closeEvent')
-		self.onExit()
+		# rprint('  closeEvent')
+		self.completer.popup().close()
+		self.ui.findField.setText('')
 
 	def onExit(self):
-		rprint('    onExit')
+		# rprint('    onExit')
 		self.completer.popup().clearSelection()
 		self.parent.ui.tableView.clearSelection()
 		self.parent.ui.tableView.scrollToBottom()
@@ -6297,29 +6216,55 @@ class findDialog(QWidget,Ui_findDialog):
 		self.parent.ui.tableViewList[self.teamTabIndexBeforeFind].clearSelection()
 		self.parent.ui.tableViewList[self.teamTabIndexBeforeFind].scrollToBottom()
 
-	def focusOutEvent(self,e):
-		rprint('  focusOutEvent')
-		self.onExit()
-
 	def keyPressEvent(self,event):
-		rprint('keyPress event')
+		# rprint('keyPress event')
 		key=event.key()
-		if key in [Qt.Key_Enter,Qt.Key_Return,Qt.Key_Escape]:
-			rprint('  enter/return/esc pressed; closing')
+		if key in [Qt.Key_Enter,Qt.Key_Return]:
+			# rprint('  enter/return pressed; closing, but keeping any selection and scroll settings')
+			self.close()
+		elif key==Qt.Key_Escape:
+			# rprint('  esc pressed; closing, and clearing selecti0on and scroll settings')
+			self.onExit()
 			self.close()
 
 	def clicked(self,i):
 		self.close()
 		
 	def eventFilter(self,obj,e):
-		rprint('filtered event: '+str(e.type()))
-		if e.type()==QEvent.KeyPress and e.key() in [Qt.Key_Enter,Qt.Key_Return,Qt.Key_Escape]:
-			rprint('  enter/return/esc pressed; closing')
-			self.completer.popup().hide()
-			self.close()
-			return True
-		elif e.type()==QEvent.MouseMove:
+		t=e.type()
+		self.lastEventType=t
+		# rprint('filtered event: '+str(t))
+		if t==QEvent.KeyPress:
+			key=e.key()
+			if key in [Qt.Key_Enter,Qt.Key_Return]:
+				# rprint('  enter/return pressed; closing, but keeping any selection and scroll settings')
+				self.close()
+				return True
+			elif key==Qt.Key_Escape:
+				# rprint('  esc pressed; closing, and clearing selection and scroll settings')
+				self.onExit()
+				self.close()
+				return True
+			else:
+				return False
+		elif t==QEvent.MouseMove:
 			self.onExit()
+			return True
+		elif t==QEvent.Hide:
+			# Hide is called for different reasons:
+			# 1 - dialog and popup are being closed due to left-click or enter/return
+			#     - KeyPress was the previous event
+			#     - in this case, do not clear highlights or reset scrolls
+			# 2 - dialog and popup are being closed due to esc
+			#     - HideToParent was the previous event
+			#     - in this case, clear highlights and reset scrolls by calling onExit
+			# 3 - findField has been changed such that there is no longer a match
+			#     - KeyPress was the previous event
+			#     - in this case, clear highlights and reset scrolls by calling onExit
+			# rprint('  hide')
+			if self.lastEventType==QEvent.HideToParent:
+				self.onExit()
+				self.close()
 			return True
 		else:
 			return False
