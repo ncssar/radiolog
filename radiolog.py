@@ -6120,6 +6120,7 @@ class customCompleterPopup(QListView):
 		self.parent=parent
 		super(customCompleterPopup,self).__init__(parent)
 		self.resize(self.parent.width()-25,self.height())
+		# self.setFocusPolicy(QtCore.Qt.NoFocus) # doesn't prevent jumping
 
 	def selectionChanged(self,selected,deselected):
 		# rprint('selection changed in subclass')
@@ -6157,10 +6158,16 @@ class findDialog(QWidget,Ui_findDialog):
 		self.completer.popup().setMouseTracking(True)
 		self.completer.popup().entered.connect(self.mouseEnter)
 		self.completer.popup().clicked.connect(self.clicked)
+		# this doesn't fix the problem of arrow keys jumping to the hovered selection
+		#  when scrollbar is visible - not sure what is causing that - but a larger
+		#  value of maxVisibleItems does make it less likely that the user will
+		#  ever see the problem
+		self.completer.setMaxVisibleItems(30)
 		self.ui.findField.setCompleter(self.completer)
 
 	def mouseEnter(self,i):
 		# select and highlight the hovered row in the popup:
+		# rprint('mouseEnter row '+str(i.row()))
 		self.completer.popup().setCurrentIndex(i)
 		self.processChangedSelection(i)
 
@@ -6239,22 +6246,12 @@ class findDialog(QWidget,Ui_findDialog):
 		self.parent.ui.tableView.clearSelection()
 		self.parent.ui.tableView.scrollToBottom()
 		self.parent.ui.tabWidget.setCurrentIndex(self.teamTabIndexBeforeFind)
-		self.parent.ui.tableViewList[self.teamTabIndexBeforeFind].clearSelection()
-		self.parent.ui.tableViewList[self.teamTabIndexBeforeFind].scrollToBottom()
-
-	def keyPressEvent(self,event):
-		# rprint('keyPress event')
-		key=event.key()
-		if key in [Qt.Key_Enter,Qt.Key_Return]:
-			# rprint('  enter/return pressed; closing, but keeping any selection and scroll settings')
-			self.close()
-		elif key==Qt.Key_Escape:
-			# rprint('  esc pressed; closing, and clearing selecti0on and scroll settings')
-			self.onExit()
-			self.close()
-		self.customPopup.resize(self.width()-25,self.customPopup.height())
+		if len(self.parent.ui.tableViewList)>1:
+			self.parent.ui.tableViewList[self.teamTabIndexBeforeFind].clearSelection()
+			self.parent.ui.tableViewList[self.teamTabIndexBeforeFind].scrollToBottom()
 
 	def clicked(self,i):
+		# rprint('clicked (findDialog)')
 		self.close()
 		
 	def eventFilter(self,obj,e):
@@ -6262,7 +6259,9 @@ class findDialog(QWidget,Ui_findDialog):
 		self.lastEventType=t
 		# rprint('filtered event: '+str(t))
 		if t==QEvent.KeyPress:
+			# rprint('keyPress event (completer popup)')
 			key=e.key()
+			# self.customPopup.clearFocus() # this causes the popup to close on every other keypress while typing a valid pattern
 			if key in [Qt.Key_Enter,Qt.Key_Return]:
 				# rprint('  enter/return pressed; closing, but keeping any selection and scroll settings')
 				self.close()
@@ -6272,7 +6271,10 @@ class findDialog(QWidget,Ui_findDialog):
 				self.onExit()
 				self.close()
 				return True
-			else:
+			else: # pass all other keystrokes including up/down to the parent for handling
+				# self.completer.popup().setCurrentIndex(i) # doesn't fix jumping
+				# self.processChangedSelection(self.customPopup.currentIndex()) # doesn't fix jumping
+				# self.updateGeometry() # doesn't fix jumping
 				return False
 		elif t==QEvent.MouseMove:
 			self.onExit()
