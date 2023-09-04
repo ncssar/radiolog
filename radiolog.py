@@ -696,6 +696,7 @@ from ui.continuedIncidentDialog_ui import Ui_continuedIncidentDialog
 from ui.loadDialog_ui import Ui_loadDialog
 from ui.loginDialog_ui import Ui_loginDialog
 from ui.teamTabsPopup_ui import Ui_teamTabsPopup
+from ui.findDialog_ui import Ui_findDialog
 
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
@@ -850,6 +851,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.loadFlag=False # set this to true during load, to prevent save on each newEntry
 		self.totalEntryCount=0 # rotate backups after every 5 entries; see newEntryWidget.accept
 		
+		# set the team table palette - copied from main table compiled _ui.py
+		self.teamTablePalette = QPalette()
+		brush = QBrush(QColor(0, 120, 215))
+		brush.setStyle(QtCore.Qt.SolidPattern)
+		self.teamTablePalette.setBrush(QPalette.Active, QPalette.Highlight, brush)
+		brush = QBrush(QColor(85, 170, 255))
+		brush.setStyle(QtCore.Qt.SolidPattern)
+		self.teamTablePalette.setBrush(QPalette.Inactive, QPalette.Highlight, brush)
+		brush = QBrush(QColor(0, 120, 215))
+		brush.setStyle(QtCore.Qt.SolidPattern)
+		self.teamTablePalette.setBrush(QPalette.Disabled, QPalette.Highlight, brush)
+		   
 		self.ui.teamHotkeysWidget.setVisible(False) # disabled by default
 		# self.ui.teamHotkeysWidget.setStyleSheet('left:50') # same as QTabWidget::tab-bar
 		self.hotkeyDict={}
@@ -873,13 +886,29 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.teamTabsMoreButton.setVisible(False)
 		self.ui.teamTabsMoreButton.setGeometry(1,1,30,35)
 		from PyQt5 import QtGui
-		self.teamTabsMoreButtonIcon = QtGui.QIcon()
-		self.blankIcon=QtGui.QIcon()
-		self.teamTabsMoreButtonIcon.addPixmap(QtGui.QPixmap(":/radiolog_ui/icons/3dots.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+		self.teamTabsMoreButtonIcon = QIcon()
+		self.blankIcon=QIcon()
+		self.teamTabsMoreButtonIcon.addPixmap(QPixmap(":/radiolog_ui/icons/3dots.png"), QIcon.Normal, QIcon.Off)
 		self.ui.teamTabsMoreButton.setIcon(self.teamTabsMoreButtonIcon)
 		self.ui.teamTabsMoreButton.setIconSize(QtCore.QSize(20, 20))
 		self.teamTabsMoreButtonIsBlinking=False
 		self.CCD1List=['KW-'] # if needed, KW- is appended to CCD1List after loading from config file
+
+		self.findDialog=findDialog(self)
+				# messageFieldTopLeft=self.mapToGlobal(self.ui.messageField.pos())
+		# tvp=self.mapToGlobal(self.ui.tableView.pos())
+		# tvp=self.ui.tableView.mapToGlobal(QPoint(0,0))
+		# tvp=self.ui.tableView.parentWidget().mapToGlobal(self.ui.tableView.pos())
+		# tvw=self.ui.tableView.width()
+		# rprint('tableView x='+str(tvp.x())+' y='+str(tvp.y())+' w='+str(tvw))
+		# self.findDialog.move(tvp.x()+tvw-200,tvp.y())
+		# self.findDialog.show()
+		# self.findDialog.raise_()
+		# self.findDialog.leaveEvent=self.findDialogShowHide
+		# self.findDialogAnimation=QPropertyAnimation(self.findDialog,b'pos')
+		# self.findDialogAnimation=QPropertyAnimation(self.findDialog.ui.findField,b'geometry')
+		# self.findDialogAnimation.setDuration(150)
+		# self.findDialogIsVisible=False # .isVisible would always return True; it's just slid left when 'hidden'
 
 		self.menuFont=QFont()
 		self.menuFont.setPointSize(14)
@@ -1202,6 +1231,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			}
 			QTabBar::tab:selected {
 				background:white;
+				border: 3px outset blue;
 				border-bottom-color:white;
 			}
 			QTabBar::tab:!selected {
@@ -3765,8 +3795,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			else:
 				key=event.text().lower() # hotkeys are case insensitive
 				mod=event.modifiers()
-# 				rprint("  key:"+QKeySequence(event.key()).toString()+"  mod:"+str(mod))
-				if self.ui.teamHotkeysWidget.isVisible():
+				# rprint("  key:"+QKeySequence(event.key()).toString()+"  mod:"+str(mod))
+				# rprint("  key:"+QKeySequence(event.key()).toString())
+				# rprint('  key:'+key+'  mod:'+str(mod))
+				if mod==Qt.ControlModifier and event.key()==Qt.Key_F:
+					self.findDialogShowHide()
+				elif self.ui.teamHotkeysWidget.isVisible():
 					# these key handlers apply only if hotkeys are enabled:
 					if key in self.hotkeyDict.keys():
 						rprint('team hotkey "'+str(key)+'" pressed; calling openNewEntry')
@@ -4915,6 +4949,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableViewList[i].setFocusPolicy(Qt.ClickFocus)
 		self.ui.tableViewList[i].setSelectionMode(QAbstractItemView.ContiguousSelection)
 		self.ui.tableViewList[i].setStyleSheet("font-size:"+str(self.fontSize)+"pt")
+		self.ui.tableViewList[i].setPalette(self.teamTablePalette)
 		# self.ui.tableViewList[i].horizontalHeader().setMinimumSectionSize(10) # allow tiny column for operator initials
 		self.ui.tabGridLayoutList[i].addWidget(self.ui.tableViewList[i],0,0,1,1)
 		self.ui.tabWidget.insertTab(i,self.ui.tabList[i],'')
@@ -5703,6 +5738,46 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.sidebarIsVisible=True
 		self.sidebarAnimation.start()
 
+	def findDialogShowHide(self,e=None):
+		# rprint('sidebarShowHide: x='+str(self.sidebar.pos().x())+'  e='+str(e))
+		# rprint('sidebarShowHide: h='+str(self.findDialog.height())+'  e='+str(e))
+		hideEvent=False
+		# w=self.findDialog.width()
+		if e and e.type()==11: # hide event
+			hideEvent=True
+		# rprint(' hide event? '+str(hideEvent))
+		# self.sidebar.resize(w,self.sidebar.height())
+		
+		# tvp=self.ui.tableView.pos()
+		# tvp=self.ui.tableView.parentWidget().mapToGlobal(self.ui.tableView.pos())
+		# tvp=self.ui.tableView.mapToGlobal(QPoint(0,0))
+		# tvp=self.ui.tableView.mapToParent(self.ui.tableView.pos())
+		tvp=self.ui.tableView.mapTo(self.ui.tableView.parentWidget().parentWidget(),self.ui.tableView.pos())
+		tvw=self.ui.tableView.width()
+		fpw=self.findDialog.width()
+		# rprint('tableView x='+str(tvp.x())+' y='+str(tvp.y())+' w='+str(tvw))
+		self.findDialog.move(tvp.x()+tvw-fpw-7,tvp.y()-7)
+
+		if self.findDialog.isVisible():
+			self.findDialog.setVisible(False)
+		elif not hideEvent:
+			self.findDialog.setVisible(True)
+			self.findDialog.ui.findField.setFocus()
+
+		# animation attempts
+		# self.findDialogShownPos=QPoint(self.findDialog.x(),200)
+		# self.findDialogHiddenPos=QPoint(self.findDialog.x(),150)
+		# self.findDialogShownGeom=QRect(200,250,300,50)
+		# self.findDialogHiddenGeom=QRect(200,200,200,10)
+		# # if self.sidebar2.pos().x()>-100:
+		# if self.findDialog.pos().y()>210:
+		# 	self.findDialogAnimation.setEndValue(self.findDialogHiddenGeom)
+		# 	self.findDialogIsVisible=False
+		# elif not hideEvent: # don't show if this is a hideEvent and it's already hidden, as happens on the first mouse move after clicking a cell
+		# 	self.findDialogAnimation.setEndValue(self.findDialogShownGeom)
+		# 	self.findDialogIsVisible=True
+		# self.findDialogAnimation.start()
+
 	def unhideTeamTab(self,niceTeamName):
 		if not niceTeamName:
 			return
@@ -5772,6 +5847,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.save()
 		self.saveRcFile()
 
+	def resizeEvent(self,e):
+		self.findDialog.setVisible(False)
+
+
 class helpWindow(QDialog,Ui_Help):
 	def __init__(self, *args):
 		QDialog.__init__(self)
@@ -5788,6 +5867,7 @@ class helpWindow(QDialog,Ui_Help):
 		else:
 			self.show()
 			self.raise_()
+
 
 class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 	def __init__(self,parent):
@@ -6028,6 +6108,213 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		else:
 			self.show()
 			self.raise_()
+
+
+# find dialog/completer/popup structure:
+#  - the dialog holds the QLineEdit
+#  - the completer contains the model (see QCompleter)
+#  - the popup is the QListView of matches, so, is not always open
+
+class customCompleterPopup(QListView):
+	def __init__(self,parent=None):
+		self.parent=parent
+		super(customCompleterPopup,self).__init__(parent)
+		self.resize(self.parent.width()-25,self.height())
+		# self.setFocusPolicy(QtCore.Qt.NoFocus) # doesn't prevent jumping
+
+	def selectionChanged(self,selected,deselected):
+		# rprint('selection changed in subclass')
+		ind=selected.indexes()
+		if len(selected)>0:
+			self.parent.processChangedSelection(ind[0])
+		else:
+			self.parent.onExit()
+		super(customCompleterPopup,self).selectionChanged(selected,deselected)
+
+
+class findDialog(QWidget,Ui_findDialog):
+	def __init__(self,parent):
+		self.parent=parent
+		QWidget.__init__(self,parent)
+		self.ui=Ui_findDialog()
+		self.ui.setupUi(self)
+		self.setFixedSize(self.size())
+		self.teamTabIndexBeforeFind=1
+		self.ui.findField.textChanged.connect(self.updateCountLabel)
+
+	def showEvent(self,e):
+		self.teamTabIndexBeforeFind=self.parent.ui.tabWidget.currentIndex()
+		self.theList=[entry[0]+' : '+entry[2]+' : '+entry[3] for entry in self.parent.radioLog]
+		self.completer=QCompleter(self.theList)
+		self.completer.setFilterMode(Qt.MatchContains)
+		# performance speedups: see https://stackoverflow.com/questions/33447843
+		self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+		self.completer.setModelSorting(QCompleter.CaseSensitivelySortedModel)
+		self.customPopup=customCompleterPopup(self)
+		self.completer.setPopup(self.customPopup)
+		self.completer.popup().installEventFilter(self)
+		self.completer.popup().setUniformItemSizes(True)
+		self.completer.popup().setLayoutMode(QListView.Batched)
+		self.completer.popup().setMouseTracking(True)
+		self.completer.popup().entered.connect(self.mouseEnter)
+		self.completer.popup().clicked.connect(self.clicked)
+		# this doesn't fix the problem of arrow keys jumping to the hovered selection
+		#  when scrollbar is visible - not sure what is causing that - but a larger
+		#  value of maxVisibleItems does make it less likely that the user will
+		#  ever see the problem
+		self.completer.setMaxVisibleItems(30)
+		self.ui.findField.setCompleter(self.completer)
+
+	def mouseEnter(self,i):
+		# select and highlight the hovered row in the popup:
+		# rprint('mouseEnter row '+str(i.row()))
+		self.completer.popup().setCurrentIndex(i)
+		self.processChangedSelection(i)
+
+	def updateCountLabel(self,*args):
+		count=self.completer.completionCount()
+		i=self.customPopup.currentIndex().row() # initially -1 if no row is selected
+		# Note that after the first time any popup row has been selected,
+		#  moving up (from the first row) or down (from the last row) back to the QLineEdit field, such that no rows are selected,
+		#  leaves the currentIndex().row() at the last selected row number, instead of going back to -1.
+		# Maybe this is a PyQt bug?
+		# Catch this case by comparing QLineEdit text to the currentIndex text;
+		#  if it's a match, then the corresponding row of the popup is really selected;
+		#  if it's not a match, then nothing is really selected.
+		# rprint('updateCountLabel: i='+str(i))
+		# if i>0 or (i==0 and self.ui.findField.text()==self.completer.popup().currentIndex().data()): # works for up-from-first, but not for down-from-last
+		if self.ui.findField.text()==self.completer.popup().currentIndex().data(): # works for up-from-first and for down-from-last
+			prefix=str(i+1)+' of '
+			suffix=''
+		else:
+			prefix=''
+			suffix=' match'
+			if count!=1:
+				suffix+='es'
+		self.ui.countLabel.setText(prefix+str(count)+suffix)
+
+	def processChangedSelection(self,i):
+		self.customPopup.resize(self.width()-25,self.customPopup.height())
+		self.updateCountLabel()
+		# select the correct row in the main tableView
+		idx=self.theList.index(i.data())
+		self.parent.ui.tableView.selectRow(idx)
+		completerRowText=i.data()
+		[entryTime,teamName,entryText]=completerRowText.split(' : ')[0:3]
+		if teamName: # only if it's a valid team name
+			extTeamName=getExtTeamName(teamName)
+			tabIndex=self.parent.extTeamNameList.index(extTeamName)
+			# rprint('mouse enter: row '+str(idx)+' : '+str(i.data()))
+			# rprint('  teamName='+str(teamName)+'  extTeamName='+str(extTeamName)+'  tabIndex='+str(tabIndex))
+
+			# select the team tab, combined with more prominent :selected border in tabWidget styleSheet
+			self.parent.ui.tabWidget.setCurrentIndex(tabIndex)
+
+			# select and highlight the correct row in the team's tableView, based on time and text
+			model=self.parent.ui.tableViewList[tabIndex].model()
+			teamTableIndicesByTime=model.match(model.index(0,0),Qt.DisplayRole,entryTime,-1)
+			teamTableRowsByTime=[i.row() for i in teamTableIndicesByTime]
+			# rprint('  match rows by time:'+str(teamTableRowsByTime))
+			# if there is more than one entry from that team at that time, search for the right one based on text
+			if len(teamTableIndicesByTime)>1:
+				teamTableIndicesByText=model.match(model.index(0,3),Qt.DisplayRole,entryText)
+				teamTableRowsByText=[i.row() for i in teamTableIndicesByText]
+				# rprint('  match rows by text:'+str(teamTableRowsByText))
+				# select the row that is in both lists, in case the team has multiple entries with identical text
+				commonIndices=[c for c in teamTableIndicesByText if c.row() in teamTableRowsByTime]
+				if len(commonIndices)==0:
+					rprint('ERROR: there are no entries that match both the time and the text selected from the search result popup')
+					return
+				elif len(commonIndices)>1:
+					rprint('WARNING: there are multiple entries that match the time and text selected from the search result popup; selecting the first one')
+				i=commonIndices[0]
+			else:
+				i=teamTableIndicesByTime[0]
+			# rprint('  match indices:'+str(teamTableIndices))
+			# rprint('  match rows:'+str([i.row() for i in teamTableIndices]))
+			# rprint('  first row:'+str(model.itemData(model.index(0,0))))
+			self.parent.ui.tableViewList[tabIndex].selectRow(i.row())
+
+	def closeEvent(self,e):
+		# rprint('  closeEvent')
+		self.completer.popup().close()
+		self.ui.findField.setText('')
+
+	def onExit(self):
+		# rprint('    onExit')
+		self.completer.popup().clearSelection()
+		self.parent.ui.tableView.clearSelection()
+		self.parent.ui.tableView.scrollToBottom()
+		self.parent.ui.tabWidget.setCurrentIndex(self.teamTabIndexBeforeFind)
+		if len(self.parent.ui.tableViewList)>1:
+			self.parent.ui.tableViewList[self.teamTabIndexBeforeFind].clearSelection()
+			self.parent.ui.tableViewList[self.teamTabIndexBeforeFind].scrollToBottom()
+
+	def clicked(self,i):
+		# rprint('clicked (findDialog)')
+		self.close()
+
+	def keyPressEvent(self,event):
+		# rprint('keyPress event')
+		key=event.key()
+		if key in [Qt.Key_Enter,Qt.Key_Return]:
+			# rprint('  enter/return pressed; closing, but keeping any selection and scroll settings')
+			self.close()
+		elif key==Qt.Key_Escape:
+			# rprint('  esc pressed; closing, and clearing selecti0on and scroll settings')
+			self.onExit()
+			self.close()
+		self.customPopup.resize(self.width()-25,self.customPopup.height())
+
+	def eventFilter(self,obj,e):
+		t=e.type()
+		self.lastEventType=t
+		# rprint('filtered event: '+str(t))
+		if t==QEvent.KeyPress:
+			# rprint('keyPress event (completer popup)')
+			key=e.key()
+			# self.customPopup.clearFocus() # this causes the popup to close on every other keypress while typing a valid pattern
+			if key in [Qt.Key_Enter,Qt.Key_Return]:
+				# rprint('  enter/return pressed; closing, but keeping any selection and scroll settings')
+				self.close()
+				return True
+			elif key==Qt.Key_Escape:
+				# rprint('  esc pressed; closing, and clearing selection and scroll settings')
+				self.onExit()
+				self.close()
+				return True
+			else: # pass all other keystrokes including up/down to the parent for handling
+				# self.completer.popup().setCurrentIndex(i) # doesn't fix jumping
+				# self.processChangedSelection(self.customPopup.currentIndex()) # doesn't fix jumping
+				# self.updateGeometry() # doesn't fix jumping
+				return False
+		elif t==QEvent.MouseMove:
+			self.onExit()
+			self.updateCountLabel()
+			self.customPopup.resize(self.width()-25,self.customPopup.height())
+			return True
+		elif t==QEvent.Hide:
+			# Hide is called for different reasons:
+			# 1 - dialog and popup are being closed due to left-click or enter/return
+			#     - KeyPress was the previous event
+			#     - in this case, do not clear highlights or reset scrolls
+			# 2 - dialog and popup are being closed due to esc
+			#     - HideToParent was the previous event
+			#     - in this case, clear highlights and reset scrolls by calling onExit
+			# 3 - findField has been changed such that there is no longer a match
+			#     - KeyPress was the previous event
+			#     - in this case, clear highlights and reset scrolls by calling onExit
+			# rprint('  hide')
+			if self.lastEventType==QEvent.HideToParent:
+				self.onExit()
+				self.close()
+			self.updateCountLabel()
+			self.customPopup.resize(self.width()-25,self.customPopup.height())
+			return True
+		else:
+			self.customPopup.resize(self.width()-25,self.customPopup.height())
+			return False
+
 
 class printDialog(QDialog,Ui_printDialog):
 	def __init__(self,parent):
@@ -6323,6 +6610,10 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 			# rprint("lowering: count="+str(count))
 			self.setWindowFlags(self.windowFlags() & ~Qt.WindowStaysOnTopHint) # disable always on top
 			self.hide()
+			if self.parent.findDialog.isVisible():
+				rprint('restoring completer popup')
+				self.parent.findDialog.completer.complete() # restore the completer popup if it was previously open
+				self.parent.findDialog.ui.findField.setFocus()
 
 ##	def autoCleanupStateChanged(self):
 ##		if self.ui.autoCleanupCheckBox.isChecked():
