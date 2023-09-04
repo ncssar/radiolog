@@ -6253,7 +6253,19 @@ class findDialog(QWidget,Ui_findDialog):
 	def clicked(self,i):
 		# rprint('clicked (findDialog)')
 		self.close()
-		
+
+	def keyPressEvent(self,event):
+		# rprint('keyPress event')
+		key=event.key()
+		if key in [Qt.Key_Enter,Qt.Key_Return]:
+			# rprint('  enter/return pressed; closing, but keeping any selection and scroll settings')
+			self.close()
+		elif key==Qt.Key_Escape:
+			# rprint('  esc pressed; closing, and clearing selecti0on and scroll settings')
+			self.onExit()
+			self.close()
+		self.customPopup.resize(self.width()-25,self.customPopup.height())
+
 	def eventFilter(self,obj,e):
 		t=e.type()
 		self.lastEventType=t
@@ -6598,6 +6610,10 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 			# rprint("lowering: count="+str(count))
 			self.setWindowFlags(self.windowFlags() & ~Qt.WindowStaysOnTopHint) # disable always on top
 			self.hide()
+			if self.parent.findDialog.isVisible():
+				rprint('restoring completer popup')
+				self.parent.findDialog.completer.complete() # restore the completer popup if it was previously open
+				self.parent.findDialog.ui.findField.setFocus()
 
 ##	def autoCleanupStateChanged(self):
 ##		if self.ui.autoCleanupCheckBox.isChecked():
