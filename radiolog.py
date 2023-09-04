@@ -7437,6 +7437,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				if keyword in message:
 					msg='Since you typed "'+keyword+'", it looks like you meant to click "LOCATED A CLUE".\n\nDo you want to open a clue report now?\n\n(If so, everything typed so far will be copied to the Clue Description field.)\n\n(If not, click \'No\' or press the \'Escape\' key to close this popup and continue the message.)'
 			if msg:
+				rprint('"Looks like a clue" popup shown; message so far: "'+message+'"')
 				box=CustomMessageBox(QMessageBox.Information,"Looks like a clue",msg,
 					QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 				# the two lines below are needed to prevent space bar from triggering the 'Yes' button (opening a clue dialog)
@@ -7455,6 +7456,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				QTimer.singleShot(400,QApplication.beep)
 				QTimer.singleShot(700,QApplication.beep)
 				if box.exec_()==QMessageBox.Yes:
+					rprint('"Looks like a clue" popup accepted: opening the clue dialog')
 					self.quickTextClueAction()
 					#642 - to make sure the operator sees the clue dialog, move it to the same location
 					#  as the 'looks like a clue' popup (hardcode to 50px above and left, no less than 10,10)
@@ -7467,6 +7469,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					# clear the message text since it has been moved to the clue dialog;
 					#  it will be moved back to the message text if the clue dialog is canceled
 					self.ui.messageField.setText('')
+				else:
+					rprint('"Looks like a clue" popup canceled')
 
 
 # 		rprint("message:"+str(message))
