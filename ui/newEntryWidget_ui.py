@@ -566,7 +566,7 @@ class Ui_newEntryWidget(object):
         self.quickTextButton10.setText(_translate("newEntryWidget", "SUBJECT LOCATED  [F11]"))
         self.quickTextButton10.setShortcut(_translate("newEntryWidget", "F11"))
         self.quickTextButton1_2.setText(_translate("newEntryWidget", "ENROUTE TO IC  [F4]"))
-        self.quickTextButton1_2.setShortcut(_translate("newEntryWidget", "F1"))
+        self.quickTextButton1_2.setShortcut(_translate("newEntryWidget", "F4"))
         self.label_7.setText(_translate("newEntryWidget", "Attached callsign(s):"))
         self.relayedByLabel.setText(_translate("newEntryWidget", "by"))
         self.datumFormatLabel.setText(_translate("newEntryWidget", "DATUM / FORMAT"))

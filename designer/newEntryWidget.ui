@@ -872,7 +872,7 @@
     </size>
    </property>
    <property name="shortcut">
-    <string>F1</string>
+    <string>F4</string>
    </property>
   </widget>
   <widget class="Line" name="line_6">
