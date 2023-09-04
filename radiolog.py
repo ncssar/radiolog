@@ -7435,7 +7435,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			msg=None
 			for keyword in self.clueKeywords:
 				if keyword in message:
-					msg='Since you typed "'+keyword+'", it looks like you meant to click "LOCATED A CLUE".\n\nDo you want to open a clue report now?\n\n(If so, everything typed so far will be copied to the Clue Description field.)\n\n(If not, click \'No\' or press the \'Escape\' key to close this popup and continue the message.)'
+					msg='Since you typed "'+keyword+'", it looks like you meant to click "LOCATED A CLUE".\n\nDo you want to open a clue report now?\n\n(If so, click \'Yes\' or press Shift-Enter or Ctrl-Enter, and everything typed so far will be copied to the Clue Description field.)\n\n(If not, click \'No\' or press the \'Escape\' key to close this popup and continue the message.)'
 			if msg:
 				rprint('"Looks like a clue" popup shown; message so far: "'+message+'"')
 				box=CustomMessageBox(QMessageBox.Information,"Looks like a clue",msg,
@@ -7455,12 +7455,18 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				QTimer.singleShot(100,QApplication.beep)
 				QTimer.singleShot(400,QApplication.beep)
 				QTimer.singleShot(700,QApplication.beep)
-				if box.exec_()==QMessageBox.Yes:
+				rval=box.exec_()
+				rprint('rval:'+str(rval))
+				if rval in [1,QMessageBox.Yes]: # 1 is returned on accept from keyPressEvent
 					rprint('"Looks like a clue" popup accepted: opening the clue dialog')
 					self.quickTextClueAction()
 					#642 - to make sure the operator sees the clue dialog, move it to the same location
 					#  as the 'looks like a clue' popup (hardcode to 50px above and left, no less than 10,10)
+					# moving from a high-res screen to a low-res screen can result in a too-small dialog;
+					#  address this by setting to the same size in pixels after the move as it was before the move
+					size=self.newClueDialog.size()
 					self.newClueDialog.move(max(10,boxX-50),max(10,boxY-50))
+					self.newClueDialog.resize(size)
 					self.newClueDialog.ui.descriptionField.setPlainText(self.ui.messageField.text())
 					# move cursor to end since it doesn't happen automatically
 					cursor=self.newClueDialog.ui.descriptionField.textCursor()
@@ -9313,29 +9319,32 @@ class customEventFilter(QObject):
 		return super(customEventFilter,self).eventFilter(receiver,event)
 
 
-# class CustomMessageBox(QMessageBox):
-# 	def __init__(self,*args):
-# 		QMessageBox.__init__(self,*args)
-# 		# self.setFont(messageBoxFont)
-
-
 class CustomMessageBox(QMessageBox):
 	def __init__(self,*args):
 		super(CustomMessageBox,self).__init__(*args)
 		self.palette=QPalette()
 
 	def keyPressEvent(self,e):
-		k=e.key()
-		if k==Qt.Key_Escape:
+		# - Esc is the same as clicking 'No' on the message box
+		# - shift- or ctrl- Enter or Return is the same as clicking 'Yes' on the message box
+		# - Enter or Return (without modifier) are blocked, to prevent accidentally finishing the entry
+		#    while the message box is open
+		# - all other keypresses are preserved as part of the entry, with a beep and throb, so that
+		#    typing can continue uninterrupted
+		key=e.key()
+		mod=e.modifiers()
+		if key==Qt.Key_Escape:
 			self.close()
 		else:
-			QApplication.beep()
-			self.parent().throb()
-			# send all keypresses except Esc and Enter to the NED messageField
-			#  so that typing can continue uninterrupted
-			if e.key() in [Qt.Key_Enter,Qt.Key_Return]:
-				rprint('blocked')
+			if mod in [Qt.ShiftModifier,Qt.ControlModifier]: # check this first, since shift or ctrl on their own are an event
+				if key in [Qt.Key_Enter,Qt.Key_Return]:
+					self.accept()
+			elif key in [Qt.Key_Enter,Qt.Key_Return]:
+				QApplication.beep()
+				rprint('Enter / Return blocked from custom message box keyPressEvent handler')
 			else:
+				QApplication.beep()
+				self.parent().throb()
 				QApplication.sendEvent(self.parent().ui.messageField,e)
 
 
