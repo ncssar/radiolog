@@ -8418,16 +8418,17 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 		self.ui.fsRadioButton.setEnabled(IDNeeded)
 		self.ui.nxRadioButton.setEnabled(IDNeeded)
 		self.ui.fleetField.setEnabled(fs and IDNeeded)
+		self.ui.fleetField.setValidator(QRegExpValidator(QRegExp('[1-9][0-9][0-9]'),self.ui.fleetField))
 		self.ui.fleetLabel.setEnabled(fs and IDNeeded)
 		self.ui.deviceField.setEnabled(IDNeeded)
 		self.ui.deviceLabel.setEnabled(IDNeeded)
 		digitRE='[0-9]'
 		if fs:
 			deviceDigits=4
-			firstDigitRE=digitRE
+			firstDigitRE='[1-9]' # first digit cannot be zero
 		else:
 			deviceDigits=5
-			firstDigitRE='[1-9]'
+			firstDigitRE=digitRE # first digit can be zero
 		deviceSuffix='(s)'
 		if not sendText:
 			deviceSuffix=''
@@ -8435,9 +8436,10 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 		# allow multiple devices when sending text, but just one when polling GPS
 		coreRE=firstDigitRE+(digitRE*(deviceDigits-1)) # '[1-9][0-9][0-9][0-9]' or '[0-9][0-9][0-9][0-9][0-9]'
 		if sendText:
-			devValRE='^('+coreRE+'[, ]?)*$'
+			devValRE='^('+coreRE+'[,]?[ ]*)+$' # delimiter: zero or one commas, followed by zero or more spaces
 		else:
 			devValRE=coreRE
+		# rprint('setting device validator regex: "'+devValRE+'"')
 		self.ui.deviceField.setValidator(QRegExpValidator(QRegExp(devValRE),self.ui.deviceField))
 		self.ui.messageField.setEnabled(sendText)
 		self.ui.messageLabel1.setEnabled(sendText)
@@ -8460,19 +8462,30 @@ class fsSendDialog(QDialog,Ui_fsSendDialog):
 		valid=True
 		fleet=self.ui.fleetField.text()
 		device=self.ui.deviceField.text()
+		# since trailing comma or spaces would not flag the device validator,
+		#  trim them off the device string before applying
+		if len(device)>0 and not device[-1].isdigit():
+			device=device.rstrip().rstrip(',')
+			self.ui.deviceField.setText(device)
+
 		msg=self.ui.messageField.text()
 		invalidMsg='The form had error(s).  Please correct and try again:'
 		sendText=self.ui.sendTextRadioButton.isChecked()
 		sendAll=self.ui.sendToAllCheckbox.isChecked()
+		fs=self.ui.fsRadioButton.isChecked()
+		if fs:
+			digitStr='four'
+		else:
+			digitStr='five'
 		if not sendAll:
 			if not self.ui.fleetField.hasAcceptableInput():
 				invalidMsg+='\n - Fleet ID must be a three-digit integer'
 				valid=False
 			if not self.ui.deviceField.hasAcceptableInput():
 				if sendText:
-					invalidMsg+='\n - Device ID(s) must be a four-digit integer, or a comma-separated or space-separated list of four-digit integers'
+					invalidMsg+='\n - Device ID(s) must be a '+digitStr+'-digit integer, or a comma-separated or space-separated list of '+digitStr+'-digit integers'
 				else:
-					invalidMsg+='\n - Device ID must be a four-digit integer'
+					invalidMsg+='\n - Device ID must be a '+digitStr+'-digit integer'
 				valid=False
 		if sendText:
 			if not msg or msg.isspace():
