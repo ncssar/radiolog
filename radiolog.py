@@ -6714,7 +6714,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.setAutoFillBackground(True)
 		self.clueDialogOpen=False # only allow one clue dialog at a time per newEntryWidget
 		self.subjectLocatedDialogOpen=False
-		self.clueKeywords=['clue','located','found','interview']
+		self.locatedKeywords=['located','found'] # define these separately because they also apply to 'subject located'
+		self.clueKeywords=self.locatedKeywords+['clue','interview'] # keywords that trigger the 'looks like a clue' popup
 		self.cluePopupShown=False
 		self.interviewPopupShown=False
 
@@ -7431,6 +7432,27 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		
 		#577 #578 - check for text that looks like a clue or interview, and show popup as needed
 		#642 - don't show the popup if subject located dialog is open
+
+		#676 - 'found/located subject', 'subject [name] found/located' are unambiguous: open the subject located dialog immediately
+		if 'subject' in message and not self.subjectLocatedDialogOpen:
+			for keyword in self.locatedKeywords:
+				if keyword in message:
+					# if self.cluePopupShown:
+					# 	self.cluePopup.reject()
+					try:
+						self.cluePopup.reject() # will cause exception if it's not yet defined
+					except:
+						pass
+					QTimer.singleShot(100,QApplication.beep)
+					QTimer.singleShot(400,QApplication.beep)
+					QTimer.singleShot(700,QApplication.beep)
+					self.quickTextSubjectLocatedAction()
+					msg='[SUBJECT LOCATED form opened automatically, based on words previously typed by the operator: "'+message+'"]'
+					self.subjectLocatedDialog.ui.otherField.setPlainText(msg)
+					rprint(msg)
+					self.ui.messageField.setText('')
+					break
+
 		if not self.cluePopupShown and not self.subjectLocatedDialogOpen:
 			msg=None
 			for keyword in self.clueKeywords:
@@ -7438,24 +7460,24 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					msg='Since you typed "'+keyword+'", it looks like you meant to click "LOCATED A CLUE".\n\nDo you want to open a clue report now?\n\n(If so, click \'Yes\' or press Shift-Enter or Ctrl-Enter, and everything typed so far will be copied to the Clue Description field.)\n\n(If not, click \'No\' or press the \'Escape\' key to close this popup and continue the message.)'
 			if msg:
 				rprint('"Looks like a clue" popup shown; message so far: "'+message+'"')
-				box=CustomMessageBox(QMessageBox.Information,"Looks like a clue",msg,
+				self.cluePopup=CustomMessageBox(QMessageBox.Information,"Looks like a clue",msg,
 					QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 				# the two lines below are needed to prevent space bar from triggering the 'Yes' button (opening a clue dialog)
 				#  or the 'No' button (closing the popup)
-				box.button(QMessageBox.Yes).setFocusPolicy(Qt.NoFocus)
-				box.button(QMessageBox.No).setFocusPolicy(Qt.NoFocus)
-				box.show()
+				self.cluePopup.button(QMessageBox.Yes).setFocusPolicy(Qt.NoFocus)
+				self.cluePopup.button(QMessageBox.No).setFocusPolicy(Qt.NoFocus)
+				self.cluePopup.show()
 				messageFieldTopLeft=self.mapToGlobal(self.ui.messageField.pos())
 				messageFieldHeight=self.ui.messageField.height()
 				boxX=messageFieldTopLeft.x()+10
 				boxY=messageFieldTopLeft.y()+messageFieldHeight+10
-				box.move(boxX,boxY)
-				box.raise_()
+				self.cluePopup.move(boxX,boxY)
+				self.cluePopup.raise_()
 				self.cluePopupShown=True
 				QTimer.singleShot(100,QApplication.beep)
 				QTimer.singleShot(400,QApplication.beep)
 				QTimer.singleShot(700,QApplication.beep)
-				rval=box.exec_()
+				rval=self.cluePopup.exec_()
 				rprint('rval:'+str(rval))
 				if rval in [1,QMessageBox.Yes]: # 1 is returned on accept from keyPressEvent
 					rprint('"Looks like a clue" popup accepted: opening the clue dialog')
@@ -7653,7 +7675,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		if self.parent.amendFlag:
 			amendText=' during amendment of previous message'
 			amendText2=', which will appear with that amended message when completed'
-		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' button pressed"+amendText+"; radio operator is gathering details"+amendText2
+		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' form opened"+amendText+"; radio operator is gathering details"+amendText2
 ##		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' button pressed for '"+self.values[2]+"'; radio operator is gathering details"
 ##		self.values[2]='' # this message is not actually from a team
 		self.parent.parent.newEntry(self.values)
@@ -8045,7 +8067,7 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		if self.parent.amendFlag:
 			amendText=' during amendment of previous message'
 			amendText2=', which will appear with that amended message when completed'
-		self.values[3]="RADIO LOG SOFTWARE: 'SUBJECT LOCATED' button pressed"+amendText+"; radio operator is gathering details"+amendText2
+		self.values[3]="RADIO LOG SOFTWARE: 'SUBJECT LOCATED' form opened pressed"+amendText+"; radio operator is gathering details"+amendText2
 		self.parent.parent.newEntry(self.values)
 		subjectLocatedDialog.openDialogCount+=1
 		self.setFixedSize(self.size())
@@ -8111,7 +8133,31 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 			amendText=''
 			if self.parent.amendFlag:
 				amendText=' during amendment of previous message'
-			self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'SUBJECT LOCATED' form"+amendText
+			# preserve whatever was already typed
+			location=self.ui.locationField.text()
+			condition=self.ui.conditionField.toPlainText()
+			resources=self.ui.resourcesField.toPlainText()
+			other=self.ui.otherField.toPlainText()
+			team=self.ui.callsignField.text()
+			subjDate=self.ui.dateField.text()
+			subjTime=self.ui.timeField.text()
+			radioLoc=self.ui.radioLocField.text()
+			alreadyTyped='' # callsign and date are already saved in the log, no need to repeat them here
+			if subjTime:
+				alreadyTyped+='; TIME:'+subjTime
+			if radioLoc:
+				alreadyTyped+='; RADIO GPS:'+radioLoc
+			if location:
+				alreadyTyped+='; LOCATION:'+location
+			if condition:
+				alreadyTyped+='; CONDITION:'+condition
+			if resources:
+				alreadyTyped+='; RESOURCES NEEDED:'+resources
+			if other:
+				alreadyTyped+='; OTHER:'+other
+				# place the triggering text back in the New Entry Dialog message field, as it was before this dialog was opened
+				self.parent.ui.messageField.setText(other[other.index(' operator: "')+12:-2])
+			self.values[3]="RADIO LOG SOFTWARE: radio operator canceled the 'SUBJECT LOCATED' form"+amendText+alreadyTyped
 			self.parent.parent.newEntry(self.values)
 		self.parent.subjectLocatedDialogOpen=False
 		subjectLocatedDialog.openDialogCount-=1
