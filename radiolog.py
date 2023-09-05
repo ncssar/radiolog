@@ -7457,7 +7457,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			msg=None
 			for keyword in self.clueKeywords:
 				if keyword in message:
-					msg='Since you typed "'+keyword+'", it looks like you meant to click "LOCATED A CLUE".\n\nDo you want to open a clue report now?\n\n(If so, click \'Yes\' or press Shift-Enter or Ctrl-Enter, and everything typed so far will be copied to the Clue Description field.)\n\n(If not, click \'No\' or press the \'Escape\' key to close this popup and continue the message.)'
+					msg='Since you typed "'+keyword+'", it looks like you meant to click "LOCATED A CLUE".\n\nDo you want to open a clue report now?\n\n(If so, click \'Yes\' or press Shift-Enter or Ctrl-Enter, and everything typed so far will be copied to the Clue Description field.)\n\n(If not, click \'No\' or press the \'Escape\' key to close this popup and continue the message.)\n\n(If you also type \'subject\', the Subject Located form will open automatically.)'
 			if msg:
 				rprint('"Looks like a clue" popup shown; message so far: "'+message+'"')
 				self.cluePopup=CustomMessageBox(QMessageBox.Information,"Looks like a clue",msg,
