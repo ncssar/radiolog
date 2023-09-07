@@ -3620,7 +3620,21 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsBuildTooltip()
 		self.menuFont.setPointSize(int(self.limitedFontSize*3/4))
 
-	def redrawTables(self):
+	def redrawTables(self,index=0):
+		# only redraw tables specified by index
+		# - if index > 0, redraw that team's table, but don't redraw the main table
+		# - if index = 0 (default), redraw main table and all team tables
+		# - if index = -1, redraw main table only - don't redraw any team table
+
+		redrawMainTable=index<=0
+		# make a list of tables to redraw, since the code below is meant for a list
+		if index==0: # redraw all team tables
+			teamTablesToRedraw=self.ui.tableViewList[1:]
+			tabsToScroll=range(1,self.ui.tabWidget.count())
+		else:
+			teamTablesToRedraw=[self.ui.tableViewList[index]]
+			tabsToScroll=[index]
+
 		# column sizing rules, in sequence:
 		# TIME, T/F, STATUS: width is only a function of font size (not of contents)
 		# TEAM, RADIO LOC.: resize to fit contents
@@ -3643,17 +3657,19 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		self.ui.tableView.scrollToBottom()
 		self.loadFlag=True
 		# rprint("1: start of redrawTables")
-		for i in [2,4]: # hardcode results in significant speedup
-			self.ui.tableView.resizeColumnToContents(i) # zero is the first column
-		# rprint("2")
-		self.ui.tableView.setColumnWidth(0,self.fontSize*5) # wide enough for '2345'
-		self.ui.tableView.setColumnWidth(1,self.fontSize*6) # wide enough for 'FROM'
-		self.ui.tableView.setColumnWidth(5,self.fontSize*10) # wide enough for 'STATUS'
-		self.ui.tableView.setColumnWidth(10,self.fontSize*3) # wide enough for 'WW'
+		if redrawMainTable:
+			for i in [2,4]: # hardcode results in significant speedup
+				self.ui.tableView.resizeColumnToContents(i) # zero is the first column
+			# rprint("2")
+			self.ui.tableView.setColumnWidth(0,self.fontSize*5) # wide enough for '2345'
+			self.ui.tableView.setColumnWidth(1,self.fontSize*6) # wide enough for 'FROM'
+			self.ui.tableView.setColumnWidth(5,self.fontSize*10) # wide enough for 'STATUS'
+			self.ui.tableView.setColumnWidth(10,self.fontSize*3) # wide enough for 'WW'
+			self.ui.tableView.scrollToBottom()
 		# rprint("3")
 ##		self.ui.tableView.resizeRowsToContents()
 		# rprint("4")
-		for n in self.ui.tableViewList[1:]:
+		for n in teamTablesToRedraw:
 			# rprint(" n="+str(n))
 			for i in [2,4]: # hardcode results in significant speedup, but lag still scales with filtered table length
 				# rprint("    i="+str(i))
@@ -3666,9 +3682,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			# rprint("    resizing rows to contents")
 ##			n.resizeRowsToContents()
 		# rprint("5")
-		self.ui.tableView.scrollToBottom()
 		# rprint("6")
-		for i in range(1,self.ui.tabWidget.count()):
+		# can this section be made to scroll only one table as well?
+		#  (is the index the same for tabWidget as for tableViewList?)
+		for i in tabsToScroll:
 			self.ui.tabWidget.setCurrentIndex(i)
 			self.ui.tableViewList[i].scrollToBottom()
 		# rprint("7: end of redrawTables")
@@ -5010,6 +5027,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableViewList[i].horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
 		# automatically expand the 'message' column width to fill available space
 		self.ui.tableViewList[i].horizontalHeader().setSectionResizeMode(3,QHeaderView.Stretch)
+		self.redrawTables(i) # adjust columns widths on this table only
 		
 	def rebuildGroupedTabDict(self):
 		# sort the tabs list, inserting hidden uniquely-named spacer tabs between groups
