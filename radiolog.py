@@ -4833,7 +4833,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.rebuildGroupedTabDict()
 		rprint("extTeamNameList after sort:"+str(self.extTeamNameList))
 		if not self.loadFlag:
-			self.rebuildTabs()
+			# 670 - for the first team of a new session, and when unhiding the only tab
+			#  (due to display issues noted in https://github.com/ncssar/radiolog/issues/670#issuecomment-1712814526)
+			#  follow the old behavior and rebuild the entire tab bar;
+			#  for subsequent teams, only add the tab for the new team 
+			if self.ui.tabWidget.tabBar().count()<2:
+				self.rebuildTabs()
+			else:
+				# display issues when unhiding the rightmost tab
+				#  https://github.com/ncssar/radiolog/issues/670#issuecomment-1712814526
+				# so, if this would be the rightmost tab, activate a different tab first
+				self.ui.tabWidget.tabBar().setCurrentIndex(0)
+				self.addTab(extTeamName)
 		
 		if not extTeamName.startswith("spacer"):
 			# add to team name lists and dictionaries
