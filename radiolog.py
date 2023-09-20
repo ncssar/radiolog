@@ -6529,6 +6529,14 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 ##		currentIndex=self.ui.tabWidget.currentIndex()
 				self.ui.tabWidget.widget(currentIndex).ui.messageField.setFocus()
 
+				#683 - raise any pending clue/subject dialog(s) related to this call to top;
+				#  if there are none, raise the new entry window
+				if currentWidget.childDialogs:
+					for childDialog in currentWidget.childDialogs:
+						childDialog.raise_()
+				else:
+					self.raise_()
+
 ##	def updateTabColors(self):
 
 ##		if tabCount<4:
@@ -7684,7 +7692,10 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.parent=parent
 		self.parent.childDialogs.append(self)
 ##		self.parent.timer.stop() # do not timeout the new entry dialog if it has a child clueDialog open!
-		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		#543 - don't use StaysOnTopHint for the clue dialog, so that incoming calls from different teams,
+		# while a clue dialog is open, will still cause the new entry window to raise to the top
+		# self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		self.setWindowFlags(self.windowFlags() & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 ##		self.setWindowFlags(Qt.FramelessWindowHint)
 		self.setAttribute(Qt.WA_DeleteOnClose)
 
@@ -7723,6 +7734,8 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.locationTooLongHasBeenShown=False
 		self.interviewPopupShown=False
 		self.interviewInstructionsAdded=False
+		#683 - since we are not using StaysOnTop, raise the clue dialog to the top initially
+		self.raise_()
 
 	def customFocusOutEvent(self,widget):
 		if 'interview' in widget.toPlainText().lower():
@@ -8208,6 +8221,7 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 	def keyPressEvent(self,event):
 		if event.key()!=Qt.Key_Escape:
 			super().keyPressEvent(event) # pass the event as normal
+
 
 class printClueLogDialog(QDialog,Ui_printClueLogDialog):
 	def __init__(self,parent):
