@@ -8747,14 +8747,24 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 			self.parent.parent.fsLogUpdate(uid=uid,callsign=newCallsign)
 			rprint("New callsign pairing created from NEXEDGE: unit ID = "+uid+"  callsign="+newCallsign)
 		# finally, pass the 'accept' signal on up the tree as usual
-		changeCallsignDialog.openDialogCount-=1
-		self.parent.parent.sendPendingGet(newCallsign)
 		# set the focus to the messageField of the active stack item - not always
 		#  the same as the new entry, as determined by addTab
 		self.parent.parent.newEntryWindow.ui.tabWidget.currentWidget().ui.messageField.setFocus()
-		super(changeCallsignDialog,self).accept()
 		rprint("New callsign pairing created: fleet="+str(fleet)+"  dev="+str(dev)+"  uid="+str(uid)+"  callsign="+newCallsign)
+		self.closeEvent(QEvent(QEvent.Close),True)
+		super(changeCallsignDialog,self).accept()
 
+	# by default, esc key calls reject but not closeEvent
+	def reject(self):
+		self.closeEvent(QEvent(QEvent.Close))
+		super(changeCallsignDialog,self).reject()
+
+	def closeEvent(self,event,accepted=False):
+		rprint('changeCallsignDialog.closeEvent called')
+		newCallsign=re.sub(r' +',r' ',self.ui.newCallsignField.text()).strip()
+		self.parent.parent.sendPendingGet(newCallsign)
+		changeCallsignDialog.openDialogCount-=1
+		
 
 class clickableWidget(QWidget):
 	clicked=pyqtSignal()
