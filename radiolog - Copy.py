@@ -2392,6 +2392,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						widget.origLocString=origLocString
 				# #509: populate radio location field in any child dialogs that have that field (clue or subject located)
 				for child in widget.childDialogs:
+					# child.raise_()
 					rprint('  new entry widget for '+str(callsign)+' has a child dialog; attempting to update radio location in that dialog')
 					try:
 						# need to account for widgets that have .toPlainText() method (in clueDialog)
@@ -2407,6 +2408,12 @@ class MyWindow(QDialog,Ui_Dialog):
 							child.ui.radioLocField.setText(formattedLocString)
 					except:
 						pass
+				# 683 - activate the new entry widget by selecting the correct finger tab
+				rprint('  currentEntryLastModAge='+str(self.currentEntryLastModAge))
+				if self.currentEntryLastModAge>holdSec or self.currentEntryLastModAge<0:
+					rprint(' setting current widget')
+					self.newEntryWindow.ui.tabWidget.setCurrentWidget(widget)
+					widget.ui.messageField.setFocus()
 		if fleet and dev:
 			self.fsLogUpdate(fleet=fleet,dev=dev)
 			# only open a new entry widget if none is alredy open within the continue time, 
@@ -4439,6 +4446,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		if nf1!=self.NEWFlags:
 			self.newEntryWindow.setWindowFlags(self.NEWFlags)
 
+		#683 - raise the NEW, unless this call is from a team that has a pending clue or subject dialog
 		sec=time.time() # epoch seconds, for sorting purposes; not displayed
 		self.newEntryWidget=newEntryWidget(self,sec,formattedLocString,fleet,dev,origLocString,amendFlag,amendRow,isMostRecentForCallsign)
 		# focus rules and timeline:
@@ -6514,6 +6522,7 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 
 	def tabChanged(self,throb=True):
 ##	def throb(self):
+		rprint('tabChanged called')
 		tabCount=self.ui.tabWidget.count()
 		currentIndex=self.ui.tabWidget.currentIndex()
 # 		rprint("tabCount="+str(tabCount)+" currentIndex="+str(currentIndex))
@@ -6532,7 +6541,9 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 				#683 - raise any pending clue/subject dialog(s) related to this call to top;
 				#  if there are none, raise the new entry window
 				if currentWidget.childDialogs:
+					rprint('childDialogs found!')
 					for childDialog in currentWidget.childDialogs:
+						rprint('RAISING child dialog: currentIndex='+str(currentIndex)+'  callsign='+str(self.ui.tabWidget.widget(currentIndex).ui.teamField.text()))
 						childDialog.raise_()
 				else:
 					self.raise_()
@@ -6847,7 +6858,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			self.parent.newEntryWindow.show()
 # 		self.parent.newEntryWindow.setFocus()
 		if clueDialog.openDialogCount==0 and subjectLocatedDialog.openDialogCount==0 and changeCallsignDialog.openDialogCount==0:
-# 			rprint("raising")
+			rprint("raising newEntryWindow")
 			self.parent.newEntryWindow.raise_()
 		# the following line is needed to get fix the apparent Qt bug (?) that causes
 		#  the messageField text to all be selected when a new message comes in
@@ -6960,6 +6971,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		if clueDialog.openDialogCount==0 and subjectLocatedDialog.openDialogCount==0 and changeCallsignDialog.openDialogCount==0:
 			self.lastModAge+=1
 		self.parent.currentEntryLastModAge=self.lastModAge
+		rprint('newEntryWidget updateTimer called for '+str(self.ui.teamField.text())+': '+str(clueDialog.openDialogCount)+'/'+str(subjectLocatedDialog.openDialogCount)+'/'+str(changeCallsignDialog.openDialogCount)+' lastModAge='+str(self.lastModAge))
 ##		if self.lastModAge>holdSec:
 ##			if self.entryHold: # each entry widget has its own lastModAge and its last entryHold
 ##				rprint("releasing entry hold for self")
@@ -8124,6 +8136,13 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		subjectLocatedDialog.openDialogCount+=1
 		self.setFixedSize(self.size())
 
+		#683 - introduce a timer for each child dialog, so that the 'hold time' concept can be
+		#  enforced if a child dialog is open for a given new entry widget
+		self.lastModAge=0
+		self.timer=QTimer(self)
+		self.timer.start(1000)
+		self.timer.timeout.connect(self.updateTimer)
+
 	def accept(self):
 		location=self.ui.locationField.text()
 		condition=self.ui.conditionField.toPlainText()
@@ -8222,6 +8241,14 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		if event.key()!=Qt.Key_Escape:
 			super().keyPressEvent(event) # pass the event as normal
 
+	#683 - introduce a timer for each child dialog, so that the 'hold time' concept can be
+	#  enforced if a child dialog is open for a given new entry widget		
+	def updateTimer(self):
+		# # pause all timers if there are any clue or subject or changeCallsign dialogs open
+		# if clueDialog.openDialogCount==0 and subjectLocatedDialog.openDialogCount==0 and changeCallsignDialog.openDialogCount==0:
+		# 	self.lastModAge+=1
+		# self.parent.currentEntryLastModAge=self.lastModAge
+		self.lastModAge+=1
 
 class printClueLogDialog(QDialog,Ui_printClueLogDialog):
 	def __init__(self,parent):
