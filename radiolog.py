@@ -1292,8 +1292,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tabWidget.customContextMenuRequested.connect(self.tabContextMenu)
 
 		self.newEntryWindow=newEntryWindow(self) # create the window but don't show it until needed
-		self.NEWFlags=Qt.WindowTitleHint|Qt.WindowStaysOnTopHint
-		self.newEntryWindow.setWindowFlags(self.NEWFlags)
+		# self.NEWFlags=Qt.WindowTitleHint|Qt.WindowStaysOnTopHint
+		# self.newEntryWindow.setWindowFlags(self.NEWFlags)
+		self.newEntryWindow.setWindowFlags(Qt.WindowTitleHint)
 
 		if restoreFlag:
 			self.restore()
@@ -4428,16 +4429,16 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint("openNewEntry called:key="+str(key)+" callsign="+str(callsign)+" formattedLocString="+str(formattedLocString)+" fleet="+str(fleet)+" dev="+str(dev)+" origLocString="+str(origLocString)+" amendFlag="+str(amendFlag)+" amendRow="+str(amendRow)+" isMostRecentForCallsign="+str(isMostRecentForCallsign))
 		self.clearSelectionAllTables() # in case copy or context menu was in process
 
-		# 671 - setWindowFlags is expensive, increasing the lag based on how many times it's been called;
-		#  this may well be a python bug, but, take steps here to only call it when needed, by
-		#  comparing its previous value (stored in self.NEWFlags) to the new required value
-		nf1=self.NEWFlags
-		if clueDialog.openDialogCount==0:
-			self.NEWFlags=Qt.WindowTitleHint|Qt.WindowStaysOnTopHint
-		else:
-			self.NEWFlags=Qt.WindowTitleHint
-		if nf1!=self.NEWFlags:
-			self.newEntryWindow.setWindowFlags(self.NEWFlags)
+		# # 671 - setWindowFlags is expensive, increasing the lag based on how many times it's been called;
+		# #  this may well be a python bug, but, take steps here to only call it when needed, by
+		# #  comparing its previous value (stored in self.NEWFlags) to the new required value
+		# nf1=self.NEWFlags
+		# if clueDialog.openDialogCount==0:
+		# 	self.NEWFlags=Qt.WindowTitleHint|Qt.WindowStaysOnTopHint
+		# else:
+		# 	self.NEWFlags=Qt.WindowTitleHint
+		# if nf1!=self.NEWFlags:
+		# 	self.newEntryWindow.setWindowFlags(self.NEWFlags)
 
 		sec=time.time() # epoch seconds, for sorting purposes; not displayed
 		self.newEntryWidget=newEntryWidget(self,sec,formattedLocString,fleet,dev,origLocString,amendFlag,amendRow,isMostRecentForCallsign)
