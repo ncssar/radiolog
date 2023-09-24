@@ -6677,7 +6677,8 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 			for tab in newEntryWidget.instances:
 				# rprint("lastModAge:"+str(tab.lastModAge))
 				# note the pause happens in newEntryWidget.updateTimer()
-				if tab.ui.messageField.text()=="" and tab.lastModAge>60:
+				#683 - don't pause timers, but do prevent auto-cleanup, if there are child dialog(s)
+				if tab.ui.messageField.text()=="" and tab.lastModAge>60 and not tab.childDialogs:
 					rprint('  closing unused new entry widget for '+str(tab.ui.teamField.text())+' due to inactivity')
 					tab.closeEvent(QEvent(QEvent.Close),accepted=False,force=True)
 ##			if not tab.clueDialogOpen and not tab.subjectLocatedDialogOpen and tab.ui.messageField.text()=="" and time.time()-tab.sec>60:
@@ -6957,9 +6958,11 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			self.setPalette(self.palette)
 
 	def updateTimer(self):
-		# pause all timers if there are any clue or subject or changeCallsign dialogs open
-		if clueDialog.openDialogCount==0 and subjectLocatedDialog.openDialogCount==0 and changeCallsignDialog.openDialogCount==0:
-			self.lastModAge+=1
+		# # pause all timers if there are any clue or subject or changeCallsign dialogs open
+		# if clueDialog.openDialogCount==0 and subjectLocatedDialog.openDialogCount==0 and changeCallsignDialog.openDialogCount==0:
+		# 	self.lastModAge+=1
+		#683 - don't pause timers, but do prevent auto-cleanup, if there are child dialog(s)
+		self.lastModAge+=1
 		self.parent.currentEntryLastModAge=self.lastModAge
 ##		if self.lastModAge>holdSec:
 ##			if self.entryHold: # each entry widget has its own lastModAge and its last entryHold
