@@ -2408,6 +2408,7 @@ class MyWindow(QDialog,Ui_Dialog):
 							child.ui.radioLocField.setText(formattedLocString)
 					except:
 						pass
+				break # to preserve 'widget' variable for use below
 		if fleet and dev:
 			self.fsLogUpdate(fleet=fleet,dev=dev)
 			# only open a new entry widget if none is alredy open within the continue time, 
@@ -2419,6 +2420,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				else:
 					rprint('no other new entry tab was found for this callsign; inside fsParse: calling openNewEntry')
 					self.openNewEntry('fs',callsign,formattedLocString,fleet,dev,origLocString)
+					widget=self.newEntryWidget # the widget created by openNewEntry
 			self.sendPendingGet()
 		elif uid:
 			self.fsLogUpdate(uid=uid)
@@ -2430,7 +2432,15 @@ class MyWindow(QDialog,Ui_Dialog):
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 				else:
 					self.openNewEntry('nex',callsign,formattedLocString,None,uid,origLocString)
+					widget=self.newEntryWidget # the widget created by openNewEntry
 			self.sendPendingGet()
+
+		# 683 - activate the widget if needed here, rather than in addTab which only happens for new tabs
+		# rprint('checking to see if widget should be activated: currentEntryLastModAge='+str(self.currentEntryLastModAge)+'  tab count='+str(self.newEntryWindow.ui.tabWidget.count()))
+		if self.currentEntryLastModAge>holdSec or self.newEntryWindow.ui.tabWidget.count()==3:
+			# rprint('  activating New Entry Widget: '+widget.ui.teamField.text())
+			self.newEntryWindow.ui.tabWidget.setCurrentWidget(widget)
+			widget.ui.messageField.setFocus()
 
 	def sendPendingGet(self,suffix=""):
 		# NOTE that requests.get can cause a blocking delay; so, do it AFTER spawning the newEntryDialog
@@ -6525,6 +6535,9 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 					QTimer.singleShot(500,lambda:currentWidget.openChangeCallsignDialog())
 				if throb:
 					currentWidget.throb()
+				#683 but also general timing: respect hold time of >active< widget,
+				# rather than last-typed widget
+				self.parent.currentEntryLastModAge=currentWidget.lastModAge
 
 ##	def activeTabMessageFieldFocus(self):
 ##		currentIndex=self.ui.tabWidget.currentIndex()
@@ -6618,8 +6631,11 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 			#  make this new entry the active tab; otherwise leave it alone
 ##			currentIndex=self.ui.tabWidget.currentIndex()
 ##			if self.ui.tabWidget.widget(currentIndex).lastModAge>holdSec or self.ui.tabWidget.count()==3:
+			#683 - this clause is now redundant with fsParse most of the time,
+			# but it does need to be called here too for the first entry, to make sure the
+			# active widget actually has a 'ui' element when focus is set in newEntryWidget.__init__
 			if self.parent.currentEntryLastModAge>holdSec or self.ui.tabWidget.count()==3:
-				self.ui.tabWidget.setCurrentIndex(1)
+				self.ui.tabWidget.setCurrentWidget(widget)
 				widget.ui.messageField.setFocus()
 ##			if not self.parent.entryHold:
 ##			if not hold:
@@ -6830,6 +6846,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.ui.messageField.textChanged.connect(self.messageTextChanged)
 		self.ui.statusButtonGroup.buttonClicked.connect(self.setStatusFromButton)
 
+		#683 - note that radioLocField.textChanged will also trigger on each new
+		# fs/nx call (from fsParse), even if there is no radio GPS data; is this appropriate?
 		self.ui.teamField.textChanged.connect(self.resetLastModAge)
 		self.ui.messageField.textChanged.connect(self.resetLastModAge)
 		self.ui.radioLocField.textChanged.connect(self.resetLastModAge)
@@ -6963,7 +6981,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		# 	self.lastModAge+=1
 		#683 - don't pause timers, but do prevent auto-cleanup, if there are child dialog(s)
 		self.lastModAge+=1
-		self.parent.currentEntryLastModAge=self.lastModAge
+		#683 - only increment currentEntryLastModAge if this is actually the current entry
+		if self.parent.newEntryWindow.ui.tabWidget.currentWidget()==self:
+			self.parent.currentEntryLastModAge=self.lastModAge
+		rprint('currentEntryLastModAge='+str(self.parent.currentEntryLastModAge))
 ##		if self.lastModAge>holdSec:
 ##			if self.entryHold: # each entry widget has its own lastModAge and its last entryHold
 ##				rprint("releasing entry hold for self")
