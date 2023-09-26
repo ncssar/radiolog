@@ -6984,14 +6984,14 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		#683 - only increment currentEntryLastModAge if this is actually the current entry
 		if self.parent.newEntryWindow.ui.tabWidget.currentWidget()==self:
 			self.parent.currentEntryLastModAge=self.lastModAge
-		rprint('currentEntryLastModAge='+str(self.parent.currentEntryLastModAge))
+		# rprint('currentEntryLastModAge='+str(self.parent.currentEntryLastModAge))
 ##		if self.lastModAge>holdSec:
 ##			if self.entryHold: # each entry widget has its own lastModAge and its last entryHold
 ##				rprint("releasing entry hold for self")
 ##				self.parent.entryHold=False
 
 	def resetLastModAge(self):
-# 		rprint("resetting last mod age for "+self.ui.teamField.text())
+		# rprint("resetting last mod age for "+self.ui.teamField.text())
 		self.lastModAge=-1
 		self.parent.currentEntryLastModAge=self.lastModAge
 
@@ -7729,6 +7729,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.ui.descriptionField.textChanged.connect(self.descriptionTextChanged)
 		# for locationField, we could use maxLength or setValidator since it's a QLineEdit, but that lacks audio and visual feedback
 		self.ui.locationField.textChanged.connect(self.locationTextChanged)
+		self.ui.instructionsField.textChanged.connect(self.parent.resetLastModAge)
 
 		self.ui.descriptionField.setFocus()
 ##		self.i=0 # dialog box location index; set at runtime, so we know which index to free on close
@@ -7775,6 +7776,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 				self.interviewInstructionsAdded=True
 
 	def descriptionTextChanged(self):
+		self.parent.resetLastModAge()
 		text=self.ui.descriptionField.toPlainText()
 		if len(text)>clueDialog.descriptionMaxLength:
 			self.ui.descriptionField.setPlainText(text[:clueDialog.descriptionMaxLength])
@@ -7792,6 +7794,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 				QApplication.beep()
 
 	def locationTextChanged(self):
+		self.parent.resetLastModAge()
 		text=self.ui.locationField.text()
 		if len(text)>clueDialog.locationMaxLength:
 			self.ui.locationField.setText(text[:clueDialog.locationMaxLength])
@@ -7814,6 +7817,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 
 	# treat Enter or Return like Tab: cycle through fields similar to tab sequence, and accept after last field
 	def keyPressEvent(self,event):
+		# rprint('clue dialog key pressed')
 		key=event.key()
 		if key==Qt.Key_Enter or key==Qt.Key_Return:
 			if self.ui.descriptionField.hasFocus():
@@ -8148,6 +8152,10 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		self.parent.parent.newEntry(self.values)
 		subjectLocatedDialog.openDialogCount+=1
 		self.setFixedSize(self.size())
+		self.ui.locationField.textChanged.connect(self.parent.resetLastModAge)
+		self.ui.conditionField.textChanged.connect(self.parent.resetLastModAge)
+		self.ui.resourcesField.textChanged.connect(self.parent.resetLastModAge)
+		self.ui.otherField.textChanged.connect(self.parent.resetLastModAge)
 
 	def accept(self):
 		location=self.ui.locationField.text()
@@ -8244,6 +8252,7 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 
 	# fix issue #338: prevent 'esc' from closing the newEntryWindow
 	def keyPressEvent(self,event):
+		# rprint('subject located dialog key pressed')
 		if event.key()!=Qt.Key_Escape:
 			super().keyPressEvent(event) # pass the event as normal
 
