@@ -6549,6 +6549,7 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 					for childDialog in currentWidget.childDialogs:
 						childDialog.raise_()
 						childDialog.activateWindow()
+						QTimer.singleShot(500,lambda:childDialog.throb())
 				else:
 					self.raise_()
 					self.activateWindow()
@@ -7764,6 +7765,29 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.interviewInstructionsAdded=False
 		#683 - since we are not using StaysOnTop, raise the clue dialog to the top initially
 		self.raise_()
+		self.palette=QPalette()
+		self.throb()
+
+	#683 - throb - copied from newEntryWidget.throb()
+	def throb(self,n=0):
+		# this function calls itself recursivly 25 times to throb the background blue->white
+# 		rprint("throb:n="+str(n))
+		self.palette.setColor(QPalette.Background,QColor(n*10,n*10,255))
+		self.setPalette(self.palette)
+		if n<25:
+			#fix #333: make throbTimer a normal timer and then call throbTimer.setSingleShot,
+			# so we can just stop it using .stop() when the widget is closed
+			# to avert 'wrapped C/C++ object .. has been deleted'
+# 			self.throbTimer=QTimer.singleShot(15,lambda:self.throb(n+1))
+			self.throbTimer=QTimer()
+			self.throbTimer.timeout.connect(lambda:self.throb(n+1))
+			self.throbTimer.setSingleShot(True)
+			self.throbTimer.start(15)
+		else:
+# 			rprint("throb complete")
+			self.throbTimer=None
+			self.palette.setColor(QPalette.Background,QColor(255,255,255))
+			self.setPalette(self.palette)
 
 	def customFocusOutEvent(self,widget):
 		if 'interview' in widget.toPlainText().lower():
@@ -8159,6 +8183,30 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		self.ui.conditionField.textChanged.connect(self.parent.resetLastModAge)
 		self.ui.resourcesField.textChanged.connect(self.parent.resetLastModAge)
 		self.ui.otherField.textChanged.connect(self.parent.resetLastModAge)
+		self.raise_()
+		self.palette=QPalette()
+		self.throb()
+
+	#683 - throb - copied from newEntryWidget.throb()
+	def throb(self,n=0):
+		# this function calls itself recursivly 25 times to throb the background blue->white
+# 		rprint("throb:n="+str(n))
+		self.palette.setColor(QPalette.Background,QColor(n*10,n*10,255))
+		self.setPalette(self.palette)
+		if n<25:
+			#fix #333: make throbTimer a normal timer and then call throbTimer.setSingleShot,
+			# so we can just stop it using .stop() when the widget is closed
+			# to avert 'wrapped C/C++ object .. has been deleted'
+# 			self.throbTimer=QTimer.singleShot(15,lambda:self.throb(n+1))
+			self.throbTimer=QTimer()
+			self.throbTimer.timeout.connect(lambda:self.throb(n+1))
+			self.throbTimer.setSingleShot(True)
+			self.throbTimer.start(15)
+		else:
+# 			rprint("throb complete")
+			self.throbTimer=None
+			self.palette.setColor(QPalette.Background,QColor(255,255,255))
+			self.setPalette(self.palette)
 
 	def accept(self):
 		location=self.ui.locationField.text()
