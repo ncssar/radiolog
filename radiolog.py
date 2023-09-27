@@ -6548,8 +6548,10 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 				if currentWidget.childDialogs:
 					for childDialog in currentWidget.childDialogs:
 						childDialog.raise_()
+						childDialog.activateWindow()
 				else:
 					self.raise_()
+					self.activateWindow()
 
 ##	def updateTabColors(self):
 
@@ -8138,8 +8140,9 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		self.parent=parent
 		self.parent.subjectLocatedDialogOpen=True
 		self.parent.childDialogs.append(self)
-		self.setWindowFlags(Qt.WindowStaysOnTopHint)
-		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		# self.setWindowFlags(Qt.WindowStaysOnTopHint)
+		# self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		self.setWindowFlags(self.windowFlags() & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.ui.locationField.setFocus()
 		self.values=self.parent.getValues()
