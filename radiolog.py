@@ -8241,7 +8241,8 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 			if other:
 				alreadyTyped+='; OTHER:'+other
 				# place the triggering text back in the New Entry Dialog message field, as it was before this dialog was opened
-				self.parent.ui.messageField.setText(other[other.index(' operator: "')+12:-2])
+				if ' operator: "' in other:
+					self.parent.ui.messageField.setText(other[other.index(' operator: "')+12:-2])
 			self.values[3]="RADIO LOG SOFTWARE: radio operator canceled the 'SUBJECT LOCATED' form"+amendText+alreadyTyped
 			self.parent.parent.newEntry(self.values)
 		self.parent.subjectLocatedDialogOpen=False
