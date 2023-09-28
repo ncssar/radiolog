@@ -7270,6 +7270,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				childH=child.height()
 				child.move(int(warnCenterX-(childW/2)),int(warnCenterY-(childH/2)))
 				child.adjustSize() # in case it was moved to a different-resolution screen
+				child.throb()
 			event.ignore()
 			return
 		else:
