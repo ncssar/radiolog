@@ -1296,6 +1296,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		# self.newEntryWindow.setWindowFlags(self.NEWFlags)
 		self.newEntryWindow.setWindowFlags(Qt.WindowTitleHint)
 
+		self.newEntryWindowHiddenPopup=QMessageBox(QMessageBox.Critical,'Pending entry','New entry is pending, but the New Entry Window may be hidden.  Click below to raise the New Entry Window.',
+					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		self.newEntryWindowHiddenPopup.setModal(False)
+		self.newEntryWindowHiddenPopup.buttonClicked.connect(self.newEntryWindowHiddenPopupClicked)
+
 		if restoreFlag:
 			self.restore()
 			
@@ -1324,6 +1329,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
 		self.showTeamTabsMoreButtonIfNeeded()
+
+	def newEntryWindowHiddenPopupClicked(self,event):
+		rprint('  CLICKED')
+		self.newEntryWindowHiddenPopup.close()
+		self.newEntryWindow.raise_()
+		self.newEntryWindow.activateWindow()
 
 	def clearSelectionAllTables(self):
 		self.ui.tableView.setCurrentIndex(QModelIndex())
@@ -5899,6 +5910,25 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def resizeEvent(self,e):
 		self.findDialog.setVisible(False)
+			
+	# if the active window is not the newEntryWindow or a child window (clue, subject, change callsign)
+	#  then show the non-modal popup indicating there is a pending message;
+	# this is safet than checking to see if the main window is the active window, because this method
+	#  also works to detect a different program's window taking focus
+	def activationChange(self):
+		# make a list of windows: if any of these windows is active, there's no need to show the popup
+		validActiveWindows=[self.newEntryWindow]+clueDialog.instances+subjectLocatedDialog.instances+changeCallsignDialog.instances
+		ok=False
+		for window in validActiveWindows:
+			if window.isActiveWindow():
+				ok=True
+				break
+		rprint(' newEntryWindow activation change: is a valid window active = '+str(ok))
+		if not ok and self.newEntryWindow.ui.tabWidget.count()>2 and not self.newEntryWindowHiddenPopup.isVisible():
+			self.newEntryWindowHiddenPopup.show()
+			self.newEntryWindowHiddenPopup.raise_()
+		elif ok:
+			self.newEntryWindowHiddenPopup.close()
 
 
 class helpWindow(QDialog,Ui_Help):
@@ -6517,7 +6547,11 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 		self.timer=QTimer(self)
 		self.timer.start(1000)
 		self.timer.timeout.connect(self.autoCleanup)
-
+	
+	def changeEvent(self,event):
+		if event.type()==QEvent.ActivationChange:
+			self.parent.activationChange()
+				
 	# prevent 'esc' from closing the newEntryWindow
 	def keyPressEvent(self,event):
 		if event.key()!=Qt.Key_Escape:
@@ -7697,7 +7731,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 
 
 class clueDialog(QDialog,Ui_clueDialog):
-##	instances=[]
+	instances=[]
 	openDialogCount=0
 	indices=[False]*20 # allow up to 20 clue dialogs open at the same time
 	dx=20
@@ -7737,7 +7771,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 
 		self.ui.descriptionField.setFocus()
 ##		self.i=0 # dialog box location index; set at runtime, so we know which index to free on close
-##		clueDialog.instances.append(self)
+		clueDialog.instances.append(self)
 		[x,y,i]=self.pickXYI()
 		self.move(x,y)
 		self.i=i # save the index so we can clear it on close
@@ -7768,6 +7802,10 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.raise_()
 		self.palette=QPalette()
 		self.throb()
+
+	def changeEvent(self,event):
+		if event.type()==QEvent.ActivationChange:
+			self.parent.parent.activationChange()
 
 	#683 - throb - copied from newEntryWidget.throb()
 	def throb(self,n=0):
@@ -7959,6 +7997,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		clueDialog.indices[self.i]=False # free up the dialog box location for the next one
 		self.parent.clueDialogOpen=False
 		clueDialog.openDialogCount-=1
+		clueDialog.instances.remove(self)
 		self.parent.childDialogs.remove(self)
 		event.accept()
 		if accepted:
@@ -8153,6 +8192,7 @@ class clueLogDialog(QDialog,Ui_clueLogDialog):
 
 class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 	openDialogCount=0
+	instances=[]
 	def __init__(self,parent,t,callsign,radioLoc):
 		QDialog.__init__(self)
 		self.ui=Ui_subjectLocatedDialog()
@@ -8179,6 +8219,7 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		self.values[3]="RADIO LOG SOFTWARE: 'SUBJECT LOCATED' form opened pressed"+amendText+"; radio operator is gathering details"+amendText2
 		self.parent.parent.newEntry(self.values)
 		subjectLocatedDialog.openDialogCount+=1
+		subjectLocatedDialog.instances.append(self)
 		self.setFixedSize(self.size())
 		self.ui.locationField.textChanged.connect(self.parent.resetLastModAge)
 		self.ui.conditionField.textChanged.connect(self.parent.resetLastModAge)
@@ -8187,6 +8228,10 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		self.raise_()
 		self.palette=QPalette()
 		self.throb()
+
+	def changeEvent(self,event):
+		if event.type()==QEvent.ActivationChange:
+			self.parent.parent.activationChange()
 
 	#683 - throb - copied from newEntryWidget.throb()
 	def throb(self,n=0):
@@ -8300,6 +8345,7 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		self.parent.subjectLocatedDialogOpen=False
 		subjectLocatedDialog.openDialogCount-=1
 		self.parent.childDialogs.remove(self)
+		subjectLocatedDialog.instances.remove(self)
 		if accepted:
 			self.parent.accept()
 
@@ -8751,6 +8797,7 @@ class fsSendMessageDialog(QDialog,Ui_fsSendMessageDialog):
 
 class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 	openDialogCount=0
+	instances=[]
 	def __init__(self,parent,callsign,fleet=None,device=None):
 		QDialog.__init__(self)
 		self.ui=Ui_changeCallsignDialog()
@@ -8781,6 +8828,7 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		self.ui.newCallsignField.setSelection(5,1)
 		self.ui.fsFilterButton.clicked.connect(self.fsFilterConfirm)
 		changeCallsignDialog.openDialogCount+=1
+		changeCallsignDialog.instances.append(self)
 		self.setFixedSize(self.size())
 		self.completer=QCompleter(self.parent.parent.callsignCompletionWordList)
 		# performance speedups: see https://stackoverflow.com/questions/33447843
@@ -8793,6 +8841,10 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		completerFont.setBold(False)
 		self.completer.popup().setFont(completerFont)
 		self.ui.newCallsignField.setCompleter(self.completer)
+
+	def changeEvent(self,event):
+		if event.type()==QEvent.ActivationChange:
+			self.parent.parent.activationChange()
 
 	def fsFilterConfirm(self):
 		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Filter (ignore) future incoming messages\n  from this device?",
@@ -8865,6 +8917,7 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		newCallsign=re.sub(r' +',r' ',self.ui.newCallsignField.text()).strip()
 		self.parent.parent.sendPendingGet(newCallsign)
 		changeCallsignDialog.openDialogCount-=1
+		changeCallsignDialog.instances.remove(self)
 		
 
 class clickableWidget(QWidget):
