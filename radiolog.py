@@ -5946,16 +5946,17 @@ class MyWindow(QDialog,Ui_Dialog):
 							'subjectLocatedDialog',
 							'nonRadioClueDialog',
 							'QMessageBox', # e.g. cancel-clue-confirmation popup shouldn't trigger this popup
+							'CustomMessageBox', # at open of 'looks like a clue' message box
+							'optionsDialog',
+							'helpWindow',
+							'loginDialog',
 		]
 		awName='None'
 		aw=QApplication.activeWindow()
 		if aw:
 			awName=str(aw.__class__.__name__)
 		rprint('currently active window:'+awName)
-		ok=False
 		if awName in validActiveWindowClasses:
-			ok=True
-		if ok:
 			self.newEntryWindowHiddenPopup.close()
 		else:
 			rprint('  no valid window is active; showing newEntryWindowHiddenPopup')
