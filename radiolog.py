@@ -1331,10 +1331,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.showTeamTabsMoreButtonIfNeeded()
 
 	def newEntryWindowHiddenPopupClicked(self,event):
-		rprint('  CLICKED')
 		self.newEntryWindowHiddenPopup.close()
-		self.newEntryWindow.raise_()
-		self.newEntryWindow.activateWindow()
+		self.newEntryWindow.raiseWindowAndChildren()
 
 	def clearSelectionAllTables(self):
 		self.ui.tableView.setCurrentIndex(QModelIndex())
@@ -5913,22 +5911,51 @@ class MyWindow(QDialog,Ui_Dialog):
 			
 	# if the active window is not the newEntryWindow or a child window (clue, subject, change callsign)
 	#  then show the non-modal popup indicating there is a pending message;
-	# this is safet than checking to see if the main window is the active window, because this method
+	# this is safer than checking to see if the main window is the active window, because this method
 	#  also works to detect a different program's window taking focus
+	# not sure why, but, after closing changeCallsignDialog, this function is called repeatedly
+	#  with the following sequence:
+	# 080730:currently active window:None
+	# 080730:  no valid window is active; showing newEntryWindowHiddenPopup
+	# 080730:currently active window:newEntryWindow
+	# 080730:currently active window:changeCallsignDialog
+	# 080730:currently active window:changeCallsignDialog
+	# 080730:currently active window:QMessageBox
+	# 080730:currently active window:changeCallsignDialog
+	# 080730:currently active window:QMessageBox
+	# this causes the popup to show then quickly close;
+	# looks like the change to None is caused by QDialog.accept() and .reject() - this is
+	#  called from super in the accept and reject methods of the child dialog classes, but
+	#  it's also called natively by clicking the OK or Close buttons - so it can't easily be
+	#  caught (and wrapped in a flag that disables the popup until done).  Instead, just try
+	#  some buffering here, with a half-second singleshot
+
 	def activationChange(self):
-		# make a list of windows: if any of these windows is active, there's no need to show the popup
-		validActiveWindows=[self.newEntryWindow]+clueDialog.instances+subjectLocatedDialog.instances+changeCallsignDialog.instances
+		QTimer.singleShot(500,self.activationChangeDelayed)
+
+	def activationChangeDelayed(self):
+		validActiveWindowClasses=[
+							'newEntryWindow',
+							'changeCallsignDialog',
+							'clueDialog',
+							'subjectLocatedDialog',
+							'QMessageBox', # e.g. cancel-clue-confirmation popup shouldn't trigger this popup
+		]
+		awName='None'
+		aw=QApplication.activeWindow()
+		if aw:
+			awName=str(aw.__class__.__name__)
+		rprint('currently active window:'+awName)
 		ok=False
-		for window in validActiveWindows:
-			if window.isActiveWindow():
-				ok=True
-				break
-		rprint(' newEntryWindow activation change: is a valid window active = '+str(ok))
-		if not ok and self.newEntryWindow.ui.tabWidget.count()>2 and not self.newEntryWindowHiddenPopup.isVisible():
-			self.newEntryWindowHiddenPopup.show()
-			self.newEntryWindowHiddenPopup.raise_()
-		elif ok:
+		if awName in validActiveWindowClasses:
+			ok=True
+		if ok:
 			self.newEntryWindowHiddenPopup.close()
+		else:
+			rprint('  no valid window is active; showing newEntryWindowHiddenPopup')
+			if self.newEntryWindow.ui.tabWidget.count()>2 and not self.newEntryWindowHiddenPopup.isVisible():
+				self.newEntryWindowHiddenPopup.show()
+				self.newEntryWindowHiddenPopup.raise_()
 
 
 class helpWindow(QDialog,Ui_Help):
@@ -6548,6 +6575,19 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 		self.timer.start(1000)
 		self.timer.timeout.connect(self.autoCleanup)
 	
+	def raiseWindowAndChildren(self):
+		self.raise_()
+		self.activateWindow()
+		currentWidget=self.ui.tabWidget.currentWidget()
+		try:
+			if currentWidget.childDialogs:
+				for childDialog in currentWidget.childDialogs:
+					childDialog.raise_()
+					childDialog.activateWindow()
+					QTimer.singleShot(500,lambda:childDialog.throb())
+		except:
+			pass # fail gracefully if e.g. widget or child dialogs have been deleted
+
 	def changeEvent(self,event):
 		if event.type()==QEvent.ActivationChange:
 			self.parent.activationChange()
@@ -6579,14 +6619,7 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 
 				#683 - raise any pending clue/subject dialog(s) related to this call to top;
 				#  if there are none, raise the new entry window
-				if currentWidget.childDialogs:
-					for childDialog in currentWidget.childDialogs:
-						childDialog.raise_()
-						childDialog.activateWindow()
-						QTimer.singleShot(500,lambda:childDialog.throb())
-				else:
-					self.raise_()
-					self.activateWindow()
+				self.raiseWindowAndChildren()
 
 ##	def updateTabColors(self):
 
@@ -7297,6 +7330,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			warn.exec_() # make sure it's modal; raise and center children after the message box is closed
 			for child in self.childDialogs:
 				child.show()
+				rprint('  activating child1')
 				child.activateWindow()
 				child.raise_() # don't call setFocus on the child - that steals focus from the child's first widget
 				#center on the warning message box, then adjust size in case it was moved from a different-resolution screen
@@ -8859,6 +8893,7 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 			self.parent.closeEvent(QEvent(QEvent.Close),accepted=False,force=True)
 		
 	def accept(self):
+		rprint('changeCallsignDialog accept called')
 		found=False
 		id1=self.ui.idField1.text()
 		id2=self.ui.idField2.text()
@@ -8913,11 +8948,11 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		super(changeCallsignDialog,self).reject()
 
 	def closeEvent(self,event,accepted=False):
-		rprint('changeCallsignDialog.closeEvent called')
 		newCallsign=re.sub(r' +',r' ',self.ui.newCallsignField.text()).strip()
 		self.parent.parent.sendPendingGet(newCallsign)
 		changeCallsignDialog.openDialogCount-=1
 		changeCallsignDialog.instances.remove(self)
+		self.parent.parent.newEntryWindow.activateWindow()
 		
 
 class clickableWidget(QWidget):
