@@ -1323,6 +1323,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.clueLogDialog.setGeometry(int(self.clueLog_x),int(self.clueLog_y),int(self.clueLog_w),int(self.clueLog_h))
 		self.fontsChanged()
 
+		self.previousActiveWindowName='None'
+
 		self.ui.timeoutLabel.setText("TIMEOUT:\n"+timeoutDisplayList[self.optionsDialog.ui.timeoutField.value()][0])
 		# pop up the options dialog to enter the incident name right away
 		if showStartupOptions:
@@ -5955,14 +5957,22 @@ class MyWindow(QDialog,Ui_Dialog):
 		aw=QApplication.activeWindow()
 		if aw:
 			awName=str(aw.__class__.__name__)
-		rprint('currently active window:'+awName)
-		if awName in validActiveWindowClasses:
+		# rprint('currently active window:'+awName+'  [previous:'+self.previousActiveWindowName+']')
+		ok=awName in validActiveWindowClasses
+		if not ok:
+			# nonRadioClueDialog is spawned from MyWindow, rather than newEntryWindow,
+			#  so don't raise the pending message popup after closure of nonRadioClueDialog
+			if awName=='MyWindow' and self.previousActiveWindowName=='nonRadioClueDialog' and not self.nonRadioClueDialogIsOpen:
+				# rprint('  looks like nonRadioClueDialog was accepted')
+				ok=True
+		if ok:
 			self.newEntryWindowHiddenPopup.close()
 		else:
-			rprint('  no valid window is active; showing newEntryWindowHiddenPopup')
+			# rprint('  no valid window is active; showing newEntryWindowHiddenPopup')
 			if (self.newEntryWindow.ui.tabWidget.count()>2 or self.nonRadioClueDialogIsOpen) and not self.newEntryWindowHiddenPopup.isVisible():
 				self.newEntryWindowHiddenPopup.show()
 				self.newEntryWindowHiddenPopup.raise_()
+		self.previousActiveWindowName=awName
 
 
 class helpWindow(QDialog,Ui_Help):
@@ -8175,7 +8185,12 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		rprint("accepted - calling close")
 ##		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().accept()
 		self.parent.clueLogDialog.ui.tableView.model().layoutChanged.emit()
+		self.closeEvent(QEvent(QEvent.Close),True)
 		super(nonRadioClueDialog,self).accept()
+
+	def reject(self):
+		self.closeEvent(QEvent(QEvent.Close),False)
+		super(nonRadioClueDialog,self).reject()
 
 	def closeEvent(self,event,accepted=False):
 		# note, this type of messagebox is needed to show above all other dialogs for this application,
