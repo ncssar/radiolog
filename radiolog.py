@@ -1297,7 +1297,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# self.newEntryWindow.setWindowFlags(self.NEWFlags)
 		self.newEntryWindow.setWindowFlags(Qt.WindowTitleHint)
 
-		self.newEntryWindowHiddenPopup=QMessageBox(QMessageBox.Critical,'Pending entry','A new entry / clue report / subject-located report is pending, but its window lost focus and may be hidden.\n\nYou can still use keyboard or mouse in whatever window took focus.\n\nClick below to raise the pending window.',
+		self.newEntryWindowHiddenPopup=QMessageBox(QMessageBox.NoIcon,'Pending entry','A new entry / clue report / subject-located report is pending, but its window lost focus and may be hidden.\n\nYou can still use keyboard or mouse in whatever window took focus.\n\nClick below to raise the pending window.',
 					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 		self.newEntryWindowHiddenPopup.setModal(False)
 		self.newEntryWindowHiddenPopup.buttonClicked.connect(self.newEntryWindowHiddenPopupClicked)
@@ -3732,6 +3732,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.helpWindow.ui.colorLabel6.setStyleSheet(statusStyleDict["TIMED_OUT_RED"])
 			self.helpWindow.ui.colorLabel7.setStyleSheet(statusStyleDict[""])
 			self.helpWindow.ui.fsSomeFilteredLabel.setFont(self.helpFont2)
+			if self.newEntryWindowHiddenPopup.isVisible():
+				self.newEntryWindowHiddenPopup.setStyleSheet('color:black;background:lightgray')
 		else:
 			self.blinkToggle=0
 			# now make sure the help window color code bars blink too
@@ -3740,6 +3742,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.helpWindow.ui.colorLabel6.setStyleSheet(statusStyleDict[""])
 			self.helpWindow.ui.colorLabel7.setStyleSheet(statusStyleDict["STANDBY"])
 			self.helpWindow.ui.fsSomeFilteredLabel.setFont(self.helpFont1)
+			if self.newEntryWindowHiddenPopup.isVisible():
+				self.newEntryWindowHiddenPopup.setStyleSheet('color:white;background:red')
 
 		teamTabsMoreButtonBlinkNeeded=False
 		for extTeamName in teamTimersDict:
