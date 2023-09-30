@@ -1297,7 +1297,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# self.newEntryWindow.setWindowFlags(self.NEWFlags)
 		self.newEntryWindow.setWindowFlags(Qt.WindowTitleHint)
 
-		self.newEntryWindowHiddenPopup=QMessageBox(QMessageBox.Critical,'Pending entry','New entry is pending, but the New Entry Window may be hidden.  Click below to raise the New Entry Window.',
+		self.newEntryWindowHiddenPopup=QMessageBox(QMessageBox.Critical,'Pending entry','A new entry / clue report / subject-located report is pending, but its window lost focus and may be hidden.\n\nYou can still use keyboard or mouse in whatever window took focus.\n\nClick below to raise the pending window.',
 					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 		self.newEntryWindowHiddenPopup.setModal(False)
 		self.newEntryWindowHiddenPopup.buttonClicked.connect(self.newEntryWindowHiddenPopupClicked)
@@ -3827,7 +3827,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  with other events and processes?
 		#  See https://stackoverflow.com/questions/44148992; need to develop a full
 		#  test case to proceed with that question
-			if self.newEntryWindow.isVisible():
+		# update for #683 - get rid of this clause, to allow mainWindow keyPress handling while
+		#  pending-entry message box is open
+			# if self.newEntryWindow.isVisible():
+			if False:
 				rprint("** keyPressEvent ambiguous timing; key press ignored: key="+str(hex(event.key())))
 				event.ignore()
 			else:
@@ -5972,6 +5975,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			if (self.newEntryWindow.ui.tabWidget.count()>2 or self.nonRadioClueDialogIsOpen) and not self.newEntryWindowHiddenPopup.isVisible():
 				self.newEntryWindowHiddenPopup.show()
 				self.newEntryWindowHiddenPopup.raise_()
+				# if main window was clicked, keep it active and ready for keypresses;
+				#  but, if some other program is being used, don't steal focus
+				if awName=='MyWindow':
+					self.activateWindow()
 		self.previousActiveWindowName=awName
 
 
