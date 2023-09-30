@@ -6774,6 +6774,10 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 				if tab.ui.messageField.text()=="" and tab.lastModAge>60 and not tab.childDialogs:
 					rprint('  closing unused new entry widget for '+str(tab.ui.teamField.text())+' due to inactivity')
 					tab.closeEvent(QEvent(QEvent.Close),accepted=False,force=True)
+					# if this was the only message, and the pending-entry popup was shown, close the popup too
+					remaining=len(newEntryWidget.instances)
+					if remaining<1:
+						self.parent.newEntryWindowHiddenPopup.close()
 ##			if not tab.clueDialogOpen and not tab.subjectLocatedDialogOpen and tab.ui.messageField.text()=="" and time.time()-tab.sec>60:
 
 
