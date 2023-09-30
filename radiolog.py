@@ -1199,6 +1199,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableView.horizontalHeader().sectionResized.connect(self.setColumnResizedFlag)
 		self.ui.tableView.horizontalHeader().setMinimumSectionSize(10) # allow tiny column for operator initials
 
+		self.nonRadioClueDialogIsOpen=False
 		self.exitClicked=False
 		# NOTE - the padding numbers for ::tab take a while to figure out in conjunction with
 		#  the stylesheets of the label widgets of each tab in order to change status; don't
@@ -1329,10 +1330,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
 		self.showTeamTabsMoreButtonIfNeeded()
-
-	def newEntryWindowHiddenPopupClicked(self,event):
-		self.newEntryWindowHiddenPopup.close()
-		self.newEntryWindow.raiseWindowAndChildren()
 
 	def clearSelectionAllTables(self):
 		self.ui.tableView.setCurrentIndex(QModelIndex())
@@ -5908,7 +5905,15 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def resizeEvent(self,e):
 		self.findDialog.setVisible(False)
-			
+		
+	def newEntryWindowHiddenPopupClicked(self,event):
+		self.newEntryWindowHiddenPopup.close()
+		self.newEntryWindow.raiseWindowAndChildren()
+		if self.nonRadioClueDialogIsOpen:
+			self.newNonRadioClueDialog.raise_()
+			self.newNonRadioClueDialog.activateWindow()
+			self.newNonRadioClueDialog.throb()
+
 	# if the active window is not the newEntryWindow or a child window (clue, subject, change callsign)
 	#  then show the non-modal popup indicating there is a pending message;
 	# this is safer than checking to see if the main window is the active window, because this method
@@ -5939,6 +5944,7 @@ class MyWindow(QDialog,Ui_Dialog):
 							'changeCallsignDialog',
 							'clueDialog',
 							'subjectLocatedDialog',
+							'nonRadioClueDialog',
 							'QMessageBox', # e.g. cancel-clue-confirmation popup shouldn't trigger this popup
 		]
 		awName='None'
@@ -5953,7 +5959,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.newEntryWindowHiddenPopup.close()
 		else:
 			rprint('  no valid window is active; showing newEntryWindowHiddenPopup')
-			if self.newEntryWindow.ui.tabWidget.count()>2 and not self.newEntryWindowHiddenPopup.isVisible():
+			if (self.newEntryWindow.ui.tabWidget.count()>2 or self.nonRadioClueDialogIsOpen) and not self.newEntryWindowHiddenPopup.isVisible():
 				self.newEntryWindowHiddenPopup.show()
 				self.newEntryWindowHiddenPopup.raise_()
 
@@ -8078,8 +8084,9 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		self.ui.dateField.setText(time.strftime("%x"))
 		self.ui.clueNumberField.setText(str(newClueNumber))
 		self.parent=parent
-		self.setWindowFlags(Qt.WindowStaysOnTopHint)
-		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		# self.setWindowFlags(Qt.WindowStaysOnTopHint)
+		# self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		self.setWindowFlags(self.windowFlags() & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		# values format for adding a new entry:
 		#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
@@ -8091,7 +8098,37 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		self.setFixedSize(self.size())
 		self.interviewPopupShown=False
 		self.interviewInstructionsAdded=False
+		#683 - since we are not using StaysOnTop, raise the clue dialog to the top initially
+		self.raise_()
+		self.palette=QPalette()
+		self.throb()
+		self.parent.nonRadioClueDialogIsOpen=True
+
+	def changeEvent(self,event):
+		if event.type()==QEvent.ActivationChange:
+			self.parent.activationChange()
 		
+	#683 - throb - copied from newEntryWidget.throb()
+	def throb(self,n=0):
+		# this function calls itself recursivly 25 times to throb the background blue->white
+# 		rprint("throb:n="+str(n))
+		self.palette.setColor(QPalette.Background,QColor(n*10,n*10,255))
+		self.setPalette(self.palette)
+		if n<25:
+			#fix #333: make throbTimer a normal timer and then call throbTimer.setSingleShot,
+			# so we can just stop it using .stop() when the widget is closed
+			# to avert 'wrapped C/C++ object .. has been deleted'
+# 			self.throbTimer=QTimer.singleShot(15,lambda:self.throb(n+1))
+			self.throbTimer=QTimer()
+			self.throbTimer.timeout.connect(lambda:self.throb(n+1))
+			self.throbTimer.setSingleShot(True)
+			self.throbTimer.start(15)
+		else:
+# 			rprint("throb complete")
+			self.throbTimer=None
+			self.palette.setColor(QPalette.Background,QColor(255,255,255))
+			self.setPalette(self.palette)
+
 	def customFocusOutEvent(self,widget):
 		if 'interview' in widget.toPlainText().lower():
 			if not self.interviewPopupShown:
@@ -8151,6 +8188,7 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 			self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'NON-RADIO CLUE' form"
 			self.values[6]=time.time()
 			self.parent.newEntry(self.values)
+		self.parent.nonRadioClueDialogIsOpen=False
 # 	def reject(self):
 # ##		self.parent.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 # 		rprint("rejected - calling close")
