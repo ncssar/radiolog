@@ -3734,6 +3734,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.helpWindow.ui.fsSomeFilteredLabel.setFont(self.helpFont2)
 			if self.newEntryWindowHiddenPopup.isVisible():
 				self.newEntryWindowHiddenPopup.setStyleSheet('color:black;background:lightgray')
+			for i in range(1,self.newEntryWindow.ui.tabWidget.count()-1):
+				if self.newEntryWindow.ui.tabWidget.widget(i).childDialogs:
+					self.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet('background:green')
+				else:
+					self.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet('background:lightgray')
 		else:
 			self.blinkToggle=0
 			# now make sure the help window color code bars blink too
@@ -3744,6 +3749,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.helpWindow.ui.fsSomeFilteredLabel.setFont(self.helpFont1)
 			if self.newEntryWindowHiddenPopup.isVisible():
 				self.newEntryWindowHiddenPopup.setStyleSheet('color:white;background:red')
+			for i in range(1,self.newEntryWindow.ui.tabWidget.count()-1):
+				if self.newEntryWindow.ui.tabWidget.widget(i).childDialogs:
+					self.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet('background:red')
+				else:
+					self.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet('background:lightgray')
 
 		teamTabsMoreButtonBlinkNeeded=False
 		for extTeamName in teamTimersDict:
