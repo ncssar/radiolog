@@ -3734,11 +3734,17 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.helpWindow.ui.fsSomeFilteredLabel.setFont(self.helpFont2)
 			if self.newEntryWindowHiddenPopup.isVisible():
 				self.newEntryWindowHiddenPopup.setStyleSheet('color:black;background:lightgray')
+			# blink finger tabs of new entries that have children
 			for i in range(1,self.newEntryWindow.ui.tabWidget.count()-1):
-				if self.newEntryWindow.ui.tabWidget.widget(i).childDialogs:
-					self.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet('background:green')
+				new=self.newEntryWidget.instances[i-1]
+				tb=self.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
+				w=tb.layout().itemAt(1).widget()
+				t=time.strftime("%H%M")+" "+new.ui.to_fromField.currentText()+" "+new.ui.teamField.text()
+				if new.childDialogs:
+					w.setText('<font color="red"><b>'+t+'</b></font>')
 				else:
-					self.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet('background:lightgray')
+					w.setText(t)
+
 		else:
 			self.blinkToggle=0
 			# now make sure the help window color code bars blink too
@@ -3749,11 +3755,16 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.helpWindow.ui.fsSomeFilteredLabel.setFont(self.helpFont1)
 			if self.newEntryWindowHiddenPopup.isVisible():
 				self.newEntryWindowHiddenPopup.setStyleSheet('color:white;background:red')
+			# blink finger tabs of new entries that have children
 			for i in range(1,self.newEntryWindow.ui.tabWidget.count()-1):
-				if self.newEntryWindow.ui.tabWidget.widget(i).childDialogs:
-					self.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet('background:red')
+				new=self.newEntryWidget.instances[i-1]
+				tb=self.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
+				w=tb.layout().itemAt(1).widget()
+				t=time.strftime("%H%M")+" "+new.ui.to_fromField.currentText()+" "+new.ui.teamField.text()
+				if new.childDialogs:
+					w.setText('<font color="#ccc"><b>'+t+'</b></font>')
 				else:
-					self.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet('background:lightgray')
+					w.setText(t)
 
 		teamTabsMoreButtonBlinkNeeded=False
 		for extTeamName in teamTimersDict:
