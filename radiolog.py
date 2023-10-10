@@ -3735,15 +3735,16 @@ class MyWindow(QDialog,Ui_Dialog):
 			if self.newEntryWindowHiddenPopup.isVisible():
 				self.newEntryWindowHiddenPopup.setStyleSheet('color:black;background:lightgray')
 			# blink finger tabs of new entries that have children
-			for new in self.newEntryWidget.instances:
-				i=self.newEntryWindow.ui.tabWidget.indexOf(new)
-				tb=self.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
-				w=tb.layout().itemAt(1).widget()
-				t=time.strftime("%H%M")+" "+new.ui.to_fromField.currentText()+" "+new.ui.teamField.text()
-				if new.childDialogs:
-					w.setText('<font color="red"><b>'+t+'</b></font>')
-				else:
-					w.setText(t)
+			if teamTimersDict: # to avoid errors before first newEntryWidget is created
+				for new in self.newEntryWidget.instances:
+					i=self.newEntryWindow.ui.tabWidget.indexOf(new)
+					tb=self.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
+					w=tb.layout().itemAt(1).widget()
+					t=time.strftime("%H%M")+" "+new.ui.to_fromField.currentText()+" "+new.ui.teamField.text()
+					if new.childDialogs:
+						w.setText('<font color="red"><b>'+t+'</b></font>')
+					else:
+						w.setText(t)
 
 		else:
 			self.blinkToggle=0
@@ -3756,15 +3757,16 @@ class MyWindow(QDialog,Ui_Dialog):
 			if self.newEntryWindowHiddenPopup.isVisible():
 				self.newEntryWindowHiddenPopup.setStyleSheet('color:white;background:red')
 			# blink finger tabs of new entries that have children
-			for new in self.newEntryWidget.instances:
-				i=self.newEntryWindow.ui.tabWidget.indexOf(new)
-				tb=self.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
-				w=tb.layout().itemAt(1).widget()
-				t=time.strftime("%H%M")+" "+new.ui.to_fromField.currentText()+" "+new.ui.teamField.text()
-				if new.childDialogs:
-					w.setText('<font color="#ccc"><b>'+t+'</b></font>')
-				else:
-					w.setText(t)
+			if teamTimersDict: # to avoid errors before first newEntryWidget is created
+				for new in self.newEntryWidget.instances:
+					i=self.newEntryWindow.ui.tabWidget.indexOf(new)
+					tb=self.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
+					w=tb.layout().itemAt(1).widget()
+					t=time.strftime("%H%M")+" "+new.ui.to_fromField.currentText()+" "+new.ui.teamField.text()
+					if new.childDialogs:
+						w.setText('<font color="#ccc"><b>'+t+'</b></font>')
+					else:
+						w.setText(t)
 
 		teamTabsMoreButtonBlinkNeeded=False
 		for extTeamName in teamTimersDict:
