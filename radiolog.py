@@ -3735,8 +3735,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			if self.newEntryWindowHiddenPopup.isVisible():
 				self.newEntryWindowHiddenPopup.setStyleSheet('color:black;background:lightgray')
 			# blink finger tabs of new entries that have children
-			for i in range(1,self.newEntryWindow.ui.tabWidget.count()-1):
-				new=self.newEntryWidget.instances[i-1]
+			for new in self.newEntryWidget.instances:
+				i=self.newEntryWindow.ui.tabWidget.indexOf(new)
 				tb=self.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
 				w=tb.layout().itemAt(1).widget()
 				t=time.strftime("%H%M")+" "+new.ui.to_fromField.currentText()+" "+new.ui.teamField.text()
@@ -3756,8 +3756,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			if self.newEntryWindowHiddenPopup.isVisible():
 				self.newEntryWindowHiddenPopup.setStyleSheet('color:white;background:red')
 			# blink finger tabs of new entries that have children
-			for i in range(1,self.newEntryWindow.ui.tabWidget.count()-1):
-				new=self.newEntryWidget.instances[i-1]
+			for new in self.newEntryWidget.instances:
+				i=self.newEntryWindow.ui.tabWidget.indexOf(new)
 				tb=self.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
 				w=tb.layout().itemAt(1).widget()
 				t=time.strftime("%H%M")+" "+new.ui.to_fromField.currentText()+" "+new.ui.teamField.text()
