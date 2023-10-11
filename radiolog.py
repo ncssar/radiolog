@@ -3847,6 +3847,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
 			self.sidebar.resizeEvent()
 
+		for sld in subjectLocatedDialog.instances:
+			if sld.lastModAge>=0:
+				sld.lastModAge+=1
+			sld.countdown()
+
 	def keyPressEvent(self,event):
 		if type(event)==QKeyEvent:
 		# fix #336 (freeze / loss of focus when MyWindow grabs the keyPressEvent
@@ -8352,13 +8357,39 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		subjectLocatedDialog.openDialogCount+=1
 		subjectLocatedDialog.instances.append(self)
 		self.setFixedSize(self.size())
-		self.ui.locationField.textChanged.connect(self.parent.resetLastModAge)
-		self.ui.conditionField.textChanged.connect(self.parent.resetLastModAge)
-		self.ui.resourcesField.textChanged.connect(self.parent.resetLastModAge)
-		self.ui.otherField.textChanged.connect(self.parent.resetLastModAge)
+		# self.ui.locationField.textChanged.connect(self.parent.resetLastModAge)
+		# self.ui.conditionField.textChanged.connect(self.parent.resetLastModAge)
+		# self.ui.resourcesField.textChanged.connect(self.parent.resetLastModAge)
+		# self.ui.otherField.textChanged.connect(self.parent.resetLastModAge)
+		self.ui.locationField.textChanged.connect(self.textChanged)
+		self.ui.conditionField.textChanged.connect(self.textChanged)
+		self.ui.resourcesField.textChanged.connect(self.textChanged)
+		self.ui.otherField.textChanged.connect(self.textChanged)
 		self.raise_()
 		self.palette=QPalette()
 		self.throb()
+		self.lastModAge=-1
+
+	def textChanged(self,*args):
+		self.parent.resetLastModAge()
+		self.resetLastModAge()
+
+	def resetLastModAge(self):
+		self.lastModAge=0
+
+	def countdown(self):
+		c=15-self.lastModAge
+		if self.lastModAge<0:
+			t='Typing in any field will start the auto-save countdown.'
+		else:
+			s='s'
+			if c==1:
+				s=''
+			t='Entry will be automatically created with current contents of this form in '+str(c)+' second'+s+'.\nYou can leave this form open until there is something to type in all fields.'
+		self.ui.countdownLabel.setText(t)
+		if c==0:
+			# self.parent.parent.newEntry(self.values)
+			self.lastModAge=-1
 
 	def changeEvent(self,event):
 		if event.type()==QEvent.ActivationChange:
