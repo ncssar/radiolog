@@ -3736,9 +3736,10 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.newEntryWindowHiddenPopup.setStyleSheet('color:black;background:lightgray')
 			# blink finger tabs of new entries that have children
 			if teamTimersDict: # to avoid errors before first newEntryWidget is created
+				tw=self.newEntryWindow.ui.tabWidget
 				for new in self.newEntryWidget.instances:
-					i=self.newEntryWindow.ui.tabWidget.indexOf(new)
-					tb=self.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
+					i=tw.indexOf(new)
+					tb=tw.tabBar().tabButton(i,QTabBar.LeftSide)
 					w=tb.layout().itemAt(1).widget()
 					t=time.strftime("%H%M")+" "+new.ui.to_fromField.currentText()+" "+new.ui.teamField.text()
 					if new.childDialogs:
@@ -3758,13 +3759,17 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.newEntryWindowHiddenPopup.setStyleSheet('color:white;background:red')
 			# blink finger tabs of new entries that have children
 			if teamTimersDict: # to avoid errors before first newEntryWidget is created
+				tw=self.newEntryWindow.ui.tabWidget
 				for new in self.newEntryWidget.instances:
-					i=self.newEntryWindow.ui.tabWidget.indexOf(new)
-					tb=self.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
+					i=tw.indexOf(new)
+					tb=tw.tabBar().tabButton(i,QTabBar.LeftSide)
 					w=tb.layout().itemAt(1).widget()
 					t=time.strftime("%H%M")+" "+new.ui.to_fromField.currentText()+" "+new.ui.teamField.text()
+					color='#999'
+					if new==tw.currentWidget():
+						color='#ccc'
 					if new.childDialogs:
-						w.setText('<font color="#ccc"><b>'+t+'</b></font>')
+						w.setText('<font color="'+color+'"><b>'+t+'</b></font>')
 					else:
 						w.setText(t)
 
