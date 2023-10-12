@@ -505,7 +505,7 @@
     </font>
    </property>
    <property name="text">
-    <string>Typing in any field will start the auto-save countdown.</string>
+    <string/>
    </property>
    <property name="alignment">
     <set>Qt::AlignCenter</set>

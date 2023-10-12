@@ -199,6 +199,7 @@ class Ui_subjectLocatedDialog(object):
         font = QtGui.QFont()
         font.setPointSize(12)
         self.countdownLabel.setFont(font)
+        self.countdownLabel.setText("")
         self.countdownLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.countdownLabel.setObjectName("countdownLabel")
         self.groupBox.raise_()
@@ -234,4 +235,3 @@ class Ui_subjectLocatedDialog(object):
         self.label_7.setText(_translate("subjectLocatedDialog", "TIME"))
         self.label_9.setText(_translate("subjectLocatedDialog", "DATE"))
         self.label_6.setText(_translate("subjectLocatedDialog", "Other"))
-        self.countdownLabel.setText(_translate("subjectLocatedDialog", "Typing in any field will start the auto-save countdown."))

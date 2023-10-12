@@ -3848,9 +3848,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.sidebar.resizeEvent()
 
 		for sld in subjectLocatedDialog.instances:
+			sld.countdown()
 			if sld.lastModAge>=0:
 				sld.lastModAge+=1
-			sld.countdown()
 
 	def keyPressEvent(self,event):
 		if type(event)==QKeyEvent:
@@ -8365,6 +8365,8 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		self.palette=QPalette()
 		self.throb()
 		self.lastModAge=-1
+		self.countdownText='Typing in any field will start the auto-save countdown.'
+		self.ui.countdownLabel.setText(self.countdownText)
 
 	def textChanged(self,*args):
 		self.parent.resetLastModAge()
@@ -8375,20 +8377,19 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 
 	def countdown(self):
 		c=15-self.lastModAge
-		if self.lastModAge<0:
-			t='Typing in any field will start the auto-save countdown.'
-		else:
+		if self.lastModAge>=0:
 			s='s'
 			if c==1:
 				s=''
-			t='In '+str(c)+' second'+s+', a log entry will be automatically created\n with the current contents of this form.\nYou can leave this form open until you have something\n to type in all three required fields.'
-		self.ui.countdownLabel.setText(t)
+			self.countdownText='In '+str(c)+' second'+s+', a log entry will be automatically created\n with the current contents of this form.\nYou can leave this form open until you have something\n to type in all three required fields.'
 		if c==0:
 			self.values=self.parent.getValues()
 			alreadyTyped=self.buildAlreadyTyped(includeTime=False)
 			self.values[3]="RADIO LOG SOFTWARE: radio operator is still collecting data for the 'SUBJECT LOCATED' form; values so far: "+alreadyTyped
 			self.parent.parent.newEntry(self.values)
 			self.lastModAge=-1
+			self.countdownText='A log entry has been saved with current values of this form.\nTyping in any field will start another auto-save countdown.'
+		self.ui.countdownLabel.setText(self.countdownText)
 
 	def changeEvent(self,event):
 		if event.type()==QEvent.ActivationChange:
@@ -8419,11 +8420,6 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		location=self.ui.locationField.text()
 		condition=self.ui.conditionField.toPlainText()
 		resources=self.ui.resourcesField.toPlainText()
-		other=self.ui.otherField.toPlainText()
-		team=self.ui.callsignField.text()
-		subjDate=self.ui.dateField.text()
-		subjTime=self.ui.timeField.text()
-		radioLoc=self.ui.radioLocField.text()
 
 		# validation: description, location, instructions fields must all be non-blank
 		vText=""
@@ -8446,9 +8442,7 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		existingText=self.parent.ui.messageField.text()
 		if existingText!='':
 			textToAdd='; '
-		textToAdd+="SUBJECT LOCATED: LOCATION: "+location+"; CONDITION: "+condition+"; RESOURCES NEEDED: "+resources
-		if other!='':
-			textToAdd+="; "+other
+		textToAdd+='SUBJECT LOCATED form completed: '+self.buildAlreadyTyped()
 		self.parent.ui.messageField.setText(existingText+textToAdd)
 		self.closeEvent(QEvent(QEvent.Close),True)
 		super(subjectLocatedDialog,self).accept()
