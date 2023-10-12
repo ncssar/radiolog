@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>728</width>
-    <height>628</height>
+    <height>665</height>
    </rect>
   </property>
   <property name="font">
@@ -50,7 +50,7 @@
    <property name="geometry">
     <rect>
      <x>490</x>
-     <y>570</y>
+     <y>610</y>
      <width>201</width>
      <height>51</height>
     </rect>
@@ -431,15 +431,14 @@
     <bool>true</bool>
    </property>
    <property name="plainText">
-    <string>
-</string>
+    <string/>
    </property>
   </widget>
   <widget class="QPlainTextEdit" name="otherField">
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>470</y>
+     <y>510</y>
      <width>561</width>
      <height>91</height>
     </rect>
@@ -462,12 +461,15 @@
    <property name="tabChangesFocus">
     <bool>true</bool>
    </property>
+   <property name="plainText">
+    <string/>
+   </property>
   </widget>
   <widget class="QLabel" name="label_6">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>470</y>
+     <y>510</y>
      <width>131</width>
      <height>41</height>
     </rect>
@@ -494,7 +496,7 @@
      <x>150</x>
      <y>410</y>
      <width>561</width>
-     <height>51</height>
+     <height>91</height>
     </rect>
    </property>
    <property name="font">

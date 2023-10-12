@@ -8352,15 +8352,11 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		if self.parent.amendFlag:
 			amendText=' during amendment of previous message'
 			amendText2=', which will appear with that amended message when completed'
-		self.values[3]="RADIO LOG SOFTWARE: 'SUBJECT LOCATED' form opened pressed"+amendText+"; radio operator is gathering details"+amendText2
+		self.values[3]="RADIO LOG SOFTWARE: 'SUBJECT LOCATED' form opened"+amendText+"; radio operator is gathering details"+amendText2
 		self.parent.parent.newEntry(self.values)
 		subjectLocatedDialog.openDialogCount+=1
 		subjectLocatedDialog.instances.append(self)
 		self.setFixedSize(self.size())
-		# self.ui.locationField.textChanged.connect(self.parent.resetLastModAge)
-		# self.ui.conditionField.textChanged.connect(self.parent.resetLastModAge)
-		# self.ui.resourcesField.textChanged.connect(self.parent.resetLastModAge)
-		# self.ui.otherField.textChanged.connect(self.parent.resetLastModAge)
 		self.ui.locationField.textChanged.connect(self.textChanged)
 		self.ui.conditionField.textChanged.connect(self.textChanged)
 		self.ui.resourcesField.textChanged.connect(self.textChanged)
@@ -8385,10 +8381,13 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 			s='s'
 			if c==1:
 				s=''
-			t='Entry will be automatically created with current contents of this form in '+str(c)+' second'+s+'.\nYou can leave this form open until there is something to type in all fields.'
+			t='In '+str(c)+' second'+s+', a log entry will be automatically created\n with the current contents of this form.\nYou can leave this form open until you have something\n to type in all three required fields.'
 		self.ui.countdownLabel.setText(t)
 		if c==0:
-			# self.parent.parent.newEntry(self.values)
+			self.values=self.parent.getValues()
+			alreadyTyped=self.buildAlreadyTyped(includeTime=False)
+			self.values[3]="RADIO LOG SOFTWARE: radio operator is still collecting data for the 'SUBJECT LOCATED' form; values so far: "+alreadyTyped
+			self.parent.parent.newEntry(self.values)
 			self.lastModAge=-1
 
 	def changeEvent(self,event):
@@ -8477,32 +8476,11 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 			amendText=''
 			if self.parent.amendFlag:
 				amendText=' during amendment of previous message'
-			# preserve whatever was already typed
-			location=self.ui.locationField.text()
-			condition=self.ui.conditionField.toPlainText()
-			resources=self.ui.resourcesField.toPlainText()
+			# place the triggering text back in the New Entry Dialog message field, as it was before this dialog was opened
 			other=self.ui.otherField.toPlainText()
-			team=self.ui.callsignField.text()
-			subjDate=self.ui.dateField.text()
-			subjTime=self.ui.timeField.text()
-			radioLoc=self.ui.radioLocField.text()
-			alreadyTyped='' # callsign and date are already saved in the log, no need to repeat them here
-			if subjTime:
-				alreadyTyped+='; TIME:'+subjTime
-			if radioLoc:
-				alreadyTyped+='; RADIO GPS:'+radioLoc
-			if location:
-				alreadyTyped+='; LOCATION:'+location
-			if condition:
-				alreadyTyped+='; CONDITION:'+condition
-			if resources:
-				alreadyTyped+='; RESOURCES NEEDED:'+resources
-			if other:
-				alreadyTyped+='; OTHER:'+other
-				# place the triggering text back in the New Entry Dialog message field, as it was before this dialog was opened
-				if ' operator: "' in other:
-					self.parent.ui.messageField.setText(other[other.index(' operator: "')+12:-2])
-			self.values[3]="RADIO LOG SOFTWARE: radio operator canceled the 'SUBJECT LOCATED' form"+amendText+alreadyTyped
+			if ' operator: "' in other:
+				self.parent.ui.messageField.setText(other[other.index(' operator: "')+12:-2])
+			self.values[3]="RADIO LOG SOFTWARE: radio operator canceled the 'SUBJECT LOCATED' form"+amendText+": "+self.buildAlreadyTyped()
 			self.parent.parent.newEntry(self.values)
 		self.parent.subjectLocatedDialogOpen=False
 		subjectLocatedDialog.openDialogCount-=1
@@ -8511,6 +8489,33 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		if accepted:
 			self.parent.accept()
 
+	def buildAlreadyTyped(self,includeTime=True,includeRadioLoc=True):
+		location=self.ui.locationField.text().rstrip()
+		condition=self.ui.conditionField.toPlainText().rstrip()
+		resources=self.ui.resourcesField.toPlainText().rstrip()
+		other=self.ui.otherField.toPlainText().rstrip()
+		alreadyTyped='' # callsign and date are already saved in the log, no need to repeat them here
+		if includeTime:
+			subjTime=self.ui.timeField.text()
+			if subjTime:
+				alreadyTyped+='; TIME: '+subjTime
+		if includeRadioLoc:
+			radioLoc=self.ui.radioLocField.text()
+			if radioLoc:
+				alreadyTyped+='; RADIO GPS: '+radioLoc
+		if location:
+			alreadyTyped+='; LOCATION: '+location
+		if condition:
+			alreadyTyped+='; CONDITION: '+condition
+		if resources:
+			alreadyTyped+='; RESOURCES NEEDED: '+resources
+		if other:
+			alreadyTyped+='; OTHER: '+other
+		# remove leading semicolon-and-space if needed
+		if alreadyTyped.startswith('; '):
+			alreadyTyped=alreadyTyped[2:]
+		return alreadyTyped
+	
 	# fix issue #338: prevent 'esc' from closing the newEntryWindow
 	def keyPressEvent(self,event):
 		# rprint('subject located dialog key pressed')
