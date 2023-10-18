@@ -7167,8 +7167,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			self.newClueDialog=clueDialog(self,self.ui.timeField.text(),self.ui.teamField.text(),self.ui.radioLocField.toPlainText(),lastClueNumber+1)
 			self.newClueDialog.show()
 
-	def quickTextSubjectLocatedAction(self):
-		self.subjectLocatedDialog=subjectLocatedDialog(self,self.ui.timeField.text(),self.ui.teamField.text(),self.ui.radioLocField.toPlainText())
+	def quickTextSubjectLocatedAction(self,prefixText='',automatic=False):
+		self.subjectLocatedDialog=subjectLocatedDialog(self,self.ui.timeField.text(),self.ui.teamField.text(),self.ui.radioLocField.toPlainText(),prefixText=prefixText,automatic=automatic)
 		self.subjectLocatedDialog.show()
 
 	# if Enter or Return is pressed while in the teamField, jump to messageField
@@ -7655,7 +7655,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					QTimer.singleShot(100,QApplication.beep)
 					QTimer.singleShot(400,QApplication.beep)
 					QTimer.singleShot(700,QApplication.beep)
-					self.quickTextSubjectLocatedAction()
+					self.quickTextSubjectLocatedAction(prefixText=message,automatic=True)
 					msg='[SUBJECT LOCATED form opened automatically, based on words previously typed by the operator: "'+message+'"]'
 					self.subjectLocatedDialog.ui.otherField.setPlainText(msg)
 					rprint(msg)
@@ -8329,7 +8329,7 @@ class clueLogDialog(QDialog,Ui_clueLogDialog):
 class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 	openDialogCount=0
 	instances=[]
-	def __init__(self,parent,t,callsign,radioLoc):
+	def __init__(self,parent,t,callsign,radioLoc,prefixText='',automatic=False):
 		QDialog.__init__(self)
 		self.ui=Ui_subjectLocatedDialog()
 		self.ui.setupUi(self)
@@ -8347,12 +8347,17 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.ui.locationField.setFocus()
 		self.values=self.parent.getValues()
+		automaticText=''
+		if automatic:
+			automaticText=' automatically'
 		amendText=''
 		amendText2=''
 		if self.parent.amendFlag:
 			amendText=' during amendment of previous message'
 			amendText2=', which will appear with that amended message when completed'
-		self.values[3]="RADIO LOG SOFTWARE: 'SUBJECT LOCATED' form opened"+amendText+"; radio operator is gathering details"+amendText2
+		self.values[3]="RADIO LOG SOFTWARE: 'SUBJECT LOCATED' form opened"+automaticText+amendText+"; radio operator is gathering details"+amendText2
+		if prefixText:
+			self.values[3]=prefixText+' ['+self.values[3]+']'
 		self.parent.parent.newEntry(self.values)
 		subjectLocatedDialog.openDialogCount+=1
 		subjectLocatedDialog.instances.append(self)
