@@ -8501,7 +8501,7 @@ class subjectLocatedDialog(QDialog,Ui_subjectLocatedDialog):
 		if includeRadioLoc:
 			radioLoc=self.ui.radioLocField.text()
 			if radioLoc:
-				alreadyTyped+='; RADIO GPS: '+radioLoc
+				alreadyTyped+='; RADIO GPS: '+re.sub(r'\n','  ',radioLoc)
 		if location:
 			alreadyTyped+='; LOCATION: '+location
 		if condition:
