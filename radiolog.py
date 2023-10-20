@@ -1297,10 +1297,17 @@ class MyWindow(QDialog,Ui_Dialog):
 		# self.newEntryWindow.setWindowFlags(self.NEWFlags)
 		self.newEntryWindow.setWindowFlags(Qt.WindowTitleHint)
 
-		self.newEntryWindowHiddenPopup=QMessageBox(QMessageBox.NoIcon,'Pending entry','A new entry / clue report / subject-located report is pending, but its window lost focus and may be hidden.\n\nYou can still use keyboard or mouse in whatever window took focus.\n\nClick below to raise the pending window.',
+		self.newEntryWindowHiddenPopup=QMessageBox(QMessageBox.NoIcon,'Pending entry','A new entry / clue report / subject-located report is pending, but its window lost focus and may be hidden.\n\nYou can leave this reminder window open, and move it out of the way if needed, while you work in whatever window took focus.',
 					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		self.newEntryWindowHiddenPopup.button(QMessageBox.Ok).setText('Raise Pending Window')
 		self.newEntryWindowHiddenPopup.setModal(False)
 		self.newEntryWindowHiddenPopup.buttonClicked.connect(self.newEntryWindowHiddenPopupClicked)
+		# it took some googling and experimentation to find the set of window flags that would accomplish these goals
+		# - stays on top
+		# - has no close X icon at the top right (setting ~Qt.WindowCloseButtonHint didn't seem to work, even with CustomizeWindowHint)
+		# - still shows a banner so that the window can be grabbed and moved if needed
+		# the same flags don't do the trick inside the QMessageBox constructor for whatever reason
+		self.newEntryWindowHiddenPopup.setWindowFlags(Qt.Dialog|Qt.CustomizeWindowHint|Qt.WindowTitleHint|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 
 		if restoreFlag:
 			self.restore()
