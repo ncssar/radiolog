@@ -1323,6 +1323,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
 		self.showTeamTabsMoreButtonIfNeeded()
+		self.nonEmptyTabGroupCount=0
 
 	def clearSelectionAllTables(self):
 		self.ui.tableView.setCurrentIndex(QModelIndex())
@@ -4840,6 +4841,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		if extTeamName in self.hiddenTeamTabsList:
 			self.hiddenTeamTabsList=[x for x in self.hiddenTeamTabsList if extTeamName!=x]
 
+		prevGroupCount=self.nonEmptyTabGroupCount
 		self.rebuildGroupedTabDict()
 		rprint("extTeamNameList after sort:"+str(self.extTeamNameList))
 		if not self.loadFlag:
@@ -4847,7 +4849,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			#  (due to display issues noted in https://github.com/ncssar/radiolog/issues/670#issuecomment-1712814526)
 			#  follow the old behavior and rebuild the entire tab bar;
 			#  for subsequent teams, only add the tab for the new team 
-			if self.ui.tabWidget.tabBar().count()<2:
+			if prevGroupCount!=self.nonEmptyTabGroupCount or self.ui.tabWidget.tabBar().count()<2:
 				self.rebuildTabs()
 			else:
 				# display issues when unhiding the rightmost tab
@@ -5102,6 +5104,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				if val not in self.hiddenTeamTabsList:
 	# 				rprint("appending other:"+val)
 					self.extTeamNameList.append(val)
+		self.nonEmptyTabGroupCount=len([v for v in grouped.values() if v])
 			
 	def tabContextMenu(self,pos):
 		menu=QMenu()
