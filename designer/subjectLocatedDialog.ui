@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>728</width>
-    <height>628</height>
+    <height>665</height>
    </rect>
   </property>
   <property name="font">
@@ -23,9 +23,9 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>340</y>
+     <y>320</y>
      <width>131</width>
-     <height>81</height>
+     <height>61</height>
     </rect>
    </property>
    <property name="font">
@@ -50,7 +50,7 @@
    <property name="geometry">
     <rect>
      <x>490</x>
-     <y>570</y>
+     <y>610</y>
      <width>201</width>
      <height>51</height>
     </rect>
@@ -98,7 +98,7 @@
      <x>10</x>
      <y>220</y>
      <width>131</width>
-     <height>61</height>
+     <height>41</height>
     </rect>
    </property>
    <property name="font">
@@ -125,14 +125,17 @@
      <x>150</x>
      <y>160</y>
      <width>561</width>
-     <height>39</height>
+     <height>41</height>
     </rect>
    </property>
    <property name="font">
     <font>
      <family>Segoe UI</family>
-     <pointsize>16</pointsize>
+     <pointsize>14</pointsize>
     </font>
+   </property>
+   <property name="text">
+    <string/>
    </property>
   </widget>
   <widget class="QLabel" name="label_2">
@@ -373,9 +376,9 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>220</y>
+     <y>210</y>
      <width>561</width>
-     <height>101</height>
+     <height>91</height>
     </rect>
    </property>
    <property name="cursor" stdset="0">
@@ -404,9 +407,9 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>340</y>
+     <y>310</y>
      <width>561</width>
-     <height>101</height>
+     <height>91</height>
     </rect>
    </property>
    <property name="cursor" stdset="0">
@@ -426,15 +429,18 @@
    </property>
    <property name="tabChangesFocus">
     <bool>true</bool>
+   </property>
+   <property name="plainText">
+    <string/>
    </property>
   </widget>
   <widget class="QPlainTextEdit" name="otherField">
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>460</y>
+     <y>510</y>
      <width>561</width>
-     <height>101</height>
+     <height>91</height>
     </rect>
    </property>
    <property name="cursor" stdset="0">
@@ -455,12 +461,15 @@
    <property name="tabChangesFocus">
     <bool>true</bool>
    </property>
+   <property name="plainText">
+    <string/>
+   </property>
   </widget>
   <widget class="QLabel" name="label_6">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>460</y>
+     <y>510</y>
      <width>131</width>
      <height>41</height>
     </rect>
@@ -481,6 +490,27 @@
     <bool>true</bool>
    </property>
   </widget>
+  <widget class="QLabel" name="countdownLabel">
+   <property name="geometry">
+    <rect>
+     <x>150</x>
+     <y>410</y>
+     <width>561</width>
+     <height>91</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>12</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignCenter</set>
+   </property>
+  </widget>
   <zorder>groupBox</zorder>
   <zorder>label_4</zorder>
   <zorder>buttonBox</zorder>
@@ -492,6 +522,7 @@
   <zorder>resourcesField</zorder>
   <zorder>otherField</zorder>
   <zorder>label_6</zorder>
+  <zorder>countdownLabel</zorder>
  </widget>
  <tabstops>
   <tabstop>locationField</tabstop>
