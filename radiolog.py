@@ -6881,6 +6881,11 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 				#683 - don't pause timers, but do prevent auto-cleanup, if there are child dialog(s)
 				if tab.ui.messageField.text()=="" and tab.lastModAge>60 and not tab.childDialogs:
 					rprint('  closing unused new entry widget for '+str(tab.ui.teamField.text())+' due to inactivity')
+					# close the related CCD first, since its closeEvent activates newEntryWindow
+					for ccd in changeCallsignDialog.instances:
+						if ccd.parent==tab:
+							rprint('    closing related Change Callsign Dialog')
+							ccd.close()
 					tab.closeEvent(QEvent(QEvent.Close),accepted=False,force=True)
 					# if this was the only message, and the pending-entry popup was shown, close the popup too
 					remaining=len(newEntryWidget.instances)
