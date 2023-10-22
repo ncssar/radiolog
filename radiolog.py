@@ -3982,6 +3982,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		# update the usage dictionaries
 		if self.useOperatorLogin:
+			rprint('Updating operator usage statistics from MyWindow.closeEvent.  List of operators before update:\n'+str(self.getOperatorNames()))
 			t=int(time.time())
 			ods=[d for d in self.operatorsDict['operators'] if d['lastName']==self.operatorLastName and d['firstName']==self.operatorFirstName and d['id']==self.operatorId]
 			if len(ods)==1:
@@ -4140,22 +4141,53 @@ class MyWindow(QDialog,Ui_Dialog):
 		return cleanShutdownFlag
 
 	def loadOperators(self):
+		rprint('loadOperators called')
 		fileName=os.path.join(self.configDir,self.operatorsFileName)
 		try:
 			with open(fileName,'r') as ofile:
 				rprint('Loading operator data from file '+fileName)
 				self.operatorsDict=json.load(ofile)
+				rprint('  loaded these operators:'+str(self.getOperatorNames()))
 		except:
 			rprint('WARNING: Could not read operator data file '+fileName)
+			rprint('  isfile: '+str(os.path.isfile(fileName)))
 
 	def saveOperators(self):
+		rprint('saveOperators called')
 		fileName=os.path.join(self.configDir,self.operatorsFileName)
 		try:
 			with open(fileName,'w') as ofile:
-				rprint('Saving operator data file '+fileName)
+				rprint('Saving operator data file '+fileName+' with these operators:'+str(self.getOperatorNames()))
 				json.dump(self.operatorsDict,ofile,indent=3)
 		except:
 			rprint('WARNING: Could not write operator data file '+fileName)
+			rprint('  isfile: '+str(os.path.isfile(fileName)))
+
+	def getOperatorNames(self):
+		errs=[]
+		names=[]
+		if isinstance(self.operatorsDict,dict) and 'operators' in self.operatorsDict.keys():
+			operators=self.operatorsDict['operators']
+			for operator in operators:
+				if isinstance(operator,dict):
+					keys=operator.keys()
+					if 'lastName' in operator.keys() and 'firstName' in operator.keys():
+						names.append(str(operator['lastName']+','+str(operator['firstName'])))
+					else:
+						names.append('malformed entry - does not have lastName or firstName')
+						errs.append('missing keys in one or more operator elements')
+				else:
+					errs.append('operator element is not a dictionary')
+		else:
+			errs.append('self.operatorsDict is not a dictonary and/or does not have an "operators" key')
+		if errs:
+			rprint('error(s) on parsing self.operatorsDict:\n  '+'\n  '.join(errs))
+			rprint('printing self.operatorsDict due to errors:')
+			if isinstance(self.operatorsDict,dict):
+				rprint(json.dumps(self.operatorsDict))
+			else:
+				rprint(str(self.operatorsDict))
+		return names
 
 	def save(self,finalize=False):
 		csvFileNameList=[os.path.join(self.sessionDir,self.csvFileName)]
@@ -9179,7 +9211,7 @@ class loginDialog(QDialog,Ui_loginDialog):
 					if not (lastName==self.parent.operatorLastName and firstName==self.parent.operatorFirstName and id==self.parent.operatorId):
 						self.items.append([lastName+', '+firstName+'  '+id,[lastName,firstName,id]])
 		self.items.sort(key=lambda x:x[0]) # alphabetical sort - could be changed to most-frequent sort if needed
-		rprint('items:'+str(self.items))
+		rprint('operator items to show in loginDialog knownComboBox (current operator excluded):'+str(self.items))
 		for item in self.items:
 			self.ui.knownComboBox.addItem(item[0],item[1])
 
@@ -9313,6 +9345,7 @@ class loginDialog(QDialog,Ui_loginDialog):
 		self.parent.newEntry(values)
 
 		# update the usage dictionaries
+		rprint('Updating operator usage statistics from loginDialog.accept.  List of operators before update:\n'+str(self.parent.getOperatorNames()))
 		t=int(time.time())
 		oldOperatorDicts=[d for d in self.parent.operatorsDict['operators'] if d['lastName']==oldLastName and d['firstName']==oldFirstName and d['id']==oldId]
 		if len(oldOperatorDicts)==1:
@@ -9329,6 +9362,7 @@ class loginDialog(QDialog,Ui_loginDialog):
 		elif not oldLastName.startswith('?'):
 			rprint('ERROR: oldOperatorDict had '+str(len(oldOperatorDicts))+' matches; should have exactly one match.  Old operator usage will not be updated.')
 
+		rprint('Updating operator usage statistics from loginDialog.accept, part 2.  List of operators before update:\n'+str(self.parent.getOperatorNames()))
 		newOperatorDicts=[d for d in self.parent.operatorsDict['operators'] if d['lastName']==newLastName and d['firstName']==newFirstName and d['id']==newId]
 		if len(newOperatorDicts)==1:
 			newOperatorDict=newOperatorDicts[0]
