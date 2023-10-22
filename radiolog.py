@@ -6028,6 +6028,18 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.activateWindow()
 		self.previousActiveWindowName=awName
 
+	# changeActiveMessage - move up and down the message stack (Ctrl-up and Ctrl-down)
+	#   called from top level customEventFilter, which passes target from a global variable
+	def changeActiveMessage(target,dir):
+		count=target.newEntryWindow.ui.tabWidget.count()
+		current=target.newEntryWindow.ui.tabWidget.currentIndex()
+		new=current
+		if dir=='up' and current>1: # ctrl-up pressed: decrement the current index if possible
+			new=current-1
+		elif dir=='down' and current<(count-2): # ctrl-down pressed: increment current index if possible
+			new=current+1
+		target.newEntryWindow.ui.tabWidget.setCurrentIndex(new)
+
 
 class helpWindow(QDialog,Ui_Help):
 	def __init__(self, *args):
@@ -9738,10 +9750,17 @@ class CSVFileSortFilterProxyModel(QSortFilterProxyModel):
  
 class customEventFilter(QObject):
 	def eventFilter(self,receiver,event):
-		if(event.type()==QEvent.ShortcutOverride and
-			event.modifiers()==Qt.ControlModifier and
-			event.key()==Qt.Key_Z):
-			return True # block the default processing of Ctrl+Z
+		if event.type()==QEvent.ShortcutOverride:
+			if event.modifiers()==Qt.ControlModifier:
+				key=event.key()
+				if key==Qt.Key_Up:
+					MyWindow.changeActiveMessage(w,'up')
+					return True # prevent multiple of these
+				elif key==Qt.Key_Down:
+					MyWindow.changeActiveMessage(w,'down')
+					return True # prevent multiple of these
+				elif key==Qt.Key_Z:
+					return True # block the default processing of Ctrl+Z
 		return super(customEventFilter,self).eventFilter(receiver,event)
 
 
@@ -9777,8 +9796,9 @@ class CustomMessageBox(QMessageBox):
 def main():
 	app = QApplication(sys.argv)
 	eFilter=customEventFilter()
-	app.installEventFilter(eFilter)
+	global w # so that eFilter can call methods of the top level widget
 	w = MyWindow(app)
+	app.installEventFilter(eFilter)
 	w.show()
 	sys.exit(app.exec_())
 
