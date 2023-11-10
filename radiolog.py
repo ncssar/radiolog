@@ -1075,7 +1075,10 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		self.operatorsFileName='radiolog_operators.json'
 		
-		# self.operatorsDict: dictioary with one key ('operators') whose value is a list of dictionaries
+		# 662 added for debugging - copy the operator file into the run dir on startup and on shutdown
+		shutil.copy(os.path.join(self.configDir,self.operatorsFileName),os.path.join(self.sessionDir,'operators_at_startup.json'))
+
+		# self.operatorsDict: dictionary with one key ('operators') whose value is a list of dictionaries
 		#  Why not just a list of dictionaries?  Why wrap in a single-item dictionary?
 		#  -> for ease of file I/O with json.dump and json.load - see loadOperators and saveOperators
 		self.operatorsDict={'operators':[]}
@@ -4016,6 +4019,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		if self.initialWindowTracking:
 			rprint("restoring initial window tracking behavior ("+str(self.initialWindowTracking)+")")
 			win32gui.SystemParametersInfo(win32con.SPI_SETACTIVEWINDOWTRACKING,self.initialWindowTracking)
+
+		# 662 added for debugging - copy the operator file into the run dir on startup and on shutdown
+		shutil.copy(os.path.join(self.configDir,self.operatorsFileName),os.path.join(self.sessionDir,'operators_at_shutdown.json'))
 
 		qApp.quit() # needed to make sure all windows area closed
 
