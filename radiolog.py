@@ -5905,9 +5905,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.findDialog.move(tvp.x()+tvw-fpw-7,tvp.y()-7)
 
 		if self.findDialog.isVisible():
+			rprint('findDialog: setVisible false')
 			self.findDialog.setVisible(False)
 		elif not hideEvent:
 			self.findDialog.setVisible(True)
+			rprint('findDialog: setVisible true')
 			self.findDialog.ui.findField.setFocus()
 
 		# animation attempts
@@ -6369,6 +6371,7 @@ class findDialog(QWidget,Ui_findDialog):
 		self.setFixedSize(self.size())
 		self.teamTabIndexBeforeFind=1
 		self.ui.findField.textChanged.connect(self.updateCountLabel)
+		rprint('opening findDialog')
 
 	def showEvent(self,e):
 		self.teamTabIndexBeforeFind=self.parent.ui.tabWidget.currentIndex()
@@ -6432,22 +6435,22 @@ class findDialog(QWidget,Ui_findDialog):
 		if teamName: # only if it's a valid team name
 			extTeamName=getExtTeamName(teamName)
 			tabIndex=self.parent.extTeamNameList.index(extTeamName)
-			# rprint('mouse enter: row '+str(idx)+' : '+str(i.data()))
-			# rprint('  teamName='+str(teamName)+'  extTeamName='+str(extTeamName)+'  tabIndex='+str(tabIndex))
+			rprint('mouse enter: findField="'+str(self.ui.findField.text())+'"  row '+str(idx)+' : '+str(i.data()))
+			rprint('  teamName='+str(teamName)+'  extTeamName='+str(extTeamName)+'  tabIndex='+str(tabIndex))
 
 			# select the team tab, combined with more prominent :selected border in tabWidget styleSheet
 			self.parent.ui.tabWidget.setCurrentIndex(tabIndex)
 
 			# select and highlight the correct row in the team's tableView, based on time and text
 			model=self.parent.ui.tableViewList[tabIndex].model()
-			teamTableIndicesByTime=model.match(model.index(0,0),Qt.DisplayRole,entryTime,-1)
+			teamTableIndicesByTime=model.match(model.index(0,0),Qt.DisplayRole,entryTime,-1) # -1 = return all matches
 			teamTableRowsByTime=[i.row() for i in teamTableIndicesByTime]
-			# rprint('  match rows by time:'+str(teamTableRowsByTime))
+			rprint('  match rows by time '+str(entryTime)+':'+str(teamTableRowsByTime))
 			# if there is more than one entry from that team at that time, search for the right one based on text
 			if len(teamTableIndicesByTime)>1:
-				teamTableIndicesByText=model.match(model.index(0,3),Qt.DisplayRole,entryText)
+				teamTableIndicesByText=model.match(model.index(0,3),Qt.DisplayRole,entryText,-1) # -1 = return all matches
 				teamTableRowsByText=[i.row() for i in teamTableIndicesByText]
-				# rprint('  match rows by text:'+str(teamTableRowsByText))
+				rprint('  match rows by text "'+str(entryText)+'":'+str(teamTableRowsByText))
 				# select the row that is in both lists, in case the team has multiple entries with identical text
 				commonIndices=[c for c in teamTableIndicesByText if c.row() in teamTableRowsByTime]
 				if len(commonIndices)==0:
@@ -6467,6 +6470,7 @@ class findDialog(QWidget,Ui_findDialog):
 		# rprint('  closeEvent')
 		self.completer.popup().close()
 		self.ui.findField.setText('')
+		rprint('closing findDialog')
 
 	def onExit(self):
 		# rprint('    onExit')
@@ -6479,17 +6483,17 @@ class findDialog(QWidget,Ui_findDialog):
 			self.parent.ui.tableViewList[self.teamTabIndexBeforeFind].scrollToBottom()
 
 	def clicked(self,i):
-		# rprint('clicked (findDialog)')
+		rprint('clicked findDialog')
 		self.close()
 
 	def keyPressEvent(self,event):
-		# rprint('keyPress event')
+		rprint('findDialog keyPress event')
 		key=event.key()
 		if key in [Qt.Key_Enter,Qt.Key_Return]:
-			# rprint('  enter/return pressed; closing, but keeping any selection and scroll settings')
+			rprint('  enter/return pressed; closing, but keeping any selection and scroll settings')
 			self.close()
 		elif key==Qt.Key_Escape:
-			# rprint('  esc pressed; closing, and clearing selecti0on and scroll settings')
+			rprint('  esc pressed; closing, and clearing selection and scroll settings')
 			self.onExit()
 			self.close()
 		self.customPopup.resize(self.width()-25,self.customPopup.height())
