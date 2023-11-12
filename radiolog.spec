@@ -45,6 +45,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    contents_directory='.' # see https://github.com/ncssar/radiolog/issues/695#issuecomment-1807152764
 )
 coll = COLLECT(
     exe,
