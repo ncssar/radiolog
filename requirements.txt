@@ -3,7 +3,7 @@ pyqt5>=5.4
 #  but Pillow 10 and up does not currently have wheels for Windows,
 #  and build-from-source on Windows fails due to missing zlib;
 # so, use the latest pre-10 version, which has a Windows wheel
-Pillow==9.5.0
+Pillow==10.0.1
 reportlab
 pyserial
 requests
