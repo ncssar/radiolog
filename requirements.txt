@@ -1,4 +1,9 @@
 pyqt5>=5.4
+# Pillow 9.0.0 or later is required by reportlab,
+#  but Pillow 10 and up does not currently have wheels for Windows,
+#  and build-from-source on Windows fails due to missing zlib;
+# so, use the latest pre-10 version, which has a Windows wheel
+Pillow==9.5.0
 reportlab
 pyserial
 requests
