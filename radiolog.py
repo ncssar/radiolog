@@ -973,6 +973,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.clueLog_w=1000
 		self.clueLog_h=400
 		
+		self.useNewEntryWindowHiddenPopup=True # can be disabled in config
+
 		# config file (e.g. <firstWorkingDir>/.config/radiolog.cfg) stores the team standards;
 		#  it should be created/modified by hand, and is read at radiolog startup,
 		#  and is not modified by radiolog at any point
@@ -6028,7 +6030,8 @@ class MyWindow(QDialog,Ui_Dialog):
 	#  some buffering here, with a half-second singleshot
 
 	def activationChange(self):
-		QTimer.singleShot(500,self.activationChangeDelayed)
+		if self.useNewEntryWindowHiddenPopup:
+			QTimer.singleShot(500,self.activationChangeDelayed)
 
 	def activationChangeDelayed(self):
 		validActiveWindowClasses=[
@@ -6306,6 +6309,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.formatField.setEnabled(False) # since convert menu is not working yet, TMG 4-8-15
 		self.setFixedSize(self.size())
 		self.secondWorkingDirCB()
+		self.newEntryWarningCB()
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
@@ -6321,6 +6325,9 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	
 	def secondWorkingDirCB(self):
 		self.parent.use2WD=self.ui.secondWorkingDirCheckBox.isChecked()
+	
+	def newEntryWarningCB(self):
+		self.parent.useNewEntryWindowHiddenPopup=self.ui.newEntryWarningCheckBox.isChecked()
 
 	def fsSendCB(self):
 		self.parent.fsSendDialog.show()
