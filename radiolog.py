@@ -8727,6 +8727,7 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 	def accept(self): # YES is clicked
 		self.parent.isContinuedIncident=True
 		self.parent.incidentName=self.incidentNameCandidate
+		self.parent.ui.incidentNameLabel.setText(self.parent.incidentName)
 		self.parent.optionsDialog.ui.incidentField.setText(self.parent.incidentName)
 		global lastClueNumber
 		lastClueNumber=self.lastClueCandidate
