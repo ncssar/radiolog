@@ -1338,9 +1338,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.previousActiveWindowName='None'
 
 		self.ui.timeoutLabel.setText("TIMEOUT:\n"+timeoutDisplayList[self.optionsDialog.ui.timeoutField.value()][0])
-		# pop up the options dialog to enter the incident name right away
+		# pop up the options dialog to enter the incident name right away;
+		#  if useOperatorLogin is also True, startupOptions will open loginDialog
+		#  after the options dialog is closed
 		if showStartupOptions:
 			QTimer.singleShot(1000,self.startupOptions)
+		elif self.useOperatorLogin: # this clause will run for continued incidents
+			QTimer.singleShot(1000,self.showLoginDialog)
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
 		self.showTeamTabsMoreButtonIfNeeded()
@@ -3596,9 +3600,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		QTimer.singleShot(1750,self.optionsDialog.ui.incidentField.selectAll)
 		QTimer.singleShot(1800,self.optionsDialog.ui.incidentField.setFocus)
 		self.optionsDialog.exec_() # force modal
+		# show the login dialog after the options form has been closed
 		if self.useOperatorLogin:
-			self.loginDialog.toggleShow()
-			self.loginDialog.exec_() # force modal
+			self.showLoginDialog()
+			
+	def showLoginDialog(self):
+		self.loginDialog.toggleShow()
+		self.loginDialog.exec_() # force modal
 
 	def fontsChanged(self):
 		self.limitedFontSize=self.fontSize
@@ -4162,10 +4170,14 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def saveOperators(self):
 		rprint('saveOperators called')
+		names=self.getOperatorNames()
+		if len(names)==0:
+			rprint('  the operators list is empty; skipping the operator save operation')
+			return
 		fileName=os.path.join(self.configDir,self.operatorsFileName)
 		try:
 			with open(fileName,'w') as ofile:
-				rprint('Saving operator data file '+fileName+' with these operators:'+str(self.getOperatorNames()))
+				rprint('Saving operator data file '+fileName+' with these operators:'+str(names))
 				json.dump(self.operatorsDict,ofile,indent=3)
 		except:
 			rprint('WARNING: Could not write operator data file '+fileName)
@@ -9210,6 +9222,7 @@ class loginDialog(QDialog,Ui_loginDialog):
 		self.lastNameText=self.ui.lastNameField.text()
 		self.firstNameText=self.ui.firstNameField.text()
 		self.idText=self.ui.idField.text()
+		self.parent.loadOperators()
 
 	def showEvent(self,e):
 		self.parent.loadOperators()
