@@ -384,43 +384,37 @@ statusAppearanceDict={
 	'At IC':{
 		'foreground':None,
 		'background':Qt.green,
-		'italic':False,
+		'bgHidden':QColor('#afa'),
 		'blink':False
 	},
 	'In Transit':{
 		'foreground':Qt.white,
 		'background':Qt.blue,
-		'italic':False,
+		'bgHidden':QColor('#aaf'),
 		'blink':False
 	},
 	'Waiting for Transport':{
 		'foreground':Qt.white,
 		'background':Qt.blue,
-		'italic':False,
+		'bgHidden':QColor('#aaf'),
 		'blink':True
 	},
 	'STANDBY':{
 		'foreground':Qt.white,
 		'background':Qt.black,
-		'italic':False,
+		'bgHidden':QColor('#ddd'),
 		'blink':True
 	},
 	'TIMED_OUT_ORANGE':{
 		'foreground':Qt.black,
 		'background':QColor(255,128,0),
-		'italic':False,
+		'bgHidden':QColor('#fb3'),
 		'blink':False
 	},
 	'TIMED_OUT_RED':{
 		'foreground':Qt.black,
 		'background':Qt.red,
-		'italic':False,
-		'blink':False
-	},
-	'Hidden':{
-		'foreground':Qt.darkGray,
-		'background':None,
-		'italic':True,
+		'bgHidden':QColor('#faa'),
 		'blink':False
 	}
 }
@@ -6218,8 +6212,14 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 			if status is not None: # could be empty string
 				# self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
 				twi=QTableWidgetItem(t)
+				hidden=False
+				# modifications for hidden tabs:
+				#  - always italic
+				#  - light gray text if/when background is white; black text otherwise
+				#  - always wrap in square brackets []
+				#  - use bgHidden for background color, if specificed
 				if etn in self.parent.hiddenTeamTabsList:
-					status='Hidden'
+					hidden=True
 					twi.setText('['+t+']')
 				if showTeamHotkeys and hotkey:
 					twi.setText(hotkey+': '+twi.text())
@@ -6232,11 +6232,17 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 				ad=statusAppearanceDict.get(status,{})
 				fgColor=ad.get('foreground',None)
 				bgColor=ad.get('background',None)
-				italic=ad.get('italic',False)
+				bgHidden=ad.get('bgHidden',None)
 				blink=ad.get('blink',False)
+				italic=hidden
+				if hidden:
+					fgColor=QColor('#555')
+					bgColor=bgHidden
 				if blink and self.parent.blinkToggle==1:
 					fgColor=None
-					bgColor=None	
+					if hidden:
+						fgColor=QColor('#555')
+					bgColor=None
 				if fgColor:
 					twi.setForeground(QBrush(fgColor))
 				if bgColor:
