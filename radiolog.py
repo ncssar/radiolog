@@ -997,6 +997,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				restoreFlag=True
 				showStartupOptions=False
 
+		self.nonEmptyTabGroupCount=0
+
 		# #483: Check for recent radiolog sessions on this computer.  If any sessions are found from the previous 4 days,
 		#  ask the operator if this new session is intended to be a continuation of one of those previous incidents.
 		#  If so:
@@ -1342,7 +1344,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
 		self.showTeamTabsMoreButtonIfNeeded()
-		self.nonEmptyTabGroupCount=0
 
 	def clearSelectionAllTables(self):
 		self.ui.tableView.setCurrentIndex(QModelIndex())
@@ -3752,7 +3753,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			# blink finger tabs of new entries that have children
 			if teamTimersDict: # to avoid errors before first newEntryWidget is created
 				tw=self.newEntryWindow.ui.tabWidget
-				for new in self.newEntryWidget.instances:
+				for new in newEntryWidget.instances:
 					i=tw.indexOf(new)
 					tb=tw.tabBar().tabButton(i,QTabBar.LeftSide)
 					w=tb.layout().itemAt(1).widget()
@@ -3775,7 +3776,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			# blink finger tabs of new entries that have children
 			if teamTimersDict: # to avoid errors before first newEntryWidget is created
 				tw=self.newEntryWindow.ui.tabWidget
-				for new in self.newEntryWidget.instances:
+				for new in newEntryWidget.instances:
 					i=tw.indexOf(new)
 					tb=tw.tabBar().tabButton(i,QTabBar.LeftSide)
 					w=tb.layout().itemAt(1).widget()
