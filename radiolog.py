@@ -3791,60 +3791,62 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		teamTabsMoreButtonBlinkNeeded=False
 		for extTeamName in teamTimersDict:
-			# if there is a newEntryWidget currently open for this team, don't blink,
-			#  but don't reset the timer.  Only reset the timer when the dialog is accepted.
-			hold=False
-			for widget in newEntryWidget.instances:
-				if widget.ui.to_fromField.currentText()=="FROM" and getExtTeamName(widget.ui.teamField.text())==extTeamName:
-					hold=True
-			i=self.extTeamNameList.index(extTeamName)
-			status=teamStatusDict.get(extTeamName,"")
-			fsFilter=teamFSFilterDict.get(extTeamName,0)
-##			rprint("blinking "+extTeamName+": status="+status)
-# 			rprint("fsFilter "+extTeamName+": "+str(fsFilter))
 			secondsSinceContact=teamTimersDict.get(extTeamName,0)
-			if status in ["Waiting for Transport","STANDBY","Available"] or (secondsSinceContact>=self.timeoutOrangeSec):
-				# if a team status is blinking, and the tab is not visible due to scrolling of a very wide tab bar,
-				#  then blink the three-dots icon; but this test may be expensive so don't test again after the first hit
-				#  https://stackoverflow.com/a/28805583/3577105
-				if not teamTabsMoreButtonBlinkNeeded and self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).visibleRegion().isEmpty():
-					teamTabsMoreButtonBlinkNeeded=True
-				if self.blinkToggle==0:
-					# blink 0: style is one of these:
-					# - style as normal per status
+			if extTeamName not in self.hiddenTeamTabsList:
+				# if there is a newEntryWidget currently open for this team, don't blink,
+				#  but don't reset the timer.  Only reset the timer when the dialog is accepted.
+				hold=False
+				for widget in newEntryWidget.instances:
+					if widget.ui.to_fromField.currentText()=="FROM" and getExtTeamName(widget.ui.teamField.text())==extTeamName:
+						hold=True
+				i=self.extTeamNameList.index(extTeamName)
+				status=teamStatusDict.get(extTeamName,"")
+				fsFilter=teamFSFilterDict.get(extTeamName,0)
+	##			rprint("blinking "+extTeamName+": status="+status)
+	# 			rprint("fsFilter "+extTeamName+": "+str(fsFilter))
+				# secondsSinceContact=teamTimersDict.get(extTeamName,0)
+				if status in ["Waiting for Transport","STANDBY","Available"] or (secondsSinceContact>=self.timeoutOrangeSec):
+					# if a team status is blinking, and the tab is not visible due to scrolling of a very wide tab bar,
+					#  then blink the three-dots icon; but this test may be expensive so don't test again after the first hit
+					#  https://stackoverflow.com/a/28805583/3577105
+					if not teamTabsMoreButtonBlinkNeeded and self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).visibleRegion().isEmpty():
+						teamTabsMoreButtonBlinkNeeded=True
+					if self.blinkToggle==0:
+						# blink 0: style is one of these:
+						# - style as normal per status
+						self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
+					else:
+						# blink 1: style is one of these:
+						# - timeout orange
+						# - timeout red
+						# - no change (if status is anything but 'Waiting for transport' or 'STANDBY')
+						# - blank (black on white) (if status is 'Waiting for transport' or 'STANDBY', and not timed out)
+						if not hold and status not in ["At IC","Off Duty"] and secondsSinceContact>=self.timeoutRedSec:
+							self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict["TIMED_OUT_RED"])
+						elif not hold and status not in ["At IC","Off Duty"] and (secondsSinceContact>=self.timeoutOrangeSec and secondsSinceContact<self.timeoutRedSec):
+							self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict["TIMED_OUT_ORANGE"])
+						elif status=="Waiting for Transport" or status=="STANDBY" or status=="Available":
+							self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[""])
+				else:
+					# not Waiting for Transport or Available, and not in orange/red time zone: draw the normal style
 					self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
-				else:
-					# blink 1: style is one of these:
-					# - timeout orange
-					# - timeout red
-					# - no change (if status is anything but 'Waiting for transport' or 'STANDBY')
-					# - blank (black on white) (if status is 'Waiting for transport' or 'STANDBY', and not timed out)
-					if not hold and status not in ["At IC","Off Duty"] and secondsSinceContact>=self.timeoutRedSec:
-						self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict["TIMED_OUT_RED"])
-					elif not hold and status not in ["At IC","Off Duty"] and (secondsSinceContact>=self.timeoutOrangeSec and secondsSinceContact<self.timeoutRedSec):
-						self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict["TIMED_OUT_ORANGE"])
-					elif status=="Waiting for Transport" or status=="STANDBY" or status=="Available":
-						self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[""])
-			else:
-				# not Waiting for Transport or Available, and not in orange/red time zone: draw the normal style
-				self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
-				
-			# always check for fleetsync filtering, independent from team status
-			if self.blinkToggle==0:
-				if fsFilter>0:
-					f=self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).font()
-					f.setStrikeOut(True)
-					self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setFont(f)
-			if self.blinkToggle==1:
-				if fsFilter<2: # strikeout all the time if all devices for this callsign are filtered
-					f=self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).font()
-					f.setStrikeOut(False)
-					self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setFont(f)
-				else:
-					f=self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).font()
-					f.setStrikeOut(True)
-					self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setFont(f)
 					
+				# always check for fleetsync filtering, independent from team status
+				if self.blinkToggle==0:
+					if fsFilter>0:
+						f=self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).font()
+						f.setStrikeOut(True)
+						self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setFont(f)
+				if self.blinkToggle==1:
+					if fsFilter<2: # strikeout all the time if all devices for this callsign are filtered
+						f=self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).font()
+						f.setStrikeOut(False)
+						self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setFont(f)
+					else:
+						f=self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).font()
+						f.setStrikeOut(True)
+						self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setFont(f)
+						
 			# once they have timed out, keep incrementing; but if the timer is '-1', they will never timeout
 			if secondsSinceContact>-1:
 				teamTimersDict[extTeamName]=secondsSinceContact+1
@@ -4980,8 +4982,11 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.allTeamsList.insert(i,niceTeamName)
 				self.allTeamsList.sort(key=lambda x:getExtTeamName(x))
 				rprint("   allTeamsList after:"+str(self.allTeamsList))
-			teamTimersDict[extTeamName]=0
-			teamCreatedTimeDict[extTeamName]=time.time()
+			#710 - preseve teamTimersDict  and teamCreatedTimeDict values e.g. on unhide
+			if extTeamName not in teamTimersDict.keys():
+				teamTimersDict[extTeamName]=0
+			if extTeamName not in teamCreatedTimeDict:
+				teamCreatedTimeDict[extTeamName]=time.time()
 			# assign team hotkey
 			hotkey=self.getNextAvailHotkey()
 			rprint("next available hotkey:"+str(hotkey))
@@ -5763,7 +5768,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.extTeamNameList.remove(extTeamName)
 			if not teamName.lower().startswith("spacer"):
 				self.teamNameList.remove(niceTeamName)
-				del teamTimersDict[extTeamName]
+				#710 - don't delete teamTimersDict entry
+				# del teamTimersDict[extTeamName]
 				del teamCreatedTimeDict[extTeamName]
 			del self.ui.tabList[i]
 			del self.ui.tabGridLayoutList[i]
