@@ -5285,6 +5285,12 @@ class MyWindow(QDialog,Ui_Dialog):
 					else:
 						fsToggleAllAction=fsMenu.addAction('Filter calls from '+niceTeamName+' ('+key+')')
 			deleteTeamTabAction=menu.addAction('Hide tab for '+str(niceTeamName))
+			#698 - single action to hide all tabs with status 'At IC'
+			# - only show this context menu entry if this tab is At IC and
+			#    more than one tab with this status exists
+			deleteMultiAction=-1 # must exist for later action checking; don't use 'None' since this will trigger on Escape
+			if teamStatusDict[extTeamName]=='At IC' and sum(x=='At IC' for x in teamStatusDict.values())>1:
+				deleteMultiAction=menu.addAction('Hide tab for all \'At IC\' teams')
 
 			# action handlers
 			action=menu.exec_(self.ui.tabWidget.tabBar().mapToGlobal(pos))
@@ -5300,7 +5306,12 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.printLog(self.opPeriod,str(niceTeamName))
 				self.radioLogNeedsPrint=True # since only one log has been printed; need to enhance this
 			elif action==deleteTeamTabAction:
+				rprint('deleteTeamTabAction clicked')
 				self.deleteTeamTab(niceTeamName)
+			elif action==deleteMultiAction:
+				rprint('deleteMultiAction clicked')
+				for ext in [e for e in self.extTeamNameList if teamStatusDict.get(e,None)=='At IC']:
+					self.deleteTeamTab(getNiceTeamName(ext))
 			elif action and action.data(): # only the single-device toggle/text/poll actions will have data
 				d=action.data()
 				if 'filter' in d[2].lower():
