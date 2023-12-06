@@ -3794,7 +3794,9 @@ class MyWindow(QDialog,Ui_Dialog):
 						w.setText(t)
 
 		teamTabsMoreButtonBlinkNeeded=False
+		rprint('in updateTeamTimers: teamTimersDict='+str(teamTimersDict))
 		for extTeamName in teamTimersDict:
+			rprint('in updateTeamTimers: extTeamName in teamTimersDict='+str(extTeamName))
 			secondsSinceContact=teamTimersDict.get(extTeamName,0)
 			if extTeamName not in self.hiddenTeamTabsList:
 				# if there is a newEntryWidget currently open for this team, don't blink,
@@ -4978,7 +4980,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.ui.tabWidget.tabBar().setCurrentIndex(0)
 				self.addTab(extTeamName)
 		
-		if not extTeamName.startswith("spacer"):
+		if not extTeamName.startswith("spacer") and not extTeamName=='moreTab':
 			# add to team name lists and dictionaries
 			i=self.extTeamNameList.index(extTeamName) # i is zero-based
 			self.teamNameList.insert(i,niceTeamName)
@@ -5255,7 +5257,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		niceTeamName=getNiceTeamName(extTeamName)
 		rprint("  extTeamName="+str(extTeamName)+"  niceTeamName="+str(niceTeamName))
 # 		if i>0:
-		if i>-1 and not extTeamName.lower().startswith("spacer"):
+		if i>-1 and not extTeamName.lower().startswith("spacer") and not extTeamName=='moreTab':
 			newEntryFromAction=menu.addAction("New Entry FROM "+str(niceTeamName))
 			newEntryToAction=menu.addAction("New Entry TO "+str(niceTeamName))
 			menu.addSeparator()
@@ -5795,7 +5797,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			i=self.extTeamNameList.index(extTeamName)
 			rprint("  i="+str(i))
 			self.extTeamNameList.remove(extTeamName)
-			if not teamName.lower().startswith("spacer"):
+			if not teamName.lower().startswith("spacer") and not teamName=='moreTab':
 				self.teamNameList.remove(niceTeamName)
 				#710 - don't delete teamTimersDict entry
 				# del teamTimersDict[extTeamName]
@@ -6223,7 +6225,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		# 1. calculate and set number of rows and columns required for team table
 
 		theList=self.parent.allTeamsList # same as teamNameList but hidden tabs are still included
-		theList=[x for x in theList if 'dummy' not in x and 'spacer' not in x.lower()]
+		theList=[x for x in theList if 'dummy' not in x and 'spacer' not in x.lower() and 'moreTab' not in x]
 		listCount=len(theList)
 		maxSidebarHeight=self.parent.height()
 		maxTeamTableHeight=maxSidebarHeight-self.ui.teamTabsSummaryTableWidget.height()-15 # arbirary for padding etc
