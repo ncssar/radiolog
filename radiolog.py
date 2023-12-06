@@ -1293,6 +1293,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tabWidget.setContextMenuPolicy(Qt.CustomContextMenu)
 		self.ui.tabWidget.customContextMenuRequested.connect(self.tabContextMenu)
 
+		# # insert the 'more' tab
+		# self.ui.tabWidget.addTab(QWidget(),'')
+		# self.setMoreTabLabel('test')
+
 		self.newEntryWindow=newEntryWindow(self) # create the window but don't show it until needed
 		# self.NEWFlags=Qt.WindowTitleHint|Qt.WindowStaysOnTopHint
 		# self.newEntryWindow.setWindowFlags(self.NEWFlags)
@@ -4931,6 +4935,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		for extTeamName in self.extTeamNameList[1:]:
 			self.addTab(extTeamName)
 # 		self.rebuildTeamHotkeys()
+		# self.ui.tabWidget.addTab(QWidget(),'t2')
 	
 	def newTeam(self,newTeamName):
 		# not sure why newTeamName is False (bool) when called as a slot;
@@ -5095,6 +5100,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		shortNiceTeamName=getShortNiceTeamName(niceTeamName)
 # 		rprint("new team: extTeamName="+extTeamName+" niceTeamName="+niceTeamName+" shortNiceTeamName="+shortNiceTeamName)
 		i=self.extTeamNameList.index(extTeamName) # i is zero-based
+		rprint('addTab: extTeamName='+str(extTeamName)+'  i='+str(i)+'  count before insert='+str(self.ui.tabWidget.count()))
 		self.ui.tabList.insert(i,QWidget())
 		self.ui.tabGridLayoutList.insert(i,QGridLayout(self.ui.tabList[i]))
 		tv=CustomTableView(self,self.ui.tabList[i])
@@ -5114,7 +5120,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		label=QLabel(" "+shortNiceTeamName+" ")
 		if len(shortNiceTeamName)<2:
 			label.setText("  "+shortNiceTeamName+"  ") # extra spaces to make effective tab min width
-		if extTeamName.startswith("spacer"):
+		if extTeamName.startswith("spacer") or extTeamName=='moreTab':
 			label.setText("")
 		else:
 # 			rprint("setting style for label "+extTeamName)
@@ -5133,7 +5139,7 @@ class MyWindow(QDialog,Ui_Dialog):
 # 		if not extTeamName.startswith("spacer"):
 # 			label.setStyleSheet("font-size:40px;border:1px outset green;qproperty-alignment:AlignHCenter")
 		# spacers should be disabled
-		if extTeamName.startswith("spacer"):
+		if extTeamName.startswith("spacer") or extTeamName=='moreTab':
 			bar.setTabEnabled(i,False)
 
 # 		if not extTeamName.startswith("spacer"):
@@ -5169,7 +5175,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		# automatically expand the 'message' column width to fill available space
 		self.ui.tableViewList[i].horizontalHeader().setSectionResizeMode(3,QHeaderView.Stretch)
 		self.redrawTables(i) # adjust columns widths on this table only
-		
+
+	def setMoreTabLabel(self,t=None):
+		rprint('setMoreTabLabel called: t='+str(t))
+		if not t:
+			l=len(self.hiddenTeamTabsList)
+			if l==0:
+				t=''
+			else:
+				t=str(l)
+		tb=self.ui.tabWidget.tabBar()
+		tb.setTabButton(tb.count()-1,QTabBar.LeftSide,QLabel(t))
+
 	def rebuildGroupedTabDict(self):
 		# sort the tabs list, inserting hidden uniquely-named spacer tabs between groups
 		# grouping sequence and regular expressions are defined in the local config file
@@ -5183,7 +5200,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			grouped[grp[0]]=[]
 		grouped["other"]=[]
 		# for etn in [getExtTeamName(x) for x in self.allTeamsList if not x.startswith("spacer")]: # spacerless list, including hidden tabs
-		for etn in [x for x in self.extTeamNameList+self.hiddenTeamTabsList if not x.startswith("spacer")]: # spacerless list, including hidden tabs
+		for etn in [x for x in self.extTeamNameList+self.hiddenTeamTabsList if not x.startswith("spacer") and x!='moreTab']: # spacerless list, including hidden tabs
 			g="other" # default to the 'other' group
 			for grp in self.tabGroups:
 				if re.match(grp[1].replace("^","^z_0*").replace("Team ","Team"),etn,re.IGNORECASE):
@@ -5223,6 +5240,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	# 				rprint("appending other:"+val)
 					self.extTeamNameList.append(val)
 		self.nonEmptyTabGroupCount=len([v for v in grouped.values() if v])
+		self.extTeamNameList.append('moreTab')
 			
 	def tabContextMenu(self,pos):
 		menu=QMenu()
@@ -5814,12 +5832,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint("  extTeamNameList after delete: "+str(self.extTeamNameList))
 		# if there are two adjacent spacers, delete the second one
 		for n in range(len(self.extTeamNameList)-1):
+			rprint("  n="+str(n))
 			if self.extTeamNameList[n].lower().startswith("spacer"):
 				if self.extTeamNameList[n+1].lower().startswith("spacer"):
 					rprint("  found back-to-back spacers at indices "+str(n)+" and "+str(n+1))
 					self.deleteTeamTab(self.extTeamNameList[n+1],True)
 		if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
 			self.sidebar.resizeEvent()
+		self.setMoreTabLabel()
 
 	def getNextAvailHotkey(self):
 		# iterate through hotkey pool until finding one that is not taken
@@ -5973,6 +5993,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.newEntry(values)
 		if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
 			self.sidebar.resizeEvent()
+		self.setMoreTabLabel()
 
 	def addNonRadioClue(self):
 		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
