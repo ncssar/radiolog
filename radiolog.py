@@ -3952,6 +3952,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				elif event.key()==Qt.Key_F9:
 					if self.useOperatorLogin:
 						self.loginDialog.toggleShow()
+				elif event.key()==Qt.Key_F10:
+					self.teamNotesDialog.toggleShow()
 				elif event.key()==Qt.Key_F12:
 					self.toggleTeamHotkeys()
 				elif event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
@@ -9548,6 +9550,14 @@ class teamNotesDialog(QDialog,Ui_teamNotesDialog):
 	def showEvent(self,e):
 		self.ui.teamField.clear()
 		self.ui.teamField.addItems([getNiceTeamName(x) for x in self.parent.extTeamNameList])
+
+	def toggleShow(self):
+		rprint('teamNotesDialog toggleShow called')
+		if self.isVisible():
+			self.close()
+		else:
+			self.show()
+			self.raise_()
 
 	def accept(self):
 		teamNotesDict[self.extTeamName]=self.ui.notesField.toPlainText()
