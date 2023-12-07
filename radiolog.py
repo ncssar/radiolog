@@ -9509,16 +9509,21 @@ class teamNotesDialog(QDialog,Ui_teamNotesDialog):
 		self.ui=Ui_teamNotesDialog()
 		self.ui.setupUi(self)
 		self.parent=parent
+		self.extTeamName=None
 
 	def teamChanged(self,e):
 		niceTeamName=str(self.ui.teamField.currentText())
-		extTeamName=getExtTeamName(niceTeamName)
-		rprint('getting team notes for '+str(extTeamName))
-		self.ui.notesField.setPlainText(str(teamNotesDict.get(extTeamName,'No notes for '+niceTeamName)))
+		self.extTeamName=getExtTeamName(niceTeamName)
+		rprint('getting team notes for '+str(self.extTeamName))
+		self.ui.notesField.setPlainText(str(teamNotesDict.get(self.extTeamName,'No notes for '+niceTeamName)))
 
 	def showEvent(self,e):
 		self.ui.teamField.clear()
 		self.ui.teamField.addItems([getNiceTeamName(x) for x in self.parent.extTeamNameList])
+
+	def accept(self):
+		teamNotesDict[self.extTeamName]=self.ui.notesField.toPlainText()
+		self.close()
 
 
 class clueTableModel(QAbstractTableModel):
