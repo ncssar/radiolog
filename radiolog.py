@@ -1074,6 +1074,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsFileName='radiolog_fleetsync.csv'
 
 		self.operatorsFileName='radiolog_operators.json'
+		self.teamNotesFileName='team_notes.json'
 		
 		# 662 added for debugging - copy the operator file into the run dir on startup and on shutdown
 		shutil.copy(os.path.join(self.configDir,self.operatorsFileName),os.path.join(self.sessionDir,'operators_at_startup.json'))
@@ -5833,6 +5834,33 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.teamNotesDialog.show()
 		self.teamNotesDialog.ui.teamField.setCurrentText(getNiceTeamName(extTeamName))
 
+	def loadTeamNotes(self):
+		rprint('loadTeamNotes called')
+		fileName=os.path.join(self.sessionDir,self.teamNotesFileName)
+		try:
+			with open(fileName,'r') as tnfile:
+				rprint('Loading team notes data from file '+fileName)
+				self.operatorsDict=json.load(tnfile)
+				rprint('  loaded these team notes:'+str(json.dumps(teamNotesDict,indent=3)))
+		except:
+			rprint('WARNING: Could not read team notes data file '+fileName)
+			rprint('  isfile: '+str(os.path.isfile(fileName)))
+
+	def saveTeamNotes(self):
+		rprint('saveTeamNotes called')
+		# names=self.getOperatorNames()
+		# if len(names)==0:
+		# 	rprint('  the operators list is empty; skipping the operator save operation')
+		# 	return
+		fileName=os.path.join(self.sessionDir,self.teamNotesFileName)
+		try:
+			with open(fileName,'w') as tnfile:
+				rprint('Saving team notes data file '+fileName)
+				json.dump(teamNotesDict,tnfile,indent=3)
+		except:
+			rprint('WARNING: Could not write team notes data file '+fileName)
+			rprint('  isfile: '+str(os.path.isfile(fileName)))
+
 	def getNextAvailHotkey(self):
 		# iterate through hotkey pool until finding one that is not taken
 		for hotkey in self.hotkeyPool:
@@ -9524,6 +9552,7 @@ class teamNotesDialog(QDialog,Ui_teamNotesDialog):
 	def accept(self):
 		teamNotesDict[self.extTeamName]=self.ui.notesField.toPlainText()
 		self.close()
+		self.parent.saveTeamNotes()
 
 
 class clueTableModel(QAbstractTableModel):
