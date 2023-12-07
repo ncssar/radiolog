@@ -427,6 +427,7 @@ teamStatusDict={}
 teamFSFilterDict={}
 teamTimersDict={}
 teamCreatedTimeDict={}
+teamNotesDict={}
 
 versionDepth=5 # how many backup versions to keep; see rotateBackups
 
@@ -691,6 +692,7 @@ from ui.loadDialog_ui import Ui_loadDialog
 from ui.loginDialog_ui import Ui_loginDialog
 from ui.teamTabsPopup_ui import Ui_teamTabsPopup
 from ui.findDialog_ui import Ui_findDialog
+from ui.teamNotesDialog_ui import Ui_teamNotesDialog
 
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
@@ -1122,6 +1124,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsLatestComPort=None
 		self.fsShowChannelWarning=True
 		
+		self.teamNotesDialog=teamNotesDialog(self)
+
 		if self.useOperatorLogin:
 			self.loginDialog=loginDialog(self)
 			self.ui.loginWidget.clicked.connect(self.loginDialog.toggleShow) # note this is a custom class with custom signal
@@ -5241,6 +5245,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			newEntryFromAction=menu.addAction("New Entry FROM "+str(niceTeamName))
 			newEntryToAction=menu.addAction("New Entry TO "+str(niceTeamName))
 			menu.addSeparator()
+			teamNotesAction=menu.addAction('Team Notes...')
 			printTeamLogAction=menu.addAction(QIcon(QPixmap(":/radiolog_ui/icons/print_icon.png")),"Print "+str(niceTeamName)+" Log")
 			menu.addSeparator()
 ##			relabelTeamTabAction=menu.addAction("Change Label / Assignment for "+str(niceTeamName))
@@ -5305,6 +5310,9 @@ class MyWindow(QDialog,Ui_Dialog):
 				rprint('printing team log for '+str(niceTeamName))
 				self.printLog(self.opPeriod,str(niceTeamName))
 				self.radioLogNeedsPrint=True # since only one log has been printed; need to enhance this
+			elif action==teamNotesAction:
+				rprint('opening team notes for '+str(niceTeamName))
+				self.openTeamNotes(str(extTeamName))
 			elif action==deleteTeamTabAction:
 				rprint('deleteTeamTabAction clicked')
 				self.deleteTeamTab(niceTeamName)
@@ -5820,6 +5828,10 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.deleteTeamTab(self.extTeamNameList[n+1],True)
 		if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
 			self.sidebar.resizeEvent()
+
+	def openTeamNotes(self,extTeamName):
+		self.teamNotesDialog.show()
+		self.teamNotesDialog.ui.teamField.setCurrentText(getNiceTeamName(extTeamName))
 
 	def getNextAvailHotkey(self):
 		# iterate through hotkey pool until finding one that is not taken
@@ -9489,6 +9501,24 @@ class loginDialog(QDialog,Ui_loginDialog):
 ##
 ##	def go(self):
 ##		rprint("CONVERTING")
+
+
+class teamNotesDialog(QDialog,Ui_teamNotesDialog):
+	def __init__(self,parent):
+		QDialog.__init__(self)
+		self.ui=Ui_teamNotesDialog()
+		self.ui.setupUi(self)
+		self.parent=parent
+
+	def teamChanged(self,e):
+		niceTeamName=str(self.ui.teamField.currentText())
+		extTeamName=getExtTeamName(niceTeamName)
+		rprint('getting team notes for '+str(extTeamName))
+		self.ui.notesField.setPlainText(str(teamNotesDict.get(extTeamName,'No notes for '+niceTeamName)))
+
+	def showEvent(self,e):
+		self.ui.teamField.clear()
+		self.ui.teamField.addItems([getNiceTeamName(x) for x in self.parent.extTeamNameList])
 
 
 class clueTableModel(QAbstractTableModel):
