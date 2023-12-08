@@ -427,7 +427,6 @@ teamStatusDict={}
 teamFSFilterDict={}
 teamTimersDict={}
 teamCreatedTimeDict={}
-teamNotesDict={}
 
 versionDepth=5 # how many backup versions to keep; see rotateBackups
 
@@ -1084,6 +1083,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  -> for ease of file I/O with json.dump and json.load - see loadOperators and saveOperators
 		self.operatorsDict={'operators':[]}
 		
+		self.teamNotesDict={}
+
 		self.helpFont1=QFont()
 		self.helpFont1.setFamily("Segoe UI")
 		self.helpFont1.setPointSize(9)
@@ -5836,14 +5837,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.teamNotesDialog.show()
 		self.teamNotesDialog.ui.teamField.setCurrentText(getNiceTeamName(extTeamName))
 
-	def loadTeamNotes(self):
+	def loadTeamNotes(self,fileName=None):
 		rprint('loadTeamNotes called')
-		fileName=os.path.join(self.sessionDir,self.teamNotesFileName)
+		if not fileName:
+			fileName=os.path.join(self.sessionDir,self.teamNotesFileName)
 		try:
 			with open(fileName,'r') as tnfile:
 				rprint('Loading team notes data from file '+fileName)
-				self.operatorsDict=json.load(tnfile)
-				rprint('  loaded these team notes:'+str(json.dumps(teamNotesDict,indent=3)))
+				self.teamNotesDict=json.load(tnfile)
+				rprint('  loaded these team notes:'+str(json.dumps(self.teamNotesDict,indent=3)))
 		except:
 			rprint('WARNING: Could not read team notes data file '+fileName)
 			rprint('  isfile: '+str(os.path.isfile(fileName)))
@@ -5858,7 +5860,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		try:
 			with open(fileName,'w') as tnfile:
 				rprint('Saving team notes data file '+fileName)
-				json.dump(teamNotesDict,tnfile,indent=3)
+				json.dump(self.teamNotesDict,tnfile,indent=3)
 		except:
 			rprint('WARNING: Could not write team notes data file '+fileName)
 			rprint('  isfile: '+str(os.path.isfile(fileName)))
@@ -6051,6 +6053,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			return
 		rprint('Restoring previous session after unclean shutdown:')
 		self.load(fileToLoad) # loads the radio log and the clue log
+		self.loadTeamNotes(os.path.join(os.path.dirname(fileToLoad),self.teamNotesFileName))
 		# hide warnings about missing fleetsync file, since it does not get saved until clean shutdown time
 		# note, there is no need to load the default table first, since the defaults would exist
 		#  in the session fleetsync csv file
@@ -9545,7 +9548,9 @@ class teamNotesDialog(QDialog,Ui_teamNotesDialog):
 		niceTeamName=str(self.ui.teamField.currentText())
 		self.extTeamName=getExtTeamName(niceTeamName)
 		rprint('getting team notes for '+str(self.extTeamName))
-		self.ui.notesField.setPlainText(str(teamNotesDict.get(self.extTeamName,'No notes for '+niceTeamName)))
+		notes=str(self.parent.teamNotesDict.get(self.extTeamName,'No notes for '+niceTeamName))
+		rprint('  --> '+notes)
+		self.ui.notesField.setPlainText(notes)
 
 	def showEvent(self,e):
 		self.ui.teamField.clear()
@@ -9560,7 +9565,7 @@ class teamNotesDialog(QDialog,Ui_teamNotesDialog):
 			self.raise_()
 
 	def accept(self):
-		teamNotesDict[self.extTeamName]=self.ui.notesField.toPlainText()
+		self.parent.teamNotesDict[self.extTeamName]=self.ui.notesField.toPlainText()
 		self.close()
 		self.parent.saveTeamNotes()
 
