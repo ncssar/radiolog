@@ -4402,6 +4402,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				i=i+1
 				progressBox.setValue(i)
 			self.loadFlag=False
+
+			self.loadTeamNotes(os.path.join(os.path.dirname(fName),self.teamNotesFileName))
 			self.rebuildTabs() # since rebuildTabs was disabled when loadFlag was True
 			rprint('  t2')
 			self.radioLog.sort(key=lambda entry: entry[6]) # sort by epoch seconds
