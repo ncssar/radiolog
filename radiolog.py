@@ -9543,6 +9543,10 @@ class teamNotesDialog(QDialog,Ui_teamNotesDialog):
 		QDialog.__init__(self)
 		self.ui=Ui_teamNotesDialog()
 		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
+		self.setWindowFlags(Qt.WindowStaysOnTopHint)
+		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		self.setFixedSize(self.size())
 		self.parent=parent
 		self.extTeamName=None
 
