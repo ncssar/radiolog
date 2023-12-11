@@ -4940,6 +4940,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# 	self.ui.tabWidget.tabBar().setTabVisible(0,False)
 		for extTeamName in self.extTeamNameList[1:]:
 			self.addTab(extTeamName)
+			self.buildTeamNotesTooltip(extTeamName)
 # 		self.rebuildTeamHotkeys()
 	
 	def newTeam(self,newTeamName):
@@ -5866,6 +5867,16 @@ class MyWindow(QDialog,Ui_Dialog):
 		except:
 			rprint('WARNING: Could not write team notes data file '+fileName)
 			rprint('  isfile: '+str(os.path.isfile(fileName)))
+
+	def buildTeamNotesTooltip(self,extTeamName):
+		rprint('buildTeamNotesTooltip called for '+str(extTeamName))
+		notes=self.teamNotesDict.get(extTeamName,None)
+		if extTeamName in self.teamNotesDict.keys() and notes:
+			niceTeamName=getNiceTeamName(extTeamName)
+			rprint('  building tooltip: '+str(notes))
+			tt='<span style="font-size: 14pt;"><b>'+niceTeamName+' Notes:</b><br>'+notes.replace('\n','<br>')+'</span>'
+			i=self.extTeamNameList.index(extTeamName)
+			self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setToolTip(tt)
 
 	def getNextAvailHotkey(self):
 		# iterate through hotkey pool until finding one that is not taken
@@ -9573,6 +9584,7 @@ class teamNotesDialog(QDialog,Ui_teamNotesDialog):
 	def accept(self):
 		self.parent.teamNotesDict[self.extTeamName]=self.ui.notesField.toPlainText()
 		self.close()
+		self.parent.buildTeamNotesTooltip(self.extTeamName)
 		self.parent.saveTeamNotes()
 
 
