@@ -703,6 +703,9 @@ def rreplace(s,old,new,occurrence):
 def normName(name):
 	return re.sub("[^A-Za-z0-9_]+","_",name)
 
+def buildObjSS(objectName,style):
+	return '#'+objectName+' { '+style+' }'
+
 #529 - specify a hardcoded global stylesheet to be applied to every dialog class;
 #  setting the top level style sheet when there is a lot of data can cause big delay:
 #  setting the top level stylesheet resulted in 10 second delay for ~300 entries
@@ -3811,16 +3814,18 @@ class MyWindow(QDialog,Ui_Dialog):
 	##			rprint("blinking "+extTeamName+": status="+status)
 	# 			rprint("fsFilter "+extTeamName+": "+str(fsFilter))
 				# secondsSinceContact=teamTimersDict.get(extTeamName,0)
+				button=self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
+				styleObjectName='tab_'+extTeamName
 				if status in ["Waiting for Transport","STANDBY","Available"] or (secondsSinceContact>=self.timeoutOrangeSec):
 					# if a team status is blinking, and the tab is not visible due to scrolling of a very wide tab bar,
 					#  then blink the three-dots icon; but this test may be expensive so don't test again after the first hit
 					#  https://stackoverflow.com/a/28805583/3577105
-					if not teamTabsMoreButtonBlinkNeeded and self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).visibleRegion().isEmpty():
+					if not teamTabsMoreButtonBlinkNeeded and button.visibleRegion().isEmpty():
 						teamTabsMoreButtonBlinkNeeded=True
 					if self.blinkToggle==0:
 						# blink 0: style is one of these:
 						# - style as normal per status
-						self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
+						button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict[status]))
 					else:
 						# blink 1: style is one of these:
 						# - timeout orange
@@ -3828,14 +3833,14 @@ class MyWindow(QDialog,Ui_Dialog):
 						# - no change (if status is anything but 'Waiting for transport' or 'STANDBY')
 						# - blank (black on white) (if status is 'Waiting for transport' or 'STANDBY', and not timed out)
 						if not hold and status not in ["At IC","Off Duty"] and secondsSinceContact>=self.timeoutRedSec:
-							self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict["TIMED_OUT_RED"])
+							button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict["TIMED_OUT_RED"]))
 						elif not hold and status not in ["At IC","Off Duty"] and (secondsSinceContact>=self.timeoutOrangeSec and secondsSinceContact<self.timeoutRedSec):
-							self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict["TIMED_OUT_ORANGE"])
+							button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict["TIMED_OUT_ORANGE"]))
 						elif status=="Waiting for Transport" or status=="STANDBY" or status=="Available":
-							self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[""])
+							button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict[""]))
 				else:
 					# not Waiting for Transport or Available, and not in orange/red time zone: draw the normal style
-					self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
+					button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict[status]))
 					
 				# always check for fleetsync filtering, independent from team status
 				if self.blinkToggle==0:
@@ -4940,7 +4945,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# 	self.ui.tabWidget.tabBar().setTabVisible(0,False)
 		for extTeamName in self.extTeamNameList[1:]:
 			self.addTab(extTeamName)
-			self.buildTeamNotesTooltip(extTeamName)
+			self.teamNotesBuildTooltip(extTeamName)
 # 		self.rebuildTeamHotkeys()
 	
 	def newTeam(self,newTeamName):
@@ -5140,7 +5145,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		bar.setTabWhatsThis(i,niceTeamName)
 # 		rprint("setting style for tab#"+str(i))
 # 		bar.tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:18px;qproperty-alignment:AlignHCenter")
-		bar.tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[""])
+		button=bar.tabButton(i,QTabBar.LeftSide)
+		styleObjectName='tab_'+extTeamName
+		button.setObjectName(styleObjectName)
+		ss=buildObjSS(styleObjectName,statusStyleDict[""])
+		rprint('setting tab initial style in addTab: '+ss)
+		button.setStyleSheet(ss)
 # 		if not extTeamName.startswith("spacer"):
 # 			label.setStyleSheet("font-size:40px;border:1px outset green;qproperty-alignment:AlignHCenter")
 		# spacers should be disabled
@@ -5868,8 +5878,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			rprint('WARNING: Could not write team notes data file '+fileName)
 			rprint('  isfile: '+str(os.path.isfile(fileName)))
 
-	def buildTeamNotesTooltip(self,extTeamName):
-		rprint('buildTeamNotesTooltip called for '+str(extTeamName))
+	def teamNotesBuildTooltip(self,extTeamName):
+		rprint('teamNotesBuildTooltip called for '+str(extTeamName))
 		notes=self.teamNotesDict.get(extTeamName,None)
 		if extTeamName in self.teamNotesDict.keys() and notes:
 			niceTeamName=getNiceTeamName(extTeamName)
@@ -9584,7 +9594,7 @@ class teamNotesDialog(QDialog,Ui_teamNotesDialog):
 	def accept(self):
 		self.parent.teamNotesDict[self.extTeamName]=self.ui.notesField.toPlainText()
 		self.close()
-		self.parent.buildTeamNotesTooltip(self.extTeamName)
+		self.parent.teamNotesBuildTooltip(self.extTeamName)
 		self.parent.saveTeamNotes()
 
 
