@@ -3618,13 +3618,20 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.limitedFontSize=self.maxLimitedFontSize
 		if self.limitedFontSize<self.minLimitedFontSize:
 			self.limitedFontSize=self.minLimitedFontSize
+		self.toolTipFontSize=int(self.limitedFontSize*2/3)
+		self.menuFontSize=int(self.limitedFontSize*3/4)
 		# preserve the currently selected tab, since something in this function
 		#  causes the rightmost tab to be selected
 		i=self.ui.tabWidget.currentIndex()
 		self.ui.tableView.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		# for n in self.ui.tableViewList[1:]:
 		# 	rprint("n="+str(n))
-		for x in self.ui.tableViewList:
+		for x in self.ui.tabList:
+			try:
+				x.setStyleSheet('font-size:'+str(self.menuFontSize)+'pt')
+			except: # may fail for elements that don't have styles, like dummies and spacers
+				pass
+		for x in self.ui.tableViewList: # doesn't inherit from tabList item style sheet
 			try:
 				# this could be a source of lag if the tableview has a lot of entries
 				x.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
@@ -3662,9 +3669,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  so, incorporate methods here and elsewhere to accomplish what the stylesheet
 		#  section above was accomplishing, without using stylesheets
 
-		self.toolTipFontSize=int(self.limitedFontSize*2/3)
 		self.fsBuildTooltip()
-		self.menuFont.setPointSize(int(self.limitedFontSize*3/4))
+		self.menuFont.setPointSize(self.menuFontSize)
 
 	def redrawTables(self,index=0):
 		# only redraw tables specified by index
@@ -5112,7 +5118,10 @@ class MyWindow(QDialog,Ui_Dialog):
 # 		rprint("new team: extTeamName="+extTeamName+" niceTeamName="+niceTeamName+" shortNiceTeamName="+shortNiceTeamName)
 		i=self.extTeamNameList.index(extTeamName) # i is zero-based
 		self.ui.tabList.insert(i,QWidget())
+		self.ui.tabList[i].setStyleSheet('font-size:'+str(self.menuFontSize)+'pt')
 		self.ui.tabGridLayoutList.insert(i,QGridLayout(self.ui.tabList[i]))
+		self.ui.tabGridLayoutList[i].setContentsMargins(5,2,5,5)
+		self.ui.tabGridLayoutList[i].setSpacing(2)
 		tv=CustomTableView(self,self.ui.tabList[i])
 		tv.horizontalHeader().setMinimumSectionSize(10) # allow tiny column for operator initials
 		tv.horizontalHeader().setDefaultAlignment(Qt.AlignHCenter)
@@ -5125,7 +5134,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableViewList[i].setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		self.ui.tableViewList[i].setPalette(self.teamTablePalette)
 		# self.ui.tableViewList[i].horizontalHeader().setMinimumSectionSize(10) # allow tiny column for operator initials
-		self.ui.tabGridLayoutList[i].addWidget(self.ui.tableViewList[i],0,0,1,1)
+		# self.ui.tabGridLayoutList[i].addWidget(self.ui.tableViewList[i],0,0,1,1)
+		notes=QLabel('No notes for this callsign')
+		self.ui.tabGridLayoutList[i].addWidget(notes,0,0,1,1)
+		self.ui.tabGridLayoutList[i].addWidget(self.ui.tableViewList[i],1,0,1,1)
 		self.ui.tabWidget.insertTab(i,self.ui.tabList[i],'')
 		label=QLabel(" "+shortNiceTeamName+" ")
 		if len(shortNiceTeamName)<2:
@@ -5887,6 +5899,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			tt='<span style="font-size: 14pt;"><b>'+niceTeamName+' Notes:</b><br>'+notes.replace('\n','<br>')+'</span>'
 			i=self.extTeamNameList.index(extTeamName)
 			self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setToolTip(tt)
+			oneLineNotes=notes.replace('\n',' | ')
+			while ' |  | ' in oneLineNotes:
+				oneLineNotes=oneLineNotes.replace(' |  | ',' | ')
+			oneLineNotes=oneLineNotes.strip(' |')
+			self.ui.tabGridLayoutList[i].itemAtPosition(0,0).widget().setText('Notes for '+niceTeamName+': '+oneLineNotes)
 
 	def getNextAvailHotkey(self):
 		# iterate through hotkey pool until finding one that is not taken
