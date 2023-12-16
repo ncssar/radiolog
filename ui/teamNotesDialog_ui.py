@@ -61,6 +61,7 @@ class Ui_teamNotesDialog(object):
         self.buttonBox.accepted.connect(teamNotesDialog.accept) # type: ignore
         self.buttonBox.rejected.connect(teamNotesDialog.reject) # type: ignore
         self.teamField.currentTextChanged['QString'].connect(teamNotesDialog.teamChanged) # type: ignore
+        self.notesField.textChanged.connect(teamNotesDialog.notesTextChanged) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(teamNotesDialog)
 
     def retranslateUi(self, teamNotesDialog):

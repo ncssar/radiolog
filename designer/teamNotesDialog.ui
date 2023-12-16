@@ -119,8 +119,8 @@
    <slot>teamChanged()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>41</x>
-     <y>23</y>
+     <x>266</x>
+     <y>35</y>
     </hint>
     <hint type="destinationlabel">
      <x>7</x>
@@ -128,8 +128,25 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>notesField</sender>
+   <signal>textChanged()</signal>
+   <receiver>teamNotesDialog</receiver>
+   <slot>notesTextChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>378</x>
+     <y>171</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>393</x>
+     <y>185</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>teamChanged()</slot>
+  <slot>notesTextChanged()</slot>
  </slots>
 </ui>

@@ -9586,15 +9586,31 @@ class teamNotesDialog(QDialog,Ui_teamNotesDialog):
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setFixedSize(self.size())
 		self.parent=parent
+		self.niceTeamName=None
 		self.extTeamName=None
+		self.skipTeamChangedCB=False
 
 	def teamChanged(self,e):
-		niceTeamName=str(self.ui.teamField.currentText())
-		self.extTeamName=getExtTeamName(niceTeamName)
-		rprint('getting team notes for '+str(self.extTeamName))
-		notes=str(self.parent.teamNotesDict.get(self.extTeamName,'No notes for '+niceTeamName))
-		rprint('  --> '+notes)
+		if self.skipTeamChangedCB or not str(self.ui.teamField.currentText()):
+			self.skipTeamChangedCB=False
+			return
+		savedNotes=self.parent.teamNotesDict.get(self.extTeamName,None)
+		if self.ui.notesField.toPlainText() not in [savedNotes,'','No notes for '+str(self.niceTeamName)]:
+			really=QMessageBox(QMessageBox.Warning,"Please Confirm","The text you typed for "+str(self.niceTeamName)+" is not the same as the saved notes for "+str(self.niceTeamName)+".\n\nSwitch to show notes for "+str(self.ui.teamField.currentText())+", discarding what you typed?",
+				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			if really.exec_()==QMessageBox.No:
+				self.skipTeamChangedCB=True
+				self.ui.teamField.setCurrentText(self.niceTeamName)
+				return
+		self.niceTeamName=str(self.ui.teamField.currentText())
+		self.extTeamName=getExtTeamName(self.niceTeamName)
+		# rprint('getting team notes for '+str(self.extTeamName))
+		notes=str(self.parent.teamNotesDict.get(self.extTeamName,'No notes for '+self.niceTeamName))
+		# rprint('  --> '+notes)
 		self.ui.notesField.setPlainText(notes)
+
+	def notesTextChanged(self):
+		self.ui.buttonBox.button(QDialogButtonBox.Save).setEnabled(self.ui.notesField.toPlainText()!='No notes for '+self.ui.teamField.currentText())
 
 	def showEvent(self,e):
 		self.ui.teamField.clear()
@@ -9609,11 +9625,29 @@ class teamNotesDialog(QDialog,Ui_teamNotesDialog):
 			self.raise_()
 
 	def accept(self):
-		self.parent.teamNotesDict[self.extTeamName]=self.ui.notesField.toPlainText()
+		if self.ui.notesField.toPlainText() not in ['','No notes for '+self.ui.teamField.currentText()]:
+			self.parent.teamNotesDict[self.extTeamName]=self.ui.notesField.toPlainText()
+			self.parent.teamNotesBuildTooltip(self.extTeamName)
+			self.parent.saveTeamNotes()
+		else:
+			rprint('team notes dialog save button clicked for '+self.ui.teamField.currentText()+' with default text in place; nothing to save')
 		self.close()
-		self.parent.teamNotesBuildTooltip(self.extTeamName)
-		self.parent.saveTeamNotes()
+	
+	# call closeEvent from Cancel button or Escape key; otherwise, closeEvent is only called by the Red X
+	def reject(self):
+		self.close()
 
+	def closeEvent(self,event):
+		savedNotes=self.parent.teamNotesDict.get(self.extTeamName,None)
+		if self.ui.notesField.toPlainText() not in [savedNotes,'','No notes for '+self.ui.teamField.currentText()]:
+			really=QMessageBox(QMessageBox.Warning,"Please Confirm","The text you typed is not the same as the saved notes for "+self.ui.teamField.currentText()+".\n\nClose the Team Notes form, discarding what you typed?",
+				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			if really.exec_()==QMessageBox.No:
+				event.ignore()
+				return
+			# if confirmed, set the text field to the same as the saved notes, to avoid warning on next open
+			notes=str(self.parent.teamNotesDict.get(self.extTeamName,'No notes for '+self.niceTeamName))
+			self.ui.notesField.setPlainText(notes)
 
 class clueTableModel(QAbstractTableModel):
 	header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.','']
