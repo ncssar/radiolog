@@ -691,6 +691,7 @@ from ui.loadDialog_ui import Ui_loadDialog
 from ui.loginDialog_ui import Ui_loginDialog
 from ui.teamTabsPopup_ui import Ui_teamTabsPopup
 from ui.findDialog_ui import Ui_findDialog
+from ui.teamNotesDialog_ui import Ui_teamNotesDialog
 
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
@@ -701,6 +702,9 @@ def rreplace(s,old,new,occurrence):
 	
 def normName(name):
 	return re.sub("[^A-Za-z0-9_]+","_",name)
+
+def buildObjSS(objectName,style):
+	return '#'+objectName+' { '+style+' }'
 
 #529 - specify a hardcoded global stylesheet to be applied to every dialog class;
 #  setting the top level style sheet when there is a lot of data can cause big delay:
@@ -1072,6 +1076,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsFileName='radiolog_fleetsync.csv'
 
 		self.operatorsFileName='radiolog_operators.json'
+		self.teamNotesFileName='team_notes.json'
 		
 		# 662 added for debugging - copy the operator file into the run dir on startup and on shutdown
 		shutil.copy(os.path.join(self.configDir,self.operatorsFileName),os.path.join(self.sessionDir,'operators_at_startup.json'))
@@ -1081,6 +1086,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  -> for ease of file I/O with json.dump and json.load - see loadOperators and saveOperators
 		self.operatorsDict={'operators':[]}
 		
+		self.teamNotesDict={}
+
 		self.helpFont1=QFont()
 		self.helpFont1.setFamily("Segoe UI")
 		self.helpFont1.setPointSize(9)
@@ -1122,6 +1129,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsLatestComPort=None
 		self.fsShowChannelWarning=True
 		
+		self.teamNotesDialog=teamNotesDialog(self)
+
 		if self.useOperatorLogin:
 			self.loginDialog=loginDialog(self)
 			self.ui.loginWidget.clicked.connect(self.loginDialog.toggleShow) # note this is a custom class with custom signal
@@ -3609,13 +3618,20 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.limitedFontSize=self.maxLimitedFontSize
 		if self.limitedFontSize<self.minLimitedFontSize:
 			self.limitedFontSize=self.minLimitedFontSize
+		self.toolTipFontSize=int(self.limitedFontSize*2/3)
+		self.menuFontSize=int(self.limitedFontSize*3/4)
 		# preserve the currently selected tab, since something in this function
 		#  causes the rightmost tab to be selected
 		i=self.ui.tabWidget.currentIndex()
 		self.ui.tableView.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		# for n in self.ui.tableViewList[1:]:
 		# 	rprint("n="+str(n))
-		for x in self.ui.tableViewList:
+		for x in self.ui.tabList:
+			try:
+				x.setStyleSheet('font-size:'+str(self.menuFontSize)+'pt')
+			except: # may fail for elements that don't have styles, like dummies and spacers
+				pass
+		for x in self.ui.tableViewList: # doesn't inherit from tabList item style sheet
 			try:
 				# this could be a source of lag if the tableview has a lot of entries
 				x.setStyleSheet("font-size:"+str(self.fontSize)+"pt")
@@ -3653,9 +3669,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  so, incorporate methods here and elsewhere to accomplish what the stylesheet
 		#  section above was accomplishing, without using stylesheets
 
-		self.toolTipFontSize=int(self.limitedFontSize*2/3)
 		self.fsBuildTooltip()
-		self.menuFont.setPointSize(int(self.limitedFontSize*3/4))
+		self.menuFont.setPointSize(self.menuFontSize)
 
 	def redrawTables(self,index=0):
 		# only redraw tables specified by index
@@ -3805,16 +3820,18 @@ class MyWindow(QDialog,Ui_Dialog):
 	##			rprint("blinking "+extTeamName+": status="+status)
 	# 			rprint("fsFilter "+extTeamName+": "+str(fsFilter))
 				# secondsSinceContact=teamTimersDict.get(extTeamName,0)
+				button=self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
+				styleObjectName='tab_'+extTeamName
 				if status in ["Waiting for Transport","STANDBY","Available"] or (secondsSinceContact>=self.timeoutOrangeSec):
 					# if a team status is blinking, and the tab is not visible due to scrolling of a very wide tab bar,
 					#  then blink the three-dots icon; but this test may be expensive so don't test again after the first hit
 					#  https://stackoverflow.com/a/28805583/3577105
-					if not teamTabsMoreButtonBlinkNeeded and self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).visibleRegion().isEmpty():
+					if not teamTabsMoreButtonBlinkNeeded and button.visibleRegion().isEmpty():
 						teamTabsMoreButtonBlinkNeeded=True
 					if self.blinkToggle==0:
 						# blink 0: style is one of these:
 						# - style as normal per status
-						self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
+						button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict[status]))
 					else:
 						# blink 1: style is one of these:
 						# - timeout orange
@@ -3822,14 +3839,14 @@ class MyWindow(QDialog,Ui_Dialog):
 						# - no change (if status is anything but 'Waiting for transport' or 'STANDBY')
 						# - blank (black on white) (if status is 'Waiting for transport' or 'STANDBY', and not timed out)
 						if not hold and status not in ["At IC","Off Duty"] and secondsSinceContact>=self.timeoutRedSec:
-							self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict["TIMED_OUT_RED"])
+							button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict["TIMED_OUT_RED"]))
 						elif not hold and status not in ["At IC","Off Duty"] and (secondsSinceContact>=self.timeoutOrangeSec and secondsSinceContact<self.timeoutRedSec):
-							self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict["TIMED_OUT_ORANGE"])
+							button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict["TIMED_OUT_ORANGE"]))
 						elif status=="Waiting for Transport" or status=="STANDBY" or status=="Available":
-							self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[""])
+							button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict[""]))
 				else:
 					# not Waiting for Transport or Available, and not in orange/red time zone: draw the normal style
-					self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
+					button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict[status]))
 					
 				# always check for fleetsync filtering, independent from team status
 				if self.blinkToggle==0:
@@ -3947,6 +3964,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				elif event.key()==Qt.Key_F9:
 					if self.useOperatorLogin:
 						self.loginDialog.toggleShow()
+				elif event.key()==Qt.Key_F10:
+					self.teamNotesDialog.toggleShow()
 				elif event.key()==Qt.Key_F12:
 					self.toggleTeamHotkeys()
 				elif event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
@@ -4394,6 +4413,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				i=i+1
 				progressBox.setValue(i)
 			self.loadFlag=False
+
+			self.loadTeamNotes(os.path.join(os.path.dirname(fName),self.teamNotesFileName))
 			self.rebuildTabs() # since rebuildTabs was disabled when loadFlag was True
 			rprint('  t2')
 			self.radioLog.sort(key=lambda entry: entry[6]) # sort by epoch seconds
@@ -4930,6 +4951,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# 	self.ui.tabWidget.tabBar().setTabVisible(0,False)
 		for extTeamName in self.extTeamNameList[1:]:
 			self.addTab(extTeamName)
+			self.teamNotesBuildTooltip(extTeamName)
 # 		self.rebuildTeamHotkeys()
 	
 	def newTeam(self,newTeamName):
@@ -5096,7 +5118,10 @@ class MyWindow(QDialog,Ui_Dialog):
 # 		rprint("new team: extTeamName="+extTeamName+" niceTeamName="+niceTeamName+" shortNiceTeamName="+shortNiceTeamName)
 		i=self.extTeamNameList.index(extTeamName) # i is zero-based
 		self.ui.tabList.insert(i,QWidget())
+		self.ui.tabList[i].setStyleSheet('font-size:'+str(self.menuFontSize)+'pt')
 		self.ui.tabGridLayoutList.insert(i,QGridLayout(self.ui.tabList[i]))
+		self.ui.tabGridLayoutList[i].setContentsMargins(5,2,5,5)
+		self.ui.tabGridLayoutList[i].setSpacing(2)
 		tv=CustomTableView(self,self.ui.tabList[i])
 		tv.horizontalHeader().setMinimumSectionSize(10) # allow tiny column for operator initials
 		tv.horizontalHeader().setDefaultAlignment(Qt.AlignHCenter)
@@ -5109,7 +5134,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableViewList[i].setStyleSheet("font-size:"+str(self.fontSize)+"pt")
 		self.ui.tableViewList[i].setPalette(self.teamTablePalette)
 		# self.ui.tableViewList[i].horizontalHeader().setMinimumSectionSize(10) # allow tiny column for operator initials
-		self.ui.tabGridLayoutList[i].addWidget(self.ui.tableViewList[i],0,0,1,1)
+		# self.ui.tabGridLayoutList[i].addWidget(self.ui.tableViewList[i],0,0,1,1)
+		notes=QLabel('No notes for this callsign')
+		self.ui.tabGridLayoutList[i].addWidget(notes,0,0,1,1)
+		self.ui.tabGridLayoutList[i].addWidget(self.ui.tableViewList[i],1,0,1,1)
 		self.ui.tabWidget.insertTab(i,self.ui.tabList[i],'')
 		label=QLabel(" "+shortNiceTeamName+" ")
 		if len(shortNiceTeamName)<2:
@@ -5129,7 +5157,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		bar.setTabWhatsThis(i,niceTeamName)
 # 		rprint("setting style for tab#"+str(i))
 # 		bar.tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:18px;qproperty-alignment:AlignHCenter")
-		bar.tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[""])
+		button=bar.tabButton(i,QTabBar.LeftSide)
+		styleObjectName='tab_'+extTeamName
+		button.setObjectName(styleObjectName)
+		ss=buildObjSS(styleObjectName,statusStyleDict[""])
+		rprint('setting tab initial style in addTab: '+ss)
+		button.setStyleSheet(ss)
 # 		if not extTeamName.startswith("spacer"):
 # 			label.setStyleSheet("font-size:40px;border:1px outset green;qproperty-alignment:AlignHCenter")
 		# spacers should be disabled
@@ -5241,6 +5274,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			newEntryFromAction=menu.addAction("New Entry FROM "+str(niceTeamName))
 			newEntryToAction=menu.addAction("New Entry TO "+str(niceTeamName))
 			menu.addSeparator()
+			teamNotesAction=menu.addAction('Team Notes...')
 			printTeamLogAction=menu.addAction(QIcon(QPixmap(":/radiolog_ui/icons/print_icon.png")),"Print "+str(niceTeamName)+" Log")
 			menu.addSeparator()
 ##			relabelTeamTabAction=menu.addAction("Change Label / Assignment for "+str(niceTeamName))
@@ -5305,6 +5339,9 @@ class MyWindow(QDialog,Ui_Dialog):
 				rprint('printing team log for '+str(niceTeamName))
 				self.printLog(self.opPeriod,str(niceTeamName))
 				self.radioLogNeedsPrint=True # since only one log has been printed; need to enhance this
+			elif action==teamNotesAction:
+				rprint('opening team notes for '+str(niceTeamName))
+				self.openTeamNotes(str(extTeamName))
 			elif action==deleteTeamTabAction:
 				rprint('deleteTeamTabAction clicked')
 				self.deleteTeamTab(niceTeamName)
@@ -5821,6 +5858,53 @@ class MyWindow(QDialog,Ui_Dialog):
 		if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
 			self.sidebar.resizeEvent()
 
+	def openTeamNotes(self,extTeamName):
+		self.teamNotesDialog.show()
+		self.teamNotesDialog.ui.teamField.setCurrentText(getNiceTeamName(extTeamName))
+
+	def loadTeamNotes(self,fileName=None):
+		rprint('loadTeamNotes called')
+		if not fileName:
+			fileName=os.path.join(self.sessionDir,self.teamNotesFileName)
+		try:
+			with open(fileName,'r') as tnfile:
+				rprint('Loading team notes data from file '+fileName)
+				self.teamNotesDict=json.load(tnfile)
+				rprint('  loaded these team notes:'+str(json.dumps(self.teamNotesDict,indent=3)))
+		except:
+			rprint('WARNING: Could not read team notes data file '+fileName)
+			rprint('  isfile: '+str(os.path.isfile(fileName)))
+
+	def saveTeamNotes(self):
+		rprint('saveTeamNotes called')
+		# names=self.getOperatorNames()
+		# if len(names)==0:
+		# 	rprint('  the operators list is empty; skipping the operator save operation')
+		# 	return
+		fileName=os.path.join(self.sessionDir,self.teamNotesFileName)
+		try:
+			with open(fileName,'w') as tnfile:
+				rprint('Saving team notes data file '+fileName)
+				json.dump(self.teamNotesDict,tnfile,indent=3)
+		except:
+			rprint('WARNING: Could not write team notes data file '+fileName)
+			rprint('  isfile: '+str(os.path.isfile(fileName)))
+
+	def teamNotesBuildTooltip(self,extTeamName):
+		rprint('teamNotesBuildTooltip called for '+str(extTeamName))
+		notes=self.teamNotesDict.get(extTeamName,None)
+		if extTeamName in self.teamNotesDict.keys() and notes:
+			niceTeamName=getNiceTeamName(extTeamName)
+			rprint('  building tooltip: '+str(notes))
+			tt='<span style="font-size: 14pt;"><b>'+niceTeamName+' Notes:</b><br>'+notes.replace('\n','<br>')+'</span>'
+			i=self.extTeamNameList.index(extTeamName)
+			self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setToolTip(tt)
+			oneLineNotes=notes.replace('\n',' | ')
+			while ' |  | ' in oneLineNotes:
+				oneLineNotes=oneLineNotes.replace(' |  | ',' | ')
+			oneLineNotes=oneLineNotes.strip(' |')
+			self.ui.tabGridLayoutList[i].itemAtPosition(0,0).widget().setText('Notes for '+niceTeamName+': '+oneLineNotes)
+
 	def getNextAvailHotkey(self):
 		# iterate through hotkey pool until finding one that is not taken
 		for hotkey in self.hotkeyPool:
@@ -6009,6 +6093,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			return
 		rprint('Restoring previous session after unclean shutdown:')
 		self.load(fileToLoad) # loads the radio log and the clue log
+		self.loadTeamNotes(os.path.join(os.path.dirname(fileToLoad),self.teamNotesFileName))
 		# hide warnings about missing fleetsync file, since it does not get saved until clean shutdown time
 		# note, there is no need to load the default table first, since the defaults would exist
 		#  in the session fleetsync csv file
@@ -9490,6 +9575,79 @@ class loginDialog(QDialog,Ui_loginDialog):
 ##	def go(self):
 ##		rprint("CONVERTING")
 
+
+class teamNotesDialog(QDialog,Ui_teamNotesDialog):
+	def __init__(self,parent):
+		QDialog.__init__(self)
+		self.ui=Ui_teamNotesDialog()
+		self.ui.setupUi(self)
+		self.setStyleSheet(globalStyleSheet)
+		self.setWindowFlags(Qt.WindowStaysOnTopHint)
+		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		self.setFixedSize(self.size())
+		self.parent=parent
+		self.niceTeamName=None
+		self.extTeamName=None
+		self.skipTeamChangedCB=False
+
+	def teamChanged(self,e):
+		if self.skipTeamChangedCB or not str(self.ui.teamField.currentText()):
+			self.skipTeamChangedCB=False
+			return
+		savedNotes=self.parent.teamNotesDict.get(self.extTeamName,None)
+		if self.ui.notesField.toPlainText() not in [savedNotes,'','No notes for '+str(self.niceTeamName)]:
+			really=QMessageBox(QMessageBox.Warning,"Please Confirm","The text you typed for "+str(self.niceTeamName)+" is not the same as the saved notes for "+str(self.niceTeamName)+".\n\nSwitch to show notes for "+str(self.ui.teamField.currentText())+", discarding what you typed?",
+				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			if really.exec_()==QMessageBox.No:
+				self.skipTeamChangedCB=True
+				self.ui.teamField.setCurrentText(self.niceTeamName)
+				return
+		self.niceTeamName=str(self.ui.teamField.currentText())
+		self.extTeamName=getExtTeamName(self.niceTeamName)
+		# rprint('getting team notes for '+str(self.extTeamName))
+		notes=str(self.parent.teamNotesDict.get(self.extTeamName,'No notes for '+self.niceTeamName))
+		# rprint('  --> '+notes)
+		self.ui.notesField.setPlainText(notes)
+
+	def notesTextChanged(self):
+		self.ui.buttonBox.button(QDialogButtonBox.Save).setEnabled(self.ui.notesField.toPlainText()!='No notes for '+self.ui.teamField.currentText())
+
+	def showEvent(self,e):
+		self.ui.teamField.clear()
+		self.ui.teamField.addItems([getNiceTeamName(x) for x in self.parent.extTeamNameList if 'spacer' not in x])
+
+	def toggleShow(self):
+		rprint('teamNotesDialog toggleShow called')
+		if self.isVisible():
+			self.close()
+		else:
+			self.show()
+			self.raise_()
+
+	def accept(self):
+		if self.ui.notesField.toPlainText() not in ['','No notes for '+self.ui.teamField.currentText()]:
+			self.parent.teamNotesDict[self.extTeamName]=self.ui.notesField.toPlainText()
+			self.parent.teamNotesBuildTooltip(self.extTeamName)
+			self.parent.saveTeamNotes()
+		else:
+			rprint('team notes dialog save button clicked for '+self.ui.teamField.currentText()+' with default text in place; nothing to save')
+		self.close()
+	
+	# call closeEvent from Cancel button or Escape key; otherwise, closeEvent is only called by the Red X
+	def reject(self):
+		self.close()
+
+	def closeEvent(self,event):
+		savedNotes=self.parent.teamNotesDict.get(self.extTeamName,None)
+		if self.ui.notesField.toPlainText() not in [savedNotes,'','No notes for '+self.ui.teamField.currentText()]:
+			really=QMessageBox(QMessageBox.Warning,"Please Confirm","The text you typed is not the same as the saved notes for "+self.ui.teamField.currentText()+".\n\nClose the Team Notes form, discarding what you typed?",
+				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			if really.exec_()==QMessageBox.No:
+				event.ignore()
+				return
+			# if confirmed, set the text field to the same as the saved notes, to avoid warning on next open
+			notes=str(self.parent.teamNotesDict.get(self.extTeamName,'No notes for '+self.niceTeamName))
+			self.ui.notesField.setPlainText(notes)
 
 class clueTableModel(QAbstractTableModel):
 	header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.','']
