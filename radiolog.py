@@ -9598,7 +9598,7 @@ class teamNotesDialog(QDialog,Ui_teamNotesDialog):
 
 	def showEvent(self,e):
 		self.ui.teamField.clear()
-		self.ui.teamField.addItems([getNiceTeamName(x) for x in self.parent.extTeamNameList])
+		self.ui.teamField.addItems([getNiceTeamName(x) for x in self.parent.extTeamNameList if 'spacer' not in x])
 
 	def toggleShow(self):
 		rprint('teamNotesDialog toggleShow called')
