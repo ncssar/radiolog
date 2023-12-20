@@ -489,8 +489,12 @@ def preserveCapsIfNeeded(w):
 		return w
 	
 def getExtTeamName(teamName):
+	# rprint('getExtTeamName called with argument "'+str(teamName)+'"')
 	if teamName.lower().startswith("all ") or teamName.lower()=="all":
 		return "ALL TEAMS"
+	#702 - change camelCaseWords to camel Case Words
+	#  insert a space before every Uppercase letter that is preceded by a lowercase letter
+	teamName=re.sub(r'([a-z])([A-Z])',r'\1 \2',teamName)
 	# capitalize each word, in case teamName is e.g. 'Team bravo'
 	#  https://stackoverflow.com/a/1549644/3577105
 	teamName=' '.join(w.capitalize() for w in teamName.split())
@@ -534,9 +538,11 @@ def getExtTeamName(teamName):
 ##	rprint("prefix="+prefix+" rest="+rest+" name="+name)
 	extTeamName=prefix+rest
 # 	rprint("Team Name:"+teamName+": extended team name:"+extTeamName)
+	# rprint('  --> extTeamName="'+str(extTeamName)+'"')
 	return extTeamName
 
 def getNiceTeamName(extTeamName):
+	# rprint('getNiceTeamName called for '+str(extTeamName))
 	# prune any leading 'z_' that may have been added for sorting purposes
 	extTeamName=extTeamName.replace('z_','')
 	# find index of first number in the name; everything left of that is the 'prefix';
