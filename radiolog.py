@@ -3750,6 +3750,12 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		self.resizeRowsToContentsIfNeeded()
 		self.loadFlag=False
 
+	def setTeamStatus(self,extTeamName,status):
+		teamStatusDict[extTeamName]=status
+		#715 redraw the sidebar here, regardless of visibility but only when needed, rather than
+		#  every second in updateTeamTimers, based on visibility, which doesn't happen until the next tick
+		self.sidebar.resizeEvent()
+
 	def updateClock(self):
 		self.ui.clock.display(time.strftime("%H:%M"))
 
@@ -3885,8 +3891,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.ui.teamTabsMoreButton.setIcon(self.teamTabsMoreButtonIcon)
 			self.teamTabsMoreButtonIsBlinking=False
 
-		if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
-			self.sidebar.resizeEvent()
+		#715 redraw the sidebar from setTeamStatus, regardless of visibility but only when needed,
+		#  rather than here every second based on visibility which doesn't happen until the next tick
+		# if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
+		# 	self.sidebar.resizeEvent()
 
 		for sld in subjectLocatedDialog.instances:
 			sld.countdown()
@@ -4794,7 +4802,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			if extTeamName not in self.extTeamNameList:
 				self.newTeam(niceTeamName)
 			i=self.extTeamNameList.index(extTeamName)
-			teamStatusDict[extTeamName]=status
+			# teamStatusDict[extTeamName]=status
+			self.setTeamStatus(extTeamName,status)
 			if not extTeamName in teamFSFilterDict:
 				teamFSFilterDict[extTeamName]=0
 			# credit to Berryblue031 for pointing out this way to style the tab widgets
@@ -5861,8 +5870,10 @@ class MyWindow(QDialog,Ui_Dialog):
 				if self.extTeamNameList[n+1].lower().startswith("spacer"):
 					rprint("  found back-to-back spacers at indices "+str(n)+" and "+str(n+1))
 					self.deleteTeamTab(self.extTeamNameList[n+1],True)
-		if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
-			self.sidebar.resizeEvent()
+		#715 - redraw sidebar now, regardless of visibility
+		# if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
+		# 	self.sidebar.resizeEvent()
+		self.sidebar.resizeEvent()
 
 	def openTeamNotes(self,extTeamName):
 		self.teamNotesDialog.show()
@@ -6061,8 +6072,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  (this is already done at the start of addTab, which is too late)
 		self.hiddenTeamTabsList=[x for x in self.hiddenTeamTabsList if extTeamName!=x]
 		self.newEntry(values)
-		if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
-			self.sidebar.resizeEvent()
+		#715 - redraw sidebar now, regardless of visibility
+		# if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
+		# 	self.sidebar.resizeEvent()
+		self.sidebar.resizeEvent()
 
 	def addNonRadioClue(self):
 		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
@@ -8007,7 +8020,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##		self.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 		clickedStatus=self.ui.statusButtonGroup.checkedButton().text()
 		extTeamName=getExtTeamName(self.ui.teamField.text())
-		teamStatusDict[extTeamName]=clickedStatus
+		# teamStatusDict[extTeamName]=clickedStatus
+		self.parent.setTeamStatus(extTeamName,clickedStatus)
 
 	def updateTabLabel(self):
 		i=self.parent.newEntryWindow.ui.tabWidget.indexOf(self)
