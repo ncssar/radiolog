@@ -3750,6 +3750,12 @@ class MyWindow(QDialog,Ui_Dialog):
 ##		self.resizeRowsToContentsIfNeeded()
 		self.loadFlag=False
 
+	def setTeamStatus(self,extTeamName,status):
+		teamStatusDict[extTeamName]=status
+		#715 redraw the sidebar here, regardless of visibility but only when needed, rather than
+		#  every second in updateTeamTimers, based on visibility, which doesn't happen until the next tick
+		self.sidebar.resizeEvent()
+
 	def updateClock(self):
 		self.ui.clock.display(time.strftime("%H:%M"))
 
@@ -3885,8 +3891,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.ui.teamTabsMoreButton.setIcon(self.teamTabsMoreButtonIcon)
 			self.teamTabsMoreButtonIsBlinking=False
 
-		if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
-			self.sidebar.resizeEvent()
+		#715 redraw the sidebar from setTeamStatus, regardless of visibility but only when needed,
+		#  rather than here every second based on visibility which doesn't happen until the next tick
+		# if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
+		# 	self.sidebar.resizeEvent()
+		self.sidebar.setTeamTableColors()
 
 		for sld in subjectLocatedDialog.instances:
 			sld.countdown()
@@ -4794,7 +4803,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			if extTeamName not in self.extTeamNameList:
 				self.newTeam(niceTeamName)
 			i=self.extTeamNameList.index(extTeamName)
-			teamStatusDict[extTeamName]=status
+			# teamStatusDict[extTeamName]=status
+			self.setTeamStatus(extTeamName,status)
 			if not extTeamName in teamFSFilterDict:
 				teamFSFilterDict[extTeamName]=0
 			# credit to Berryblue031 for pointing out this way to style the tab widgets
@@ -5861,8 +5871,10 @@ class MyWindow(QDialog,Ui_Dialog):
 				if self.extTeamNameList[n+1].lower().startswith("spacer"):
 					rprint("  found back-to-back spacers at indices "+str(n)+" and "+str(n+1))
 					self.deleteTeamTab(self.extTeamNameList[n+1],True)
-		if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
-			self.sidebar.resizeEvent()
+		#715 - redraw sidebar now, regardless of visibility
+		# if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
+		# 	self.sidebar.resizeEvent()
+		self.sidebar.resizeEvent()
 
 	def openTeamNotes(self,extTeamName):
 		self.teamNotesDialog.show()
@@ -6061,8 +6073,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  (this is already done at the start of addTab, which is too late)
 		self.hiddenTeamTabsList=[x for x in self.hiddenTeamTabsList if extTeamName!=x]
 		self.newEntry(values)
-		if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
-			self.sidebar.resizeEvent()
+		#715 - redraw sidebar now, regardless of visibility
+		# if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
+		# 	self.sidebar.resizeEvent()
+		self.sidebar.resizeEvent()
 
 	def addNonRadioClue(self):
 		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
@@ -6238,6 +6252,8 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		self.ui.teamTabsTableWidget.wheelEvent=lambda event: None
 		self.initialWidth=self.width()
 		self.initialHeight=self.height()
+		self.teamsRowCount=0
+		self.teamsColumnCount=0
 
 	def cellClicked(self,row,col):
 		ci=self.ui.teamTabsTableWidget.currentItem()
@@ -6298,11 +6314,11 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		maxSidebarHeight=self.parent.height()
 		maxTeamTableHeight=maxSidebarHeight-self.ui.teamTabsSummaryTableWidget.height()-15 # arbirary for padding etc
 		maxRowCount=int(maxTeamTableHeight/self.tttRowHeight)
-		rowCount=min(listCount,maxRowCount)
-		colCount=int((listCount+maxRowCount-1)/maxRowCount) # do the math - this works
+		self.teamsRowCount=min(listCount,maxRowCount)
+		self.teamsColumnCount=int((listCount+maxRowCount-1)/maxRowCount) # do the math - this works
 		# rprint(' listCount='+str(listCount)+' maxRowCount='+str(maxRowCount)+' : setting rows='+str(rowCount)+' cols='+str(colCount))
-		self.ui.teamTabsTableWidget.setRowCount(rowCount)
-		self.ui.teamTabsTableWidget.setColumnCount(colCount)
+		self.ui.teamTabsTableWidget.setRowCount(self.teamsRowCount)
+		self.ui.teamTabsTableWidget.setColumnCount(self.teamsColumnCount)
 		if not self.parent.sidebarIsVisible:
 			self.move(-self.width(),self.y())
 
@@ -6312,56 +6328,34 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 		hotkeyRDict={v:k for k,v in self.parent.hotkeyDict.items()}
 		showTeamHotkeys=self.parent.ui.teamHotkeysWidget.isVisible()
 		for i in range(listCount):
-			col=int(i/rowCount)
-			row=i-(col*rowCount)
+			col=int(i/self.teamsRowCount)
+			row=i-(col*self.teamsRowCount)
 			t=theList[i]
 			etn=getExtTeamName(t)
 			hotkey=hotkeyRDict.get(t,"")
-			status=teamStatusDict.get(etn,None)
-			if status is not None: # could be empty string
-				# self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
-				twi=QTableWidgetItem(t)
-				hidden=False
-				# modifications for hidden tabs:
-				#  - always italic
-				#  - light gray text if/when background is white; black text otherwise
-				#  - always wrap in square brackets []
-				#  - use bgHidden for background color, if specificed
-				if etn in self.parent.hiddenTeamTabsList:
-					hidden=True
-					twi.setText('['+t+']')
-				if showTeamHotkeys and hotkey:
-					twi.setText(hotkey+': '+twi.text())
-				age=teamTimersDict.get(etn,0)
-				if self.parent.blinkToggle==1 and status not in ["At IC","Off Duty"]:
-					if age>=self.parent.timeoutRedSec:
-						status='TIMED_OUT_RED'
-					elif age>=self.parent.timeoutOrangeSec:
-						status='TIMED_OUT_ORANGE'
-				ad=statusAppearanceDict.get(status,{})
-				fgColor=ad.get('foreground',None)
-				bgColor=ad.get('background',None)
-				bgHidden=ad.get('bgHidden',None)
-				blink=ad.get('blink',False)
-				italic=hidden
-				if hidden:
-					fgColor=QColor('#555')
-					bgColor=bgHidden
-				if blink and self.parent.blinkToggle==1:
-					fgColor=None
-					if hidden:
-						fgColor=QColor('#555')
-					bgColor=None
-				if fgColor:
-					twi.setForeground(QBrush(fgColor))
-				if bgColor:
-					twi.setBackground(QBrush(bgColor))
-				if italic:
-					f=twi.font()
-					f.setItalic(True)
-					twi.setFont(f)
-				# rprint('i='+str(i)+'  row='+str(row)+'  col='+str(col)+'  text='+str(theList[i]))
-				self.ui.teamTabsTableWidget.setItem(row,col,twi)
+			# status=teamStatusDict.get(etn,None)
+			# if status is not None: # could be empty string
+			# self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
+			twi=QTableWidgetItem(t)
+			twi.setWhatsThis(etn) # for use by setTeamTableColors
+			hidden=False
+			# modifications for hidden tabs:
+			#  - always italic
+			#  - light gray text if/when background is white; black text otherwise
+			#  - always wrap in square brackets []
+			#  - use bgHidden for background color, if specificed
+			if etn in self.parent.hiddenTeamTabsList:
+				hidden=True
+				twi.setText('['+t+']')
+			if showTeamHotkeys and hotkey:
+				twi.setText(hotkey+': '+twi.text())
+			if hidden:
+				f=twi.font()
+				f.setItalic(True)
+				twi.setFont(f)
+			# rprint('i='+str(i)+'  row='+str(row)+'  col='+str(col)+'  text='+str(theList[i]))
+			self.ui.teamTabsTableWidget.setItem(row,col,twi)
+		self.setTeamTableColors() #715 - handle colors and blinking in a separate function
 
 		# 3. populate summary table
 
@@ -6401,10 +6395,10 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 
 		self.ui.teamTabsTableWidget.resizeColumnsToContents()
 		teamTabsTableRequiredWidth=4 # initial size = borders
-		for n in range(colCount):
+		for n in range(self.teamsColumnCount):
 			teamTabsTableRequiredWidth+=self.ui.teamTabsTableWidget.columnWidth(n)+4
 		newWidth=max(self.initialWidth,teamTabsTableRequiredWidth)
-		newHeight=max(self.initialHeight,rowCount*self.tttRowHeight+self.ttsHeight+18)
+		newHeight=max(self.initialHeight,self.teamsRowCount*self.tttRowHeight+self.ttsHeight+18)
 		self.setFixedSize(newWidth,newHeight)
 
 		# 5. move sidebar to correct vertical position
@@ -6418,6 +6412,49 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 			if y+newHeight<maxSidebarHeight: # there's space to move downwards
 				y=0
 		self.move(self.x(),y)
+
+	def setTeamTableColors(self):
+		# Walk through all cells; extTeamName for that cell is stored in the QTableWidgetItem.whatsThis.
+		# Use that to get the status and the age, and use those to determine the color based on blinkToggle.
+		for col in range(self.teamsColumnCount):
+			for row in range(self.teamsRowCount):
+				# rprint('blink: col='+str(col)+' row='+str(row))
+				twi=self.ui.teamTabsTableWidget.item(row,col)
+				if twi: # None for empty cells
+		# rprint('teamTabsPopup.blink')
+		# self.ui.teamTabsTableWidget.selectAll()
+		# rprint('  selected:'+str(self.ui.teamTabsTableWidget.selectedItems()))
+		# for qti in self.ui.teamTabsTableWidget.selectedItems():
+					extTeamName=twi.whatsThis()
+					# rprint(' blink: '+str(extTeamName))
+					hidden=False
+					if extTeamName in self.parent.hiddenTeamTabsList:
+						hidden=True
+					status=teamStatusDict.get(extTeamName,None)
+					age=teamTimersDict.get(extTeamName,0)
+					if self.parent.blinkToggle==1 and status not in ["At IC","Off Duty"]:
+						if age>=self.parent.timeoutRedSec:
+							status='TIMED_OUT_RED'
+						elif age>=self.parent.timeoutOrangeSec:
+							status='TIMED_OUT_ORANGE'
+					ad=statusAppearanceDict.get(status,{})
+					fgColor=ad.get('foreground',None)
+					bgColor=ad.get('background',None)
+					bgHidden=ad.get('bgHidden',None)
+					blink=ad.get('blink',False)
+					if hidden:
+						fgColor=QColor('#555')
+						bgColor=bgHidden
+					if blink and self.parent.blinkToggle==1:
+						fgColor=None
+						if hidden:
+							fgColor=QColor('#555')
+						bgColor=None
+					fgColor=fgColor or Qt.black
+					bgColor=bgColor or Qt.white
+					# rprint('  status:'+str(status)+'  hidden:'+str(hidden)+'  blink:'+str(blink)+'  fgColor:'+str(fgColor)+'  bgColor:'+str(bgColor))
+					twi.setForeground(QBrush(fgColor))
+					twi.setBackground(QBrush(bgColor))
 
 
 class optionsDialog(QDialog,Ui_optionsDialog):
@@ -8007,7 +8044,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##		self.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 		clickedStatus=self.ui.statusButtonGroup.checkedButton().text()
 		extTeamName=getExtTeamName(self.ui.teamField.text())
-		teamStatusDict[extTeamName]=clickedStatus
+		# teamStatusDict[extTeamName]=clickedStatus
+		self.parent.setTeamStatus(extTeamName,clickedStatus)
 
 	def updateTabLabel(self):
 		i=self.parent.newEntryWindow.ui.tabWidget.indexOf(self)
