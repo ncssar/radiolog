@@ -1292,7 +1292,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.teamTimer.start(1000)
 
 		self.slowTimer=QTimer(self)
-		self.slowTimer.timeout.connect(self.saveRcIfNeeded)
+		self.slowTimer.timeout.connect(self.checkForResize)
 		self.slowTimer.start(5000)
 
 		self.fastTimer=QTimer(self)
@@ -4101,16 +4101,17 @@ class MyWindow(QDialog,Ui_Dialog):
 			out << "cleanShutdown=True\n"
 		rcFile.close()
 
-	def saveRcIfNeeded(self):
+	def checkForResize(self):
 		# this is probably cleaner, lighter, and more robust than using resizeEvent
 		(x,y,w,h)=self.geometry().getRect()
 		if x!=self.x or y!=self.y or w!=self.w or h!=self.h:
-			rprint('resize detected; saving rc file')
+			rprint('resize detected; saving rc file and redawing sidebar')
 			self.x=x
 			self.y=y
 			self.w=w
 			self.h=h
 			self.saveRcFile()
+			self.sidebar.redraw()
 		
 	def loadRcFile(self):
 		# this function gets called at startup (whether it's a clean fresh start
@@ -5994,6 +5995,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.ui.tabWidget.tabBar().setTabVisible(0,False)
 
 	def sidebarShowHide(self,e=None):
+		self.checkForResize()
 		# rprint('sidebarShowHide: x='+str(self.sidebar.pos().x())+'  e='+str(e))
 		hideEvent=False
 		w=self.sidebar.width()
