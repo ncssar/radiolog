@@ -5131,7 +5131,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.showTeamTabsMoreButtonIfNeeded()
 		niceTeamName=getNiceTeamName(extTeamName)
 		shortNiceTeamName=getShortNiceTeamName(niceTeamName)
-# 		rprint("new team: extTeamName="+extTeamName+" niceTeamName="+niceTeamName+" shortNiceTeamName="+shortNiceTeamName)
+		# rprint("addTab: extTeamName="+extTeamName+" niceTeamName="+niceTeamName+" shortNiceTeamName="+shortNiceTeamName)
 		i=self.extTeamNameList.index(extTeamName) # i is zero-based
 		self.ui.tabList.insert(i,QWidget())
 		self.ui.tabList[i].setStyleSheet('font-size:'+str(self.menuFontSize)+'pt')
@@ -5151,9 +5151,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableViewList[i].setPalette(self.teamTablePalette)
 		# self.ui.tableViewList[i].horizontalHeader().setMinimumSectionSize(10) # allow tiny column for operator initials
 		# self.ui.tabGridLayoutList[i].addWidget(self.ui.tableViewList[i],0,0,1,1)
-		notes=QLabel('No notes for this callsign')
-		self.ui.tabGridLayoutList[i].addWidget(notes,0,0,1,1)
-		self.ui.tabGridLayoutList[i].addWidget(self.ui.tableViewList[i],1,0,1,1)
+		if 'spacer' not in extTeamName.lower(): #717 - widgets for spacer tabs should be blank
+			notes=QLabel('No notes for this callsign')
+			self.ui.tabGridLayoutList[i].addWidget(notes,0,0,1,1)
+			self.ui.tabGridLayoutList[i].addWidget(self.ui.tableViewList[i],1,0,1,1)
 		self.ui.tabWidget.insertTab(i,self.ui.tabList[i],'')
 		label=QLabel(" "+shortNiceTeamName+" ")
 		if len(shortNiceTeamName)<2:
@@ -5869,8 +5870,19 @@ class MyWindow(QDialog,Ui_Dialog):
 		for n in range(len(self.extTeamNameList)-1):
 			if self.extTeamNameList[n].lower().startswith("spacer"):
 				if self.extTeamNameList[n+1].lower().startswith("spacer"):
-					rprint("  found back-to-back spacers at indices "+str(n)+" and "+str(n+1))
-					self.deleteTeamTab(self.extTeamNameList[n+1],True)
+					if len(self.extTeamNameList)>2: # but not if there are no visible tabs
+						rprint("  found back-to-back spacers at indices "+str(n)+" and "+str(n+1))
+						self.deleteTeamTab(self.extTeamNameList[n+1],True)
+		#717 if all tabs are hidden, keep the same look as at startup
+		if len(self.extTeamNameList)==2:
+			rprint('all teams hidden; clearing tabWidget')
+			self.ui.tabWidget.clear()
+		#717 if rightmost tab was hidden, select the new rightmost visible tab if one exists
+		i=self.ui.tabWidget.currentIndex()
+		count=self.ui.tabWidget.count()
+		if i==count-1 and count>2:
+			rprint('last tab was hidden; backselecting')
+			self.ui.tabWidget.setCurrentIndex(i-1)
 		#715 - redraw sidebar now, regardless of visibility
 		# if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
 		# 	self.sidebar.resizeEvent()
