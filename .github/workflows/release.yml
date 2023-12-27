@@ -4,7 +4,7 @@ on:
     tags:
       - '*.*.*'
 env:
-  version: '3.10.2'
+  version: '3.11.0'
 
 jobs:
   build-release:
