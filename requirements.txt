@@ -4,4 +4,4 @@ pyserial
 requests
 pypdf2
 pypiwin32
-pygeodesy
+pygeodesy==23.11.11
