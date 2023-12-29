@@ -1085,7 +1085,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.teamNotesFileName='team_notes.json'
 		
 		# 662 added for debugging - copy the operator file into the run dir on startup and on shutdown
-		shutil.copy(os.path.join(self.configDir,self.operatorsFileName),os.path.join(self.sessionDir,'operators_at_startup.json'))
+		#  (#724: only if the file exists!)
+		if os.path.isfile(os.path.join(self.configDir,self.operatorsFileName)):
+			shutil.copy(os.path.join(self.configDir,self.operatorsFileName),os.path.join(self.sessionDir,'operators_at_startup.json'))
 
 		# self.operatorsDict: dictionary with one key ('operators') whose value is a list of dictionaries
 		#  Why not just a list of dictionaries?  Why wrap in a single-item dictionary?
@@ -4062,7 +4064,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			win32gui.SystemParametersInfo(win32con.SPI_SETACTIVEWINDOWTRACKING,self.initialWindowTracking)
 
 		# 662 added for debugging - copy the operator file into the run dir on startup and on shutdown
-		shutil.copy(os.path.join(self.configDir,self.operatorsFileName),os.path.join(self.sessionDir,'operators_at_shutdown.json'))
+		#  (#724: only if the file exists!)
+		if os.path.isfile(os.path.join(self.configDir,self.operatorsFileName)):
+			shutil.copy(os.path.join(self.configDir,self.operatorsFileName),os.path.join(self.sessionDir,'operators_at_shutdown.json'))
 
 		qApp.quit() # needed to make sure all windows area closed
 
