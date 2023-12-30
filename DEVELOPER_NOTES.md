@@ -68,3 +68,10 @@ Run 'pyinstaller radiolog.spec'.  The executable will be created in the dist/rad
 
 ## Build a test installer (e.g. to test edits to radiolog.iss before committing)
 Run '\<Inno Setup install dir\>\ISCC.exe radiolog.iss' - this will build dist\radiolog-\<version\>-setup.exe.
+
+## Run in a virtual environment (e.g. to test specific dependency versions)
+On the development machine, a venv exists in Documents/GitHub/.radiolog.venv.
+1. From Documents/GitHub, run ./.radiolog.venv/Scripts/activate.
+2. Copy the latest GitHub/radiolog directory into the .radiolog.venv directory.
+3. Install whatever module versions you want to test, probably by modifying requirements.txt then running 'pip -install requirements.txt'.
+4. Running python or pyinstaller or ISSC from that virtual env will use whatever module versions you have installed into that virtual env.  The resulting builds will be placed in the non-virtual-env directory (Documents/GitHub/radiolog rather than Documents/GitHub/.radiolog.venv/radiolog).
