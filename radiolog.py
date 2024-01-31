@@ -4589,12 +4589,17 @@ class MyWindow(QDialog,Ui_Dialog):
 		# #  this may well be a python bug, but, take steps here to only call it when needed, by
 		# #  comparing its previous value (stored in self.NEWFlags) to the new required value
 		# nf1=self.NEWFlags
-		# if clueDialog.openDialogCount==0:
-		# 	self.NEWFlags=Qt.WindowTitleHint|Qt.WindowStaysOnTopHint
-		# else:
-		# 	self.NEWFlags=Qt.WindowTitleHint
+
+		#726 hotfix - uncomment these lines to enable setting flags on every call, below
+		if clueDialog.openDialogCount==0:
+			self.NEWFlags=Qt.WindowTitleHint|Qt.WindowStaysOnTopHint
+		else:
+			self.NEWFlags=Qt.WindowTitleHint
 		# if nf1!=self.NEWFlags:
 		# 	self.newEntryWindow.setWindowFlags(self.NEWFlags)
+
+		# 726 hotfix: set flags on every call - not sure why this fixes the focus-stealing problem, but it does
+		self.newEntryWindow.setWindowFlags(self.NEWFlags)
 
 		sec=time.time() # epoch seconds, for sorting purposes; not displayed
 		self.newEntryWidget=newEntryWidget(self,sec,formattedLocString,fleet,dev,origLocString,amendFlag,amendRow,isMostRecentForCallsign)
