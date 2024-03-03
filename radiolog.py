@@ -1327,9 +1327,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		# the same flags don't do the trick inside the QMessageBox constructor for whatever reason
 		self.newEntryWindowHiddenPopup.setWindowFlags(Qt.Dialog|Qt.CustomizeWindowHint|Qt.WindowTitleHint|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 
-		if restoreFlag:
-			self.restore()
-			
 		# make sure x/y/w/h from resource file will fit on the available display
 		d=QApplication.desktop()
 		if (self.x+self.w > d.width()) or (self.y+self.h > d.height()):
@@ -1347,6 +1344,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.setGeometry(int(self.x),int(self.y),int(self.w),int(self.h))
 		self.clueLogDialog.setGeometry(int(self.clueLog_x),int(self.clueLog_y),int(self.clueLog_w),int(self.clueLog_h))
 		self.fontsChanged()
+
+		#734 move restore to just after fontsChanged, which defines font size variables
+		if restoreFlag:
+			self.restore()
 
 		self.previousActiveWindowName='None'
 
