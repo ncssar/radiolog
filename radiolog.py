@@ -333,7 +333,7 @@ from FingerTabs import *
 from pygeodesy import Datums,ellipsoidalBase,dms
 from difflib import SequenceMatcher
 
-__version__ = "3.11.3"
+__version__ = "3.11.4"
 
 # process command-line arguments
 develMode=False
