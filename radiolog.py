@@ -2410,43 +2410,52 @@ class MyWindow(QDialog,Ui_Dialog):
 		for widget in newEntryWidget.instances:
 			rprint('checking against existing widget: to_from='+widget.ui.to_fromField.currentText()+' team='+widget.ui.teamField.text()+' lastModAge:'+str(widget.lastModAge))
 			# #452 - do a case-insensitive and spaces-removed comparison, in case Sar 1 and SAR 1 both exist, or trans 1 and Trans 1 and TRANS1, etc.
-			if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ','') and widget.lastModAge<continueSec:
+			#742 - don't open a new entry if the existing new entry widget has a child clue or subject dialog open
+			# if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ','') and widget.lastModAge<continueSec:
+			if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ',''):
+				if widget.lastModAge<continueSec:
+					rprint("  new entry widget is already open from this callsign within the 'continue time'; not opening a new one")
+					found=True
+				elif widget.childDialogs:
+					rprint('  new entry widget is already open that has child dialog/s (clue or subject located); not opening a new one')
+					found=True
+				if found:
 ##				widget.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
-				found=True
-				rprint("  new entry widget is already open from this callsign within the 'continue time'; not opening a new one")
-				prevLocString=widget.ui.radioLocField.toPlainText()
-				# if previous location string was blank, always overwrite;
-				#  if previous location string was not blank, only overwrite if new location is valid
-				if prevLocString=='' or (formattedLocString!='' and formattedLocString!='NO FIX'):
-					datumFormatString="("+self.datum+"  "+self.coordFormat+")"
-					if widget.relayed:
-						rprint("location strings not updated because the message is relayed")
-						widget.radioLocTemp=formattedLocString
-						widget.datumFormatTemp=datumFormatString
-					else:
-						rprint("location strings updated because the message is not relayed")
-						widget.ui.radioLocField.setText(formattedLocString)
-						widget.ui.datumFormatLabel.setText(datumFormatString)
-						widget.formattedLocString=formattedLocString
-						widget.origLocString=origLocString
-				# #509: populate radio location field in any child dialogs that have that field (clue or subject located)
-				for child in widget.childDialogs:
-					rprint('  new entry widget for '+str(callsign)+' has a child dialog; attempting to update radio location in that dialog')
-					try:
-						# need to account for widgets that have .toPlainText() method (in clueDialog)
-						#  and widgets that have .text() method (in subjectLocatedDialog)
+				# found=True
+				# rprint("  new entry widget is already open from this callsign within the 'continue time'; not opening a new one")
+					prevLocString=widget.ui.radioLocField.toPlainText()
+					# if previous location string was blank, always overwrite;
+					#  if previous location string was not blank, only overwrite if new location is valid
+					if prevLocString=='' or (formattedLocString!='' and formattedLocString!='NO FIX'):
+						datumFormatString="("+self.datum+"  "+self.coordFormat+")"
+						if widget.relayed:
+							rprint("location strings not updated because the message is relayed")
+							widget.radioLocTemp=formattedLocString
+							widget.datumFormatTemp=datumFormatString
+						else:
+							rprint("location strings updated because the message is not relayed")
+							widget.ui.radioLocField.setText(formattedLocString)
+							widget.ui.datumFormatLabel.setText(datumFormatString)
+							widget.formattedLocString=formattedLocString
+							widget.origLocString=origLocString
+					# #509: populate radio location field in any child dialogs that have that field (clue or subject located)
+					for child in widget.childDialogs:
+						rprint('  new entry widget for '+str(callsign)+' has a child dialog; attempting to update radio location in that dialog')
 						try:
-							prevLocString=child.ui.radioLocField.toPlainText()
+							# need to account for widgets that have .toPlainText() method (in clueDialog)
+							#  and widgets that have .text() method (in subjectLocatedDialog)
+							try:
+								prevLocString=child.ui.radioLocField.toPlainText()
+							except:
+								prevLocString=child.ui.radioLocField.text()
+							#  only populate with the radio location of the first call - don't keep updating with subsequent calls
+							#  (could be changed in the future if needed - basically, should the report include the radio coords of
+							#   the first call of the report, or of the last call of a continued conversation before the report is saved?)
+							if prevLocString=='' and formattedLocString!='' and formattedLocString!='NO FIX':
+								child.ui.radioLocField.setText(formattedLocString)
 						except:
-							prevLocString=child.ui.radioLocField.text()
-						#  only populate with the radio location of the first call - don't keep updating with subsequent calls
-						#  (could be changed in the future if needed - basically, should the report include the radio coords of
-						#   the first call of the report, or of the last call of a continued conversation before the report is saved?)
-						if prevLocString=='' and formattedLocString!='' and formattedLocString!='NO FIX':
-							child.ui.radioLocField.setText(formattedLocString)
-					except:
-						pass
-				break # to preserve 'widget' variable for use below
+							pass
+					break # to preserve 'widget' variable for use below
 		if fleet and dev:
 			self.fsLogUpdate(fleet=fleet,dev=dev)
 			# only open a new entry widget if none is alredy open within the continue time, 
