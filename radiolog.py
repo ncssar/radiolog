@@ -3848,31 +3848,36 @@ class MyWindow(QDialog,Ui_Dialog):
 				button=self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
 				# rprint('  i='+str(i)+'  status='+str(status)+'  filter='+str(fsFilter)+'  blink='+str(self.blinkToggle)+'  button='+str(button))
 				styleObjectName='tab_'+extTeamName
-				if status in ["Waiting for Transport","STANDBY","Available"] or (secondsSinceContact>=self.timeoutOrangeSec):
-					# if a team status is blinking, and the tab is not visible due to scrolling of a very wide tab bar,
-					#  then blink the three-dots icon; but this test may be expensive so don't test again after the first hit
-					#  https://stackoverflow.com/a/28805583/3577105
-					if not teamTabsMoreButtonBlinkNeeded and button.visibleRegion().isEmpty():
-						teamTabsMoreButtonBlinkNeeded=True
-					if self.blinkToggle==0:
-						# blink 0: style is one of these:
-						# - style as normal per status
-						button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict[status]))
+				#741 wrap this entire if/else clause in a check to see if button exists;
+				#  it should always exist now, due to other fixes for #741
+				if button:
+					if status in ["Waiting for Transport","STANDBY","Available"] or (secondsSinceContact>=self.timeoutOrangeSec):
+						# if a team status is blinking, and the tab is not visible due to scrolling of a very wide tab bar,
+						#  then blink the three-dots icon; but this test may be expensive so don't test again after the first hit
+						#  https://stackoverflow.com/a/28805583/3577105
+						if not teamTabsMoreButtonBlinkNeeded and button.visibleRegion().isEmpty():
+							teamTabsMoreButtonBlinkNeeded=True
+						if self.blinkToggle==0:
+							# blink 0: style is one of these:
+							# - style as normal per status
+							button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict[status]))
+						else:
+							# blink 1: style is one of these:
+							# - timeout orange
+							# - timeout red
+							# - no change (if status is anything but 'Waiting for transport' or 'STANDBY')
+							# - blank (black on white) (if status is 'Waiting for transport' or 'STANDBY', and not timed out)
+							if not hold and status not in ["At IC","Off Duty"] and secondsSinceContact>=self.timeoutRedSec:
+								button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict["TIMED_OUT_RED"]))
+							elif not hold and status not in ["At IC","Off Duty"] and (secondsSinceContact>=self.timeoutOrangeSec and secondsSinceContact<self.timeoutRedSec):
+								button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict["TIMED_OUT_ORANGE"]))
+							elif status=="Waiting for Transport" or status=="STANDBY" or status=="Available":
+								button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict[""]))
 					else:
-						# blink 1: style is one of these:
-						# - timeout orange
-						# - timeout red
-						# - no change (if status is anything but 'Waiting for transport' or 'STANDBY')
-						# - blank (black on white) (if status is 'Waiting for transport' or 'STANDBY', and not timed out)
-						if not hold and status not in ["At IC","Off Duty"] and secondsSinceContact>=self.timeoutRedSec:
-							button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict["TIMED_OUT_RED"]))
-						elif not hold and status not in ["At IC","Off Duty"] and (secondsSinceContact>=self.timeoutOrangeSec and secondsSinceContact<self.timeoutRedSec):
-							button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict["TIMED_OUT_ORANGE"]))
-						elif status=="Waiting for Transport" or status=="STANDBY" or status=="Available":
-							button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict[""]))
+						# not Waiting for Transport or Available, and not in orange/red time zone: draw the normal style
+						button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict[status]))
 				else:
-					# not Waiting for Transport or Available, and not in orange/red time zone: draw the normal style
-					button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict[status]))
+					rprint('ERROR in updateTeamTimers: attempted to update appearance for a non-existent tab for '+str(extTeamName))
 					
 				# always check for fleetsync filtering, independent from team status
 				if self.blinkToggle==0:
