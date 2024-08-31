@@ -7557,7 +7557,20 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					box.raise_()
 					if box.exec_()==QMessageBox.No:
 						return
-				
+
+			#752 - add a note if there is significant time difference between dialog open time and message accept time
+			# rprint('val[0]='+str(val[0]))
+			nowHHMM=time.strftime('%H%M')
+			# rprint('now:'+nowHHMM)
+			prefix=''
+			if val[0].isdigit() and nowHHMM.isdigit() and len(val[0])==4 and len(nowHHMM)==4:
+				timeDiff=(int(nowHHMM[0:2])-int(val[0][0:2]))*60+(int(nowHHMM[2:])-int(val[0][2:]))
+				# rprint('timeDiff:'+str(timeDiff))
+				if timeDiff>5:
+					prefix='[DELAYED MESSAGE saved at '+nowHHMM+', more than five minutes after it began at '+val[0]+'] '
+				elif timeDiff>1:
+					prefix='[DELAYED MESSAGE saved at '+nowHHMM+', more than a minute after it began at '+val[0]+'] '
+
 			if self.amendFlag:
 				prevToFrom=self.parent.radioLog[self.amendRow][1]
 				newToFrom=self.ui.to_fromField.currentText()
@@ -7600,7 +7613,9 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				for t in self.parent.ui.tableViewList[1:]:
 					t.model().invalidateFilter()
 			else:
-				self.parent.newEntry(self.getValues(),self.amendFlag)
+				val=self.getValues()
+				val[3]=prefix+val[3]
+				self.parent.newEntry(val,self.amendFlag)
 	
 			# make entries for attached callsigns
 			# values array format: [time,to_from,team,message,locString,status,sec,fleet,dev]
