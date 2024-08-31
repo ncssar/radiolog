@@ -4831,8 +4831,16 @@ class MyWindow(QDialog,Ui_Dialog):
 			# NOTE the following line causes font-size to go back to system default;
 			#  can't figure out why it doesn't inherit font-size from the existing
 			#  styleSheet; so, each statusStyleDict entry must contain font-size explicitly
+			#741 - pass through in case the button is None; shouldn't ever happen due to other fixes fo #741
 			if not self.loadFlag:
-				self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
+				button=self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
+				if button:
+					button.setStyleSheet(statusStyleDict[status])
+				else:
+					rprint(' ERROR: there was an attempt to set the styleSheet for a non-existent tab button:')
+					rprint('   extTeamName='+str(extTeamName)+'  i='+str(i)+'  tabBar count='+str(self.ui.tabWidget.tabBar().count()))
+					rprint('   extTeamNameList='+str(self.extTeamNameList))
+					rprint(' Skipping this attempt')
 			# only reset the team timer if it is a 'FROM' message with non-blank message text
 			#  (prevent reset on amend, where to_from can be "AMEND" and msg can be anything)
 			# if this was an amendment, set team timer based on the team's most recent 'FROM' entry
