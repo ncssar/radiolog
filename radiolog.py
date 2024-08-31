@@ -3832,6 +3832,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		for extTeamName in teamTimersDict:
 			secondsSinceContact=teamTimersDict.get(extTeamName,0)
 			if extTeamName not in self.hiddenTeamTabsList:
+				# rprint('updateTeamTimers processing '+extTeamName)
 				# if there is a newEntryWidget currently open for this team, don't blink,
 				#  but don't reset the timer.  Only reset the timer when the dialog is accepted.
 				hold=False
@@ -3845,32 +3846,38 @@ class MyWindow(QDialog,Ui_Dialog):
 	# 			rprint("fsFilter "+extTeamName+": "+str(fsFilter))
 				# secondsSinceContact=teamTimersDict.get(extTeamName,0)
 				button=self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
+				# rprint('  i='+str(i)+'  status='+str(status)+'  filter='+str(fsFilter)+'  blink='+str(self.blinkToggle)+'  button='+str(button))
 				styleObjectName='tab_'+extTeamName
-				if status in ["Waiting for Transport","STANDBY","Available"] or (secondsSinceContact>=self.timeoutOrangeSec):
-					# if a team status is blinking, and the tab is not visible due to scrolling of a very wide tab bar,
-					#  then blink the three-dots icon; but this test may be expensive so don't test again after the first hit
-					#  https://stackoverflow.com/a/28805583/3577105
-					if not teamTabsMoreButtonBlinkNeeded and button.visibleRegion().isEmpty():
-						teamTabsMoreButtonBlinkNeeded=True
-					if self.blinkToggle==0:
-						# blink 0: style is one of these:
-						# - style as normal per status
-						button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict[status]))
+				#741 wrap this entire if/else clause in a check to see if button exists;
+				#  it should always exist now, due to other fixes for #741
+				if button:
+					if status in ["Waiting for Transport","STANDBY","Available"] or (secondsSinceContact>=self.timeoutOrangeSec):
+						# if a team status is blinking, and the tab is not visible due to scrolling of a very wide tab bar,
+						#  then blink the three-dots icon; but this test may be expensive so don't test again after the first hit
+						#  https://stackoverflow.com/a/28805583/3577105
+						if not teamTabsMoreButtonBlinkNeeded and button.visibleRegion().isEmpty():
+							teamTabsMoreButtonBlinkNeeded=True
+						if self.blinkToggle==0:
+							# blink 0: style is one of these:
+							# - style as normal per status
+							button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict[status]))
+						else:
+							# blink 1: style is one of these:
+							# - timeout orange
+							# - timeout red
+							# - no change (if status is anything but 'Waiting for transport' or 'STANDBY')
+							# - blank (black on white) (if status is 'Waiting for transport' or 'STANDBY', and not timed out)
+							if not hold and status not in ["At IC","Off Duty"] and secondsSinceContact>=self.timeoutRedSec:
+								button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict["TIMED_OUT_RED"]))
+							elif not hold and status not in ["At IC","Off Duty"] and (secondsSinceContact>=self.timeoutOrangeSec and secondsSinceContact<self.timeoutRedSec):
+								button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict["TIMED_OUT_ORANGE"]))
+							elif status=="Waiting for Transport" or status=="STANDBY" or status=="Available":
+								button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict[""]))
 					else:
-						# blink 1: style is one of these:
-						# - timeout orange
-						# - timeout red
-						# - no change (if status is anything but 'Waiting for transport' or 'STANDBY')
-						# - blank (black on white) (if status is 'Waiting for transport' or 'STANDBY', and not timed out)
-						if not hold and status not in ["At IC","Off Duty"] and secondsSinceContact>=self.timeoutRedSec:
-							button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict["TIMED_OUT_RED"]))
-						elif not hold and status not in ["At IC","Off Duty"] and (secondsSinceContact>=self.timeoutOrangeSec and secondsSinceContact<self.timeoutRedSec):
-							button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict["TIMED_OUT_ORANGE"]))
-						elif status=="Waiting for Transport" or status=="STANDBY" or status=="Available":
-							button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict[""]))
+						# not Waiting for Transport or Available, and not in orange/red time zone: draw the normal style
+						button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict[status]))
 				else:
-					# not Waiting for Transport or Available, and not in orange/red time zone: draw the normal style
-					button.setStyleSheet(buildObjSS(styleObjectName,statusStyleDict[status]))
+					rprint('ERROR in updateTeamTimers: attempted to update appearance for a non-existent tab for '+str(extTeamName))
 					
 				# always check for fleetsync filtering, independent from team status
 				if self.blinkToggle==0:
@@ -4829,8 +4836,16 @@ class MyWindow(QDialog,Ui_Dialog):
 			# NOTE the following line causes font-size to go back to system default;
 			#  can't figure out why it doesn't inherit font-size from the existing
 			#  styleSheet; so, each statusStyleDict entry must contain font-size explicitly
+			#741 - pass through in case the button is None; shouldn't ever happen due to other fixes fo #741
 			if not self.loadFlag:
-				self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setStyleSheet(statusStyleDict[status])
+				button=self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
+				if button:
+					button.setStyleSheet(statusStyleDict[status])
+				else:
+					rprint(' ERROR: there was an attempt to set the styleSheet for a non-existent tab button:')
+					rprint('   extTeamName='+str(extTeamName)+'  i='+str(i)+'  tabBar count='+str(self.ui.tabWidget.tabBar().count()))
+					rprint('   extTeamNameList='+str(self.extTeamNameList))
+					rprint(' Skipping this attempt')
 			# only reset the team timer if it is a 'FROM' message with non-blank message text
 			#  (prevent reset on amend, where to_from can be "AMEND" and msg can be anything)
 			# if this was an amendment, set team timer based on the team's most recent 'FROM' entry
@@ -4951,6 +4966,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		amendDialog=self.openNewEntry(amendFlag=True,amendRow=row,isMostRecentForCallsign=isMostRecent)
 
 	def rebuildTabs(self):
+		# rprint('calling rebuildTabs')
 # 		groupDict=self.rebuildGroupedTabDict()
 # 		tabs=[]
 # 		for group in groupDict:
@@ -5008,7 +5024,10 @@ class MyWindow(QDialog,Ui_Dialog):
 # 		self.extTeamNameList.sort()
 		
 		# remove from hiddenTeamTabsList immediately, to prevent downsteram errors in teamTabsPopup
+		# 741 - keep track of whether this call is restoring a previously hidden team tab
+		restoringHidden=False
 		if extTeamName in self.hiddenTeamTabsList:
+			restoringHidden=True
 			self.hiddenTeamTabsList=[x for x in self.hiddenTeamTabsList if extTeamName!=x]
 
 		prevGroupCount=self.nonEmptyTabGroupCount
@@ -5018,8 +5037,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			# 670 - for the first team of a new session, and when unhiding the only tab
 			#  (due to display issues noted in https://github.com/ncssar/radiolog/issues/670#issuecomment-1712814526)
 			#  follow the old behavior and rebuild the entire tab bar;
-			#  for subsequent teams, only add the tab for the new team 
-			if prevGroupCount!=self.nonEmptyTabGroupCount or self.ui.tabWidget.tabBar().count()<2:
+			#  for subsequent teams, only add the tab for the new team
+			# 741 - also rebuild tabs if restoring a hidden team tab
+			if restoringHidden or prevGroupCount!=self.nonEmptyTabGroupCount or self.ui.tabWidget.tabBar().count()<2:
 				self.rebuildTabs()
 			else:
 				# display issues when unhiding the rightmost tab
@@ -5150,7 +5170,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		shortNiceTeamName=getShortNiceTeamName(niceTeamName)
 		# rprint("addTab: extTeamName="+extTeamName+" niceTeamName="+niceTeamName+" shortNiceTeamName="+shortNiceTeamName)
 		i=self.extTeamNameList.index(extTeamName) # i is zero-based
+		# rprint("addTab: i="+str(i))
+		# rprint("addTab: tabList before insert:"+str(self.ui.tabList))
 		self.ui.tabList.insert(i,QWidget())
+		# rprint("addTab: tabList after insert:"+str(self.ui.tabList))
 		self.ui.tabList[i].setStyleSheet('font-size:'+str(self.menuFontSize)+'pt')
 		self.ui.tabGridLayoutList.insert(i,QGridLayout(self.ui.tabList[i]))
 		self.ui.tabGridLayoutList[i].setContentsMargins(5,2,5,5)
@@ -5882,7 +5905,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.hiddenTeamTabsList.append(extTeamName)
 		self.showTeamTabsMoreButtonIfNeeded()
 		self.rebuildTeamHotkeys()
-		rprint("  extTeamNameList after delete: "+str(self.extTeamNameList))
+		# rprint("  extTeamNameList after delete 1: "+str(self.extTeamNameList))
 		# if there are two adjacent spacers, delete the second one
 		for n in range(len(self.extTeamNameList)-1):
 			if self.extTeamNameList[n].lower().startswith("spacer"):
@@ -5890,8 +5913,19 @@ class MyWindow(QDialog,Ui_Dialog):
 					if len(self.extTeamNameList)>2: # but not if there are no visible tabs
 						rprint("  found back-to-back spacers at indices "+str(n)+" and "+str(n+1))
 						self.deleteTeamTab(self.extTeamNameList[n+1],True)
-		#717 if all tabs are hidden, keep the same look as at startup
-		if len(self.extTeamNameList)==2:
+		# 741 call rebuildGroupedTabDict to make sure spacer(s) are in appropriate spots after deleting a team
+		# rprint("  extTeamNameList after delete 2: "+str(self.extTeamNameList))
+		# NOTE during #741 work: don't rebuild here - it can create two adjacent spacers which
+		#  apparently induces the tracebacks by making extTeamNameList longer than the number
+		#  of tabs in the tabbar, unless followed by rebuildTabs; should probably clean up
+		#  rebuildGroupedTabDict to not generate two spacers back-to-back
+		# self.rebuildGroupedTabDict()
+		# rprint("  extTeamNameList after delete and rebuild: "+str(self.extTeamNameList))
+		# self.rebuildTabs()
+		# #717 if all tabs are hidden, keep the same look as at startup
+		# 741 - make this clause more robust than simply looking at list length
+		# if len(self.extTeamNameList)==2:
+		if len(self.extTeamNameList)==0 or all(['spacer' in x for x in self.extTeamNameList]):
 			rprint('all teams hidden; clearing tabWidget')
 			self.ui.tabWidget.clear()
 		#717 if rightmost tab was hidden, select the new rightmost visible tab if one exists
@@ -8079,7 +8113,12 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 
 	def updateTabLabel(self):
 		i=self.parent.newEntryWindow.ui.tabWidget.indexOf(self)
-		self.parent.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).layout().itemAt(1).widget().setText(time.strftime("%H%M")+" "+self.ui.to_fromField.currentText()+" "+self.ui.teamField.text())
+		button=self.parent.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
+		newText=time.strftime("%H%M")+" "+self.ui.to_fromField.currentText()+" "+self.ui.teamField.text()
+		if button:
+			button.layout().itemAt(1).widget().setText(newText)
+		else:
+			rprint(' ERROR trying to updateTabLabel for a non-existent tab: i='+str(i)+'  newText='+str(newText))
 ##		self.parent.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setText(self.ui.teamField.text())
 ##		self.parent.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).adjustSize()
 
