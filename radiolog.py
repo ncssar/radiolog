@@ -430,7 +430,8 @@ teamCreatedTimeDict={}
 
 versionDepth=5 # how many backup versions to keep; see rotateBackups
 
-continueSec=20
+#752 - change continueSec to a config file option, default=20
+# continueSec=20
 holdSec=20
 
 # log com port messages?
@@ -1532,6 +1533,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		defaultTabGroups=[["Numbers","^Team [0-9]+"]]
 		self.tabGroups=defaultTabGroups
 		self.continuedIncidentWindowDays="4"
+		self.continueSec="20"
 		
 		if os.name=="nt":
 			rprint("Operating system is Windows.")
@@ -1613,6 +1615,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				# KW- should always be a part of CCD1List
 				if 'KW-' not in self.CCD1List:
 					self.CCD1List.append('KW-')
+			elif tokens[0]=='continueSec':
+				self.continueSec=tokens[1]
 					
 		configFile.close()
 		
@@ -1662,6 +1666,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			configErr+="  Valid choices:"+str(self.timeoutDisplayMinList)+"\nWill use 30 minutes for this session.\n\n"
 			self.timeoutRedSec=1800
 		
+		if not self.continueSec.isdigit():
+			configErr+="ERROR: continueSec value must be an integer.  Will use 20 seconds for this session.\n\n"
+		self.continueSec=int(self.continueSec)
+
 		self.updateOptionsDialog()
 		
 		# if agencyName contains newline character(s), use it as-is for print;
@@ -2407,14 +2415,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		# otherwise, spawn a new entry dialog
 		found=False
 		widget=None
-		rprint('checking for existing open new entry tabs: callsign='+str(callsign)+' continueSec='+str(continueSec))
+		rprint('checking for existing open new entry tabs: callsign='+str(callsign)+' continueSec='+str(self.continueSec))
 		for widget in newEntryWidget.instances:
 			rprint('checking against existing widget: to_from='+widget.ui.to_fromField.currentText()+' team='+widget.ui.teamField.text()+' lastModAge:'+str(widget.lastModAge))
 			# #452 - do a case-insensitive and spaces-removed comparison, in case Sar 1 and SAR 1 both exist, or trans 1 and Trans 1 and TRANS1, etc.
 			#742 - don't open a new entry if the existing new entry widget has a child clue or subject dialog open
 			# if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ','') and widget.lastModAge<continueSec:
 			if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ',''):
-				if widget.lastModAge<continueSec:
+				if widget.lastModAge<self.continueSec:
 					rprint("  new entry widget is already open from this callsign within the 'continue time'; not opening a new one")
 					found=True
 				elif widget.childDialogs:
