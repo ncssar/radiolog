@@ -2406,6 +2406,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  update it with the current location if available;
 		# otherwise, spawn a new entry dialog
 		found=False
+		widget=None
 		rprint('checking for existing open new entry tabs: callsign='+str(callsign)+' continueSec='+str(continueSec))
 		for widget in newEntryWidget.instances:
 			rprint('checking against existing widget: to_from='+widget.ui.to_fromField.currentText()+' team='+widget.ui.teamField.text()+' lastModAge:'+str(widget.lastModAge))
@@ -2483,8 +2484,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.sendPendingGet()
 
 		# 683 - activate the widget if needed here, rather than in addTab which only happens for new tabs
-		# rprint('checking to see if widget should be activated: currentEntryLastModAge='+str(self.currentEntryLastModAge)+'  tab count='+str(self.newEntryWindow.ui.tabWidget.count()))
-		if self.currentEntryLastModAge>holdSec or self.newEntryWindow.ui.tabWidget.count()==3:
+		# rprint('checking to see if widget should be activated: widget='+str(widget)+'  currentEntryLastModAge='+str(self.currentEntryLastModAge)+'  tab count='+str(self.newEntryWindow.ui.tabWidget.count()))
+		#748 - only attempt this clause if widget is defined (i.e. if there was a find, or, the last widget in the list)
+		if widget and (self.currentEntryLastModAge>holdSec or self.newEntryWindow.ui.tabWidget.count()==3):
 			# rprint('  activating New Entry Widget: '+widget.ui.teamField.text())
 			self.newEntryWindow.ui.tabWidget.setCurrentWidget(widget)
 			widget.ui.messageField.setFocus()
