@@ -8113,7 +8113,12 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 
 	def updateTabLabel(self):
 		i=self.parent.newEntryWindow.ui.tabWidget.indexOf(self)
-		self.parent.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).layout().itemAt(1).widget().setText(time.strftime("%H%M")+" "+self.ui.to_fromField.currentText()+" "+self.ui.teamField.text())
+		button=self.parent.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
+		newText=time.strftime("%H%M")+" "+self.ui.to_fromField.currentText()+" "+self.ui.teamField.text()
+		if button:
+			button.layout().itemAt(1).widget().setText(newText)
+		else:
+			rprint(' ERROR trying to updateTabLabel for a non-existent tab: i='+str(i)+'  newText='+str(newText))
 ##		self.parent.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).setText(self.ui.teamField.text())
 ##		self.parent.newEntryWindow.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide).adjustSize()
 
