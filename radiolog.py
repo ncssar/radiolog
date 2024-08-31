@@ -430,7 +430,8 @@ teamCreatedTimeDict={}
 
 versionDepth=5 # how many backup versions to keep; see rotateBackups
 
-continueSec=20
+#752 - change continueSec to a config file option, default=20
+# continueSec=20
 holdSec=20
 
 # log com port messages?
@@ -1532,6 +1533,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		defaultTabGroups=[["Numbers","^Team [0-9]+"]]
 		self.tabGroups=defaultTabGroups
 		self.continuedIncidentWindowDays="4"
+		self.continueSec="20"
 		
 		if os.name=="nt":
 			rprint("Operating system is Windows.")
@@ -1613,6 +1615,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				# KW- should always be a part of CCD1List
 				if 'KW-' not in self.CCD1List:
 					self.CCD1List.append('KW-')
+			elif tokens[0]=='continueSec':
+				self.continueSec=tokens[1]
 					
 		configFile.close()
 		
@@ -1662,6 +1666,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			configErr+="  Valid choices:"+str(self.timeoutDisplayMinList)+"\nWill use 30 minutes for this session.\n\n"
 			self.timeoutRedSec=1800
 		
+		if not self.continueSec.isdigit():
+			configErr+="ERROR: continueSec value must be an integer.  Will use 20 seconds for this session.\n\n"
+		self.continueSec=int(self.continueSec)
+
 		self.updateOptionsDialog()
 		
 		# if agencyName contains newline character(s), use it as-is for print;
@@ -2407,14 +2415,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		# otherwise, spawn a new entry dialog
 		found=False
 		widget=None
-		rprint('checking for existing open new entry tabs: callsign='+str(callsign)+' continueSec='+str(continueSec))
+		rprint('checking for existing open new entry tabs: callsign='+str(callsign)+' continueSec='+str(self.continueSec))
 		for widget in newEntryWidget.instances:
 			rprint('checking against existing widget: to_from='+widget.ui.to_fromField.currentText()+' team='+widget.ui.teamField.text()+' lastModAge:'+str(widget.lastModAge))
 			# #452 - do a case-insensitive and spaces-removed comparison, in case Sar 1 and SAR 1 both exist, or trans 1 and Trans 1 and TRANS1, etc.
 			#742 - don't open a new entry if the existing new entry widget has a child clue or subject dialog open
 			# if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ','') and widget.lastModAge<continueSec:
 			if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ',''):
-				if widget.lastModAge<continueSec:
+				if widget.lastModAge<self.continueSec:
 					rprint("  new entry widget is already open from this callsign within the 'continue time'; not opening a new one")
 					found=True
 				elif widget.childDialogs:
@@ -7549,7 +7557,20 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					box.raise_()
 					if box.exec_()==QMessageBox.No:
 						return
-				
+
+			#752 - add a note if there is significant time difference between dialog open time and message accept time
+			# rprint('val[0]='+str(val[0]))
+			nowHHMM=time.strftime('%H%M')
+			# rprint('now:'+nowHHMM)
+			prefix=''
+			if val[0].isdigit() and nowHHMM.isdigit() and len(val[0])==4 and len(nowHHMM)==4:
+				timeDiff=(int(nowHHMM[0:2])-int(val[0][0:2]))*60+(int(nowHHMM[2:])-int(val[0][2:]))
+				# rprint('timeDiff:'+str(timeDiff))
+				if timeDiff>5:
+					prefix='[DELAYED MESSAGE saved at '+nowHHMM+', more than five minutes after it began at '+val[0]+'] '
+				elif timeDiff>1:
+					prefix='[DELAYED MESSAGE saved at '+nowHHMM+', more than a minute after it began at '+val[0]+'] '
+
 			if self.amendFlag:
 				prevToFrom=self.parent.radioLog[self.amendRow][1]
 				newToFrom=self.ui.to_fromField.currentText()
@@ -7592,7 +7613,9 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				for t in self.parent.ui.tableViewList[1:]:
 					t.model().invalidateFilter()
 			else:
-				self.parent.newEntry(self.getValues(),self.amendFlag)
+				val=self.getValues()
+				val[3]=prefix+val[3]
+				self.parent.newEntry(val,self.amendFlag)
 	
 			# make entries for attached callsigns
 			# values array format: [time,to_from,team,message,locString,status,sec,fleet,dev]
