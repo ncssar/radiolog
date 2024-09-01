@@ -332,6 +332,7 @@ from PyPDF2 import PdfReader,PdfWriter
 from FingerTabs import *
 from pygeodesy import Datums,ellipsoidalBase,dms
 from difflib import SequenceMatcher
+from pynput import keyboard
 
 __version__ = "3.11.5"
 
@@ -855,7 +856,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.loadFlag=False # set this to true during load, to prevent save on each newEntry
 		self.totalEntryCount=0 # rotate backups after every 5 entries; see newEntryWidget.accept
-		
+
 		# set the team table palette - copied from main table compiled _ui.py
 		self.teamTablePalette = QPalette()
 		brush = QBrush(QColor(0, 120, 215))
@@ -1364,6 +1365,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
 		self.showTeamTabsMoreButtonIfNeeded()
+
+		#749 - see relevant code in fsParse
+		self.kbd=keyboard.Controller()
+		# self.windowHandle=win32gui.FindWindow('MyWindow',None)
+		# self.windowHandle=win32gui.GetForegroundWindow()
+		self.windowHandle=int(self.winId())
 
 	def clearSelectionAllTables(self):
 		self.ui.tableView.setCurrentIndex(QModelIndex())
@@ -2416,6 +2423,17 @@ class MyWindow(QDialog,Ui_Dialog):
 					return
 				
 				rprint('NEXEDGE CID detected (not in $PKNSH): id='+uid+'  callsign='+callsign)
+
+		# 749 - take OS focus from other applications an all incoming calls (except mic bumps, which have already been filtered by this point)
+		# https://stackoverflow.com/a/73921057/3577105
+		rprint('taking system focus')
+		self.kbd.press(keyboard.Key.alt)
+		try:
+			win32gui.SetForegroundWindow(self.windowHandle)
+		except:
+			rprint(' failed to set foreground window')
+		finally:
+			self.kbd.release(keyboard.Key.alt)
 
 		# if any new entry dialogs are already open with 'from' and the
 		#  current callsign, and that entry has been edited within the 'continue' time,
