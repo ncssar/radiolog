@@ -1050,6 +1050,7 @@ class MyWindow(QDialog,Ui_Dialog):
 # 		self.fsValidFleetList=[100]
 		self.fsLog=[]
 # 		self.fsLog.append(['','','','',''])
+		self.latestBumpDict={}
 		self.fsMuted=False
 		self.noSend=noSend
 		self.fsMutedBlink=False
@@ -2188,6 +2189,13 @@ class MyWindow(QDialog,Ui_Dialog):
 						idStr=fleet+':'+dev
 						h='FLEETSYNC'
 						rprint("$PKLSH (FleetSync) detected containing CID: fleet="+fleet+"  dev="+dev+"  -->  callsign="+callsign)
+						# 744 - if there was a filtered mic bump from this device within the last two seconds,
+						#  and the current line doesn't contain a FS or NXDN CID prefix (BOT or EOT), then skip this GPS-only line completely
+						latestMicBump=self.latestBumpDict.get(str(fleet)+':'+str(dev),0)
+						if time.time()-latestMicBump<2 and not '\x02I' in line and not '\x02gI' in line:
+							rprint('latest filtered mic bump for this device:'+str(latestMicBump)+'  ('+str(time.time()-latestMicBump)+' seconds ago)')
+							rprint(' this was within the last two seconds, and this line has no CID data; skipping this GPS-only line, as part of the same mic bump')
+							return
 					else:
 						rprint("Parsed $PKLSH line contained "+str(len(lineParse))+" tokens instead of the expected 10 tokens; skipping.")
 						origLocString='BAD DATA'
@@ -2580,6 +2588,12 @@ class MyWindow(QDialog,Ui_Dialog):
 # 		if self.fsFilterDialog.ui.tableView:
 		self.fsFilterDialog.ui.tableView.model().layoutChanged.emit()
 		self.fsBuildTeamFilterDict()
+		# 744 - keep track of the time of the latest filtered mic bump for this device
+		if bump:
+			if fleet and dev:
+				self.latestBumpDict[str(fleet)+':'+str(dev)]=time.time()
+			elif uid:
+				self.latestBumpDict[uid]=time.time()
 	
 	def fsGetLatestComPort(self,fleetOrBlank,devOrUid):
 		rprint('fsLog:'+str(self.fsLog))
