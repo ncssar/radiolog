@@ -4742,11 +4742,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			if (fleet and dev and len([i for i in self.fsLog if i[0]==str(fleet) and i[1]==str(dev) and (i[7]-i[6])<2])>0) or \
 			     (dev and not fleet and len([i for i in self.fsLog if i[0]=='' and i[1]==str(dev) and (i[7]-i[6])<2])>0) : # this is the device's first non-mic-bump call
 				rprint('First non-mic-bump call from this device.')
-				found=False
-				for i in self.CCD1List:
-					if isinstance(i,str) and callsign.lower().startswith(i.lower()):
-						found=True
-				if found:
+				# found=False
+				# for i in self.CCD1List:
+				# 	if isinstance(i,str) and callsign.lower().startswith(i.lower()):
+				# 		found=True
+				if self.isInCCD1List(callsign):
 					rprint('Setting needsChangeCallsign since this is the first call from the device and the beginning of its default callsign "'+callsign+'" is specified in CCD1List')
 					self.newEntryWidget.needsChangeCallsign=True
 					# if it's the only item on the stack, open the change callsign
@@ -4769,6 +4769,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			self.newEntryWidget.ui.datumFormatLabel.setText("")
 	
+	def isInCCD1List(self,callsign):
+		found=False
+		for i in self.CCD1List:
+			if isinstance(i,str) and callsign.lower().startswith(i.lower()):
+				found=True
+		return found
+
 	def getOperatorInitials(self):
 		if self.useOperatorLogin:
 			if self.operatorLastName.startswith('?'):
@@ -7223,6 +7230,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.isMostRecentForCallsign=isMostRecentForCallsign
 		self.insideQuickText=False
 		self.prevActionWasQuickText=False
+		self.newCallsignFromCCD=None
+		self.originalCallsign=parent.getCallsign(fleet,dev)
 		if amendFlag:
 			row=parent.radioLog[amendRow]
 			self.sec=row[6]
@@ -7629,6 +7638,22 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			else:
 				val=self.getValues()
 				val[3]=prefix+val[3]
+				# make note of callsign change, if the previous callsign was not a default callsign
+				#  (that check must be done here instead of in the CCD, in case of repeated CCD calls);
+				#  was the change made from CCD (change-and-remember), or typed in (one-time)?
+				if val[2]!=self.originalCallsign and not self.parent.isInCCD1List(self.originalCallsign):
+					deviceStr=str(self.fleet)+':'+str(self.dev)
+					appendText='   [CALLSIGN CHANGE: THIS CALL IS FROM DEVICE '+deviceStr
+					# appendText='   '+str(self.appendFromCCDText+', PREVIOUSLY "'+str(self.originalCallsign)+'"; '
+					if self.newCallsignFromCCD:
+						# but maybe a different callsign was typed, after CCD was accepted
+						if str(self.newCallsignFromCCD)==val[2]:
+							appendText+='; new callsign association remembered for future calls]'
+						else:
+							appendText+='; new callsign association was set to "'+str(self.newCallsignFromCCD)+'", but then changed to "'+str(val[2])+'" for this message only]'
+					else:
+						appendText+='; this was a one-time callsign change; the next call from this device will be "'+str(self.originalCallsign)+'"]'
+					val[3]=val[3]+appendText
 				self.parent.newEntry(val,self.amendFlag)
 	
 			# make entries for attached callsigns
@@ -9385,9 +9410,11 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		if id2: # fleetsync
 			fleet=id1
 			dev=id2
+			deviceStr=str(fleet)+':'+str(dev)
 			rprint('accept: FleetSync fleet='+str(fleet)+'  dev='+str(dev))
 		else:
 			uid=id1
+			deviceStr=str(uid)
 			rprint('accept: NEXEDGE uid='+str(uid))
 		# fix #459 (and other places in the code): remove all leading and trailing spaces, and change all chains of spaces to one space
 		newCallsign=re.sub(r' +',r' ',self.ui.newCallsignField.text()).strip()
@@ -9420,6 +9447,16 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		# set the focus to the messageField of the active stack item - not always
 		#  the same as the new entry, as determined by addTab
 		self.parent.parent.newEntryWindow.ui.tabWidget.currentWidget().ui.messageField.setFocus()
+		# msgField=self.parent.parent.newEntryWindow.ui.tabWidget.currentWidget().ui.messageField
+		# msgField.setFocus()
+		# existingMsg=msgField.text()
+		# msgField.setText('[CALLSIGN CHANGE: THIS CALL IS FROM DEVICE '+deviceStr+', PREVIOUSLY "'+self.currentCallsign+'"]'+existingMsg)
+		# 751 - by setting the appendText of the new entry widget, any repeted call to CCD will just update the appendText,
+		#   which isn't actually saved until the message is accepted
+		# self.parent.appendText='[CALLSIGN CHANGE: THIS CALL IS FROM DEVICE '+deviceStr+', PREVIOUSLY "'+self.currentCallsign+'"]'
+		#  	also, let the new entry widget accept function say what the originating callsign was, since this functon only
+		#   knows the previous callsign, which isn't relevant if there were repeated CCD calls in the same message
+		self.parent.newCallsignFromCCD=newCallsign
 		rprint("New callsign pairing created: fleet="+str(fleet)+"  dev="+str(dev)+"  uid="+str(uid)+"  callsign="+newCallsign)
 		self.closeEvent(QEvent(QEvent.Close),True)
 		super(changeCallsignDialog,self).accept()
