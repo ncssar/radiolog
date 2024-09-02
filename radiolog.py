@@ -7655,6 +7655,15 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					else:
 						appendText+='; this was a one-time callsign change for this message only]'
 					val[3]=val[3]+appendText
+					# inside this clause, i.e. if there are existing entries from the original callsign, save an entry with that original callsign noting the callsign change for this device
+					oldCallsignEntry=val[:]
+					oldCallsignEntry[2]=self.originalCallsign
+					oldCallsignEntry[3]='[CALLSIGN CHANGE: call received from device '+deviceStr
+					if self.newCallsignFromCCD:
+						oldCallsignEntry[3]+=', previously associated with this callsign, but now associated with callsign "'+str(val[2])+'"; see concurrent message for that callsign]'
+					else:
+						oldCallsignEntry[3]+=', still associated with this callsign, but used in a one-time callsign change for "'+str(val[2])+'"; see concurrent message for that callsign]'
+					self.parent.newEntry(oldCallsignEntry)
 				self.parent.newEntry(val,self.amendFlag)
 	
 			# make entries for attached callsigns
