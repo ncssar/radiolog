@@ -7641,9 +7641,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				# make note of callsign change, if the previous callsign was not a default callsign
 				#  (that check must be done here instead of in the CCD, in case of repeated CCD calls);
 				#  was the change made from CCD (change-and-remember), or typed in (one-time)?
-				if val[2]!=self.originalCallsign and not self.parent.isInCCD1List(self.originalCallsign):
+				# if val[2]!=self.originalCallsign and not self.parent.isInCCD1List(self.originalCallsign):
+				if val[2]!=self.originalCallsign and self.originalCallsign in self.parent.allTeamsList:
 					deviceStr=str(self.fleet)+':'+str(self.dev)
-					appendText='   [CALLSIGN CHANGE: THIS CALL IS FROM DEVICE '+deviceStr
+					appendText='   [CALLSIGN CHANGE: THIS CALL IS FROM DEVICE '+deviceStr+', previously "'+str(self.originalCallsign)+'"'
 					# appendText='   '+str(self.appendFromCCDText+', PREVIOUSLY "'+str(self.originalCallsign)+'"; '
 					if self.newCallsignFromCCD:
 						# but maybe a different callsign was typed, after CCD was accepted
@@ -7652,7 +7653,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 						else:
 							appendText+='; new callsign association was set to "'+str(self.newCallsignFromCCD)+'", but then changed to "'+str(val[2])+'" for this message only]'
 					else:
-						appendText+='; this was a one-time callsign change; the next call from this device will be "'+str(self.originalCallsign)+'"]'
+						appendText+='; this was a one-time callsign change for this message only]'
 					val[3]=val[3]+appendText
 				self.parent.newEntry(val,self.amendFlag)
 	
