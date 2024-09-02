@@ -544,8 +544,10 @@ def getExtTeamName(teamName):
 
 def getNiceTeamName(extTeamName):
 	# rprint('getNiceTeamName called for '+str(extTeamName))
-	# prune any leading 'z_' that may have been added for sorting purposes
 	extTeamName=extTeamName.replace('z_','')
+	# 751 - prune any leading 'z_' that may have been added for sorting purposes
+	if extTeamName.lower().startswith('kw-'):
+		return extTeamName.upper()
 	# find index of first number in the name; everything left of that is the 'prefix';
 	# assume that everything after the prefix is a number
 	#  (left-zero-padded to 5 digits)
@@ -570,7 +572,7 @@ def getNiceTeamName(extTeamName):
 	name=name.lstrip('0')
 # 	rprint("getNiceTeamName("+extTeamName+")")
 # 	rprint("FirstNumIndex:"+str(firstNumIndex)+" Prefix:'"+prefix+"'")
-# 	rprint("Human Readable Name:'"+name+"'")
+	# rprint("Human Readable Name:'"+name+"'")
 	return name
 
 def getShortNiceTeamName(niceTeamName):
@@ -7231,7 +7233,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.insideQuickText=False
 		self.prevActionWasQuickText=False
 		self.newCallsignFromCCD=None
-		self.originalCallsign=parent.getCallsign(fleet,dev)
+		if fleet:
+			self.originalCallsign=parent.getCallsign(fleet,dev)
+		else:
+			self.originalCallsign=parent.getCallsign(dev)
 		if amendFlag:
 			row=parent.radioLog[amendRow]
 			self.sec=row[6]
@@ -7642,8 +7647,11 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				#  (that check must be done here instead of in the CCD, in case of repeated CCD calls);
 				#  was the change made from CCD (change-and-remember), or typed in (one-time)?
 				# if val[2]!=self.originalCallsign and not self.parent.isInCCD1List(self.originalCallsign):
+				# rprint('t1: val[2]='+str(val[2])+'  orig='+str(self.originalCallsign)+'  allTeamsList='+str(self.parent.allTeamsList)+'  teamNameList='+str(self.parent.teamNameList))
 				if val[2]!=self.originalCallsign and self.originalCallsign in self.parent.allTeamsList:
 					deviceStr=str(self.fleet)+':'+str(self.dev)
+					if self.fleet is None:
+						deviceStr='NDXN:'+str(self.dev)
 					appendText='   [CALLSIGN CHANGE: THIS CALL IS FROM DEVICE '+deviceStr+', previously "'+str(self.originalCallsign)+'"'
 					# appendText='   '+str(self.appendFromCCDText+', PREVIOUSLY "'+str(self.originalCallsign)+'"; '
 					if self.newCallsignFromCCD:
@@ -7660,9 +7668,13 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					oldCallsignEntry[2]=self.originalCallsign
 					oldCallsignEntry[3]='[CALLSIGN CHANGE: call received from device '+deviceStr
 					if self.newCallsignFromCCD:
-						oldCallsignEntry[3]+=', previously associated with this callsign, but now associated with callsign "'+str(val[2])+'"; see concurrent message for that callsign]'
+						# but maybe a different callsign was typed, after CCD was accepted
+						if str(self.newCallsignFromCCD)==val[2]:
+							oldCallsignEntry[3]+=', previously associated with this callsign, but now associated with callsign "'+str(val[2])+'"; see concurrent message from that callsign]'
+						else:
+							oldCallsignEntry[3]+=', previously associated with this callsign, but now associated with callsign "'+str(self.newCallsignFromCCD)+'"; used as a one-time callsign change for a new entry from "'+str(val[2])+'"; see concurrent message from "'+str(val[2])+'"]'
 					else:
-						oldCallsignEntry[3]+=', still associated with this callsign, but used in a one-time callsign change for "'+str(val[2])+'"; see concurrent message for that callsign]'
+						oldCallsignEntry[3]+=', still associated with this callsign, but used in a one-time callsign change for "'+str(val[2])+'"; see concurrent message from that callsign]'
 					self.parent.newEntry(oldCallsignEntry)
 				self.parent.newEntry(val,self.amendFlag)
 	
