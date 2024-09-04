@@ -2446,7 +2446,9 @@ class MyWindow(QDialog,Ui_Dialog):
 					prevLocString=widget.ui.radioLocField.toPlainText()
 					# if previous location string was blank, always overwrite;
 					#  if previous location string was not blank, only overwrite if new location is valid
-					if prevLocString=='' or (formattedLocString!='' and formattedLocString!='NO FIX'):
+					# rprint('t1: prevLocString='+str(prevLocString)+'  formattedLocString='+str(formattedLocString))
+					# 753 - fix the logic that determines whether update should be attempted
+					if formattedLocString!='' and formattedLocString not in ['BAD DATA','NO FIX','WARNING','UNDEFINED','INVALID']:
 						datumFormatString="("+self.datum+"  "+self.coordFormat+")"
 						if widget.relayed:
 							rprint("location strings not updated because the message is relayed")
@@ -2471,7 +2473,8 @@ class MyWindow(QDialog,Ui_Dialog):
 							#  only populate with the radio location of the first call - don't keep updating with subsequent calls
 							#  (could be changed in the future if needed - basically, should the report include the radio coords of
 							#   the first call of the report, or of the last call of a continued conversation before the report is saved?)
-							if prevLocString=='' and formattedLocString!='' and formattedLocString!='NO FIX':
+							# 753 - confirmed the decision to only keep the first valid location; clean up the logic
+							if prevLocString=='' and formattedLocString!='' and formattedLocString not in ['BAD DATA','NO FIX','WARNING','UNDEFINED','INVALID']:
 								child.ui.radioLocField.setText(formattedLocString)
 						except:
 							pass
@@ -3854,6 +3857,10 @@ class MyWindow(QDialog,Ui_Dialog):
 						w.setText('<font color="'+color+'"><b>'+t+'</b></font>')
 					else:
 						w.setText(t)
+
+		# 751 - these lines are for debug purposes only
+		# for widget in newEntryWidget.instances:
+		# 	rprint('lastModAge for '+str(widget)+':'+str(widget.lastModAge))
 
 		teamTabsMoreButtonBlinkNeeded=False
 		for extTeamName in teamTimersDict:
@@ -7324,7 +7331,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		# fs/nx call (from fsParse), even if there is no radio GPS data; is this appropriate?
 		self.ui.teamField.textChanged.connect(self.resetLastModAge)
 		self.ui.messageField.textChanged.connect(self.resetLastModAge)
-		self.ui.radioLocField.textChanged.connect(self.resetLastModAge)
+		# 753 - don't reset lastModAge whn radioLocField is changed; see 683 comment above
+		# self.ui.radioLocField.textChanged.connect(self.resetLastModAge)
 		self.ui.statusButtonGroup.buttonClicked.connect(self.resetLastModAge)
 
 		self.lastModAge=0
