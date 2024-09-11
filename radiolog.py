@@ -1052,6 +1052,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  idea is probably obsolete
 # 		self.fsValidFleetList=[100]
 		self.fsLog=[]
+		self.fsFullLog=[]
 # 		self.fsLog.append(['','','','',''])
 		self.latestBumpDict={}
 		self.fsMuted=False
@@ -1085,6 +1086,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  lookup filename based on the current incedent name and time
 		# self.fsFileName=os.path.join(self.firstWorkingDir,'config','radiolog_fleetsync.csv')
 		self.fsFileName='radiolog_fleetsync.csv'
+		self.fsLogFileName='radiolog_fsLog.csv'
 
 		self.operatorsFileName='radiolog_operators.json'
 		self.teamNotesFileName='team_notes.json'
@@ -2093,6 +2095,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		fleet=None
 		dev=None
 		uid=None
+		seq=[]
 		# the line delimeters are literal backslash then n, rather than standard \n
 		for line in self.fsBuffer.split('\n'):
 			rprint(" line:"+line)
@@ -2180,6 +2183,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						rprint(h+': NO RESPONSE from '+recipient)
 						return
 			if '$PKLSH' in line or '$PKNSH' in line: # handle fleetsync and nexedge in this 'if' clause
+				seq.append('GPS')
 				lineParse=line.split(',')
 				header=lineParse[0] # $PKLSH or $PKNSH, possibly following CID STX thru ETX
 				# rprint('header:'+header+'  tokens:'+str(len(lineParse)))
@@ -2353,8 +2357,12 @@ class MyWindow(QDialog,Ui_Dialog):
 				#    up until the subsequent buffered line (the subsequent fsParse call);
 				#    even for a mic bump, the second packet is identical to the first, so set() will only have one member;
 				#    if set length != 1 then we know there's garbled data and there's nothing else we can do here
+				if('\x02I1') in line:
+					seq.append('BOT')
+				if('\x02I0') in line:
+					seq.append('EOT')
 				packetSet=set(re.findall('\x02I[0-1]([0-9]{6,19})\x03',line))
-				# rprint('FleetSync packetSet: '+str(list(packetSet)))
+				rprint('FleetSync packetSet: '+str(list(packetSet)))
 				if len(packetSet)>1:
 					rprint('FLEETSYNC ERROR: data appears garbled; there are two complete but non-identical CID packets.  Skipping this message.')
 					return
@@ -2391,6 +2399,10 @@ class MyWindow(QDialog,Ui_Dialog):
 				rprint("FleetSync CID detected (not in $PKLSH): fleet="+fleet+"  dev="+dev+"  callsign="+callsign)
 
 			elif '\x02gI' in line: # NEXEDGE CID - similar to above
+				if('\x02gI1') in line:
+					seq.append('BOT')
+				if('\x02gI0') in line:
+					seq.append('EOT')
 				match=re.findall('\x02gI[0-1](U\d{5}U\d{5})\x03',line)
 				# rprint('match:'+str(match))
 				packetSet=set(match)
@@ -2435,10 +2447,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ',''):
 				if widget.lastModAge<self.continueSec:
 					rprint("  new entry widget is already open from this callsign within the 'continue time'; not opening a new one")
-					found=True
+					found='continue'
 				elif widget.childDialogs:
 					rprint('  new entry widget is already open that has child dialog/s (clue or subject located); not opening a new one')
-					found=True
+					found='child'
 				if found:
 ##				widget.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 				# found=True
@@ -2480,29 +2492,35 @@ class MyWindow(QDialog,Ui_Dialog):
 							pass
 					break # to preserve 'widget' variable for use below
 		if fleet and dev:
-			self.fsLogUpdate(fleet=fleet,dev=dev)
+			fsResult=found # False or 'continue' or 'child'
 			# only open a new entry widget if none is alredy open within the continue time, 
 			#  and the fleet/dev is not being filtered
 			if not found:
 				if self.fsIsFiltered(fleet,dev):
+					fsResult='filtered'
 					self.fsFilteredCallDisplay("on",fleet,dev,callsign)
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 				else:
+					fsResult='newEntry'
 					rprint('no other new entry tab was found for this callsign; inside fsParse: calling openNewEntry')
 					self.openNewEntry('fs',callsign,formattedLocString,fleet,dev,origLocString)
 					widget=self.newEntryWidget # the widget created by openNewEntry
+			self.fsLogUpdate(fleet=fleet,dev=dev,seq=seq,result=fsResult)
 			self.sendPendingGet()
 		elif uid:
-			self.fsLogUpdate(uid=uid)
+			nxResult=found # False or 'continue' or 'child'
 			# only open a new entry widget if none is alredy open within the continue time, 
 			#  and the fleet/dev is not being filtered
 			if not found:
 				if self.fsIsFiltered('',uid):
+					nxResult='filtered'
 					self.fsFilteredCallDisplay('on','',uid,callsign)
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 				else:
+					nxResult='newEntry'
 					self.openNewEntry('nex',callsign,formattedLocString,None,uid,origLocString)
 					widget=self.newEntryWidget # the widget created by openNewEntry
+			self.fsLogUpdate(uid=uid,seq=seq,result=nxResult)
 			self.sendPendingGet()
 
 		# 683 - activate the widget if needed here, rather than in addTab which only happens for new tabs
@@ -2546,8 +2564,9 @@ class MyWindow(QDialog,Ui_Dialog):
 	#  if callsign is not specified, udpate the time but not the callsign;
 	#  if the entry does not yet exist, add it
 
-	def fsLogUpdate(self,fleet=None,dev=None,uid=None,callsign=False,bump=False):
-		# row structure: [fleet,dev,callsign,filtered,last_received,com_port,bump_count,total_count]
+	def fsLogUpdate(self,fleet=None,dev=None,uid=None,callsign=False,bump=False,seq=None,result=None):
+		#722 added row entries last_sequence and last_result to help in excessive popup reduction
+		# row structure: [fleet,dev,callsign,filtered,last_received,com_port,bump_count,total_count,last_sequence,last_result]
 		# don't process the dummy default entry
 		if callsign=='Default':
 			return
@@ -2584,13 +2603,25 @@ class MyWindow(QDialog,Ui_Dialog):
 				if bump:
 					row[6]+=1
 				row[7]+=1
+				row[8]=seq
+				row[9]=result
+				# rprint('appending modified row to fsFullLog:'+str(row))
+				self.fsFullLog.append(row[:]) # [:] is needed to append static values rather than references https://stackoverflow.com/a/6360319/3577105
+				break
 		if not found:
 			# always update callsign - it may have changed since creation
 			if fleet and dev: # fleetsync
-				self.fsLog.append([fleet,dev,self.getCallsign(fleet,dev),False,t,com,int(bump),0])
+				row=[fleet,dev,self.getCallsign(fleet,dev),False,t,com,int(bump),1,seq,result]
+				# rprint('appending initial row: '+str(row))
+				self.fsLog.append(row[:])
+				self.fsFullLog.append(row[:])
 			elif uid: # nexedge
-				self.fsLog.append(['',uid,self.getCallsign(uid),False,t,com,int(bump),0])
-#		rprint('fsLog after fsLogUpdate:'+str(self.fsLog))
+				row=['',uid,self.getCallsign(uid),False,t,com,int(bump),1,seq,result]
+				self.fsLog.append(row[:])
+				self.fsFullLog.append(row[:])
+
+		# rprint('fsLog after fsLogUpdate:'+str(self.fsLog))
+		# rprint('fsFullLog after fsLogUpdate:'+str(self.fsFullLog))
 # 		if self.fsFilterDialog.ui.tableView:
 		self.fsFilterDialog.ui.tableView.model().layoutChanged.emit()
 		self.fsBuildTeamFilterDict()
@@ -2807,6 +2838,23 @@ class MyWindow(QDialog,Ui_Dialog):
 			warn.show()
 			warn.raise_()
 			warn.exec_()
+
+	def fsSaveLog(self,finalize=False):
+		fsLogFullPath=os.path.join(self.sessionDir,self.fsLogFileName)
+		try:
+			with open(fsLogFullPath,'w',newline='') as fsLogFile:
+				rprint('Writing FleetSync/NEXEDGE log file '+fsLogFullPath)
+				csvWriter=csv.writer(fsLogFile)
+				csvWriter.writerow(["## Radio Log FleetSync activity log"])
+				csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
+				csvWriter.writerow(["## Created during Incident Name: "+self.incidentName])
+				csvWriter.writerow(['# Fleet/UID','Device','Callsign','N/A','Time','COM port','Bumps','Total','Sequence','Result'])
+				for row in self.fsFullLog:
+					csvWriter.writerow(row)
+				if finalize:
+					csvWriter.writerow(["## end"])
+		except:
+			rprint("ERROR: cannot write FleetSync log file "+fsLogFullPath)
 
 	def getCallsign(self,fleetOrUid,dev=None):
 		if not isinstance(fleetOrUid,str):
@@ -4098,6 +4146,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		self.save(finalize=True)
 		self.fsSaveLookup()
+		self.fsSaveLog(finalize=True)
 		self.saveRcFile(cleanShutdownFlag=True)
 
 		self.teamTimer.stop()
@@ -4609,6 +4658,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.csvFileName=getFileNameBase(self.incidentNameNormalized)+".csv"
 		self.pdfFileName=getFileNameBase(self.incidentNameNormalized)+".pdf"
 		self.fsFileName=self.csvFileName.replace('.csv','_fleetsync.csv')
+		self.fsLogFileName=self.csvFileName.replace('.csv','_fsLog.csv')
 
 	def optionsAccepted(self):
 		tmp=self.optionsDialog.ui.incidentField.text()
@@ -6610,6 +6660,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		else:
 			self.show()
 			self.raise_()
+			self.parent.fsSaveLog()
 
 
 # find dialog/completer/popup structure:
