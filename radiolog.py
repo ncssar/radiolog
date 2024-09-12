@@ -1540,6 +1540,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.tabGroups=defaultTabGroups
 		self.continuedIncidentWindowDays="4"
 		self.continueSec="20"
+		self.fsBypassSequenceChecks=False
 		
 		if os.name=="nt":
 			rprint("Operating system is Windows.")
@@ -1623,6 +1624,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.CCD1List.append('KW-')
 			elif tokens[0]=='continueSec':
 				self.continueSec=tokens[1]
+			elif tokens[0]=='fsBypassSequenceChecks':
+				self.fsBypassSequenceChecks=tokens[1]
 					
 		configFile.close()
 		
@@ -1675,6 +1678,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		if not self.continueSec.isdigit():
 			configErr+="ERROR: continueSec value must be an integer.  Will use 20 seconds for this session.\n\n"
 		self.continueSec=int(self.continueSec)
+
+		if self.fsBypassSequenceChecks not in ['True','False']:
+			configErr+='ERROR: fsBypassSequenceChecks value must be True or False.  Will set to False by default.'
+			self.fsBypassSequenceChecks='False'
+		self.fsBypassSequenceChecks=eval(self.fsBypassSequenceChecks)
 
 		self.updateOptionsDialog()
 		
@@ -2096,7 +2104,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		dev=None
 		uid=None
 		seq=[]
-		prevSeq=None
+		prevSeq=[]
 		# the line delimeters are literal backslash then n, rather than standard \n
 		for line in self.fsBuffer.split('\n'):
 			rprint(" line:"+line)
@@ -2386,7 +2394,6 @@ class MyWindow(QDialog,Ui_Dialog):
 				fleet=fid[0:3]
 				dev=fid[3:7]
 				callsign=self.getCallsign(fleet,dev)
-				prevSeq=self.fsGetPrevSeq(fleet,dev)
 
 				# passive mic bump filter: if BOT and EOT packets are in the same line, return without opening a new dialog
 				if count>1:
@@ -2421,7 +2428,6 @@ class MyWindow(QDialog,Ui_Dialog):
 				# rprint('packet count on this line: '+str(count))
 				uid=packet[1:6] # 'U' not included - this is a 5-character string of integers
 				callsign=self.getCallsign(uid)
-				prevSeq=self.fsGetPrevSeq(uid)
 
 				# passive mic bump filter: if BOT and EOT packets are in the same line, return without opening a new dialog
 				if count>1:
@@ -2436,15 +2442,23 @@ class MyWindow(QDialog,Ui_Dialog):
 				rprint('NEXEDGE CID detected (not in $PKNSH): id='+uid+'  callsign='+callsign)
 
 		#722 - BOT/EOT/GPS-based rules to reduce excessive new entry widgets
-		attemptNEW=False
-		if 'BOT' in seq:
+		if self.fsBypassSequenceChecks:
 			attemptNEW=True
-		elif 'EOT' in seq: # BOT+EOT will not land here - it would be filtered as a mic bump
-			if 'BOT' not in prevSeq:
+		else:
+			if fleet:
+				prevSeq=self.fsGetPrevSeq(fleet,dev)
+			elif uid:
+				prevSeq=self.fsGetPrevSeq(uid)
+			rprint('prevSeq:'+str(prevSeq))
+			attemptNEW=False
+			if 'BOT' in seq:
 				attemptNEW=True
-		elif 'GPS' in seq: # EOT+GPS will not land here, since it was caught above
-			if 'BOT' not in prevSeq and 'EOT' not in prevSeq:
-				attemptNEW=True
+			elif 'EOT' in seq: # BOT+EOT will not land here - it would be filtered as a mic bump
+				if 'BOT' not in prevSeq:
+					attemptNEW=True
+			elif 'GPS' in seq: # EOT+GPS will not land here, since it was caught above
+				if 'BOT' not in prevSeq and 'EOT' not in prevSeq:
+					attemptNEW=True
 		if attemptNEW:		
 			# if any new entry dialogs are already open with 'from' and the
 			#  current callsign, and that entry has been edited within the 'continue' time,
@@ -2935,10 +2949,10 @@ class MyWindow(QDialog,Ui_Dialog):
 	def fsGetPrevSeq(self,fleetOrUid,dev=None):
 		if not isinstance(fleetOrUid,str):
 			rprint('ERROR in call to getPrevSeq: fleetOrId is not a string.')
-			return
+			return []
 		if dev and not isinstance(dev,str):
 			rprint('ERROR in call to getPrevSeq: dev is not a string.')
-			return
+			return []
 
 		prevSeq=None
 		if len(fleetOrUid)==3: # 3 characters - must be fleetsync
@@ -2953,7 +2967,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				if row[1]==uid:
 					prevSeq=row[8]
 					break
-		return prevSeq
+		return prevSeq or [] # don't return None or False - must return a list
 
 	# not called from anywhere
 	# def getIdFromCallsign(self,callsign):
