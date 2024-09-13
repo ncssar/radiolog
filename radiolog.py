@@ -1679,10 +1679,13 @@ class MyWindow(QDialog,Ui_Dialog):
 			configErr+="ERROR: continueSec value must be an integer.  Will use 20 seconds for this session.\n\n"
 		self.continueSec=int(self.continueSec)
 
-		if self.fsBypassSequenceChecks not in ['True','False']:
+		if self.fsBypassSequenceChecks and self.fsBypassSequenceChecks not in ['True','False']:
 			configErr+='ERROR: fsBypassSequenceChecks value must be True or False.  Will set to False by default.'
 			self.fsBypassSequenceChecks='False'
-		self.fsBypassSequenceChecks=eval(self.fsBypassSequenceChecks)
+		if type(self.fsBypassSequenceChecks)==str:
+			self.fsBypassSequenceChecks=eval(self.fsBypassSequenceChecks)
+		if self.fsBypassSequenceChecks:
+			rprint('FleetSync / NEXEDGE sequence checks will be bypassed for this session; every part of every incoming message will raise a new entry popup if needed.')
 
 		self.updateOptionsDialog()
 		
@@ -2401,7 +2404,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.fsFilteredCallDisplay() # blank for a tenth of a second in case of repeated bumps
 					QTimer.singleShot(200,lambda:self.fsFilteredCallDisplay('bump',fleet,dev,callsign))
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
-					self.fsLogUpdate(fleet=fleet,dev=dev,bump=True)
+					self.fsLogUpdate(fleet=fleet,dev=dev,bump=True,seq=seq,result='bump')
 					self.sendPendingGet() # while getString will be non-empty if this bump had GPS, it may still have the default callsign
 					return
 					
@@ -2435,7 +2438,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.fsFilteredCallDisplay() # blank for a tenth of a second in case of repeated bumps
 					QTimer.singleShot(200,lambda:self.fsFilteredCallDisplay('bump',None,uid,callsign))
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
-					self.fsLogUpdate(uid=uid,bump=True)
+					self.fsLogUpdate(uid=uid,bump=True,seq=seq,result='bump')
 					self.sendPendingGet() # while getString will be non-empty if this bump had GPS, it may still have the default callsign
 					return
 				
@@ -2459,111 +2462,118 @@ class MyWindow(QDialog,Ui_Dialog):
 			elif 'GPS' in seq: # EOT+GPS will not land here, since it was caught above
 				if 'BOT' not in prevSeq and 'EOT' not in prevSeq:
 					attemptNEW=True
-		if attemptNEW:		
-			# if any new entry dialogs are already open with 'from' and the
-			#  current callsign, and that entry has been edited within the 'continue' time,
-			#  update it with the current location if available;
-			# otherwise, spawn a new entry dialog
-			found=False
-			widget=None
-			rprint('checking for existing open new entry tabs: callsign='+str(callsign)+' continueSec='+str(self.continueSec))
-			for widget in newEntryWidget.instances:
-				rprint('checking against existing widget: to_from='+widget.ui.to_fromField.currentText()+' team='+widget.ui.teamField.text()+' lastModAge:'+str(widget.lastModAge))
-				# #452 - do a case-insensitive and spaces-removed comparison, in case Sar 1 and SAR 1 both exist, or trans 1 and Trans 1 and TRANS1, etc.
-				#742 - don't open a new entry if the existing new entry widget has a child clue or subject dialog open
-				# if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ','') and widget.lastModAge<continueSec:
-				if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ',''):
-					if widget.lastModAge<self.continueSec:
-						rprint("  new entry widget is already open from this callsign within the 'continue time'; not opening a new one")
-						found='continue'
-					elif widget.childDialogs:
-						rprint('  new entry widget is already open that has child dialog/s (clue or subject located); not opening a new one')
-						found='child'
-					if found:
-	##				widget.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
-					# found=True
-					# rprint("  new entry widget is already open from this callsign within the 'continue time'; not opening a new one")
-						prevLocString=widget.ui.radioLocField.toPlainText()
-						# if previous location string was blank, always overwrite;
-						#  if previous location string was not blank, only overwrite if new location is valid
-						# rprint('t1: prevLocString='+str(prevLocString)+'  formattedLocString='+str(formattedLocString))
-						# 753 - fix the logic that determines whether update should be attempted
-						if formattedLocString!='' and formattedLocString not in ['BAD DATA','NO FIX','WARNING','UNDEFINED','INVALID']:
-							datumFormatString="("+self.datum+"  "+self.coordFormat+")"
-							if widget.relayed:
-								rprint("location strings not updated because the message is relayed")
-								widget.radioLocTemp=formattedLocString
-								widget.datumFormatTemp=datumFormatString
-							else:
-								rprint("location strings updated because the message is not relayed")
-								widget.ui.radioLocField.setText(formattedLocString)
-								widget.ui.datumFormatLabel.setText(datumFormatString)
-								widget.formattedLocString=formattedLocString
-								widget.origLocString=origLocString
-						# #509: populate radio location field in any child dialogs that have that field (clue or subject located)
-						for child in widget.childDialogs:
-							rprint('  new entry widget for '+str(callsign)+' has a child dialog; attempting to update radio location in that dialog')
+		# if any new entry dialogs are already open with 'from' and the
+		#  current callsign, and that entry has been edited within the 'continue' time,
+		#  update it with the current location if available;
+		# otherwise, spawn a new entry dialog
+		found=False
+		widget=None
+		rprint('checking for existing open new entry tabs: callsign='+str(callsign)+' continueSec='+str(self.continueSec))
+		for widget in newEntryWidget.instances:
+			rprint('checking against existing widget: to_from='+widget.ui.to_fromField.currentText()+' team='+widget.ui.teamField.text()+' lastModAge:'+str(widget.lastModAge))
+			# #452 - do a case-insensitive and spaces-removed comparison, in case Sar 1 and SAR 1 both exist, or trans 1 and Trans 1 and TRANS1, etc.
+			#742 - don't open a new entry if the existing new entry widget has a child clue or subject dialog open
+			# if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ','') and widget.lastModAge<continueSec:
+			if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ',''):
+				if widget.lastModAge<self.continueSec:
+					rprint("  new entry widget is already open from this callsign within the 'continue time'")
+					found='continue'
+				elif widget.childDialogs:
+					rprint('  new entry widget is already open that has child dialog/s (clue or subject located)')
+					found='child'
+				if found:
+##				widget.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
+				# found=True
+				# rprint("  new entry widget is already open from this callsign within the 'continue time'; not opening a new one")
+					prevLocString=widget.ui.radioLocField.toPlainText()
+					# if previous location string was blank, always overwrite;
+					#  if previous location string was not blank, only overwrite if new location is valid
+					# rprint('t1: prevLocString='+str(prevLocString)+'  formattedLocString='+str(formattedLocString))
+					# 753 - fix the logic that determines whether update should be attempted
+					if formattedLocString!='' and formattedLocString not in ['BAD DATA','NO FIX','WARNING','UNDEFINED','INVALID']:
+						datumFormatString="("+self.datum+"  "+self.coordFormat+")"
+						if widget.relayed:
+							rprint("location strings not updated because the message is relayed")
+							widget.radioLocTemp=formattedLocString
+							widget.datumFormatTemp=datumFormatString
+						else:
+							rprint("location strings updated because the message is not relayed")
+							widget.ui.radioLocField.setText(formattedLocString)
+							widget.ui.datumFormatLabel.setText(datumFormatString)
+							widget.formattedLocString=formattedLocString
+							widget.origLocString=origLocString
+					# #509: populate radio location field in any child dialogs that have that field (clue or subject located)
+					for child in widget.childDialogs:
+						rprint('  new entry widget for '+str(callsign)+' has a child dialog; attempting to update radio location in that dialog')
+						try:
+							# need to account for widgets that have .toPlainText() method (in clueDialog)
+							#  and widgets that have .text() method (in subjectLocatedDialog)
 							try:
-								# need to account for widgets that have .toPlainText() method (in clueDialog)
-								#  and widgets that have .text() method (in subjectLocatedDialog)
-								try:
-									prevLocString=child.ui.radioLocField.toPlainText()
-								except:
-									prevLocString=child.ui.radioLocField.text()
-								#  only populate with the radio location of the first call - don't keep updating with subsequent calls
-								#  (could be changed in the future if needed - basically, should the report include the radio coords of
-								#   the first call of the report, or of the last call of a continued conversation before the report is saved?)
-								# 753 - confirmed the decision to only keep the first valid location; clean up the logic
-								if prevLocString=='' and formattedLocString!='' and formattedLocString not in ['BAD DATA','NO FIX','WARNING','UNDEFINED','INVALID']:
-									child.ui.radioLocField.setText(formattedLocString)
+								prevLocString=child.ui.radioLocField.toPlainText()
 							except:
-								pass
-						break # to preserve 'widget' variable for use below
-			if fleet and dev:
-				fsResult=found # False or 'continue' or 'child' or 'skipped'
-				# only open a new entry widget if none is alredy open within the continue time, 
-				#  and the fleet/dev is not being filtered
-				if not found:
-					if self.fsIsFiltered(fleet,dev):
-						fsResult='filtered'
-						self.fsFilteredCallDisplay("on",fleet,dev,callsign)
-						QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
-					else:
+								prevLocString=child.ui.radioLocField.text()
+							#  only populate with the radio location of the first call - don't keep updating with subsequent calls
+							#  (could be changed in the future if needed - basically, should the report include the radio coords of
+							#   the first call of the report, or of the last call of a continued conversation before the report is saved?)
+							# 753 - confirmed the decision to only keep the first valid location; clean up the logic
+							if prevLocString=='' and formattedLocString!='' and formattedLocString not in ['BAD DATA','NO FIX','WARNING','UNDEFINED','INVALID']:
+								child.ui.radioLocField.setText(formattedLocString)
+						except:
+							pass
+					break # to preserve 'widget' variable for use below
+		if fleet and dev:
+			fsResult=found # False or 'continue' or 'child'
+			# only open a new entry widget if none is alredy open within the continue time, 
+			#  and the fleet/dev is not being filtered
+			if not found:
+				if self.fsIsFiltered(fleet,dev):
+					fsResult='filtered'
+					self.fsFilteredCallDisplay("on",fleet,dev,callsign)
+					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
+				else:
+					if attemptNEW:
 						fsResult='newEntry'
 						rprint('no other new entry tab was found for this callsign; inside fsParse: calling openNewEntry')
 						self.openNewEntry('fs',callsign,formattedLocString,fleet,dev,origLocString)
 						widget=self.newEntryWidget # the widget created by openNewEntry
-				self.fsLogUpdate(fleet=fleet,dev=dev,seq=seq,result=fsResult)
-				self.sendPendingGet()
-			elif uid:
-				nxResult=found # False or 'continue' or 'child' or 'skipped'
-				# only open a new entry widget if none is alredy open within the continue time, 
-				#  and the fleet/dev is not being filtered
-				if not found:
-					if self.fsIsFiltered('',uid):
-						nxResult='filtered'
-						self.fsFilteredCallDisplay('on','',uid,callsign)
-						QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 					else:
+						rprint('no other entry was found, but due to sequence checking, no new entry will be created')
+						fsResult='skipped'
+			self.fsLogUpdate(fleet=fleet,dev=dev,seq=seq,result=fsResult)
+			self.sendPendingGet()
+		elif uid:
+			nxResult=found # False or 'continue' or 'child' or 'skipped'
+			# only open a new entry widget if none is alredy open within the continue time, 
+			#  and the fleet/dev is not being filtered
+			if not found:
+				if self.fsIsFiltered('',uid):
+					nxResult='filtered'
+					self.fsFilteredCallDisplay('on','',uid,callsign)
+					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
+				else:
+					if attemptNew:
 						nxResult='newEntry'
 						self.openNewEntry('nex',callsign,formattedLocString,None,uid,origLocString)
 						widget=self.newEntryWidget # the widget created by openNewEntry
-				self.fsLogUpdate(uid=uid,seq=seq,result=nxResult)
-				self.sendPendingGet()
+					else:
+						rprint('no other entry was found, but due to sequence checking, no new entry will be created')
+						nxResult='skipped'
+			self.fsLogUpdate(uid=uid,seq=seq,result=nxResult)
+			self.sendPendingGet()
 
-			# 683 - activate the widget if needed here, rather than in addTab which only happens for new tabs
-			# rprint('checking to see if widget should be activated: widget='+str(widget)+'  currentEntryLastModAge='+str(self.currentEntryLastModAge)+'  tab count='+str(self.newEntryWindow.ui.tabWidget.count()))
-			#748 - only attempt this clause if widget is defined (i.e. if there was a find, or, the last widget in the list)
-			if widget and (self.currentEntryLastModAge>holdSec or self.newEntryWindow.ui.tabWidget.count()==3):
-				# rprint('  activating New Entry Widget: '+widget.ui.teamField.text())
-				self.newEntryWindow.ui.tabWidget.setCurrentWidget(widget)
-				widget.ui.messageField.setFocus()
-		#722 - end of 'if attemptNEW' clause
-		else:
-			if fleet:
-				self.fsLogUpdate(fleet=fleet,dev=dev,seq=seq,result='skipped')
-			elif uid:
-				self.fsLogUpdate(uid=uid,seq=seq,result='skipped')
+		# 683 - activate the widget if needed here, rather than in addTab which only happens for new tabs
+		# rprint('checking to see if widget should be activated: widget='+str(widget)+'  currentEntryLastModAge='+str(self.currentEntryLastModAge)+'  tab count='+str(self.newEntryWindow.ui.tabWidget.count()))
+		#748 - only attempt this clause if widget is defined (i.e. if there was a find, or, the last widget in the list)
+		if widget and (self.currentEntryLastModAge>holdSec or self.newEntryWindow.ui.tabWidget.count()==3):
+			# rprint('  activating New Entry Widget: '+widget.ui.teamField.text())
+			self.newEntryWindow.ui.tabWidget.setCurrentWidget(widget)
+			widget.ui.messageField.setFocus()
+		# #722 - end of 'if attemptNEW' clause
+		# else:
+		# 	if fleet:
+		# 		self.fsLogUpdate(fleet=fleet,dev=dev,seq=seq,result='skipped')
+		# 	elif uid:
+		# 		self.fsLogUpdate(uid=uid,seq=seq,result='skipped')
 
 
 	def sendPendingGet(self,suffix=""):
@@ -9571,11 +9581,11 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		# change the callsign in fsLog
 		if id2: # fleetsync
 			rprint('calling fsLogUpdate for fleetsync')
-			self.parent.parent.fsLogUpdate(fleet=fleet,dev=dev,callsign=newCallsign)
+			self.parent.parent.fsLogUpdate(fleet=fleet,dev=dev,callsign=newCallsign,seq=['CCD'],result='newCallsign')
 			rprint("New callsign pairing created from FleetSync: fleet="+fleet+"  dev="+dev+"  callsign="+newCallsign)
 		else: # nexedge
 			rprint('calling fsLogUpdate for nexedge')
-			self.parent.parent.fsLogUpdate(uid=uid,callsign=newCallsign)
+			self.parent.parent.fsLogUpdate(uid=uid,callsign=newCallsign,seq=['CCD'],result='newCallsign')
 			rprint("New callsign pairing created from NEXEDGE: unit ID = "+uid+"  callsign="+newCallsign)
 		# finally, pass the 'accept' signal on up the tree as usual
 		# set the focus to the messageField of the active stack item - not always
