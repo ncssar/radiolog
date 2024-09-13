@@ -2452,12 +2452,14 @@ class MyWindow(QDialog,Ui_Dialog):
 				prevSeq=self.fsGetPrevSeq(fleet,dev)
 			elif uid:
 				prevSeq=self.fsGetPrevSeq(uid)
-			rprint('prevSeq:'+str(prevSeq))
+			# rprint('prevSeq:'+str(prevSeq))
 			attemptNEW=False
 			if 'BOT' in seq:
 				attemptNEW=True
 			elif 'EOT' in seq: # BOT+EOT will not land here - it would be filtered as a mic bump
-				if 'BOT' not in prevSeq:
+				if 'BOT' not in prevSeq: # maybe a previous BOT was garbled or lost, so try now
+					attemptNEW=True
+				if 'BOT' in prevSeq and 'EOT' in prevSeq: # previous was a bump; maybe BOT since then was garbled or lost, so try now
 					attemptNEW=True
 			elif 'GPS' in seq: # EOT+GPS will not land here, since it was caught above
 				if 'BOT' not in prevSeq and 'EOT' not in prevSeq:
@@ -2539,6 +2541,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					else:
 						rprint('no other entry was found, but due to sequence checking, no new entry will be created')
 						fsResult='skipped'
+			if not attemptNEW: # since the above 'skipped' setting only happens if no match is found
+				fsResult='skipped'
 			self.fsLogUpdate(fleet=fleet,dev=dev,seq=seq,result=fsResult)
 			self.sendPendingGet()
 		elif uid:
@@ -2558,6 +2562,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					else:
 						rprint('no other entry was found, but due to sequence checking, no new entry will be created')
 						nxResult='skipped'
+			if not attemptNEW: # since the above 'skipped' setting only happens if no match is found
+				nxResult='skipped'
 			self.fsLogUpdate(uid=uid,seq=seq,result=nxResult)
 			self.sendPendingGet()
 
