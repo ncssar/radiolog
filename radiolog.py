@@ -1052,6 +1052,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  idea is probably obsolete
 # 		self.fsValidFleetList=[100]
 		self.fsLog=[]
+		self.fsFullLog=[]
 # 		self.fsLog.append(['','','','',''])
 		self.latestBumpDict={}
 		self.fsMuted=False
@@ -1085,6 +1086,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  lookup filename based on the current incedent name and time
 		# self.fsFileName=os.path.join(self.firstWorkingDir,'config','radiolog_fleetsync.csv')
 		self.fsFileName='radiolog_fleetsync.csv'
+		self.fsLogFileName='radiolog_fsLog.csv'
 
 		self.operatorsFileName='radiolog_operators.json'
 		self.teamNotesFileName='team_notes.json'
@@ -1538,6 +1540,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.tabGroups=defaultTabGroups
 		self.continuedIncidentWindowDays="4"
 		self.continueSec="20"
+		self.fsBypassSequenceChecks=False
 		
 		if os.name=="nt":
 			rprint("Operating system is Windows.")
@@ -1621,6 +1624,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.CCD1List.append('KW-')
 			elif tokens[0]=='continueSec':
 				self.continueSec=tokens[1]
+			elif tokens[0]=='fsBypassSequenceChecks':
+				self.fsBypassSequenceChecks=tokens[1]
 					
 		configFile.close()
 		
@@ -1673,6 +1678,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		if not self.continueSec.isdigit():
 			configErr+="ERROR: continueSec value must be an integer.  Will use 20 seconds for this session.\n\n"
 		self.continueSec=int(self.continueSec)
+
+		if self.fsBypassSequenceChecks and self.fsBypassSequenceChecks not in ['True','False']:
+			configErr+='ERROR: fsBypassSequenceChecks value must be True or False.  Will set to False by default.'
+			self.fsBypassSequenceChecks='False'
+		if type(self.fsBypassSequenceChecks)==str:
+			self.fsBypassSequenceChecks=eval(self.fsBypassSequenceChecks)
+		if self.fsBypassSequenceChecks:
+			rprint('FleetSync / NEXEDGE sequence checks will be bypassed for this session; every part of every incoming message will raise a new entry popup if needed.')
 
 		self.updateOptionsDialog()
 		
@@ -2093,6 +2106,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		fleet=None
 		dev=None
 		uid=None
+		seq=[]
+		prevSeq=[]
 		# the line delimeters are literal backslash then n, rather than standard \n
 		for line in self.fsBuffer.split('\n'):
 			rprint(" line:"+line)
@@ -2180,6 +2195,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						rprint(h+': NO RESPONSE from '+recipient)
 						return
 			if '$PKLSH' in line or '$PKNSH' in line: # handle fleetsync and nexedge in this 'if' clause
+				seq.append('GPS')
 				lineParse=line.split(',')
 				header=lineParse[0] # $PKLSH or $PKNSH, possibly following CID STX thru ETX
 				# rprint('header:'+header+'  tokens:'+str(len(lineParse)))
@@ -2353,6 +2369,10 @@ class MyWindow(QDialog,Ui_Dialog):
 				#    up until the subsequent buffered line (the subsequent fsParse call);
 				#    even for a mic bump, the second packet is identical to the first, so set() will only have one member;
 				#    if set length != 1 then we know there's garbled data and there's nothing else we can do here
+				if('\x02I1') in line:
+					seq.append('BOT')
+				if('\x02I0') in line:
+					seq.append('EOT')
 				packetSet=set(re.findall('\x02I[0-1]([0-9]{6,19})\x03',line))
 				# rprint('FleetSync packetSet: '+str(list(packetSet)))
 				if len(packetSet)>1:
@@ -2384,13 +2404,17 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.fsFilteredCallDisplay() # blank for a tenth of a second in case of repeated bumps
 					QTimer.singleShot(200,lambda:self.fsFilteredCallDisplay('bump',fleet,dev,callsign))
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
-					self.fsLogUpdate(fleet=fleet,dev=dev,bump=True)
+					self.fsLogUpdate(fleet=fleet,dev=dev,bump=True,seq=seq,result='bump')
 					self.sendPendingGet() # while getString will be non-empty if this bump had GPS, it may still have the default callsign
 					return
 					
 				rprint("FleetSync CID detected (not in $PKLSH): fleet="+fleet+"  dev="+dev+"  callsign="+callsign)
 
 			elif '\x02gI' in line: # NEXEDGE CID - similar to above
+				if('\x02gI1') in line:
+					seq.append('BOT')
+				if('\x02gI0') in line:
+					seq.append('EOT')
 				match=re.findall('\x02gI[0-1](U\d{5}U\d{5})\x03',line)
 				# rprint('match:'+str(match))
 				packetSet=set(match)
@@ -2414,12 +2438,32 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.fsFilteredCallDisplay() # blank for a tenth of a second in case of repeated bumps
 					QTimer.singleShot(200,lambda:self.fsFilteredCallDisplay('bump',None,uid,callsign))
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
-					self.fsLogUpdate(uid=uid,bump=True)
+					self.fsLogUpdate(uid=uid,bump=True,seq=seq,result='bump')
 					self.sendPendingGet() # while getString will be non-empty if this bump had GPS, it may still have the default callsign
 					return
 				
 				rprint('NEXEDGE CID detected (not in $PKNSH): id='+uid+'  callsign='+callsign)
 
+		#722 - BOT/EOT/GPS-based rules to reduce excessive new entry widgets
+		if self.fsBypassSequenceChecks:
+			attemptNEW=True
+		else:
+			if fleet:
+				prevSeq=self.fsGetPrevSeq(fleet,dev)
+			elif uid:
+				prevSeq=self.fsGetPrevSeq(uid)
+			# rprint('prevSeq:'+str(prevSeq))
+			attemptNEW=False
+			if 'BOT' in seq:
+				attemptNEW=True
+			elif 'EOT' in seq: # BOT+EOT will not land here - it would be filtered as a mic bump
+				if 'BOT' not in prevSeq: # maybe a previous BOT was garbled or lost, so try now
+					attemptNEW=True
+				if 'BOT' in prevSeq and 'EOT' in prevSeq: # previous was a bump; maybe BOT since then was garbled or lost, so try now
+					attemptNEW=True
+			elif 'GPS' in seq: # EOT+GPS will not land here, since it was caught above
+				if 'BOT' not in prevSeq and 'EOT' not in prevSeq:
+					attemptNEW=True
 		# if any new entry dialogs are already open with 'from' and the
 		#  current callsign, and that entry has been edited within the 'continue' time,
 		#  update it with the current location if available;
@@ -2434,11 +2478,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			# if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ','') and widget.lastModAge<continueSec:
 			if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ',''):
 				if widget.lastModAge<self.continueSec:
-					rprint("  new entry widget is already open from this callsign within the 'continue time'; not opening a new one")
-					found=True
+					rprint("  new entry widget is already open from this callsign within the 'continue time'")
+					found='continue'
 				elif widget.childDialogs:
-					rprint('  new entry widget is already open that has child dialog/s (clue or subject located); not opening a new one')
-					found=True
+					rprint('  new entry widget is already open that has child dialog/s (clue or subject located)')
+					found='child'
 				if found:
 ##				widget.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 				# found=True
@@ -2480,29 +2524,47 @@ class MyWindow(QDialog,Ui_Dialog):
 							pass
 					break # to preserve 'widget' variable for use below
 		if fleet and dev:
-			self.fsLogUpdate(fleet=fleet,dev=dev)
+			fsResult=found # False or 'continue' or 'child'
 			# only open a new entry widget if none is alredy open within the continue time, 
 			#  and the fleet/dev is not being filtered
 			if not found:
 				if self.fsIsFiltered(fleet,dev):
+					fsResult='filtered'
 					self.fsFilteredCallDisplay("on",fleet,dev,callsign)
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 				else:
-					rprint('no other new entry tab was found for this callsign; inside fsParse: calling openNewEntry')
-					self.openNewEntry('fs',callsign,formattedLocString,fleet,dev,origLocString)
-					widget=self.newEntryWidget # the widget created by openNewEntry
+					if attemptNEW:
+						fsResult='newEntry'
+						rprint('no other new entry tab was found for this callsign; inside fsParse: calling openNewEntry')
+						self.openNewEntry('fs',callsign,formattedLocString,fleet,dev,origLocString)
+						widget=self.newEntryWidget # the widget created by openNewEntry
+					else:
+						rprint('no other entry was found, but due to sequence checking, no new entry will be created')
+						fsResult='skipped'
+			if not attemptNEW: # since the above 'skipped' setting only happens if no match is found
+				fsResult='skipped'
+			self.fsLogUpdate(fleet=fleet,dev=dev,seq=seq,result=fsResult)
 			self.sendPendingGet()
 		elif uid:
-			self.fsLogUpdate(uid=uid)
+			nxResult=found # False or 'continue' or 'child' or 'skipped'
 			# only open a new entry widget if none is alredy open within the continue time, 
 			#  and the fleet/dev is not being filtered
 			if not found:
 				if self.fsIsFiltered('',uid):
+					nxResult='filtered'
 					self.fsFilteredCallDisplay('on','',uid,callsign)
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 				else:
-					self.openNewEntry('nex',callsign,formattedLocString,None,uid,origLocString)
-					widget=self.newEntryWidget # the widget created by openNewEntry
+					if attemptNEW:
+						nxResult='newEntry'
+						self.openNewEntry('nex',callsign,formattedLocString,None,uid,origLocString)
+						widget=self.newEntryWidget # the widget created by openNewEntry
+					else:
+						rprint('no other entry was found, but due to sequence checking, no new entry will be created')
+						nxResult='skipped'
+			if not attemptNEW: # since the above 'skipped' setting only happens if no match is found
+				nxResult='skipped'
+			self.fsLogUpdate(uid=uid,seq=seq,result=nxResult)
 			self.sendPendingGet()
 
 		# 683 - activate the widget if needed here, rather than in addTab which only happens for new tabs
@@ -2512,6 +2574,13 @@ class MyWindow(QDialog,Ui_Dialog):
 			# rprint('  activating New Entry Widget: '+widget.ui.teamField.text())
 			self.newEntryWindow.ui.tabWidget.setCurrentWidget(widget)
 			widget.ui.messageField.setFocus()
+		# #722 - end of 'if attemptNEW' clause
+		# else:
+		# 	if fleet:
+		# 		self.fsLogUpdate(fleet=fleet,dev=dev,seq=seq,result='skipped')
+		# 	elif uid:
+		# 		self.fsLogUpdate(uid=uid,seq=seq,result='skipped')
+
 
 	def sendPendingGet(self,suffix=""):
 		# NOTE that requests.get can cause a blocking delay; so, do it AFTER spawning the newEntryDialog
@@ -2546,8 +2615,9 @@ class MyWindow(QDialog,Ui_Dialog):
 	#  if callsign is not specified, udpate the time but not the callsign;
 	#  if the entry does not yet exist, add it
 
-	def fsLogUpdate(self,fleet=None,dev=None,uid=None,callsign=False,bump=False):
-		# row structure: [fleet,dev,callsign,filtered,last_received,com_port,bump_count,total_count]
+	def fsLogUpdate(self,fleet=None,dev=None,uid=None,callsign=False,bump=False,seq=None,result=None):
+		#722 added row entries last_sequence and last_result to help in excessive popup reduction
+		# row structure: [fleet,dev,callsign,filtered,last_received,com_port,bump_count,total_count,last_sequence,last_result]
 		# don't process the dummy default entry
 		if callsign=='Default':
 			return
@@ -2584,13 +2654,25 @@ class MyWindow(QDialog,Ui_Dialog):
 				if bump:
 					row[6]+=1
 				row[7]+=1
+				row[8]=seq
+				row[9]=result
+				# rprint('appending modified row to fsFullLog:'+str(row))
+				self.fsFullLog.append(row[:]) # [:] is needed to append static values rather than references https://stackoverflow.com/a/6360319/3577105
+				break
 		if not found:
 			# always update callsign - it may have changed since creation
 			if fleet and dev: # fleetsync
-				self.fsLog.append([fleet,dev,self.getCallsign(fleet,dev),False,t,com,int(bump),0])
+				row=[fleet,dev,self.getCallsign(fleet,dev),False,t,com,int(bump),1,seq,result]
+				# rprint('appending initial row: '+str(row))
+				self.fsLog.append(row[:])
+				self.fsFullLog.append(row[:])
 			elif uid: # nexedge
-				self.fsLog.append(['',uid,self.getCallsign(uid),False,t,com,int(bump),0])
-#		rprint('fsLog after fsLogUpdate:'+str(self.fsLog))
+				row=['',uid,self.getCallsign(uid),False,t,com,int(bump),1,seq,result]
+				self.fsLog.append(row[:])
+				self.fsFullLog.append(row[:])
+
+		# rprint('fsLog after fsLogUpdate:'+str(self.fsLog))
+		# rprint('fsFullLog after fsLogUpdate:'+str(self.fsFullLog))
 # 		if self.fsFilterDialog.ui.tableView:
 		self.fsFilterDialog.ui.tableView.model().layoutChanged.emit()
 		self.fsBuildTeamFilterDict()
@@ -2808,6 +2890,23 @@ class MyWindow(QDialog,Ui_Dialog):
 			warn.raise_()
 			warn.exec_()
 
+	def fsSaveLog(self,finalize=False):
+		fsLogFullPath=os.path.join(self.sessionDir,self.fsLogFileName)
+		try:
+			with open(fsLogFullPath,'w',newline='') as fsLogFile:
+				rprint('Writing FleetSync/NEXEDGE log file '+fsLogFullPath)
+				csvWriter=csv.writer(fsLogFile)
+				csvWriter.writerow(["## Radio Log FleetSync activity log"])
+				csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
+				csvWriter.writerow(["## Created during Incident Name: "+self.incidentName])
+				csvWriter.writerow(['# Fleet/UID','Device','Callsign','N/A','Time','COM port','Bumps','Total','Sequence','Result'])
+				for row in self.fsFullLog:
+					csvWriter.writerow(row)
+				if finalize:
+					csvWriter.writerow(["## end"])
+		except:
+			rprint("ERROR: cannot write FleetSync log file "+fsLogFullPath)
+
 	def getCallsign(self,fleetOrUid,dev=None):
 		if not isinstance(fleetOrUid,str):
 			rprint('ERROR in call to getCallsign: fleetOrId is not a string.')
@@ -2862,6 +2961,29 @@ class MyWindow(QDialog,Ui_Dialog):
 				return matches[0][2]
 		else:
 			rprint('ERROR in call to getCallsign: first argument must be 3 characters (FleetSync) or 5 characters (NEXEDGE): "'+fleetOrUid+'"')
+
+	def fsGetPrevSeq(self,fleetOrUid,dev=None):
+		if not isinstance(fleetOrUid,str):
+			rprint('ERROR in call to getPrevSeq: fleetOrId is not a string.')
+			return []
+		if dev and not isinstance(dev,str):
+			rprint('ERROR in call to getPrevSeq: dev is not a string.')
+			return []
+
+		prevSeq=None
+		if len(fleetOrUid)==3: # 3 characters - must be fleetsync
+			fleet=fleetOrUid
+			for row in self.fsLog:
+				if row[0]==fleet and row[1]==dev:
+					prevSeq=row[8]
+					break
+		elif len(fleetOrUid)==5: # 5 characters - must be NEXEDGE
+			uid=fleetOrUid
+			for row in self.fsLog:
+				if row[1]==uid:
+					prevSeq=row[8]
+					break
+		return prevSeq or [] # don't return None or False - must return a list
 
 	# not called from anywhere
 	# def getIdFromCallsign(self,callsign):
@@ -4098,6 +4220,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		self.save(finalize=True)
 		self.fsSaveLookup()
+		self.fsSaveLog(finalize=True)
 		self.saveRcFile(cleanShutdownFlag=True)
 
 		self.teamTimer.stop()
@@ -4609,6 +4732,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.csvFileName=getFileNameBase(self.incidentNameNormalized)+".csv"
 		self.pdfFileName=getFileNameBase(self.incidentNameNormalized)+".pdf"
 		self.fsFileName=self.csvFileName.replace('.csv','_fleetsync.csv')
+		self.fsLogFileName=self.csvFileName.replace('.csv','_fsLog.csv')
 
 	def optionsAccepted(self):
 		tmp=self.optionsDialog.ui.incidentField.text()
@@ -6610,6 +6734,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		else:
 			self.show()
 			self.raise_()
+			self.parent.fsSaveLog()
 
 
 # find dialog/completer/popup structure:
@@ -9462,11 +9587,11 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		# change the callsign in fsLog
 		if id2: # fleetsync
 			rprint('calling fsLogUpdate for fleetsync')
-			self.parent.parent.fsLogUpdate(fleet=fleet,dev=dev,callsign=newCallsign)
+			self.parent.parent.fsLogUpdate(fleet=fleet,dev=dev,callsign=newCallsign,seq=['CCD'],result='newCallsign')
 			rprint("New callsign pairing created from FleetSync: fleet="+fleet+"  dev="+dev+"  callsign="+newCallsign)
 		else: # nexedge
 			rprint('calling fsLogUpdate for nexedge')
-			self.parent.parent.fsLogUpdate(uid=uid,callsign=newCallsign)
+			self.parent.parent.fsLogUpdate(uid=uid,callsign=newCallsign,seq=['CCD'],result='newCallsign')
 			rprint("New callsign pairing created from NEXEDGE: unit ID = "+uid+"  callsign="+newCallsign)
 		# finally, pass the 'accept' signal on up the tree as usual
 		# set the focus to the messageField of the active stack item - not always
