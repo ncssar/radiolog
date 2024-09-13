@@ -2452,7 +2452,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				prevSeq=self.fsGetPrevSeq(fleet,dev)
 			elif uid:
 				prevSeq=self.fsGetPrevSeq(uid)
-			# rprint('prevSeq:'+str(prevSeq))
+			rprint('prevSeq:'+str(prevSeq))
 			attemptNEW=False
 			if 'BOT' in seq:
 				attemptNEW=True
@@ -2525,6 +2525,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					break # to preserve 'widget' variable for use below
 		if fleet and dev:
 			fsResult=found # False or 'continue' or 'child'
+			resultSuffix=''
 			# only open a new entry widget if none is alredy open within the continue time, 
 			#  and the fleet/dev is not being filtered
 			if not found:
@@ -2536,17 +2537,18 @@ class MyWindow(QDialog,Ui_Dialog):
 					if attemptNEW:
 						fsResult='newEntry'
 						rprint('no other new entry tab was found for this callsign; inside fsParse: calling openNewEntry')
-						self.openNewEntry('fs',callsign,formattedLocString,fleet,dev,origLocString)
+						resultSuffix=self.openNewEntry('fs',callsign,formattedLocString,fleet,dev,origLocString)
 						widget=self.newEntryWidget # the widget created by openNewEntry
 					else:
 						rprint('no other entry was found, but due to sequence checking, no new entry will be created')
 						fsResult='skipped'
 			if not attemptNEW: # since the above 'skipped' setting only happens if no match is found
 				fsResult='skipped'
-			self.fsLogUpdate(fleet=fleet,dev=dev,seq=seq,result=fsResult)
+			self.fsLogUpdate(fleet=fleet,dev=dev,seq=seq,result=fsResult+resultSuffix)
 			self.sendPendingGet()
 		elif uid:
 			nxResult=found # False or 'continue' or 'child' or 'skipped'
+			resultSuffix=''
 			# only open a new entry widget if none is alredy open within the continue time, 
 			#  and the fleet/dev is not being filtered
 			if not found:
@@ -2557,14 +2559,14 @@ class MyWindow(QDialog,Ui_Dialog):
 				else:
 					if attemptNEW:
 						nxResult='newEntry'
-						self.openNewEntry('nex',callsign,formattedLocString,None,uid,origLocString)
+						resultSuffix=self.openNewEntry('nex',callsign,formattedLocString,None,uid,origLocString)
 						widget=self.newEntryWidget # the widget created by openNewEntry
 					else:
 						rprint('no other entry was found, but due to sequence checking, no new entry will be created')
 						nxResult='skipped'
 			if not attemptNEW: # since the above 'skipped' setting only happens if no match is found
 				nxResult='skipped'
-			self.fsLogUpdate(uid=uid,seq=seq,result=nxResult)
+			self.fsLogUpdate(uid=uid,seq=seq,result=nxResult+resultSuffix)
 			self.sendPendingGet()
 
 		# 683 - activate the widget if needed here, rather than in addTab which only happens for new tabs
@@ -2970,17 +2972,21 @@ class MyWindow(QDialog,Ui_Dialog):
 			rprint('ERROR in call to getPrevSeq: dev is not a string.')
 			return []
 
+		# ignore rows whose sequence is 'CCD'; could get costly as number of fullLog entries increases;
+		#  make sure to efficiently walk the list backwards, rather than looking through the whole list every time
 		prevSeq=None
 		if len(fleetOrUid)==3: # 3 characters - must be fleetsync
 			fleet=fleetOrUid
-			for row in self.fsLog:
-				if row[0]==fleet and row[1]==dev:
+			for i in range(len(self.fsFullLog)-1,-1,-1):
+				row=self.fsFullLog[i]
+				if row[0]==fleet and row[1]==dev and row[8]!=['CCD']:
 					prevSeq=row[8]
 					break
 		elif len(fleetOrUid)==5: # 5 characters - must be NEXEDGE
 			uid=fleetOrUid
-			for row in self.fsLog:
-				if row[1]==uid:
+			for i in range(len(self.fsFullLog)-1,-1,-1):
+				row=self.fsFullLog[i]
+				if row[1]==uid and row[8]!=['CCD']:
 					prevSeq=row[8]
 					break
 		return prevSeq or [] # don't return None or False - must return a list
@@ -4759,7 +4765,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	def openNewEntry(self,key=None,callsign=None,formattedLocString=None,fleet=None,dev=None,origLocString=None,amendFlag=False,amendRow=None,isMostRecentForCallsign=False):
 		rprint("openNewEntry called:key="+str(key)+" callsign="+str(callsign)+" formattedLocString="+str(formattedLocString)+" fleet="+str(fleet)+" dev="+str(dev)+" origLocString="+str(origLocString)+" amendFlag="+str(amendFlag)+" amendRow="+str(amendRow)+" isMostRecentForCallsign="+str(isMostRecentForCallsign))
 		self.clearSelectionAllTables() # in case copy or context menu was in process
-
+		rval='' # default return value; only used by #761
 		# # 671 - setWindowFlags is expensive, increasing the lag based on how many times it's been called;
 		# #  this may well be a python bug, but, take steps here to only call it when needed, by
 		# #  comparing its previous value (stored in self.NEWFlags) to the new required value
@@ -4870,12 +4876,20 @@ class MyWindow(QDialog,Ui_Dialog):
 			if callsign[0:3]=='KW-' and self.newEntryWidget==self.newEntryWindow.ui.tabWidget.currentWidget():
 				self.newEntryWidget.ui.teamField.setFocus()
 				self.newEntryWidget.ui.teamField.selectAll()
-			# rprint('fsLog:')
+			# rprint('fleet='+str(fleet)+'  dev='+str(dev)+'  fsLog:')
 			# rprint(str(self.fsLog))
 			# i[7] = total call count; i[6] = mic bump count; we want to look at the total non-bump count, i[7]-i[6]
-			if (fleet and dev and len([i for i in self.fsLog if i[0]==str(fleet) and i[1]==str(dev) and (i[7]-i[6])<2])>0) or \
-			     (dev and not fleet and len([i for i in self.fsLog if i[0]=='' and i[1]==str(dev) and (i[7]-i[6])<2])>0) : # this is the device's first non-mic-bump call
+			#761 - allow for the case when there is no log entry at all for this device, due to sequence changes in #722
+			matchingLogRows=[]
+			if fleet and dev: # fleetsync
+				matchingLogRows=[i for i in self.fsLog if i[0]==str(fleet) and i[1]==str(dev)]
+			elif dev and not fleet: # NXDN
+				matchingLogRows=[i for i in self.fsLog if i[0]=='' and i[1]==str(dev)]
+			if not matchingLogRows or len([i for i in matchingLogRows if i[7]-i[6]<2])>0:
+			# if (fleet and dev and len([i for i in self.fsLog if i[0]==str(fleet) and i[1]==str(dev) and (i[7]-i[6])<2])>0) or \
+			#      (dev and not fleet and len([i for i in self.fsLog if i[0]=='' and i[1]==str(dev) and (i[7]-i[6])<2])>0) : # this is the device's first non-mic-bump call
 				rprint('First non-mic-bump call from this device.')
+				rval='+CCD'
 				if self.isInCCD1List(callsign):
 					rprint('Setting needsChangeCallsign since this is the first call from the device and the beginning of its default callsign "'+callsign+'" is specified in CCD1List')
 					self.newEntryWidget.needsChangeCallsign=True
@@ -4898,6 +4912,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.newEntryWidget.ui.datumFormatLabel.setText(datumFormatString)
 		else:
 			self.newEntryWidget.ui.datumFormatLabel.setText("")
+		
+		return rval # only relevant for #761
 	
 	def isInCCD1List(self,callsign):
 		found=False
@@ -5124,7 +5140,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			rprint('did not find a newer entry for '+team+' than the one being amended')
 		isMostRecent=not found
 		rprint('calling openNewEntry from amendEntry')
-		amendDialog=self.openNewEntry(amendFlag=True,amendRow=row,isMostRecentForCallsign=isMostRecent)
+		self.openNewEntry(amendFlag=True,amendRow=row,isMostRecentForCallsign=isMostRecent)
 
 	def rebuildTabs(self):
 		# rprint('calling rebuildTabs')
@@ -9586,11 +9602,11 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		self.parent.parent.fsSaveLookup()
 		# change the callsign in fsLog
 		if id2: # fleetsync
-			rprint('calling fsLogUpdate for fleetsync')
+			# rprint('calling fsLogUpdate for fleetsync')
 			self.parent.parent.fsLogUpdate(fleet=fleet,dev=dev,callsign=newCallsign,seq=['CCD'],result='newCallsign')
 			rprint("New callsign pairing created from FleetSync: fleet="+fleet+"  dev="+dev+"  callsign="+newCallsign)
 		else: # nexedge
-			rprint('calling fsLogUpdate for nexedge')
+			# rprint('calling fsLogUpdate for nexedge')
 			self.parent.parent.fsLogUpdate(uid=uid,callsign=newCallsign,seq=['CCD'],result='newCallsign')
 			rprint("New callsign pairing created from NEXEDGE: unit ID = "+uid+"  callsign="+newCallsign)
 		# finally, pass the 'accept' signal on up the tree as usual
