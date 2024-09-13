@@ -2555,7 +2555,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.fsFilteredCallDisplay('on','',uid,callsign)
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 				else:
-					if attemptNew:
+					if attemptNEW:
 						nxResult='newEntry'
 						self.openNewEntry('nex',callsign,formattedLocString,None,uid,origLocString)
 						widget=self.newEntryWidget # the widget created by openNewEntry
