@@ -2452,7 +2452,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				prevSeq=self.fsGetPrevSeq(fleet,dev)
 			elif uid:
 				prevSeq=self.fsGetPrevSeq(uid)
-			# rprint('prevSeq:'+str(prevSeq))
+			rprint('prevSeq:'+str(prevSeq))
 			attemptNEW=False
 			if 'BOT' in seq:
 				attemptNEW=True
@@ -2972,17 +2972,21 @@ class MyWindow(QDialog,Ui_Dialog):
 			rprint('ERROR in call to getPrevSeq: dev is not a string.')
 			return []
 
+		# ignore rows whose sequence is 'CCD'; could get costly as number of fullLog entries increases;
+		#  make sure to efficiently walk the list backwards, rather than looking through the whole list every time
 		prevSeq=None
 		if len(fleetOrUid)==3: # 3 characters - must be fleetsync
 			fleet=fleetOrUid
-			for row in self.fsLog:
-				if row[0]==fleet and row[1]==dev:
+			for i in range(len(self.fsFullLog)-1,-1,-1):
+				row=self.fsFullLog[i]
+				if row[0]==fleet and row[1]==dev and row[8]!=['CCD']:
 					prevSeq=row[8]
 					break
 		elif len(fleetOrUid)==5: # 5 characters - must be NEXEDGE
 			uid=fleetOrUid
-			for row in self.fsLog:
-				if row[1]==uid:
+			for i in range(len(self.fsFullLog)-1,-1,-1):
+				row=self.fsFullLog[i]
+				if row[1]==uid and row[8]!=['CCD']:
 					prevSeq=row[8]
 					break
 		return prevSeq or [] # don't return None or False - must return a list
@@ -9598,14 +9602,12 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		self.parent.parent.fsSaveLookup()
 		# change the callsign in fsLog
 		if id2: # fleetsync
-			#761 - don't call fsLogUpdate here as doing so would break the sequence logic
 			# rprint('calling fsLogUpdate for fleetsync')
-			# self.parent.parent.fsLogUpdate(fleet=fleet,dev=dev,callsign=newCallsign,seq=['CCD'],result='newCallsign')
+			self.parent.parent.fsLogUpdate(fleet=fleet,dev=dev,callsign=newCallsign,seq=['CCD'],result='newCallsign')
 			rprint("New callsign pairing created from FleetSync: fleet="+fleet+"  dev="+dev+"  callsign="+newCallsign)
 		else: # nexedge
-			#761 - don't call fsLogUpdate here as doing so would break the sequence logic
 			# rprint('calling fsLogUpdate for nexedge')
-			# self.parent.parent.fsLogUpdate(uid=uid,callsign=newCallsign,seq=['CCD'],result='newCallsign')
+			self.parent.parent.fsLogUpdate(uid=uid,callsign=newCallsign,seq=['CCD'],result='newCallsign')
 			rprint("New callsign pairing created from NEXEDGE: unit ID = "+uid+"  callsign="+newCallsign)
 		# finally, pass the 'accept' signal on up the tree as usual
 		# set the focus to the messageField of the active stack item - not always
