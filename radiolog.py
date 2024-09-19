@@ -504,7 +504,7 @@ def getExtTeamName(teamName):
 	name=name.replace(' ','') # remove spaces to shorten the name
 	# find index of first number in the name; everything left of that is the 'prefix';
 	# assume that everything after the prefix is a number
-	firstNum=re.search("\d",name)
+	firstNum=re.search(r'\d',name)
 	firstNumIndex=-1 # assume there is no number at all
 	if firstNum!=None:
 		firstNumIndex=firstNum.start()
@@ -553,7 +553,7 @@ def getNiceTeamName(extTeamName):
 	# assume that everything after the prefix is a number
 	#  (left-zero-padded to 5 digits)
 	# if there is no number, split after the word 'team' if it exists
-	firstNum=re.search("\d",extTeamName)
+	firstNum=re.search(r'\d',extTeamName)
 	splitIndex=-1 # assume there is no number at all
 	prefix=""
 	if firstNum:
@@ -2415,7 +2415,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					seq.append('BOT')
 				if('\x02gI0') in line:
 					seq.append('EOT')
-				match=re.findall('\x02gI[0-1](U\d{5}U\d{5})\x03',line)
+				match=re.findall(r'\x02gI[0-1](U\d{5}U\d{5})\x03',line)
 				# rprint('match:'+str(match))
 				packetSet=set(match)
 				# rprint('NXDN packetSet: '+str(list(packetSet)))
@@ -4116,7 +4116,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						self.openNewEntry(key)
 				else:
 					# these key handlers apply only if hotkeys are disabled:
-					if re.match("\d",key):
+					if re.match(r'\d',key):
 						rprint('non-team-hotkey "'+str(key)+'" pressed; calling openNewEntry')
 						self.openNewEntry(key)
 					elif key=='t' or event.key()==Qt.Key_Right:
@@ -7989,7 +7989,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		cs=re.sub(r' +',r' ',self.ui.teamField.text()).strip() # remove leading and trailing spaces, and reduce chains of spaces to single space
 		# rprint('teamFieldEditingFinished: cs="'+cs+'"')
 		if not cs in self.parent.allTeamsList: # if not already an exact case-sensitive match for an existing callsign:
-			if re.match(".*\D.*",cs): # if there are any characters that are not numbers
+			if re.match(r'.*\D.*',cs): # if there are any characters that are not numbers
 				# change it to any case-insensitive-matching existing callsign
 				for t in self.parent.allTeamsList:
 					if t.upper()==cs.upper() or t.upper()==cs.upper().replace('T','TEAM'):
