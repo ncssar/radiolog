@@ -488,17 +488,27 @@ def preserveCapsIfNeeded(w):
 		return w.upper()
 	else:
 		return w
-	
+
+# 728 - capitalize() will lowecase all letters except th first;
+#  to preserve the case of the rest of the word after the first letter,
+#  see https://stackoverflow.com/a/31767666/3577105
+def capFirst(word):
+	return word[:1].upper()+word[1:]
+
 def getExtTeamName(teamName):
-	# rprint('getExtTeamName called with argument "'+str(teamName)+'"')
+	rprint('getExtTeamName called with argument "'+str(teamName)+'"')
 	if teamName.lower().startswith("all ") or teamName.lower()=="all":
 		return "ALL TEAMS"
 	#702 - change camelCaseWords to camel Case Words
 	#  insert a space before every Uppercase letter that is preceded by a lowercase letter
 	teamName=re.sub(r'([a-z])([A-Z])',r'\1 \2',teamName)
+	rprint(' t1: teamName='+str(teamName))
 	# capitalize each word, in case teamName is e.g. 'Team bravo'
 	#  https://stackoverflow.com/a/1549644/3577105
-	teamName=' '.join(w.capitalize() for w in teamName.split())
+	# teamName=' '.join(w.capitalize() for w in teamName.split())
+	# 728 - preserve case of letters after the first letter in each word
+	teamName=' '.join(capFirst(w) for w in teamName.split())
+	rprint(' t2: teamName='+str(teamName))
 	# fix #459 (and other places in the code): remove all leading and trailing spaces, and change all chains of spaces to one space
 	name=re.sub(r' +',r' ',teamName).strip()
 	name=name.replace(' ','') # remove spaces to shorten the name
@@ -538,12 +548,12 @@ def getExtTeamName(teamName):
 		rest=name # preserve case if there are no numbers
 ##	rprint("prefix="+prefix+" rest="+rest+" name="+name)
 	extTeamName=prefix+rest
-# 	rprint("Team Name:"+teamName+": extended team name:"+extTeamName)
+	rprint("Team Name:"+teamName+": extended team name:"+extTeamName)
 	# rprint('  --> extTeamName="'+str(extTeamName)+'"')
 	return extTeamName
 
 def getNiceTeamName(extTeamName):
-	# rprint('getNiceTeamName called for '+str(extTeamName))
+	rprint('getNiceTeamName called for '+str(extTeamName))
 	# prune any leading 'z_' that may have been added for sorting purposes
 	extTeamName=extTeamName.replace('z_','')
 	# 751 - preserve verbatim uppercase team name if it starts with KW- (case-insensitive comparison)
@@ -573,7 +583,7 @@ def getNiceTeamName(extTeamName):
 	name=name.lstrip('0')
 # 	rprint("getNiceTeamName("+extTeamName+")")
 # 	rprint("FirstNumIndex:"+str(firstNumIndex)+" Prefix:'"+prefix+"'")
-#	rprint("Human Readable Name:'"+name+"'")
+	rprint("Human Readable Name:'"+name+"'")
 	return name
 
 def getShortNiceTeamName(niceTeamName):
@@ -3993,6 +4003,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		teamTabsMoreButtonBlinkNeeded=False
 		for extTeamName in teamTimersDict:
 			secondsSinceContact=teamTimersDict.get(extTeamName,0)
+			rprint('extTeamName='+str(extTeamName)+'  secondsSinceContact='+str(secondsSinceContact)+'  hiddenTeamTabsList:'+str(self.hiddenTeamTabsList)+'  extTeamNameList:'+str(self.extTeamNameList))
 			if extTeamName not in self.hiddenTeamTabsList:
 				# rprint('updateTeamTimers processing '+extTeamName)
 				# if there is a newEntryWidget currently open for this team, don't blink,
@@ -6029,9 +6040,11 @@ class MyWindow(QDialog,Ui_Dialog):
 	def deleteTeamTab(self,teamName,ext=False):
 		# optional arg 'ext' if called with extTeamName
 		# must also modify related lists to keep everything in sync
+		rprint('deleteTeamTab: teamName='+str(teamName)+'  ext='+str(ext))
 		extTeamName=getExtTeamName(teamName)
 		if ext:
 			extTeamName=teamName
+		rprint('t1: extTeamName='+str(extTeamName))
 		niceTeamName=getNiceTeamName(extTeamName)
 		# 406: apply the same fix as #393:
 		# if the new entry's extTeamName is a case-insensitive match for an
@@ -6049,6 +6062,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			rprint("  i="+str(i))
 			self.extTeamNameList.remove(extTeamName)
 			if not teamName.lower().startswith("spacer"):
+				# # 728: apply the same fix as #393, and as #406 for extTeamName in the lines above:
+				# # if the new entry's niceTeamName is a case-insensitive match for an
+				# #   existing teamName, use that already-existing teamName instead
+				# for existingTeamName in self.teamNameList:
+				# 	if niceTeamName.lower()==existingTeamName.lower():
+				# 		niceTeamName=existingTeamName
 				self.teamNameList.remove(niceTeamName)
 				#710 - don't delete teamTimersDict entry
 				# del teamTimersDict[extTeamName]
@@ -7987,7 +8006,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 
 	def teamFieldEditingFinished(self):
 		cs=re.sub(r' +',r' ',self.ui.teamField.text()).strip() # remove leading and trailing spaces, and reduce chains of spaces to single space
-		# rprint('teamFieldEditingFinished: cs="'+cs+'"')
+		rprint('teamFieldEditingFinished: cs="'+cs+'"')
 		if not cs in self.parent.allTeamsList: # if not already an exact case-sensitive match for an existing callsign:
 			if re.match(r'.*\D.*',cs): # if there are any characters that are not numbers
 				# change it to any case-insensitive-matching existing callsign
