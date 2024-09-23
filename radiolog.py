@@ -5366,12 +5366,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.showTeamTabsMoreButtonIfNeeded()
 		niceTeamName=getNiceTeamName(extTeamName)
 		shortNiceTeamName=getShortNiceTeamName(niceTeamName)
-		# rprint("addTab: extTeamName="+extTeamName+" niceTeamName="+niceTeamName+" shortNiceTeamName="+shortNiceTeamName)
+		rprint("addTab: extTeamName="+extTeamName+" niceTeamName="+niceTeamName+" shortNiceTeamName="+shortNiceTeamName)
 		i=self.extTeamNameList.index(extTeamName) # i is zero-based
-		# rprint("addTab: i="+str(i))
-		# rprint("addTab: tabList before insert:"+str(self.ui.tabList))
+		rprint("addTab: i="+str(i))
+		rprint("addTab: tabList before insert:"+str(self.ui.tabList))
 		self.ui.tabList.insert(i,QWidget())
-		# rprint("addTab: tabList after insert:"+str(self.ui.tabList))
+		rprint("addTab: tabList after insert:"+str(self.ui.tabList))
 		self.ui.tabList[i].setStyleSheet('font-size:'+str(self.menuFontSize)+'pt')
 		self.ui.tabGridLayoutList.insert(i,QGridLayout(self.ui.tabList[i]))
 		self.ui.tabGridLayoutList[i].setContentsMargins(5,2,5,5)
@@ -5403,7 +5403,7 @@ class MyWindow(QDialog,Ui_Dialog):
 # 			rprint("setting style for label "+extTeamName)
 			label.setStyleSheet("font-size:18px;qproperty-alignment:AlignCenter")
 # 			label.setStyleSheet(statusStyleDict[""])
-		# rprint("setting tab button #"+str(i)+" to "+label.text())
+		rprint("setting tab button #"+str(i)+" to "+label.text())
 		bar=self.ui.tabWidget.tabBar()
 		bar.setTabButton(i,QTabBar.LeftSide,label)
 		# during rebuildTeamHotkeys, we need to read the name of currently displayed tabs.
@@ -5495,13 +5495,17 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.allTeamsList=[]
 		spacerIndex=1 # start with 1 so trailing 0 doesn't get deleted in getNiceTeamName
 		for grp in self.tabGroups:
+			spacerNeeded=False
 # 			rprint("group:"+str(grp)+":"+str(grouped[grp[0]]))
 			for val in grouped[grp[0]]:
 				self.allTeamsList.append(getNiceTeamName(val))
 				if val not in self.hiddenTeamTabsList:
 	# 				rprint("appending:"+val)
 					self.extTeamNameList.append(val)
-			if len(grouped[grp[0]])>0:
+					spacerNeeded=True
+			#766 don't append a spacer after the group if all group members are hidden
+			# if len(grouped[grp[0]])>0:
+			if spacerNeeded:
 				self.extTeamNameList.append("spacer"+str(spacerIndex))
 				spacerIndex=spacerIndex+1
 		for val in grouped["other"]:
@@ -6107,7 +6111,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.hiddenTeamTabsList.append(extTeamName)
 		self.showTeamTabsMoreButtonIfNeeded()
 		self.rebuildTeamHotkeys()
-		# rprint("  extTeamNameList after delete 1: "+str(self.extTeamNameList))
+		rprint("  extTeamNameList after delete 1: "+str(self.extTeamNameList))
 		# if there are two adjacent spacers, delete the second one
 		for n in range(len(self.extTeamNameList)-1):
 			if self.extTeamNameList[n].lower().startswith("spacer"):
@@ -6118,7 +6122,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						# rprint('    extTeamNameList on return from recursive deleteTeamTab call:'+str(self.extTeamNameList))
 						break
 		# 741 call rebuildGroupedTabDict to make sure spacer(s) are in appropriate spots after deleting a team
-		# rprint("  extTeamNameList after delete 2: "+str(self.extTeamNameList))
+		rprint("  extTeamNameList after delete 2: "+str(self.extTeamNameList))
 		# NOTE during #741 work: don't rebuild here - it can create two adjacent spacers which
 		#  apparently induces the tracebacks by making extTeamNameList longer than the number
 		#  of tabs in the tabbar, unless followed by rebuildTabs; should probably clean up
