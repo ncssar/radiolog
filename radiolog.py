@@ -4961,6 +4961,10 @@ class MyWindow(QDialog,Ui_Dialog):
 				values.append('')
 		niceTeamName=values[2]
 		extTeamName=getExtTeamName(niceTeamName)
+		#766 force unhiding to True if extTeamName is in hiddenTeamTabsList
+		rprint('hiddenTeamTabsList:'+str(self.hiddenTeamTabsList))
+		if extTeamName in self.hiddenTeamTabsList:
+			unhiding=True
 		# if self.useOperatorLogin:
 		# 	values[0]+=' ['+self.getOperatorInitials()+']'
 		status=values[5]
@@ -5207,7 +5211,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		extTeamName=getExtTeamName(newTeamName)
 		niceTeamName=getNiceTeamName(extTeamName)
 		shortNiceTeamName=getShortNiceTeamName(niceTeamName)
-		rprint("new team: newTeamName="+newTeamName+" extTeamName="+extTeamName+" niceTeamName="+niceTeamName+" shortNiceTeamName="+shortNiceTeamName)
+		rprint('new team: newTeamName='+newTeamName+' extTeamName='+extTeamName+' niceTeamName='+niceTeamName+' shortNiceTeamName='+shortNiceTeamName+' unhiding='+str(unhiding))
 		self.extTeamNameList.append(extTeamName)
 		rprint("extTeamNameList before sort:"+str(self.extTeamNameList))
 # 		self.extTeamNameList.sort()
@@ -7852,6 +7856,9 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					else:
 						oldCallsignEntry[3]+=', still associated with this callsign, but used in a one-time callsign change for "'+str(val[2])+'"; see concurrent message from that callsign]'
 					self.parent.newEntry(oldCallsignEntry)
+				# unhiding=cse in self.hiddenCallsignList
+				# rprint('hiddenCallsignList='+str(self.hiddenCallsignList)+'  unhiding='+str(unhiding))
+				# self.parent.newEntry(val,self.amendFlag,unhiding=unhiding)
 				self.parent.newEntry(val,self.amendFlag)
 	
 			# make entries for attached callsigns
