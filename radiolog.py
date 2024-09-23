@@ -1022,6 +1022,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				showStartupOptions=False
 
 		self.nonEmptyTabGroupCount=0
+		self.nonEmptyTabGroups=[]
 
 		# #483: Check for recent radiolog sessions on this computer.  If any sessions are found from the previous 4 days,
 		#  ask the operator if this new session is intended to be a continuation of one of those previous incidents.
@@ -4942,7 +4943,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			return ''
 
-	def newEntry(self,values,amend=False):
+	def newEntry(self,values,amend=False,unhiding=False):
 		# values array format: [time,to_from,team,message,locString,status,sec,fleet,dev]
 		#  locString is also stored in the table in a column after dev, unmodified;
 		#  the value in the 5th column is modified in place based on the datum and
@@ -4998,9 +4999,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			model.endInsertRows()
 ##		if not values[3].startswith("RADIO LOG SOFTWARE:"):
 ##			self.newEntryProcessTeam(niceTeamName,status,values[1],values[3])
-		self.newEntryProcessTeam(niceTeamName,status,values[1],values[3],amend)
+		self.newEntryProcessTeam(niceTeamName,status,values[1],values[3],amend,unhiding=unhiding)
 
-	def newEntryProcessTeam(self,niceTeamName,status,to_from,msg,amend=False):
+	def newEntryProcessTeam(self,niceTeamName,status,to_from,msg,amend=False,unhiding=False):
 		# rprint('t1: niceTeamName={} status={} to_from={} msg={} amend={}'.format(niceTeamName,status,to_from,msg,amend))
 		extTeamName=getExtTeamName(niceTeamName)
 		# 393: if the new entry's extTeamName is a case-insensitive match for an
@@ -5013,7 +5014,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		if niceTeamName!='' and not niceTeamName.lower()=="all" and not niceTeamName.lower().startswith("all "):
 			# if it's a team that doesn't already have a tab, make a new tab
 			if extTeamName not in self.extTeamNameList:
-				self.newTeam(niceTeamName)
+				self.newTeam(niceTeamName,unhiding=unhiding)
 			i=self.extTeamNameList.index(extTeamName)
 			# teamStatusDict[extTeamName]=status
 			self.setTeamStatus(extTeamName,status)
@@ -5191,7 +5192,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.teamNotesBuildTooltip(extTeamName)
 # 		self.rebuildTeamHotkeys()
 	
-	def newTeam(self,newTeamName):
+	def newTeam(self,newTeamName,unhiding=False):
 		# not sure why newTeamName is False (bool) when called as a slot;
 		# setting a default val for the arg has not effect, so just work with it
 		if newTeamName==False:
@@ -5214,11 +5215,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		# remove from hiddenTeamTabsList immediately, to prevent downsteram errors in teamTabsPopup
 		# 741 - keep track of whether this call is restoring a previously hidden team tab
 		restoringHidden=False
+		rprint('hiddenTeamTabsList:'+str(self.hiddenTeamTabsList))
 		if extTeamName in self.hiddenTeamTabsList:
 			restoringHidden=True
 			self.hiddenTeamTabsList=[x for x in self.hiddenTeamTabsList if extTeamName!=x]
 
 		prevGroupCount=self.nonEmptyTabGroupCount
+		prevGroups=self.nonEmptyTabGroups
 		self.rebuildGroupedTabDict()
 		rprint("extTeamNameList after sort:"+str(self.extTeamNameList))
 		if not self.loadFlag:
@@ -5227,14 +5230,21 @@ class MyWindow(QDialog,Ui_Dialog):
 			#  follow the old behavior and rebuild the entire tab bar;
 			#  for subsequent teams, only add the tab for the new team
 			# 741 - also rebuild tabs if restoring a hidden team tab
-			if restoringHidden or prevGroupCount!=self.nonEmptyTabGroupCount or self.ui.tabWidget.tabBar().count()<2:
+			rprint('restoringHidden='+str(restoringHidden)+'  prevGroupCount='+str(prevGroupCount)+'  nonEmptyTabGroupCount='+str(self.nonEmptyTabGroupCount)+'  tabBar.count='+str(self.ui.tabWidget.tabBar().count()))
+			rprint('  prevGroups='+str(prevGroups)+'  nonEmptyTabGroups='+str(self.nonEmptyTabGroups))
+			# if restoringHidden or prevGroupCount!=self.nonEmptyTabGroupCount or self.ui.tabWidget.tabBar().count()<2:
+			# if restoringHidden or prevGroups!=self.nonEmptyTabGroups or self.ui.tabWidget.tabBar().count()<2:
+			if unhiding or prevGroups!=self.nonEmptyTabGroups or self.ui.tabWidget.tabBar().count()<2:
+				rprint('t1')
 				self.rebuildTabs()
 			else:
 				# display issues when unhiding the rightmost tab
 				#  https://github.com/ncssar/radiolog/issues/670#issuecomment-1712814526
 				# so, if this would be the rightmost tab, activate a different tab first
 				self.ui.tabWidget.tabBar().setCurrentIndex(0)
+				rprint('t2: extTeamName='+str(extTeamName))
 				self.addTab(extTeamName)
+				# self.rebuildTabs()
 		
 		if not extTeamName.startswith("spacer"):
 			# add to team name lists and dictionaries
@@ -5356,12 +5366,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.showTeamTabsMoreButtonIfNeeded()
 		niceTeamName=getNiceTeamName(extTeamName)
 		shortNiceTeamName=getShortNiceTeamName(niceTeamName)
-		# rprint("addTab: extTeamName="+extTeamName+" niceTeamName="+niceTeamName+" shortNiceTeamName="+shortNiceTeamName)
+		rprint("addTab: extTeamName="+extTeamName+" niceTeamName="+niceTeamName+" shortNiceTeamName="+shortNiceTeamName)
 		i=self.extTeamNameList.index(extTeamName) # i is zero-based
-		# rprint("addTab: i="+str(i))
-		# rprint("addTab: tabList before insert:"+str(self.ui.tabList))
+		rprint("addTab: i="+str(i))
+		rprint("addTab: tabList before insert:"+str(self.ui.tabList))
 		self.ui.tabList.insert(i,QWidget())
-		# rprint("addTab: tabList after insert:"+str(self.ui.tabList))
+		rprint("addTab: tabList after insert:"+str(self.ui.tabList))
 		self.ui.tabList[i].setStyleSheet('font-size:'+str(self.menuFontSize)+'pt')
 		self.ui.tabGridLayoutList.insert(i,QGridLayout(self.ui.tabList[i]))
 		self.ui.tabGridLayoutList[i].setContentsMargins(5,2,5,5)
@@ -5393,7 +5403,7 @@ class MyWindow(QDialog,Ui_Dialog):
 # 			rprint("setting style for label "+extTeamName)
 			label.setStyleSheet("font-size:18px;qproperty-alignment:AlignCenter")
 # 			label.setStyleSheet(statusStyleDict[""])
-# 		rprint("setting tab button #"+str(i)+" to "+label.text())
+		rprint("setting tab button #"+str(i)+" to "+label.text())
 		bar=self.ui.tabWidget.tabBar()
 		bar.setTabButton(i,QTabBar.LeftSide,label)
 		# during rebuildTeamHotkeys, we need to read the name of currently displayed tabs.
@@ -5501,6 +5511,8 @@ class MyWindow(QDialog,Ui_Dialog):
 	# 				rprint("appending other:"+val)
 					self.extTeamNameList.append(val)
 		self.nonEmptyTabGroupCount=len([v for v in grouped.values() if v])
+		self.nonEmptyTabGroups=[k for k in grouped.keys() if grouped[k]]
+		rprint('nonEmptyTabGroups:'+str(self.nonEmptyTabGroups))
 			
 	def tabContextMenu(self,pos):
 		menu=QMenu()
@@ -6095,7 +6107,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.hiddenTeamTabsList.append(extTeamName)
 		self.showTeamTabsMoreButtonIfNeeded()
 		self.rebuildTeamHotkeys()
-		# rprint("  extTeamNameList after delete 1: "+str(self.extTeamNameList))
+		rprint("  extTeamNameList after delete 1: "+str(self.extTeamNameList))
 		# if there are two adjacent spacers, delete the second one
 		for n in range(len(self.extTeamNameList)-1):
 			if self.extTeamNameList[n].lower().startswith("spacer"):
@@ -6103,8 +6115,10 @@ class MyWindow(QDialog,Ui_Dialog):
 					if len(self.extTeamNameList)>2: # but not if there are no visible tabs
 						rprint("  found back-to-back spacers at indices "+str(n)+" and "+str(n+1))
 						self.deleteTeamTab(self.extTeamNameList[n+1],True)
+						rprint('    extTeamNameList on return from recursive deleteTeamTab call:'+str(self.extTeamNameList))
+						break
 		# 741 call rebuildGroupedTabDict to make sure spacer(s) are in appropriate spots after deleting a team
-		# rprint("  extTeamNameList after delete 2: "+str(self.extTeamNameList))
+		rprint("  extTeamNameList after delete 2: "+str(self.extTeamNameList))
 		# NOTE during #741 work: don't rebuild here - it can create two adjacent spacers which
 		#  apparently induces the tracebacks by making extTeamNameList longer than the number
 		#  of tabs in the tabbar, unless followed by rebuildTabs; should probably clean up
@@ -6128,6 +6142,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
 		# 	self.sidebar.resizeEvent()
 		self.sidebar.resizeEvent()
+		rprint('end of deleteTeamTab: hiddenTeamTabsList='+str(self.hiddenTeamTabsList))
 
 	def openTeamNotes(self,extTeamName):
 		self.teamNotesDialog.show()
@@ -6326,7 +6341,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# remove from hiddenTeamTabsList right away, to prevent downstream errors in teamTabsPopup
 		#  (this is already done at the start of addTab, which is too late)
 		self.hiddenTeamTabsList=[x for x in self.hiddenTeamTabsList if extTeamName!=x]
-		self.newEntry(values)
+		self.newEntry(values,unhiding=True)
 		#715 - redraw sidebar now, regardless of visibility
 		# if self.sidebarIsVisible: #.isVisible would always return True - it's slid left when 'hidden'
 		# 	self.sidebar.resizeEvent()
