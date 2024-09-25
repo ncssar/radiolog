@@ -2534,6 +2534,11 @@ class MyWindow(QDialog,Ui_Dialog):
 						except:
 							pass
 					break # to preserve 'widget' variable for use below
+		#750 reset team timer here, regardless of whether a new entry is opened
+		#  but only if the the team's timer already exists, to prevent error in updateTeamTimers
+		extTeamName=getExtTeamName(callsign)
+		if extTeamName in teamTimersDict:
+			teamTimersDict[extTeamName]=0
 		if fleet and dev:
 			fsResult=found # False or 'continue' or 'child'
 			resultSuffix=''
