@@ -332,7 +332,7 @@ from reportlab.lib.units import inch
 from PyPDF2 import PdfFileReader,PdfFileWriter
 from FingerTabs import *
 from pygeodesy import Datums,ellipsoidalBase,dms
-from sartopo_python import SartopoSession
+from caltopo_python import CaltopoSession
 
 __version__ = "3.4.0"
 
@@ -840,8 +840,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.isContinuedIncident=False
 
 		self.sts=None
-		self.sartopoURL=''
-		self.sartopoLink=None
+		self.caltopoURL=''
+		self.caltopoLink=None
 		self.radioMarkerDict={}
 		self.radioMarkerFID=None
 
@@ -1908,7 +1908,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					# $PKLSH can contain status 'V' if it had a GPS lock before but does not currently,
 					#   in which case the real coodinates of the last known lock will be included.
 					#   If this happens, we do want to see the coordinates in the entry body, but we do not want
-					#   to update the sartopo locator.
+					#   to update the caltopo locator.
 					# - iv valid=='V', append the formatted string with an asterisk, but do not update the locator
 					# - if valid=='A' - as with old radios
 					# so:
@@ -1948,7 +1948,7 @@ class MyWindow(QDialog,Ui_Dialog):
 								#  otherwise, append the callsign now, as a sign to send immediately
 								if not devTxt.startswith("Radio "):
 									self.getString=self.getString+devTxt
-								# if self.optionsDialog.ui.sartopoRadioMarkersCheckBox.isChecked() and self.sts:
+								# if self.optionsDialog.ui.caltopoRadioMarkersCheckBox.isChecked() and self.sts:
 								self.sendRadioMarker(fleet,dev,devTxt,lat,lon) # always send or queue
 							# was this a response to a location request for this device?
 							if self.fsAwaitingResponse and [int(fleet),int(dev)]==[int(x) for x in self.fsAwaitingResponse[0:2]]:
@@ -2136,17 +2136,17 @@ class MyWindow(QDialog,Ui_Dialog):
 		# - should radio markers be deleted at any point?
 		# - should radio marker colors be changed, as a function of team status, or time since last call?
 		# self.radioMarkerDict - keys are callsigns, values are dictionaries with these keys:
-		#   sartopoID - sartopo feature ID - initially an empty string
+		#   caltopoID - caltopo feature ID - initially an empty string
 		#   fleet - Kenwood fleet #
 		#   deviceID - Kenwood device ID
 		#   latestTimeString
 		#   lat
 		#   lon
-		# existingId=self.radioMarkerDict.get(label,'') # can be None in newer sartopo_python
+		# existingId=self.radioMarkerDict.get(label,'') # can be None in newer caltopo_python
 		# id=None
 		
 		d=self.radioMarkerDict.get(label,{})
-		existingId=d.get('sartopoID','')
+		existingId=d.get('caltopoID','')
 		id=''
 		latestTimeString=time.strftime('%H:%M:%S')
 		if self.sts:
@@ -2154,7 +2154,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.radioMarkerFID=self.sts.addFolder('Radios')
 			id=self.sts.addMarker(lat,lon,label,latestTimeString,folderId=self.radioMarkerFID,existingId=existingId)
 		self.radioMarkerDict[label]={
-			'sartopoID': id,
+			'caltopoID': id,
 			'fleet': fleet,
 			'device': dev,
 			'latestTimeString': latestTimeString,
@@ -2192,8 +2192,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			if len(labels)>1:
 				for label in labels:
 					if label==device:
-						rprint('deleting old marker "'+label+'"  id='+str(self.radioMarkerDict[label]['sartopoID']))
-						# when sartopo_python is updated, delete the marker AND the radioMarkerDict entry
+						rprint('deleting old marker "'+label+'"  id='+str(self.radioMarkerDict[label]['caltopoID']))
+						# when caltopo_python is updated, delete the marker AND the radioMarkerDict entry
 	# for fsLog, a dictionary would probably be easier, but we have to use an array
 	#  since we will be displaying in a QTableView
 	# if callsign is specified, update the callsign but not the time;
@@ -2235,10 +2235,10 @@ class MyWindow(QDialog,Ui_Dialog):
 	def updateRadioMarkerLabel(self,fleet,device,label):
 		for (l,d) in self.radioMarkerDict.items():
 			if str(d['fleet'])==str(fleet) and str(d['deviceID'])==str(device) and l==str(device):
-				# self.sts.editFeature(id=d['sartopoID'],properties={'title':label})
+				# self.sts.editFeature(id=d['caltopoID'],properties={'title':label})
 				# self.radioMarkerDict[label]=d
 				# del self.radioMarkerDict[l]
-				rprint('sartopo_python update needed: changing marker name from "'+l+'" to "'+label+'" for id '+d['sartopoID'])
+				rprint('caltopo_python update needed: changing marker name from "'+l+'" to "'+label+'" for id '+d['caltopoID'])
 
 	def fsGetLatestComPort(self,fleet,device):
 		rprint('fsLog:'+str(self.fsLog))
@@ -5076,74 +5076,74 @@ class MyWindow(QDialog,Ui_Dialog):
 	def createSTS(self):
 		rprint('createSTS called:')
 		if self.sts is not None: # close out any previous session
-			print('Closing previous SartopoSession')
+			print('Closing previous CaltopoSession')
 			self.closeSTS()
 			# self.ui.linkIndicator.setText("")
 			# self.updateLinkIndicator()
 			# self.link=-1
 			# self.updateFeatureList("Folder")
 			# self.updateFeatureList("Marker")
-		if self.optionsDialog.ui.sartopoMapURLField.text():
-			u=self.optionsDialog.ui.sartopoMapURLField.text()
-			if u==self.sartopoURL and self.sts: # url has not changed; keep the existing link and folder list
+		if self.optionsDialog.ui.caltopoMapURLField.text():
+			u=self.optionsDialog.ui.caltopoMapURLField.text()
+			if u==self.caltopoURL and self.sts: # url has not changed; keep the existing link and folder list
 				return
-			self.sartopoURL=u
-			if self.sartopoURL.endswith("#"): # pound sign at end of URL causes crash; brute force fix it here
-				self.sartopoURL=self.sartopoURL[:-1]
-				self.optionsDialog.ui.sartopoMapURLField.setText(self.sartopoURL)
-			parse=self.sartopoURL.replace("http://","").replace("https://","").split("/")
+			self.caltopoURL=u
+			if self.caltopoURL.endswith("#"): # pound sign at end of URL causes crash; brute force fix it here
+				self.caltopoURL=self.caltopoURL[:-1]
+				self.optionsDialog.ui.caltopoMapURLField.setText(self.caltopoURL)
+			parse=self.caltopoURL.replace("http://","").replace("https://","").split("/")
 			domainAndPort=parse[0]
 			mapID=parse[-1]
-			print("calling SartopoSession with domainAndPort="+domainAndPort+" mapID="+mapID)
-			if 'sartopo.com' in domainAndPort.lower():
-				print("  creating online session for user "+self.sartopoAccountName)
-				self.sts=SartopoSession(domainAndPort=domainAndPort,mapID=mapID,
+			print("calling CaltopoSession with domainAndPort="+domainAndPort+" mapID="+mapID)
+			if 'caltopo.com' in domainAndPort.lower():
+				print("  creating online session for user "+self.caltopoAccountName)
+				self.sts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,
 										configpath="../sts.ini",
 										# sync=False,syncTimeout=0.001,
 										account=self.accountName)
 			else:
-				self.sts=SartopoSession(domainAndPort=domainAndPort,mapID=mapID)
-				# self.sts=SartopoSession(domainAndPort=domainAndPort,mapID=mapID,sync=False,syncTimeout=0.001)
-			self.sartopoLink=self.sts.apiVersion
-			print("link status:"+str(self.sartopoLink))
-			self.updateSartopoLinkIndicator()
+				self.sts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID)
+				# self.sts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,sync=False,syncTimeout=0.001)
+			self.caltopoLink=self.sts.apiVersion
+			print("link status:"+str(self.caltopoLink))
+			self.updateCaltopoLinkIndicator()
 			# self.updateLinkIndicator()
 			# if self.link>0:
 			# 	self.ui.linkIndicator.setText(self.sts.mapID)
 			# 	self.updateFeatureList("Folder")
 			# self.optionsDialog.ui.folderComboBox.setHeader("Select a Folder...")
 			# if the session is good, process any deferred radio markers
-			if self.sts and self.sartopoLink>0:
+			if self.sts and self.caltopoLink>0:
 				if not self.radioMarkerFID:
 					self.radioMarkerFID=self.sts.addFolder('Radios')
 				for (label,d) in self.radioMarkerDict.items():
-					if d['sartopoID'] in ['',-1]: # could be blank, or, -1
+					if d['caltopoID'] in ['',-1]: # could be blank, or, -1
 						rprint('adding deferred marker "'+label+'"')
 						id=self.sts.addMarker(d['lat'],d['lon'],label,d['latestTimeString'],folderId=self.radioMarkerFID)
-						self.radioMarkerDict[label]['sartopoID']=id
+						self.radioMarkerDict[label]['caltopoID']=id
 
 	def closeSTS(self):
 		rprint('closeSTS called')
 		if self.sts:
 			del self.sts
 			self.sts=None
-		self.sartopoLink=0
-		self.updateSartopoLinkIndicator()
+		self.caltopoLink=0
+		self.updateCaltopoLinkIndicator()
 
-	def updateSartopoLinkIndicator(self):
-		rprint('updateSartopoLinkIndcator called: sartopoLink='+str(self.sartopoLink))
-		if self.sartopoLink==1:
+	def updateCaltopoLinkIndicator(self):
+		rprint('updateCaltopoLinkIndcator called: caltopoLink='+str(self.caltopoLink))
+		if self.caltopoLink==1:
 			ss='background-color:#00ff00'
-		elif self.sartopoLink==-1:
+		elif self.caltopoLink==-1:
 			ss='background-color:#ff0000'
 		else:
 			ss='background-color:#aaaaaa'
-		self.optionsDialog.ui.sartopoLinkIndicator.setStyleSheet(ss)
-		self.ui.sartopoLinkIndicator.setStyleSheet(ss)
+		self.optionsDialog.ui.caltopoLinkIndicator.setStyleSheet(ss)
+		self.ui.caltopoLinkIndicator.setStyleSheet(ss)
 		if self.sts:
-			self.ui.sartopoLinkIndicator.setText(self.sts.mapID)
+			self.ui.caltopoLinkIndicator.setText(self.sts.mapID)
 		else:
-			self.ui.sartopoLinkIndicator.setText('')
+			self.ui.caltopoLinkIndicator.setText('')
 
 class helpWindow(QDialog,Ui_Help):
 	def __init__(self, *args):
@@ -5189,7 +5189,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.formatField.clearFocus()
 		self.ui.timeoutField.clearFocus()
 		self.ui.secondWorkingDirCheckBox.clearFocus()
-		self.sartopoEnabledCB()
+		self.caltopoEnabledCB()
 
 	def displayTimeout(self):
 		self.ui.timeoutLabel.setText("Timeout: "+timeoutDisplayList[self.ui.timeoutField.value()][0])
@@ -5214,23 +5214,23 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.show()
 			self.raise_()
 
-	def sartopoEnabledCB(self): # called from stateChanged of group box AND of radio markers checkbox
-		a=self.ui.sartopoGroupBox.isChecked()
-		radios=self.ui.sartopoRadioMarkersCheckBox.isChecked()
-		self.ui.sartopoLocationUpdatesCheckBox.setEnabled(a)
-		self.ui.sartopoRadioMarkersCheckBox.setEnabled(a)
+	def caltopoEnabledCB(self): # called from stateChanged of group box AND of radio markers checkbox
+		a=self.ui.caltopoGroupBox.isChecked()
+		radios=self.ui.caltopoRadioMarkersCheckBox.isChecked()
+		self.ui.caltopoLocationUpdatesCheckBox.setEnabled(a)
+		self.ui.caltopoRadioMarkersCheckBox.setEnabled(a)
 		enableMapFields=a and radios
-		self.ui.sartopoMapURLField.setEnabled(enableMapFields)
-		self.ui.sartopoLinkIndicator.setEnabled(enableMapFields)
-		self.ui.sartopoMapURLLabel.setEnabled(enableMapFields)
-		self.ui.sartopoMapNameLabel.setEnabled(enableMapFields)
+		self.ui.caltopoMapURLField.setEnabled(enableMapFields)
+		self.ui.caltopoLinkIndicator.setEnabled(enableMapFields)
+		self.ui.caltopoMapURLLabel.setEnabled(enableMapFields)
+		self.ui.caltopoMapNameLabel.setEnabled(enableMapFields)
 		if enableMapFields:
-			self.sartopoURLCB() # try to reconnect if mapURL is not blank
+			self.caltopoURLCB() # try to reconnect if mapURL is not blank
 		else:
 			self.parent.closeSTS()
 
-	def sartopoURLCB(self):
-		if self.ui.sartopoMapURLField.text()=='':
+	def caltopoURLCB(self):
+		if self.ui.caltopoMapURLField.text()=='':
 			self.parent.closeSTS()
 			return
 		self.parent.createSTS()
