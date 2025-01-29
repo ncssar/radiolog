@@ -282,7 +282,7 @@
       <item row="0" column="0">
        <layout class="QGridLayout" name="gridLayout_2">
         <item row="1" column="0">
-         <widget class="QCheckBox" name="caltopoLocationUpdatesCheckbox">
+         <widget class="QCheckBox" name="caltopoRadioMarkersCheckBox">
           <property name="text">
            <string>Add / update radio location markers</string>
           </property>
@@ -291,7 +291,7 @@
         <item row="2" column="0">
          <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,4,10,0">
           <item>
-           <widget class="QLabel" name="caltopoMapURLLabel">
+           <widget class="QLabel" name="caltopoMapLabel">
             <property name="font">
              <font>
               <pointsize>14</pointsize>
