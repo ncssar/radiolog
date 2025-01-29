@@ -323,6 +323,7 @@ import shutil
 import math
 import textwrap
 import json
+from collections import defaultdict
 from reportlab.lib import colors,utils
 from reportlab.lib.pagesizes import letter,landscape,portrait
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
@@ -332,6 +333,7 @@ from PyPDF2 import PdfReader,PdfWriter
 from FingerTabs import *
 from pygeodesy import Datums,ellipsoidalBase,dms
 from difflib import SequenceMatcher
+from caltopo_python import CaltopoSession
 
 __version__ = "3.12.0"
 
@@ -975,6 +977,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.operatorLastName='?'
 		self.operatorFirstName='?'
 		self.operatorId='???'
+
+		self.cts=None
+		self.caltopoURL=''
+		self.caltopoLink=None
+		self.radioMarkerDict={}
+		self.radioMarkerFID=None
 
 		self.optionsDialog=optionsDialog(self)
 		self.optionsDialog.accepted.connect(self.optionsAccepted)
@@ -2263,7 +2271,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				# $PKLSH can contain status 'V' if it had a GPS lock before but does not currently,
 				#   in which case the real coodinates of the last known lock will be included.
 				#   If this happens, we do want to see the coordinates in the entry body, but we do not want
-				#   to update the sartopo locator.
+				#   to update the caltopo locator.
 				# - iv valid=='V', append the formatted string with an asterisk, but do not update the locator
 				# - if valid=='A' - as with old radios
 				# so:
@@ -2311,6 +2319,8 @@ class MyWindow(QDialog,Ui_Dialog):
 							# TODO: change this hardcode to deal with other default device names - see #635
 							if not devTxt.startswith("Radio "):
 								self.getString=self.getString+devTxt
+							# if self.optionsDialog.ui.caltopoRadioMarkersCheckBox.isChecked() and self.sts:
+							self.sendRadioMarker(fleet,dev,devTxt,lat,lon) # always send or queue
 
 						# was this a response to a location request for this device?
 						if self.fsAwaitingResponse and [fleet,dev]==[x for x in self.fsAwaitingResponse[0:2]]:
@@ -2601,6 +2611,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 
 	def sendPendingGet(self,suffix=""):
+		rprint('sendPendingGet called')
 		# NOTE that requests.get can cause a blocking delay; so, do it AFTER spawning the newEntryDialog
 		# if sarsoft is not running to handle this get request, Windows will complain with nested exceptions:
 		# ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
@@ -2626,7 +2637,78 @@ class MyWindow(QDialog,Ui_Dialog):
 				except Exception as e:
 					rprint("  exception during sending of GET request: "+str(e))
 				self.getString=''
-				
+
+	def sendRadioMarker(self,fleet,dev,label,lat,lon):
+		rprint('sendRadioMarker called')
+		# mimic the old 'Locator Group' behavior:
+		# - create a 'Radios' folder on the first call to this function; place markers in that folder
+		# - if a marker for the callsign already exists, move it (and update the time)
+		# - if a marker for the callsign does not yet exist, add one (with updated time)
+		# questions:
+		# - how to deal with radios that change callsigns - should we have one marker per device ID,
+		#    or one marker per callsign?
+		# - should radio markers be deleted at any point?
+		# - should radio marker colors be changed, as a function of team status, or time since last call?
+		# self.radioMarkerDict - keys are callsigns, values are dictionaries with these keys:
+		#   caltopoID - caltopo feature ID - initially an empty string
+		#   fleet - Kenwood fleet #
+		#   deviceID - Kenwood device ID
+		#   latestTimeString
+		#   lat
+		#   lon
+		# existingId=self.radioMarkerDict.get(label,'') # can be None in newer caltopo_python
+		# id=None
+		
+		d=self.radioMarkerDict.get(label,{})
+		existingId=d.get('caltopoID','')
+		id=''
+		latestTimeString=time.strftime('%H:%M:%S')
+		if self.sts:
+			if not self.radioMarkerFID:
+				self.radioMarkerFID=self.sts.addFolder('Radios')
+			id=self.sts.addMarker(lat,lon,label,latestTimeString,folderId=self.radioMarkerFID,existingId=existingId)
+		self.radioMarkerDict[label]={
+			'caltopoID': id,
+			'fleet': fleet,
+			'device': dev,
+			'latestTimeString': latestTimeString,
+			'lat': lat,
+			'lon': lon
+		} # queued markers will be added during createSTS
+		self.cleanupRadioMarkers()
+		rprint(json.dumps(self.radioMarkerDict,indent=3))
+
+		# entry=self.radioMarkerDict.get(label,[''])
+		# existingId=entry[0]
+		# id=''
+		# latestTimeString=time.strftime('%H:%M:%S')
+		# if self.sts:
+		# 	if not self.radioMarkerFID:
+		# 		self.radioMarkerFID=self.sts.addFolder('Radios')
+		# 	id=self.sts.addMarker(lat,lon,label,latestTimeString,folderId=self.radioMarkerFID,existingId=existingId)
+		# self.radioMarkerDict[label]=[id,latestTimeString,lat,lon] # queued markers will be added during createSTS
+		# rprint(json.dumps(self.radioMarkerDict,indent=3))
+
+		# process this marker, and also any other entries without id
+
+	def cleanupRadioMarkers(self):
+		# delete radio markers whose labels are the same as device ID,
+		#  if another marker with same device ID but a useful label exists;
+		#  this happens intentionally, when the marker is sent as soon as a new
+		#  call comes in but before a callsign is defined in the CCD.
+		# pairs=[[label,d['device']] for (label,d) in self.radioMarkerDict.items()]
+		# for pair in pairs:
+		labelsForDevice=defaultdict(list)
+		for (label,d) in self.radioMarkerDict.items():
+			labelsForDevice[d['device']].append(label)
+		rprint('labelsForDevice:'+json.dumps(labelsForDevice,indent=3))
+		for (device,labels) in labelsForDevice.items():
+			if len(labels)>1:
+				for label in labels:
+					if label==device:
+						rprint('deleting old marker "'+label+'"  id='+str(self.radioMarkerDict[label]['caltopoID']))
+						# when caltopo_python is updated, delete the marker AND the radioMarkerDict entry
+			
 	# for fsLog, a dictionary would probably be easier, but we have to use an array
 	#  since we will be displaying in a QTableView
 	# if callsign is specified, update the callsign but not the time;
@@ -2700,7 +2782,15 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.latestBumpDict[str(fleet)+':'+str(dev)]=time.time()
 			elif uid:
 				self.latestBumpDict[uid]=time.time()
-	
+
+	def updateRadioMarkerLabel(self,fleet,device,label):
+		for (l,d) in self.radioMarkerDict.items():
+			if str(d['fleet'])==str(fleet) and str(d['deviceID'])==str(device) and l==str(device):
+				# self.sts.editFeature(id=d['caltopoID'],properties={'title':label})
+				# self.radioMarkerDict[label]=d
+				# del self.radioMarkerDict[l]
+				rprint('caltopo_python update needed: changing marker name from "'+l+'" to "'+label+'" for id '+d['caltopoID'])
+
 	def fsGetLatestComPort(self,fleetOrBlank,devOrUid):
 		rprint('fsLog:'+str(self.fsLog))
 		if fleetOrBlank:
@@ -6494,6 +6584,78 @@ class MyWindow(QDialog,Ui_Dialog):
 			new=current+1
 		target.newEntryWindow.ui.tabWidget.setCurrentIndex(new)
 
+	def createSTS(self):
+		rprint('createSTS called:')
+		if self.sts is not None: # close out any previous session
+			print('Closing previous CaltopoSession')
+			self.closeSTS()
+			# self.ui.linkIndicator.setText("")
+			# self.updateLinkIndicator()
+			# self.link=-1
+			# self.updateFeatureList("Folder")
+			# self.updateFeatureList("Marker")
+		if self.optionsDialog.ui.caltopoMapURLField.text():
+			u=self.optionsDialog.ui.caltopoMapURLField.text()
+			if u==self.caltopoURL and self.sts: # url has not changed; keep the existing link and folder list
+				return
+			self.caltopoURL=u
+			if self.caltopoURL.endswith("#"): # pound sign at end of URL causes crash; brute force fix it here
+				self.caltopoURL=self.caltopoURL[:-1]
+				self.optionsDialog.ui.caltopoMapURLField.setText(self.caltopoURL)
+			parse=self.caltopoURL.replace("http://","").replace("https://","").split("/")
+			domainAndPort=parse[0]
+			mapID=parse[-1]
+			print("calling CaltopoSession with domainAndPort="+domainAndPort+" mapID="+mapID)
+			if 'caltopo.com' in domainAndPort.lower():
+				print("  creating online session for user "+self.caltopoAccountName)
+				self.sts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,
+										configpath="../sts.ini",
+										# sync=False,syncTimeout=0.001,
+										account=self.accountName)
+			else:
+				self.sts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID)
+				# self.sts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,sync=False,syncTimeout=0.001)
+			self.caltopoLink=self.sts.apiVersion
+			print("link status:"+str(self.caltopoLink))
+			self.updateCaltopoLinkIndicator()
+			# self.updateLinkIndicator()
+			# if self.link>0:
+			# 	self.ui.linkIndicator.setText(self.sts.mapID)
+			# 	self.updateFeatureList("Folder")
+			# self.optionsDialog.ui.folderComboBox.setHeader("Select a Folder...")
+			# if the session is good, process any deferred radio markers
+			if self.sts and self.caltopoLink>0:
+				if not self.radioMarkerFID:
+					self.radioMarkerFID=self.sts.addFolder('Radios')
+				for (label,d) in self.radioMarkerDict.items():
+					if d['caltopoID'] in ['',-1]: # could be blank, or, -1
+						rprint('adding deferred marker "'+label+'"')
+						id=self.sts.addMarker(d['lat'],d['lon'],label,d['latestTimeString'],folderId=self.radioMarkerFID)
+						self.radioMarkerDict[label]['caltopoID']=id
+
+	def closeSTS(self):
+		rprint('closeSTS called')
+		if self.sts:
+			del self.sts
+			self.sts=None
+		self.caltopoLink=0
+		self.updateCaltopoLinkIndicator()
+
+	def updateCaltopoLinkIndicator(self):
+		rprint('updateCaltopoLinkIndcator called: caltopoLink='+str(self.caltopoLink))
+		if self.caltopoLink==1:
+			ss='background-color:#00ff00'
+		elif self.caltopoLink==-1:
+			ss='background-color:#ff0000'
+		else:
+			ss='background-color:#aaaaaa'
+		self.optionsDialog.ui.caltopoLinkIndicator.setStyleSheet(ss)
+		self.ui.caltopoLinkIndicator.setStyleSheet(ss)
+		if self.sts:
+			self.ui.caltopoLinkIndicator.setText(self.sts.mapID)
+		else:
+			self.ui.caltopoLinkIndicator.setText('')
+
 
 class helpWindow(QDialog,Ui_Help):
 	def __init__(self, *args):
@@ -6765,6 +6927,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.formatField.clearFocus()
 		self.ui.timeoutField.clearFocus()
 		self.ui.secondWorkingDirCheckBox.clearFocus()
+		self.caltopoEnabledCB()
 
 	def displayTimeout(self):
 		self.ui.timeoutLabel.setText("Timeout: "+timeoutDisplayList[self.ui.timeoutField.value()][0])
@@ -6792,6 +6955,27 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.show()
 			self.raise_()
 			self.parent.fsSaveLog()
+
+	def caltopoEnabledCB(self): # called from stateChanged of group box AND of radio markers checkbox
+		a=self.ui.caltopoGroupBox.isChecked()
+		radios=self.ui.caltopoRadioMarkersCheckBox.isChecked()
+		self.ui.caltopoLocationUpdatesCheckBox.setEnabled(a)
+		self.ui.caltopoRadioMarkersCheckBox.setEnabled(a)
+		enableMapFields=a and radios
+		self.ui.caltopoMapURLField.setEnabled(enableMapFields)
+		self.ui.caltopoLinkIndicator.setEnabled(enableMapFields)
+		self.ui.caltopoMapURLLabel.setEnabled(enableMapFields)
+		self.ui.caltopoMapNameLabel.setEnabled(enableMapFields)
+		if enableMapFields:
+			self.caltopoURLCB() # try to reconnect if mapURL is not blank
+		else:
+			self.parent.closeSTS()
+
+	def caltopoURLCB(self):
+		if self.ui.caltopoMapURLField.text()=='':
+			self.parent.closeSTS()
+			return
+		self.parent.createSTS()
 
 
 # find dialog/completer/popup structure:
