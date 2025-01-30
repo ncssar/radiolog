@@ -1560,6 +1560,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.continuedIncidentWindowDays="4"
 		self.continueSec="20"
 		self.fsBypassSequenceChecks=False
+		self.caltopoAccountName="NONE"
 		
 		if os.name=="nt":
 			rprint("Operating system is Windows.")
@@ -1645,6 +1646,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.continueSec=tokens[1]
 			elif tokens[0]=='fsBypassSequenceChecks':
 				self.fsBypassSequenceChecks=tokens[1]
+			elif tokens[0]=='caltopoAccountName':
+				self.caltopoAccountName=tokens[1]
 					
 		configFile.close()
 		
@@ -6596,6 +6599,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			# self.updateFeatureList("Marker")
 		if self.optionsDialog.ui.caltopoMapURLField.text():
 			u=self.optionsDialog.ui.caltopoMapURLField.text()
+			if ':' in u and self.caltopoAccountName=='NONE':
+				rprint('ERROR: caltopoAccountName was not specified in config file')
+				return
 			if u==self.caltopoURL and self.cts: # url has not changed; keep the existing link and folder list
 				return
 			self.caltopoURL=u
@@ -6603,15 +6609,19 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.caltopoURL=self.caltopoURL[:-1]
 				self.optionsDialog.ui.caltopoMapURLField.setText(self.caltopoURL)
 			parse=self.caltopoURL.replace("http://","").replace("https://","").split("/")
-			domainAndPort=parse[0]
-			mapID=parse[-1]
+			if len(parse)>1:
+				domainAndPort=parse[0]
+				mapID=parse[-1]
+			else:
+				domainAndPort='caltopo.com'
+				mapID=parse[0]
 			print("calling CaltopoSession with domainAndPort="+domainAndPort+" mapID="+mapID)
 			if 'caltopo.com' in domainAndPort.lower():
 				print("  creating online session for user "+self.caltopoAccountName)
 				self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,
-										configpath="../sts.ini",
+										configpath=os.path.join(self.configDir,'cts.ini'),
 										# sync=False,syncTimeout=0.001,
-										account=self.accountName)
+										account=self.caltopoAccountName)
 			else:
 				self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID)
 				# self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,sync=False,syncTimeout=0.001)

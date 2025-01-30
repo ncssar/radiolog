@@ -210,6 +210,9 @@ class Ui_optionsDialog(object):
         self.secondWorkingDirCheckBox.stateChanged['int'].connect(optionsDialog.secondWorkingDirCB) # type: ignore
         self.fsSendButton.clicked.connect(optionsDialog.fsSendCB) # type: ignore
         self.newEntryWarningCheckBox.stateChanged['int'].connect(optionsDialog.newEntryWarningCB) # type: ignore
+        self.caltopoGroupBox.toggled['bool'].connect(optionsDialog.caltopoEnabledCB) # type: ignore
+        self.caltopoRadioMarkersCheckBox.stateChanged['int'].connect(optionsDialog.caltopoEnabledCB) # type: ignore
+        self.caltopoMapURLField.editingFinished.connect(optionsDialog.caltopoURLCB) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(optionsDialog)
 
     def retranslateUi(self, optionsDialog):
