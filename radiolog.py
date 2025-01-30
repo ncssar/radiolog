@@ -2668,6 +2668,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		latestTimeString=time.strftime('%H:%M:%S')
 		if self.cts:
 			if not self.radioMarkerFID:
+				self.radioMarkerFID=self.cts.getFeatures(featureClass='Folder',title='Radios',allowMultiTitleMatch=True)[:-1] or None
+				if self.radioMarkerFID:
+					rprint('Radios folder already exists: '+str(self.radioMarkerFID))
+			if not self.radioMarkerFID:
+				rprint('No existing Radios folder found; creating one now...')
 				self.radioMarkerFID=self.cts.addFolder('Radios')
 			id=self.cts.addMarker(lat,lon,label,latestTimeString,folderId=self.radioMarkerFID,existingId=existingId)
 		self.radioMarkerDict[label]={
@@ -6636,6 +6641,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			# if the session is good, process any deferred radio markers
 			if self.cts and self.caltopoLink>0:
 				if not self.radioMarkerFID:
+					radiosFolders=self.radioMarkerFID=self.cts.getFeatures(featureClass='Folder',title='Radios',allowMultiTitleMatch=True)
+					if radiosFolders:
+						self.radioMarkerFID=radiosFolders[-1]['id']
+					rprint('Radios folder already exists: '+str(self.radioMarkerFID))
+				if not self.radioMarkerFID:
+					rprint('No existing Radios folder found; creating one now...')
 					self.radioMarkerFID=self.cts.addFolder('Radios')
 				for (label,d) in self.radioMarkerDict.items():
 					if d['caltopoID'] in ['',-1]: # could be blank, or, -1
