@@ -398,8 +398,8 @@
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>492</x>
-     <y>352</y>
+     <x>642</x>
+     <y>413</y>
     </hint>
     <hint type="destinationlabel">
      <x>157</x>
@@ -414,8 +414,8 @@
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>560</x>
-     <y>352</y>
+     <x>642</x>
+     <y>413</y>
     </hint>
     <hint type="destinationlabel">
      <x>286</x>
@@ -430,8 +430,8 @@
    <slot>secondWorkingDirCB()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>263</x>
-     <y>263</y>
+     <x>273</x>
+     <y>201</y>
     </hint>
     <hint type="destinationlabel">
      <x>188</x>
@@ -446,8 +446,8 @@
    <slot>fsSendCB()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>22</x>
-     <y>323</y>
+     <x>32</x>
+     <y>413</y>
     </hint>
     <hint type="destinationlabel">
      <x>56</x>
@@ -462,12 +462,60 @@
    <slot>newEntryWarningCB()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>334</x>
-     <y>300</y>
+     <x>344</x>
+     <y>237</y>
     </hint>
     <hint type="destinationlabel">
      <x>302</x>
      <y>373</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>caltopoGroupBox</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoEnabledCB()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>61</x>
+     <y>271</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>437</x>
+     <y>248</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>caltopoRadioMarkersCheckBox</sender>
+   <signal>stateChanged(int)</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoEnabledCB()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>294</x>
+     <y>308</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>580</x>
+     <y>250</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>caltopoMapURLField</sender>
+   <signal>editingFinished()</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoURLCB()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>146</x>
+     <y>345</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>392</x>
+     <y>242</y>
     </hint>
    </hints>
   </connection>
@@ -476,5 +524,7 @@
   <slot>secondWorkingDirCB()</slot>
   <slot>fsSendCB()</slot>
   <slot>newEntryWarningCB()</slot>
+  <slot>caltopoEnabledCB()</slot>
+  <slot>caltopoURLCB()</slot>
  </slots>
 </ui>
