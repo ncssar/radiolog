@@ -2323,7 +2323,7 @@ class MyWindow(QDialog,Ui_Dialog):
 							if not devTxt.startswith("Radio "):
 								self.getString=self.getString+devTxt
 							# if self.optionsDialog.ui.caltopoRadioMarkersCheckBox.isChecked() and self.cts:
-							self.sendRadioMarker(fleet,dev,devTxt,lat,lon) # always send or queue
+							self.sendRadioMarker(fleet,dev,uid,devTxt,lat,lon) # always send or queue
 
 						# was this a response to a location request for this device?
 						if self.fsAwaitingResponse and [fleet,dev]==[x for x in self.fsAwaitingResponse[0:2]]:
@@ -2641,32 +2641,46 @@ class MyWindow(QDialog,Ui_Dialog):
 					rprint("  exception during sending of GET request: "+str(e))
 				self.getString=''
 
-	def sendRadioMarker(self,fleet,dev,label,lat,lon):
+	def getRadioMarkerLabelForCallsign(self,callsign):
+		return callsign.replace('Team ','T')
+	
+	def sendRadioMarker(self,fleet,dev,uid,callsign,lat,lon):
 		rprint('sendRadioMarker called')
 		# mimic the old 'Locator Group' behavior:
 		# - create a 'Radios' folder on the first call to this function; place markers in that folder
 		# - if a marker for the callsign already exists, move it (and update the time)
 		# - if a marker for the callsign does not yet exist, add one (with updated time)
+		# - one marker per device (as opposed to one marker per callsign)
+		#  - there could be multiple markers (multiple devices) with the same callsign
+
 		# questions:
-		# - how to deal with radios that change callsigns - should we have one marker per device ID,
-		#    or one marker per callsign?
 		# - should radio markers be deleted at any point?
 		# - should radio marker colors be changed, as a function of team status, or time since last call?
-		# self.radioMarkerDict - keys are callsigns, values are dictionaries with these keys:
-		#   caltopoID - caltopo feature ID - initially an empty string
-		#   fleet - Kenwood fleet #
-		#   deviceID - Kenwood device ID
-		#   latestTimeString
-		#   lat
-		#   lon
-		# existingId=self.radioMarkerDict.get(label,'') # can be None in newer caltopo_python
-		# id=None
+
+		# self.radioMarkerDict - keys are device strings ('<fleet>:<device>' or '<NXDN UID>'),
+		#    values are dicts with the following keys:
+		#  - caltopoID - caltopo feature ID of this device's caltopo marker, if any
+		#  - label
+		#  - latestTimeString
+		#  - lat
+		#  - lon
+
+		# self.radioMarkerDict entries must have all the info needed for createCTS to add deferred markers,
+		#  i.e. if incoming GPS data was stored before the CTS session was created for any reason
 		
-		d=self.radioMarkerDict.get(label,{})
-		existingId=d.get('caltopoID','')
-		id=''
+		if uid:
+			deviceStr=str(uid)
+		else:
+			deviceStr=str(fleet)+':'+str(dev)
+		d=self.radioMarkerDict.get(deviceStr,None)
+		existingId=None
+		if d:
+			existingId=d.get('caltopoID',None)
+		id='' # initialize here so that entry can be saved before cts exists
 		latestTimeString=time.strftime('%H:%M:%S')
+		label=self.getRadioMarkerLabelForCallsign(callsign)
 		if self.cts:
+			# add Radios folder if needed, or use existing Radios folder
 			if not self.radioMarkerFID:
 				self.radioMarkerFID=self.cts.getFeatures(featureClass='Folder',title='Radios',allowMultiTitleMatch=True)[:-1] or None
 				if self.radioMarkerFID:
@@ -2674,49 +2688,17 @@ class MyWindow(QDialog,Ui_Dialog):
 			if not self.radioMarkerFID:
 				rprint('No existing Radios folder found; creating one now...')
 				self.radioMarkerFID=self.cts.addFolder('Radios')
+			# add or update the marker
 			id=self.cts.addMarker(lat,lon,label,latestTimeString,folderId=self.radioMarkerFID,existingId=existingId)
-		self.radioMarkerDict[label]={
+		# add or update the dict entry here, with enough detail for createSTS to add any deferred markers
+		self.radioMarkerDict[deviceStr]={
 			'caltopoID': id,
-			'fleet': fleet,
-			'device': dev,
+			'label': label,
 			'latestTimeString': latestTimeString,
 			'lat': lat,
 			'lon': lon
-		} # queued markers will be added during createCTS
-		self.cleanupRadioMarkers()
-		rprint(json.dumps(self.radioMarkerDict,indent=3))
-
-		# entry=self.radioMarkerDict.get(label,[''])
-		# existingId=entry[0]
-		# id=''
-		# latestTimeString=time.strftime('%H:%M:%S')
-		# if self.cts:
-		# 	if not self.radioMarkerFID:
-		# 		self.radioMarkerFID=self.cts.addFolder('Radios')
-		# 	id=self.cts.addMarker(lat,lon,label,latestTimeString,folderId=self.radioMarkerFID,existingId=existingId)
-		# self.radioMarkerDict[label]=[id,latestTimeString,lat,lon] # queued markers will be added during createCTS
+		}
 		# rprint(json.dumps(self.radioMarkerDict,indent=3))
-
-		# process this marker, and also any other entries without id
-
-	def cleanupRadioMarkers(self):
-		# delete radio markers whose labels are the same as device ID,
-		#  if another marker with same device ID but a useful label exists;
-		#  this happens intentionally, when the marker is sent as soon as a new
-		#  call comes in but before a callsign is defined in the CCD.
-		# pairs=[[label,d['device']] for (label,d) in self.radioMarkerDict.items()]
-		# for pair in pairs:
-		labelsForDevice=defaultdict(list)
-		for (label,d) in self.radioMarkerDict.items():
-			labelsForDevice[d['device']].append(label)
-		rprint('labelsForDevice:'+json.dumps(labelsForDevice,indent=3))
-		for (device,labels) in labelsForDevice.items():
-			rprint('checking: device='+str(device)+'  labels='+str(labels))
-			if len(labels)>1:
-				for label in labels:
-					if label==device:
-						rprint('deleting old marker "'+label+'"  id='+str(self.radioMarkerDict[label]['caltopoID']))
-						# when caltopo_python is updated, delete the marker AND the radioMarkerDict entry
 			
 	# for fsLog, a dictionary would probably be easier, but we have to use an array
 	#  since we will be displaying in a QTableView
@@ -2791,14 +2773,6 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.latestBumpDict[str(fleet)+':'+str(dev)]=time.time()
 			elif uid:
 				self.latestBumpDict[uid]=time.time()
-
-	def updateRadioMarkerLabel(self,fleet,device,label):
-		for (l,d) in self.radioMarkerDict.items():
-			if str(d['fleet'])==str(fleet) and str(d['deviceID'])==str(device) and l==str(device):
-				# self.cts.editFeature(id=d['caltopoID'],properties={'title':label})
-				# self.radioMarkerDict[label]=d
-				# del self.radioMarkerDict[l]
-				rprint('caltopo_python update needed: changing marker name from "'+l+'" to "'+label+'" for id '+d['caltopoID'])
 
 	def fsGetLatestComPort(self,fleetOrBlank,devOrUid):
 		rprint('fsLog:'+str(self.fsLog))
@@ -6649,11 +6623,12 @@ class MyWindow(QDialog,Ui_Dialog):
 				if not self.radioMarkerFID:
 					rprint('No existing Radios folder found; creating one now...')
 					self.radioMarkerFID=self.cts.addFolder('Radios')
-				for (label,d) in self.radioMarkerDict.items():
-					if d['caltopoID'] in ['',-1]: # could be blank, or, -1
-						rprint('adding deferred marker "'+label+'"')
+				for (deviceStr,d) in self.radioMarkerDict.items():
+					if not d['caltopoID']:
+						label=d['label']
+						rprint('adding deferred marker "'+label+'" for device "'+deviceStr+'"')
 						id=self.cts.addMarker(d['lat'],d['lon'],label,d['latestTimeString'],folderId=self.radioMarkerFID)
-						self.radioMarkerDict[label]['caltopoID']=id
+						self.radioMarkerDict[deviceStr]['caltopoID']=id
 
 	def closeCTS(self):
 		rprint('closeCTS called')
@@ -9866,14 +9841,14 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		#  repeated or superceded calls to CCD can be recorded in the note
 		self.parent.newCallsignFromCCD=newCallsign
 		# 598 - if a redio locator marker was already created with the same device ID,
-		#  change that marker's label now (rather than waiting for parent to be accepted);
-		# Consider how to handle prior real callsigns with the same device ID;
-		#  make a new entry in radioMarkerDict, or, limit it to one entry per device ID?
-		#  Is there a need to see markers of prior callsigns with the same device ID?  Maybe...
-		for val in self.parent.parent.radioMarkerDict.values():
-			if val['fleet']==fleet and val['device']==dev:
-				rprint('fleet/dev match found; changing the marker label')
-				self.parent.parent.cts.editFeature(id=val['caltopoID'],properties={'title':newCallsign})
+		#  change that marker's label now (rather than waiting for parent to be accepted)
+		existingMarker=self.parent.parent.radioMarkerDict.get(deviceStr,None)
+		existingMarkerID=None
+		if existingMarker:
+			existingMarkerID=existingMarker.get('caltopoID',None)
+			existingMarker['label']=self.parent.parent.getRadioMarkerLabelForCallsign(newCallsign)
+		if existingMarkerID:
+			self.parent.parent.cts.editFeature(id=existingMarkerID,properties={'title':self.parent.parent.getRadioMarkerLabelForCallsign(newCallsign)})
 		rprint("New callsign pairing created: fleet="+str(fleet)+"  dev="+str(dev)+"  uid="+str(uid)+"  callsign="+newCallsign)
 		self.closeEvent(QEvent(QEvent.Close),True)
 		super(changeCallsignDialog,self).accept()
