@@ -2711,6 +2711,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			labelsForDevice[d['device']].append(label)
 		rprint('labelsForDevice:'+json.dumps(labelsForDevice,indent=3))
 		for (device,labels) in labelsForDevice.items():
+			rprint('checking: device='+str(device)+'  labels='+str(labels))
 			if len(labels)>1:
 				for label in labels:
 					if label==device:
@@ -9864,6 +9865,15 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		#  let the newEntryWindow.accept create the change-of-callsign note as needed; in this way,
 		#  repeated or superceded calls to CCD can be recorded in the note
 		self.parent.newCallsignFromCCD=newCallsign
+		# 598 - if a redio locator marker was already created with the same device ID,
+		#  change that marker's label now (rather than waiting for parent to be accepted);
+		# Consider how to handle prior real callsigns with the same device ID;
+		#  make a new entry in radioMarkerDict, or, limit it to one entry per device ID?
+		#  Is there a need to see markers of prior callsigns with the same device ID?  Maybe...
+		for val in self.parent.parent.radioMarkerDict.values():
+			if val['fleet']==fleet and val['device']==dev:
+				rprint('fleet/dev match found; changing the marker label')
+				self.parent.parent.cts.editFeature(id=val['caltopoID'],properties={'title':newCallsign})
 		rprint("New callsign pairing created: fleet="+str(fleet)+"  dev="+str(dev)+"  uid="+str(uid)+"  callsign="+newCallsign)
 		self.closeEvent(QEvent(QEvent.Close),True)
 		super(changeCallsignDialog,self).accept()
