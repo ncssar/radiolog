@@ -2679,16 +2679,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		id='' # initialize here so that entry can be saved before cts exists
 		latestTimeString=time.strftime('%H:%M:%S')
 		label=self.getRadioMarkerLabelForCallsign(callsign)
-		if self.cts:
-			# add Radios folder if needed, or use existing Radios folder
-			if not self.radioMarkerFID:
-				self.radioMarkerFID=self.cts.getFeatures(featureClass='Folder',title='Radios',allowMultiTitleMatch=True)[:-1] or None
-				if self.radioMarkerFID:
-					rprint('Radios folder already exists: '+str(self.radioMarkerFID))
-			if not self.radioMarkerFID:
-				rprint('No existing Radios folder found; creating one now...')
-				self.radioMarkerFID=self.cts.addFolder('Radios')
-			# add or update the marker
+		if self.cts and self.caltopoLink>0:
+			self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
 			id=self.cts.addMarker(lat,lon,label,latestTimeString,folderId=self.radioMarkerFID,existingId=existingId)
 		# add or update the dict entry here, with enough detail for createSTS to add any deferred markers
 		self.radioMarkerDict[deviceStr]={
@@ -6567,6 +6559,18 @@ class MyWindow(QDialog,Ui_Dialog):
 			new=current+1
 		target.newEntryWindow.ui.tabWidget.setCurrentIndex(new)
 
+	def getOrCreateRadioMarkerFID(self):
+		fid=self.radioMarkerFID
+		if not fid:
+			radioFolders=self.cts.getFeatures(featureClass='Folder',title='Radios',allowMultiTitleMatch=True)
+			if radioFolders:
+				fid=radioFolders[-1]['id'] # if there are multple folders, just pick one
+			rprint('Radios folder already exists: '+str(fid))
+		if not fid:
+			rprint('No existing Radios folder found; creating one now...')
+			fid=self.cts.addFolder('Radios')
+		return fid
+
 	def createCTS(self):
 		rprint('createCTS called:')
 		if self.cts is not None: # close out any previous session
@@ -6615,14 +6619,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			# self.optionsDialog.ui.folderComboBox.setHeader("Select a Folder...")
 			# if the session is good, process any deferred radio markers
 			if self.cts and self.caltopoLink>0:
-				if not self.radioMarkerFID:
-					radiosFolders=self.radioMarkerFID=self.cts.getFeatures(featureClass='Folder',title='Radios',allowMultiTitleMatch=True)
-					if radiosFolders:
-						self.radioMarkerFID=radiosFolders[-1]['id']
-					rprint('Radios folder already exists: '+str(self.radioMarkerFID))
-				if not self.radioMarkerFID:
-					rprint('No existing Radios folder found; creating one now...')
-					self.radioMarkerFID=self.cts.addFolder('Radios')
+				self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
+				# add deferred markers (GPS calls that came in before CTS was created)
 				for (deviceStr,d) in self.radioMarkerDict.items():
 					if not d['caltopoID']:
 						label=d['label']
