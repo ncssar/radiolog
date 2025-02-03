@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>653</width>
-    <height>424</height>
+    <width>455</width>
+    <height>515</height>
    </rect>
   </property>
   <property name="font">
@@ -278,17 +278,31 @@
      <property name="checkable">
       <bool>true</bool>
      </property>
-     <layout class="QGridLayout" name="gridLayout_3">
-      <item row="0" column="0">
-       <layout class="QGridLayout" name="gridLayout_2">
-        <item row="1" column="0">
-         <widget class="QCheckBox" name="caltopoRadioMarkersCheckBox">
-          <property name="text">
-           <string>Add / update radio location markers</string>
-          </property>
-         </widget>
+     <layout class="QVBoxLayout" name="verticalLayout_3">
+      <item>
+       <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0,0,0,0,0">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item>
+           <widget class="QLineEdit" name="caltopoStatusField">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="caltopoBrowseButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>Browse for Map...</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
-        <item row="2" column="0">
+        <item>
          <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,4,10,0">
           <item>
            <widget class="QLabel" name="caltopoMapLabel">
@@ -342,6 +356,33 @@
            </widget>
           </item>
          </layout>
+        </item>
+        <item>
+         <widget class="QPushButton" name="caltopoConnectButton">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>Connect</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="Line" name="line_3">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="caltopoRadioMarkersCheckBox">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>Add / update radio location markers</string>
+          </property>
+         </widget>
         </item>
        </layout>
       </item>
@@ -398,8 +439,8 @@
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>642</x>
-     <y>413</y>
+     <x>444</x>
+     <y>504</y>
     </hint>
     <hint type="destinationlabel">
      <x>157</x>
@@ -414,8 +455,8 @@
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>642</x>
-     <y>413</y>
+     <x>444</x>
+     <y>504</y>
     </hint>
     <hint type="destinationlabel">
      <x>286</x>
@@ -446,8 +487,8 @@
    <slot>fsSendCB()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>32</x>
-     <y>413</y>
+     <x>42</x>
+     <y>504</y>
     </hint>
     <hint type="destinationlabel">
      <x>56</x>
@@ -494,11 +535,11 @@
    <slot>caltopoEnabledCB()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>294</x>
-     <y>308</y>
+     <x>314</x>
+     <y>450</y>
     </hint>
     <hint type="destinationlabel">
-     <x>580</x>
+     <x>454</x>
      <y>250</y>
     </hint>
    </hints>
@@ -519,6 +560,38 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>caltopoConnectButton</sender>
+   <signal>clicked()</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoConnectButtonClicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>364</x>
+     <y>393</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>453</x>
+     <y>368</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>caltopoBrowseButton</sender>
+   <signal>clicked()</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoBrowseButtonClicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>395</x>
+     <y>305</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>451</x>
+     <y>300</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>secondWorkingDirCB()</slot>
@@ -526,5 +599,7 @@
   <slot>newEntryWarningCB()</slot>
   <slot>caltopoEnabledCB()</slot>
   <slot>caltopoURLCB()</slot>
+  <slot>caltopoConnectButtonClicked()</slot>
+  <slot>caltopoBrowseButtonClicked()</slot>
  </slots>
 </ui>

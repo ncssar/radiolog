@@ -980,7 +980,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		self.cts=None
 		self.caltopoURL=''
-		self.caltopoLink=None
+		self.caltopoLink=0
 		self.radioMarkerDict={}
 		self.radioMarkerFID=None
 
@@ -1561,6 +1561,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.continueSec="20"
 		self.fsBypassSequenceChecks=False
 		self.caltopoAccountName="NONE"
+		self.caltopoDefaultTeamAccount=None
 		
 		if os.name=="nt":
 			rprint("Operating system is Windows.")
@@ -1648,6 +1649,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.fsBypassSequenceChecks=tokens[1]
 			elif tokens[0]=='caltopoAccountName':
 				self.caltopoAccountName=tokens[1]
+			elif tokens[0]=='caltopoDefaultTeamAccount':
+				self.caltopoDefaultTeamAccount=tokens[1]
 					
 		configFile.close()
 		
@@ -6570,8 +6573,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			rprint('No existing Radios folder found; creating one now...')
 			fid=self.cts.addFolder('Radios')
 		return fid
-
+	
 	def createCTS(self):
+		# open a mapless caltopo.com session first, to get the list of maps; if URL is
+		#  already specified before the first createCTS call, then openMap will
+		#  be called after the mapless session is openend
 		rprint('createCTS called:')
 		if self.cts is not None: # close out any previous session
 			print('Closing previous CaltopoSession')
@@ -6581,52 +6587,67 @@ class MyWindow(QDialog,Ui_Dialog):
 			# self.link=-1
 			# self.updateFeatureList("Folder")
 			# self.updateFeatureList("Marker")
-		if self.optionsDialog.ui.caltopoMapURLField.text():
-			u=self.optionsDialog.ui.caltopoMapURLField.text()
-			if ':' in u and self.caltopoAccountName=='NONE':
-				rprint('ERROR: caltopoAccountName was not specified in config file')
-				return
-			if u==self.caltopoURL and self.cts: # url has not changed; keep the existing link and folder list
-				return
-			self.caltopoURL=u
-			if self.caltopoURL.endswith("#"): # pound sign at end of URL causes crash; brute force fix it here
-				self.caltopoURL=self.caltopoURL[:-1]
-				self.optionsDialog.ui.caltopoMapURLField.setText(self.caltopoURL)
-			parse=self.caltopoURL.replace("http://","").replace("https://","").split("/")
-			if len(parse)>1:
-				domainAndPort=parse[0]
-				mapID=parse[-1]
-			else:
-				domainAndPort='caltopo.com'
-				mapID=parse[0]
-			print("calling CaltopoSession with domainAndPort="+domainAndPort+" mapID="+mapID)
-			if 'caltopo.com' in domainAndPort.lower():
-				print("  creating online session for user "+self.caltopoAccountName)
-				self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,
-										configpath=os.path.join(self.configDir,'cts.ini'),
-										# sync=False,syncTimeout=0.001,
-										account=self.caltopoAccountName)
-			else:
-				self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID)
-				# self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,sync=False,syncTimeout=0.001)
-			self.caltopoLink=self.cts.apiVersion
-			print("link status:"+str(self.caltopoLink))
-			self.updateCaltopoLinkIndicator()
-			# self.updateLinkIndicator()
-			# if self.link>0:
-			# 	self.ui.linkIndicator.setText(self.cts.mapID)
-			# 	self.updateFeatureList("Folder")
-			# self.optionsDialog.ui.folderComboBox.setHeader("Select a Folder...")
-			# if the session is good, process any deferred radio markers
-			if self.cts and self.caltopoLink>0:
-				self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
-				# add deferred markers (GPS calls that came in before CTS was created)
-				for (deviceStr,d) in self.radioMarkerDict.items():
-					if not d['caltopoID']:
-						label=d['label']
-						rprint('adding deferred marker "'+label+'" for device "'+deviceStr+'"')
-						id=self.cts.addMarker(d['lat'],d['lon'],label,d['latestTimeString'],folderId=self.radioMarkerFID)
-						self.radioMarkerDict[deviceStr]['caltopoID']=id
+		print("  creating mapless online session for user "+self.caltopoAccountName)
+		self.optionsDialog.ui.caltopoStatusField.setText('Connecting to server...')
+		self.cts=CaltopoSession(domainAndPort='caltopo.com',
+								configpath=os.path.join(self.configDir,'cts.ini'),
+								account=self.caltopoAccountName)
+		self.optionsDialog.ui.caltopoStatusField.setText('Getting map lists...')
+		self.caltopoMapListDict=self.cts.getAllMapLists()
+		rprint('    map lists:'+json.dumps(self.caltopoMapListDict,indent=3))
+		mapList=[d for d in self.caltopoMapListDict if d['groupAccountTitle']==self.caltopoDefaultTeamAccount][0]['mapList']
+		# take the first non-bookmark entry, since the list is already sorted chronologically		
+		latestMap=[m for m in mapList if m['type']=='map'][0]
+		rprint('latest map: title="'+str(latestMap['title']+'" ID='+str(latestMap['id'])))
+		self.optionsDialog.ui.caltopoMapNameField.setText(str(latestMap['title']))
+		self.optionsDialog.ui.caltopoMapURLField.setText(str(latestMap['id']))
+		self.optionsDialog.ui.caltopoStatusField.setText('Connect to map, or choose a different one')
+		# if self.optionsDialog.ui.caltopoMapURLField.text():
+		# 	u=self.optionsDialog.ui.caltopoMapURLField.text()
+		# 	if ':' in u and self.caltopoAccountName=='NONE':
+		# 		rprint('ERROR: caltopoAccountName was not specified in config file')
+		# 		return
+		# 	if u==self.caltopoURL and self.cts: # url has not changed; keep the existing link and folder list
+		# 		return
+		# 	self.caltopoURL=u
+		# 	if self.caltopoURL.endswith("#"): # pound sign at end of URL causes crash; brute force fix it here
+		# 		self.caltopoURL=self.caltopoURL[:-1]
+		# 		self.optionsDialog.ui.caltopoMapURLField.setText(self.caltopoURL)
+		# 	parse=self.caltopoURL.replace("http://","").replace("https://","").split("/")
+		# 	if len(parse)>1:
+		# 		domainAndPort=parse[0]
+		# 		mapID=parse[-1]
+		# 	else:
+		# 		domainAndPort='caltopo.com'
+		# 		mapID=parse[0]
+		# 	print("calling CaltopoSession with domainAndPort="+domainAndPort+" mapID="+mapID)
+		# 	if 'caltopo.com' in domainAndPort.lower():
+		# 		print("  creating online session for user "+self.caltopoAccountName)
+		# 		self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,
+		# 								configpath=os.path.join(self.configDir,'cts.ini'),
+		# 								# sync=False,syncTimeout=0.001,
+		# 								account=self.caltopoAccountName)
+		# 	else:
+		# 		self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID)
+		# 		# self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,sync=False,syncTimeout=0.001)
+		# 	self.caltopoLink=self.cts.apiVersion
+		# 	print("link status:"+str(self.caltopoLink))
+		# 	self.updateCaltopoLinkIndicator()
+		# 	# self.updateLinkIndicator()
+		# 	# if self.link>0:
+		# 	# 	self.ui.linkIndicator.setText(self.cts.mapID)
+		# 	# 	self.updateFeatureList("Folder")
+		# 	# self.optionsDialog.ui.folderComboBox.setHeader("Select a Folder...")
+		# 	# if the session is good, process any deferred radio markers
+		# 	if self.cts and self.caltopoLink>0:
+		# 		self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
+		# 		# add deferred markers (GPS calls that came in before CTS was created)
+		# 		for (deviceStr,d) in self.radioMarkerDict.items():
+		# 			if not d['caltopoID']:
+		# 				label=d['label']
+		# 				rprint('adding deferred marker "'+label+'" for device "'+deviceStr+'"')
+		# 				id=self.cts.addMarker(d['lat'],d['lon'],label,d['latestTimeString'],folderId=self.radioMarkerFID)
+		# 				self.radioMarkerDict[deviceStr]['caltopoID']=id
 
 	def closeCTS(self):
 		rprint('closeCTS called')
@@ -6953,22 +6974,79 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 
 	def caltopoEnabledCB(self): # called from stateChanged of group box AND of radio markers checkbox
 		a=self.ui.caltopoGroupBox.isChecked()
+		# if a and self.parent.caltopoLink<1:
+		# 	rprint('checking for latest map in default group "'+str(self.parent.caltopoDefaultTeamAccount))
+		# 	rprint(str(self.parent.cts.getAllMapLists()))
 		radios=self.ui.caltopoRadioMarkersCheckBox.isChecked()
 		self.ui.caltopoRadioMarkersCheckBox.setEnabled(a)
 		enableMapFields=a and radios
 		self.ui.caltopoMapURLField.setEnabled(enableMapFields)
 		self.ui.caltopoLinkIndicator.setEnabled(enableMapFields)
 		self.ui.caltopoMapLabel.setEnabled(enableMapFields)
+		self.ui.caltopoConnectButton.setEnabled(enableMapFields)
 		if enableMapFields:
-			self.caltopoURLCB() # try to reconnect if mapURL is not blank
+			# self.caltopoURLCB() # try to reconnect if mapURL is not blank
+			self.parent.createCTS()
 		else:
 			self.parent.closeCTS()
 
 	def caltopoURLCB(self):
-		if self.ui.caltopoMapURLField.text()=='':
-			self.parent.closeCTS()
+		# if self.ui.caltopoMapURLField.text()=='':
+		# 	self.parent.closeCTS()
+		# 	return
+		# self.parent.createCTS()
+		pass
+
+	def caltopoBrowseButtonClicked(self):
+		pass
+
+	def caltopoConnectButtonClicked(self):
+		u=self.ui.caltopoMapURLField.text()
+		if ':' in u and self.parent.caltopoAccountName=='NONE':
+			rprint('ERROR: caltopoAccountName was not specified in config file')
 			return
-		self.parent.createCTS()
+		if u==self.parent.caltopoURL and self.parent.cts: # url has not changed; keep the existing link and folder list
+			return
+		self.parent.caltopoURL=u
+		if self.parent.caltopoURL.endswith("#"): # pound sign at end of URL causes crash; brute force fix it here
+			self.parent.caltopoURL=self.parent.caltopoURL[:-1]
+			self.ui.caltopoMapURLField.setText(self.parent.caltopoURL)
+		parse=self.parent.caltopoURL.replace("http://","").replace("https://","").split("/")
+		if len(parse)>1:
+			domainAndPort=parse[0]
+			mapID=parse[-1]
+		else:
+			domainAndPort='caltopo.com'
+			mapID=parse[0]
+		# 	print("calling CaltopoSession with domainAndPort="+domainAndPort+" mapID="+mapID)
+		# 	if 'caltopo.com' in domainAndPort.lower():
+		# 		print("  creating online session for user "+self.caltopoAccountName)
+		# 		self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,
+		# 								configpath=os.path.join(self.configDir,'cts.ini'),
+		# 								# sync=False,syncTimeout=0.001,
+		# 								account=self.caltopoAccountName)
+		# 	else:
+		# 		self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID)
+		# 		# self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,sync=False,syncTimeout=0.001)
+		self.parent.cts.openMap(mapID)
+		self.parent.caltopoLink=self.parent.cts.apiVersion
+		print("link status:"+str(self.parent.caltopoLink))
+		self.parent.updateCaltopoLinkIndicator()
+		# 	# self.updateLinkIndicator()
+		# 	# if self.link>0:
+		# 	# 	self.ui.linkIndicator.setText(self.cts.mapID)
+		# 	# 	self.updateFeatureList("Folder")
+		# 	# self.optionsDialog.ui.folderComboBox.setHeader("Select a Folder...")
+		# 	# if the session is good, process any deferred radio markers
+		if self.parent.cts and self.parent.caltopoLink>0:
+			self.parent.radioMarkerFID=self.parent.getOrCreateRadioMarkerFID()
+			# add deferred markers (GPS calls that came in before CTS was created)
+			for (deviceStr,d) in self.parent.radioMarkerDict.items():
+				if not d['caltopoID']:
+					label=d['label']
+					rprint('adding deferred marker "'+label+'" for device "'+deviceStr+'"')
+					id=self.parent.cts.addMarker(d['lat'],d['lon'],label,d['latestTimeString'],folderId=self.parent.radioMarkerFID)
+					self.parent.radioMarkerDict[deviceStr]['caltopoID']=id
 
 
 # find dialog/completer/popup structure:
