@@ -280,23 +280,50 @@
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_3">
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0,0,0,0,0">
+       <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0,0,0,0,0,0">
+        <item>
+         <widget class="QLineEdit" name="caltopoStatusField">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>12</pointsize>
+           </font>
+          </property>
+         </widget>
+        </item>
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_3">
           <item>
-           <widget class="QLineEdit" name="caltopoStatusField">
-            <property name="enabled">
-             <bool>false</bool>
+           <widget class="QLabel" name="label_2">
+            <property name="text">
+             <string>Latest map in:</string>
             </property>
            </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="caltopoTeamAccountComboBox">
+            <property name="currentText">
+             <string/>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="caltopoFolderComboBox"/>
           </item>
           <item>
            <widget class="QPushButton" name="caltopoBrowseButton">
             <property name="enabled">
              <bool>false</bool>
             </property>
+            <property name="font">
+             <font>
+              <pointsize>12</pointsize>
+             </font>
+            </property>
             <property name="text">
-             <string>Browse for Map...</string>
+             <string>Browse...</string>
             </property>
            </widget>
           </item>
@@ -308,7 +335,7 @@
            <widget class="QLabel" name="caltopoMapLabel">
             <property name="font">
              <font>
-              <pointsize>14</pointsize>
+              <pointsize>12</pointsize>
              </font>
             </property>
             <property name="text">
@@ -318,6 +345,11 @@
           </item>
           <item>
            <widget class="QLineEdit" name="caltopoMapURLField">
+            <property name="font">
+             <font>
+              <pointsize>12</pointsize>
+             </font>
+            </property>
             <property name="placeholderText">
              <string>ABCDEFG</string>
             </property>
@@ -327,6 +359,11 @@
            <widget class="QLineEdit" name="caltopoMapNameField">
             <property name="enabled">
              <bool>false</bool>
+            </property>
+            <property name="font">
+             <font>
+              <pointsize>12</pointsize>
+             </font>
             </property>
            </widget>
           </item>
@@ -353,6 +390,11 @@
               <height>24</height>
              </size>
             </property>
+            <property name="font">
+             <font>
+              <pointsize>12</pointsize>
+             </font>
+            </property>
            </widget>
           </item>
          </layout>
@@ -362,6 +404,11 @@
           <property name="enabled">
            <bool>false</bool>
           </property>
+          <property name="font">
+           <font>
+            <pointsize>12</pointsize>
+           </font>
+          </property>
           <property name="text">
            <string>Connect</string>
           </property>
@@ -369,6 +416,11 @@
         </item>
         <item>
          <widget class="Line" name="line_3">
+          <property name="font">
+           <font>
+            <pointsize>12</pointsize>
+           </font>
+          </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
           </property>
@@ -378,6 +430,11 @@
          <widget class="QCheckBox" name="caltopoRadioMarkersCheckBox">
           <property name="enabled">
            <bool>false</bool>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>12</pointsize>
+           </font>
           </property>
           <property name="text">
            <string>Add / update radio location markers</string>
@@ -551,8 +608,8 @@
    <slot>caltopoURLCB()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>146</x>
-     <y>345</y>
+     <x>140</x>
+     <y>366</y>
     </hint>
     <hint type="destinationlabel">
      <x>392</x>
@@ -583,12 +640,44 @@
    <slot>caltopoBrowseButtonClicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>395</x>
-     <y>305</y>
+     <x>433</x>
+     <y>337</y>
     </hint>
     <hint type="destinationlabel">
      <x>451</x>
      <y>300</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>caltopoTeamAccountComboBox</sender>
+   <signal>currentTextChanged(QString)</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoTeamAccountComboBoxChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>205</x>
+     <y>332</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>32</x>
+     <y>249</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>caltopoFolderComboBox</sender>
+   <signal>currentTextChanged(QString)</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoFolderComboBoxChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>248</x>
+     <y>339</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>237</x>
+     <y>252</y>
     </hint>
    </hints>
   </connection>
@@ -601,5 +690,7 @@
   <slot>caltopoURLCB()</slot>
   <slot>caltopoConnectButtonClicked()</slot>
   <slot>caltopoBrowseButtonClicked()</slot>
+  <slot>caltopoTeamAccountComboBoxChanged()</slot>
+  <slot>caltopoFolderComboBoxChanged()</slot>
  </slots>
 </ui>

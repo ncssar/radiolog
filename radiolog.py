@@ -6595,12 +6595,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.optionsDialog.ui.caltopoStatusField.setText('Getting map lists...')
 		self.caltopoMapListDict=self.cts.getAllMapLists()
 		rprint('    map lists:'+json.dumps(self.caltopoMapListDict,indent=3))
-		mapList=[d for d in self.caltopoMapListDict if d['groupAccountTitle']==self.caltopoDefaultTeamAccount][0]['mapList']
-		# take the first non-bookmark entry, since the list is already sorted chronologically		
-		latestMap=[m for m in mapList if m['type']=='map'][0]
-		rprint('latest map: title="'+str(latestMap['title']+'" ID='+str(latestMap['id'])))
-		self.optionsDialog.ui.caltopoMapNameField.setText(str(latestMap['title']))
-		self.optionsDialog.ui.caltopoMapURLField.setText(str(latestMap['id']))
+		self.optionsDialog.ui.caltopoTeamAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.caltopoMapListDict]))
+		self.optionsDialog.ui.caltopoTeamAccountComboBox.setCurrentText(self.caltopoDefaultTeamAccount)
 		self.optionsDialog.ui.caltopoStatusField.setText('Connect to map, or choose a different one')
 		# if self.optionsDialog.ui.caltopoMapURLField.text():
 		# 	u=self.optionsDialog.ui.caltopoMapURLField.text()
@@ -6998,6 +6994,25 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		pass
 
 	def caltopoBrowseButtonClicked(self):
+		pass
+
+	def caltopoTeamAccountComboBoxChanged(self):
+		# groupAccountNames=[d.get('groupAccountTitle',None) for d in self.parent.caltopoMapListDict]
+		# rprint('groupAccountNames:'+str(groupAccountNames))
+		# rprint('currentText:'+str(self.ui.caltopoTeamAccountComboBox.currentText()))
+		mapList=[d for d in self.parent.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoTeamAccountComboBox.currentText()][0]['mapList']
+		# take the first non-bookmark entry, since the list is already sorted chronologically		
+		mapsNotBookmarks=[m for m in mapList if m['type']=='map']
+		if mapsNotBookmarks:
+			latestMap=mapsNotBookmarks[0]
+			rprint('latest map: title="'+str(latestMap['title']+'" ID='+str(latestMap['id'])))
+			self.ui.caltopoMapNameField.setText(str(latestMap['title']))
+			self.ui.caltopoMapURLField.setText(str(latestMap['id']))
+		else:
+			self.ui.caltopoMapURLField.setText('')
+			self.ui.caltopoMapNameField.setText('Account has no maps')
+
+	def caltopoFolderComboBoxChanged(self):
 		pass
 
 	def caltopoConnectButtonClicked(self):
