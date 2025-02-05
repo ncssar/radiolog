@@ -6930,6 +6930,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.setFixedSize(self.size())
 		self.secondWorkingDirCB()
 		self.newEntryWarningCB()
+		self.ui.caltopoMapNameComboBox.textHighlighted.connect(self.updateCaltopoMapURLFieldFromTitle)
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
@@ -7003,17 +7004,31 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		mapList=[d for d in self.parent.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoTeamAccountComboBox.currentText()][0]['mapList']
 		# take the first non-bookmark entry, since the list is already sorted chronologically		
 		mapsNotBookmarks=[m for m in mapList if m['type']=='map']
+		self.ui.caltopoMapNameComboBox.clear()
 		if mapsNotBookmarks:
-			latestMap=mapsNotBookmarks[0]
-			rprint('latest map: title="'+str(latestMap['title']+'" ID='+str(latestMap['id'])))
-			self.ui.caltopoMapNameField.setText(str(latestMap['title']))
-			self.ui.caltopoMapURLField.setText(str(latestMap['id']))
-		else:
-			self.ui.caltopoMapURLField.setText('')
-			self.ui.caltopoMapNameField.setText('Account has no maps')
+			self.ui.caltopoMapNameComboBox.addItems([m['title'] for m in mapsNotBookmarks])
+			self.ui.caltopoMapNameComboBox.setCurrentIndex(0)
+			# latestMap=mapsNotBookmarks[0]
+			# rprint('latest map: title="'+str(latestMap['title']+'" ID='+str(latestMap['id'])))
+			# self.ui.caltopoMapNameField.setText(str(latestMap['title']))
+			# self.ui.caltopoMapURLField.setText(str(latestMap['id']))
+		# else:
+		# 	self.ui.caltopoMapURLField.setText('')
+		# 	self.ui.caltopoMapNameField.setText('Account has no maps')
 
 	def caltopoFolderComboBoxChanged(self):
 		pass
+
+	def caltopoMapNameComboBoxChanged(self):
+		self.updateCaltopoMapURLFieldFromTitle(self.ui.caltopoMapNameComboBox.currentText())
+
+	def updateCaltopoMapURLFieldFromTitle(self,title):
+		mapList=[d for d in self.parent.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoTeamAccountComboBox.currentText()][0]['mapList']
+		matches=[m for m in mapList if m['title']==title]
+		if matches:
+			self.ui.caltopoMapURLField.setText(matches[0]['id'])
+		else:
+			self.ui.caltopoMapURLField.setText('')
 
 	def caltopoConnectButtonClicked(self):
 		u=self.ui.caltopoMapURLField.text()

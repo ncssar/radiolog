@@ -164,13 +164,6 @@ class Ui_optionsDialog(object):
         self.caltopoFolderComboBox = QtWidgets.QComboBox(self.caltopoGroupBox)
         self.caltopoFolderComboBox.setObjectName("caltopoFolderComboBox")
         self.horizontalLayout_3.addWidget(self.caltopoFolderComboBox)
-        self.caltopoBrowseButton = QtWidgets.QPushButton(self.caltopoGroupBox)
-        self.caltopoBrowseButton.setEnabled(False)
-        font = QtGui.QFont()
-        font.setPointSize(12)
-        self.caltopoBrowseButton.setFont(font)
-        self.caltopoBrowseButton.setObjectName("caltopoBrowseButton")
-        self.horizontalLayout_3.addWidget(self.caltopoBrowseButton)
         self.verticalLayout_4.addLayout(self.horizontalLayout_3)
         self.horizontalLayout_2 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_2.setObjectName("horizontalLayout_2")
@@ -180,19 +173,25 @@ class Ui_optionsDialog(object):
         self.caltopoMapLabel.setFont(font)
         self.caltopoMapLabel.setObjectName("caltopoMapLabel")
         self.horizontalLayout_2.addWidget(self.caltopoMapLabel)
+        self.caltopoMapNameComboBox = QtWidgets.QComboBox(self.caltopoGroupBox)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.caltopoMapNameComboBox.sizePolicy().hasHeightForWidth())
+        self.caltopoMapNameComboBox.setSizePolicy(sizePolicy)
+        self.caltopoMapNameComboBox.setObjectName("caltopoMapNameComboBox")
+        self.horizontalLayout_2.addWidget(self.caltopoMapNameComboBox)
         self.caltopoMapURLField = QtWidgets.QLineEdit(self.caltopoGroupBox)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.caltopoMapURLField.sizePolicy().hasHeightForWidth())
+        self.caltopoMapURLField.setSizePolicy(sizePolicy)
         font = QtGui.QFont()
         font.setPointSize(12)
         self.caltopoMapURLField.setFont(font)
         self.caltopoMapURLField.setObjectName("caltopoMapURLField")
         self.horizontalLayout_2.addWidget(self.caltopoMapURLField)
-        self.caltopoMapNameField = QtWidgets.QLineEdit(self.caltopoGroupBox)
-        self.caltopoMapNameField.setEnabled(False)
-        font = QtGui.QFont()
-        font.setPointSize(12)
-        self.caltopoMapNameField.setFont(font)
-        self.caltopoMapNameField.setObjectName("caltopoMapNameField")
-        self.horizontalLayout_2.addWidget(self.caltopoMapNameField)
         self.caltopoLinkIndicator = QtWidgets.QLineEdit(self.caltopoGroupBox)
         self.caltopoLinkIndicator.setEnabled(False)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
@@ -207,8 +206,6 @@ class Ui_optionsDialog(object):
         self.caltopoLinkIndicator.setFont(font)
         self.caltopoLinkIndicator.setObjectName("caltopoLinkIndicator")
         self.horizontalLayout_2.addWidget(self.caltopoLinkIndicator)
-        self.horizontalLayout_2.setStretch(1, 4)
-        self.horizontalLayout_2.setStretch(2, 10)
         self.verticalLayout_4.addLayout(self.horizontalLayout_2)
         self.caltopoConnectButton = QtWidgets.QPushButton(self.caltopoGroupBox)
         self.caltopoConnectButton.setEnabled(False)
@@ -267,11 +264,11 @@ class Ui_optionsDialog(object):
         self.newEntryWarningCheckBox.stateChanged['int'].connect(optionsDialog.newEntryWarningCB) # type: ignore
         self.caltopoGroupBox.toggled['bool'].connect(optionsDialog.caltopoEnabledCB) # type: ignore
         self.caltopoRadioMarkersCheckBox.stateChanged['int'].connect(optionsDialog.caltopoEnabledCB) # type: ignore
-        self.caltopoMapURLField.editingFinished.connect(optionsDialog.caltopoURLCB) # type: ignore
         self.caltopoConnectButton.clicked.connect(optionsDialog.caltopoConnectButtonClicked) # type: ignore
-        self.caltopoBrowseButton.clicked.connect(optionsDialog.caltopoBrowseButtonClicked) # type: ignore
         self.caltopoTeamAccountComboBox.currentTextChanged['QString'].connect(optionsDialog.caltopoTeamAccountComboBoxChanged) # type: ignore
         self.caltopoFolderComboBox.currentTextChanged['QString'].connect(optionsDialog.caltopoFolderComboBoxChanged) # type: ignore
+        self.caltopoMapURLField.editingFinished.connect(optionsDialog.caltopoURLCB) # type: ignore
+        self.caltopoMapNameComboBox.currentTextChanged['QString'].connect(optionsDialog.caltopoMapNameComboBoxChanged) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(optionsDialog)
 
     def retranslateUi(self, optionsDialog):
@@ -292,8 +289,7 @@ class Ui_optionsDialog(object):
         self.secondWorkingDirCheckBox.setText(_translate("optionsDialog", "Use Second Working Directory"))
         self.newEntryWarningCheckBox.setText(_translate("optionsDialog", "Show warning when New Entry window is hidden"))
         self.caltopoGroupBox.setTitle(_translate("optionsDialog", "CalTopo Integration"))
-        self.label_2.setText(_translate("optionsDialog", "Latest map in:"))
-        self.caltopoBrowseButton.setText(_translate("optionsDialog", "Browse..."))
+        self.label_2.setText(_translate("optionsDialog", "Account and Folder:"))
         self.caltopoMapLabel.setText(_translate("optionsDialog", "Map"))
         self.caltopoMapURLField.setPlaceholderText(_translate("optionsDialog", "ABCDEFG"))
         self.caltopoConnectButton.setText(_translate("optionsDialog", "Connect"))
