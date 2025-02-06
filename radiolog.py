@@ -3,7 +3,7 @@
 #  radiolog.py - SAR Radio Log program, based on PyQt 5.4, Python 3.4.2
 #
 #   developed for Nevada County Sheriff's Search and Rescue
-#    Copyright (c) 2015-2018 Tom Grundy
+#	Copyright (c) 2015-2018 Tom Grundy
 #
 #  http://github.com/ncssar/radiolog
 #
@@ -14,170 +14,170 @@
 #-----------------------------------------------------------------------------
 #   DATE   |  AUTHOR  |  NOTES
 #-----------------------------------------------------------------------------
-#  2-22-15     TMG       First version installed and working on NCSSAR Computer 2
-#  4-9-15      TMG       Feature-complete release candidate
-#  4-10-15     TMG       enable reading from a second com port (two radios)
-#  4-28-15     TMG       First release; initial commit to git
-#  5-11-15     TMG       fix bug 10: don't clear team timer unless the message
-#                         is 'FROM' with non-blank message text; change more
-#                         app-wide stylesheet font sizes in fontsChanged, and
-#                         change in children to override as needed
-#  11-27-16    TMG       fix 307 (help window flashing colors are bouncing); also
-#                         verified no ill effects in team tabs
-#  12-1-16     TMG       fix 268 (throb crash on oldest item in non-empty stack)
-#  12-1-16     TMG       add -nosend option to disable sending of GET requests,
-#                         to avoid lag when network is not present
-#  12-10-16    TMG       fix 267 (filename space handler) - remove spaces from
-#                         incident name for purposes of filenames
-#  12-10-16    TMG       fix 25 (print dialog button wording should change when
-#                         called from main window exit button)
-#  12-10-16    TMG       fix 306 (attached callsigns)
-#   1-17-17    TMG       fix 41 (USB hot-plug / hot-unplug)
-#   2-26-17    TMG       fix 311 (attached callsign bug)
-#   2-27-17    TMG       fix 314 (NED focus / two-blinking-cursors)
-#   2-27-17    TMG       fix 315 (ctrl-Z crash on empty list) for NED and for clue report
-#   2-27-17    TMG       fix 312 (prevent orphaned clue/subject dialogs);
-#                         fix 317 (crash on cancel of cancel for clue/subject dialogs);
-#                         this involved changing dialog cancel buttons to just call
-#                         close() instead of reject()
-#   2-28-17    TMG       fix 316,318,320 (add dialog open/cancel radio log entries)
-#                         and extend closeEvent functionality (above) to
-#                         nonRadioClueDialog and changeCallsignDialog
-#    4-7-17    TMG       stopgap for 310 - disable attached callsign handling for now
-#   4-11-17    TMG       fix 322 (restore crashes - file not found) - give a message
-#                         and return gracefully if the file specified in the rc file
-#                         does not exist, and, take steps to make sure the correct
-#                         filename is saved to the rc file at the correct times
-#   4-15-17    TMG       fix 323 (load dialog should only show non-fleetsync and
-#                         non-clueLog .csv files)
-#   4-26-17    TMG       fix 326 (zero-left-padded tabs when callsigns are digits-only)
-#   4-29-17    TMG       fix 34 (fleetsync mute)
-#   5-2-17     TMG       fix 325 (cancel-confirm bypass if message is blank)
-#   5-13-17    TMG       fix 338 (esc key in clue/subject dialogs closes w/out confirm):
-#                          add keyPressEvents to ignore the esc key; note that the
-#                          Qt docs say that .reject() is called by the esc key but
-#                          that has other repercussions in this case; also serves
-#                          as interim fix for #337 (crash due to the above) until
-#                          a strong parent-child dialog relationship can be established
-#                          (see http://stackoverflow.com/questions/43956587)
-#   5-13-17    TMG       fix #333 (crash on throb after widget has been closed)
-#   5-13-17    TMG       further fix on #333: don't try to stop the timer if it
-#                          does not exist, i.e. if not currently mid-throb; caused
-#                          similar crash to #333 during auto-cleanup of delayed stack
-#   5-19-17    TMG       move loadFlag settings closer to core load functionality
-#                          to at least partially address #340
-#   5-21-17    TMG       fix #257, fix #260: 90+% lag reduction: do not do any sorting;
-#                         instead, calculate the correct index to insert a new row
-#                         during newEntry, and use beginInsertRows and endInsertRows
-#                         instead of layoutChanged; see notes in newEntry function
-#   6-15-17    TMG       fix #336 by simply ignoring keyPressEvents that happen
-#                         before newEntryWidget is responsive, and get fielded by
-#                         MyWindows instead; would be nice to find a better long-term
-#                         solution; see https://stackoverflow.com/questions/44148992
-#                         and see notes inline below
-#   7-1-17     TMG       fix #342 (focus-follows-mouse freeze); 'fix' #332 (freeze
-#                         due to modal dialogs displayed underneath other windows)
-#                         by doing full audit and recode and test of all QMessageBox calls
-#   7-1-17     TMG       fix #343 (crash on print clue log when there are no clues):
-#                         show an error message when the print button is clicked if
-#                         there are no operational periods that have clues, and only
-#                         populate the print clue log operational period cyclic field
-#                         with op periods that do have clues
-#   7-3-17     TMG       fix #341 (add checkbox for fleetsync mute)
-#   9-24-17    TMG       fix #346 (slash in incident name kills everything) using
-#                         normName function; get rid of leading space in loaded
-#                         incident name due to incorrect index (17 instead of 18);
-#                         fix #349 (save filename not updated after load)
-#   9-24-17    TMG       fix #350 (do not try to read fleetsync file on restore) by
-#                         adding hideWarnings argument to fsLoadLookup
-#   9-24-17    TMG       fix #345 (get rid of 'printing' message dialog) by commenting
-#                         out all print dialog lines which also fixes # 33 and #263;
-#                         time will tell if this is sufficient, or if we need to
-#                         bring back some less-invasive and less-confusing notification,
-#                         like a line in the main dialog or such
-#   11-5-17    TMG       fix #32 (add fleetsync device filtering) - affects several
-#                         parts of the code and several files
-#   11-15-17   TMG       fix #354 (stolen focus / hold time failure); fix #355 (space bar error);
-#                         add focus rules and timeline documentation; change hold time
-#                         to 20 sec (based on observations during class); set focus
-#                         to the active stack item's message field on changeCallsignDialog close
-#   11-23-17   TMG       address #31 (css / font size issues) - not yet checked against
-#                         dispatch computer - only tested on home computer
-#   11-23-17   TMG       fix #356 (change callsign dialog should not pop up until
-#                         its new entry widget is active (i.e. the active stack item)
-#     5-1-18   TMG       fix #357 (freeze after print, introduced by fix # 345)
-#    5-28-18   TMG       fix #360 (remove leading zeros from team tab names)
-#     6-9-18   TMG		 allow configuration by different teams using optional local/radiolog.cfg
-#                          (merged config branch to master)
-#    7-22-18   TMG       add team hotkeys (fix #370); change return/enter/space to open
-#                          a new entry dialog with blank callsign (i.e. LEO callsigns);
-#                          toggle team hotkeys vs normal hotkeys using F12
-#    7-22-18   TMG       fix #373 (esc closes NED in same manner as cancel button)
-#    7-22-18   TMG       fix #360 again (leading zeros still showed up in tab
-#                          context menus, therefore in callsign field of NED created
-#                          from tab context menus)
-#     8-2-18   TMG       space bar event does not reach the main window after the
-#                          first team tab gets created, so disable it for now -
-#                          must use enter or return to open a NED with no callsign (#370)
-#     8-3-18   TMG       fix #372 (combobox / cyclic callsign selection)
-#     8-5-18   TMG       fix #371 (amend callsign of existing message)
-#    8-29-18   TMG       fix #375 (crash during new entry for new team)
-#     9-9-18   TMG       fix #379 (subject located form - field type error; confirmed
-#                           that all other calls to toPlainText are for valid fields)
-#     9-9-18   TMG       add a very short timeout to the requests.get locator update call to 
-#                           eliminate lag while completely ignoring the response
-#                           ('fire-and-forget'); would have to use a thread-based module
-#                           if the response were important; works well on home computer,
-#                           hopefully this fixes #378
-#    9-17-18   TMG       fix and improve team hotkey selection and recycling
-#    9-17-18   TMG       change some dictionary lookups to use get() with a default,
-#                           to avoid possible KeyErrors
-#    9-17-18   TMG       catch any sync errors during deletion of proxyModelList entries
-#                           (which happens during team tab deletion)
-#    9-17-18   TMG       disallow blank callsign for new entry
-#    9-23-18   TMG       cleanup config file defaults handling
-#    10-3-18   TMG       fix #364: eliminate backup rotation lag by running it
-#                          in the background (external powershell script on Windows
-#                          systems; custom script can be specified in config file;
-#                          currently there is no default backup rotation script for
-#                          non-Windows systems)
-#   10-26-18   TMG       fix #380 (fleetsync CID parsing issue); add more CID parsing
-#                          and callsign-change messages
-#   11-17-18   TMG       overhaul logging: use the logging module, making sure
-#                          to show uncaught exceptions on the screen and in the
-#                          log file
-#   11-17-18   TMG       fix #382 (disable locator requests from GUI);
-#                          fix #383 (disable second working dir from GUI)
-#   11-17-18   TMG       fix #381 (auto-accept entry on clue report or subj located accept);
-#                          fix #339 (don't increment clue# if clue form is canceled)
-#   11-18-18   TMG       fix #358 and make FS location parsing more robust
-#   11-18-18   TMG       fix #351 (don't show options at startup after restore)
-#   12-12-18   TMG       fix #384 (bad data causes unpack error)
-#   12-14-18   TMG       fix #385 (print team log from team tab context menu)
-#   12-15-18   TMG       fix #387 (file browser sort by date)
-#   12-15-18   TMG       simplify code for #387 fix above; also filter out _clueLog_bak
-#                         and _fleetSync_bak files from file browser
-#   12-16-18   TMG       fix #388 (team log print variant team names)
-#    4-11-19   TMG       fix #392 (get rid of leading 'Team ' when appropriate);
-#                         fix #393 (preserve case of new callsigns);
-#                         fix #394 (show actual tie in log messages)
-#     5-3-19   TMG       fix #329 (team tab bar grouping) - default groups are just
-#                         numbered teams, vs everything else; can specify a more
-#                         elaborate set of group names and regular expressions
-#                         in the config file (tabGroups)
-#     5-4-19   TMG       enhance #393: if typed callsign is a case-insensitive
-#                         match with an existing callsign, use the existing callsign;
-#                         fix #397 ('Available' status - also added 'Off Duty' status
-#                         which does not time out and has no background and gray text;
-#                         '10-8' changes to 'Available', '10-97' changes to 'Working',
-#                         '10-10' changes to 'Off Duty')
-#     2-8-20   TMG       re-fix #41: repair hot-unplug handling for current pyserial
-#    2-10-20   TMG       fix #396: create default local dir and config file if needed
-#    5-28-20   TMG       fix #412: relayed message features
-#    6-15-20   TMG       fix #415: restore timeout on auto-recover (in rc file);
-#                          fix #404: show http request response in log;
-#                          address #413: multiple crashes - add more logging; 
-#                          improve relay features to be more intuitive
+#  2-22-15	 TMG	   First version installed and working on NCSSAR Computer 2
+#  4-9-15	  TMG	   Feature-complete release candidate
+#  4-10-15	 TMG	   enable reading from a second com port (two radios)
+#  4-28-15	 TMG	   First release; initial commit to git
+#  5-11-15	 TMG	   fix bug 10: don't clear team timer unless the message
+#						 is 'FROM' with non-blank message text; change more
+#						 app-wide stylesheet font sizes in fontsChanged, and
+#						 change in children to override as needed
+#  11-27-16	TMG	   fix 307 (help window flashing colors are bouncing); also
+#						 verified no ill effects in team tabs
+#  12-1-16	 TMG	   fix 268 (throb crash on oldest item in non-empty stack)
+#  12-1-16	 TMG	   add -nosend option to disable sending of GET requests,
+#						 to avoid lag when network is not present
+#  12-10-16	TMG	   fix 267 (filename space handler) - remove spaces from
+#						 incident name for purposes of filenames
+#  12-10-16	TMG	   fix 25 (print dialog button wording should change when
+#						 called from main window exit button)
+#  12-10-16	TMG	   fix 306 (attached callsigns)
+#   1-17-17	TMG	   fix 41 (USB hot-plug / hot-unplug)
+#   2-26-17	TMG	   fix 311 (attached callsign bug)
+#   2-27-17	TMG	   fix 314 (NED focus / two-blinking-cursors)
+#   2-27-17	TMG	   fix 315 (ctrl-Z crash on empty list) for NED and for clue report
+#   2-27-17	TMG	   fix 312 (prevent orphaned clue/subject dialogs);
+#						 fix 317 (crash on cancel of cancel for clue/subject dialogs);
+#						 this involved changing dialog cancel buttons to just call
+#						 close() instead of reject()
+#   2-28-17	TMG	   fix 316,318,320 (add dialog open/cancel radio log entries)
+#						 and extend closeEvent functionality (above) to
+#						 nonRadioClueDialog and changeCallsignDialog
+#	4-7-17	TMG	   stopgap for 310 - disable attached callsign handling for now
+#   4-11-17	TMG	   fix 322 (restore crashes - file not found) - give a message
+#						 and return gracefully if the file specified in the rc file
+#						 does not exist, and, take steps to make sure the correct
+#						 filename is saved to the rc file at the correct times
+#   4-15-17	TMG	   fix 323 (load dialog should only show non-fleetsync and
+#						 non-clueLog .csv files)
+#   4-26-17	TMG	   fix 326 (zero-left-padded tabs when callsigns are digits-only)
+#   4-29-17	TMG	   fix 34 (fleetsync mute)
+#   5-2-17	 TMG	   fix 325 (cancel-confirm bypass if message is blank)
+#   5-13-17	TMG	   fix 338 (esc key in clue/subject dialogs closes w/out confirm):
+#						  add keyPressEvents to ignore the esc key; note that the
+#						  Qt docs say that .reject() is called by the esc key but
+#						  that has other repercussions in this case; also serves
+#						  as interim fix for #337 (crash due to the above) until
+#						  a strong parent-child dialog relationship can be established
+#						  (see http://stackoverflow.com/questions/43956587)
+#   5-13-17	TMG	   fix #333 (crash on throb after widget has been closed)
+#   5-13-17	TMG	   further fix on #333: don't try to stop the timer if it
+#						  does not exist, i.e. if not currently mid-throb; caused
+#						  similar crash to #333 during auto-cleanup of delayed stack
+#   5-19-17	TMG	   move loadFlag settings closer to core load functionality
+#						  to at least partially address #340
+#   5-21-17	TMG	   fix #257, fix #260: 90+% lag reduction: do not do any sorting;
+#						 instead, calculate the correct index to insert a new row
+#						 during newEntry, and use beginInsertRows and endInsertRows
+#						 instead of layoutChanged; see notes in newEntry function
+#   6-15-17	TMG	   fix #336 by simply ignoring keyPressEvents that happen
+#						 before newEntryWidget is responsive, and get fielded by
+#						 MyWindows instead; would be nice to find a better long-term
+#						 solution; see https://stackoverflow.com/questions/44148992
+#						 and see notes inline below
+#   7-1-17	 TMG	   fix #342 (focus-follows-mouse freeze); 'fix' #332 (freeze
+#						 due to modal dialogs displayed underneath other windows)
+#						 by doing full audit and recode and test of all QMessageBox calls
+#   7-1-17	 TMG	   fix #343 (crash on print clue log when there are no clues):
+#						 show an error message when the print button is clicked if
+#						 there are no operational periods that have clues, and only
+#						 populate the print clue log operational period cyclic field
+#						 with op periods that do have clues
+#   7-3-17	 TMG	   fix #341 (add checkbox for fleetsync mute)
+#   9-24-17	TMG	   fix #346 (slash in incident name kills everything) using
+#						 normName function; get rid of leading space in loaded
+#						 incident name due to incorrect index (17 instead of 18);
+#						 fix #349 (save filename not updated after load)
+#   9-24-17	TMG	   fix #350 (do not try to read fleetsync file on restore) by
+#						 adding hideWarnings argument to fsLoadLookup
+#   9-24-17	TMG	   fix #345 (get rid of 'printing' message dialog) by commenting
+#						 out all print dialog lines which also fixes # 33 and #263;
+#						 time will tell if this is sufficient, or if we need to
+#						 bring back some less-invasive and less-confusing notification,
+#						 like a line in the main dialog or such
+#   11-5-17	TMG	   fix #32 (add fleetsync device filtering) - affects several
+#						 parts of the code and several files
+#   11-15-17   TMG	   fix #354 (stolen focus / hold time failure); fix #355 (space bar error);
+#						 add focus rules and timeline documentation; change hold time
+#						 to 20 sec (based on observations during class); set focus
+#						 to the active stack item's message field on changeCallsignDialog close
+#   11-23-17   TMG	   address #31 (css / font size issues) - not yet checked against
+#						 dispatch computer - only tested on home computer
+#   11-23-17   TMG	   fix #356 (change callsign dialog should not pop up until
+#						 its new entry widget is active (i.e. the active stack item)
+#	 5-1-18   TMG	   fix #357 (freeze after print, introduced by fix # 345)
+#	5-28-18   TMG	   fix #360 (remove leading zeros from team tab names)
+#	 6-9-18   TMG		 allow configuration by different teams using optional local/radiolog.cfg
+#						  (merged config branch to master)
+#	7-22-18   TMG	   add team hotkeys (fix #370); change return/enter/space to open
+#						  a new entry dialog with blank callsign (i.e. LEO callsigns);
+#						  toggle team hotkeys vs normal hotkeys using F12
+#	7-22-18   TMG	   fix #373 (esc closes NED in same manner as cancel button)
+#	7-22-18   TMG	   fix #360 again (leading zeros still showed up in tab
+#						  context menus, therefore in callsign field of NED created
+#						  from tab context menus)
+#	 8-2-18   TMG	   space bar event does not reach the main window after the
+#						  first team tab gets created, so disable it for now -
+#						  must use enter or return to open a NED with no callsign (#370)
+#	 8-3-18   TMG	   fix #372 (combobox / cyclic callsign selection)
+#	 8-5-18   TMG	   fix #371 (amend callsign of existing message)
+#	8-29-18   TMG	   fix #375 (crash during new entry for new team)
+#	 9-9-18   TMG	   fix #379 (subject located form - field type error; confirmed
+#						   that all other calls to toPlainText are for valid fields)
+#	 9-9-18   TMG	   add a very short timeout to the requests.get locator update call to 
+#						   eliminate lag while completely ignoring the response
+#						   ('fire-and-forget'); would have to use a thread-based module
+#						   if the response were important; works well on home computer,
+#						   hopefully this fixes #378
+#	9-17-18   TMG	   fix and improve team hotkey selection and recycling
+#	9-17-18   TMG	   change some dictionary lookups to use get() with a default,
+#						   to avoid possible KeyErrors
+#	9-17-18   TMG	   catch any sync errors during deletion of proxyModelList entries
+#						   (which happens during team tab deletion)
+#	9-17-18   TMG	   disallow blank callsign for new entry
+#	9-23-18   TMG	   cleanup config file defaults handling
+#	10-3-18   TMG	   fix #364: eliminate backup rotation lag by running it
+#						  in the background (external powershell script on Windows
+#						  systems; custom script can be specified in config file;
+#						  currently there is no default backup rotation script for
+#						  non-Windows systems)
+#   10-26-18   TMG	   fix #380 (fleetsync CID parsing issue); add more CID parsing
+#						  and callsign-change messages
+#   11-17-18   TMG	   overhaul logging: use the logging module, making sure
+#						  to show uncaught exceptions on the screen and in the
+#						  log file
+#   11-17-18   TMG	   fix #382 (disable locator requests from GUI);
+#						  fix #383 (disable second working dir from GUI)
+#   11-17-18   TMG	   fix #381 (auto-accept entry on clue report or subj located accept);
+#						  fix #339 (don't increment clue# if clue form is canceled)
+#   11-18-18   TMG	   fix #358 and make FS location parsing more robust
+#   11-18-18   TMG	   fix #351 (don't show options at startup after restore)
+#   12-12-18   TMG	   fix #384 (bad data causes unpack error)
+#   12-14-18   TMG	   fix #385 (print team log from team tab context menu)
+#   12-15-18   TMG	   fix #387 (file browser sort by date)
+#   12-15-18   TMG	   simplify code for #387 fix above; also filter out _clueLog_bak
+#						 and _fleetSync_bak files from file browser
+#   12-16-18   TMG	   fix #388 (team log print variant team names)
+#	4-11-19   TMG	   fix #392 (get rid of leading 'Team ' when appropriate);
+#						 fix #393 (preserve case of new callsigns);
+#						 fix #394 (show actual tie in log messages)
+#	 5-3-19   TMG	   fix #329 (team tab bar grouping) - default groups are just
+#						 numbered teams, vs everything else; can specify a more
+#						 elaborate set of group names and regular expressions
+#						 in the config file (tabGroups)
+#	 5-4-19   TMG	   enhance #393: if typed callsign is a case-insensitive
+#						 match with an existing callsign, use the existing callsign;
+#						 fix #397 ('Available' status - also added 'Off Duty' status
+#						 which does not time out and has no background and gray text;
+#						 '10-8' changes to 'Available', '10-97' changes to 'Working',
+#						 '10-10' changes to 'Off Duty')
+#	 2-8-20   TMG	   re-fix #41: repair hot-unplug handling for current pyserial
+#	2-10-20   TMG	   fix #396: create default local dir and config file if needed
+#	5-28-20   TMG	   fix #412: relayed message features
+#	6-15-20   TMG	   fix #415: restore timeout on auto-recover (in rc file);
+#						  fix #404: show http request response in log;
+#						  address #413: multiple crashes - add more logging; 
+#						  improve relay features to be more intuitive
 #
 # #############################################################################
 #
@@ -223,7 +223,7 @@
 #  when an incoming message happens during editing of an existing message:
 #   1. add a stack entry on top of the stack and start flashing
 #   2. if the current message has had no keystrokes / activity in the last n seconds,
-#        leave it as is and move to the new entry
+#		leave it as is and move to the new entry
 #   3. if the current message has had activity in the last n seconds, leave it open
 #
 #  when message is accepted:
@@ -252,14 +252,14 @@
 #  - radiolog_logo.jpg - if the logo exists it is included in the printout
 #  - radiolog_rc.txt - resource file, keeps track of last used window geometry and font size
 #  - radiolog_fleetsync.csv - default CSV lookup table: fleet,device,callsign
-#      (any fleet/device pairs that do not exist in that file will have callsign KW-<fleet>-<device>)
+#	  (any fleet/device pairs that do not exist in that file will have callsign KW-<fleet>-<device>)
 #
 # files generated by this code:
 #  NOTE: this program uses two working directories for redundancy.  The first one is
-#    the current Windows user's Documents directory, and must be writable to avoid
-#    a fatal error.  The second one will be written to on every new entry if it is available,
-#    but will not cause any error if it is unavailable.  The second working directory
-#    is specified below with the variable 'secondWorkingDir'.
+#	the current Windows user's Documents directory, and must be writable to avoid
+#	a fatal error.  The second one will be written to on every new entry if it is available,
+#	but will not cause any error if it is unavailable.  The second working directory
+#	is specified below with the variable 'secondWorkingDir'.
 #  - <incident_name>_<timestamp>.csv - CSV of entire radio log, written after each new entry
 #  - <incident_name>_<timestamp>_fleetsync.csv - CSV FleetSync lookup table, written on each callsign change
 #  - <incident_name>_<timestamp>_clueLog.csv - CSV clue log, written after each clue entry
@@ -267,10 +267,10 @@
 #  - <incident_name>_<timestamp>_clueLog_OP#.pdf - PDF of the clue log for specified operational period
 #  - <incident_name>_<timestamp>_clue##.fdf - FDF of clue report form (see calls to forge_fdf)
 #  - <incident_name>_<timestamp>_clue##.fdf - PDF of clue report form
-#    NOTE: upon change of incident name, previously saved files are not deleted, but
-#      are kept in place as another backup.  Also, the previous log file is copied
-#      as the new log file, so that file append on each new entry can continue
-#      seamlessly.
+#	NOTE: upon change of incident name, previously saved files are not deleted, but
+#	  are kept in place as another backup.  Also, the previous log file is copied
+#	  as the new log file, so that file append on each new entry can continue
+#	  seamlessly.
 #
 # required non-core python modules:
 #  - reportlab (for printing)
@@ -290,14 +290,14 @@
 # conclusions from benchmarking and speed tests on a table of around 1300 rows:
 #  - the single biggest source of delay can be header resize modes:
 #		...verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-#     will cause each row to resize whenever the contents change, which is probably
-#     more often than you want, and will be called in a hidden / nested manner
-#     inside other table view changes.  So, disable any lines like this, and only
-#     resize when you really need to.  Removing this line reduced redraw time
-#     on font change from 12 seconds to 3.  Also, it 'completely' eliminates
-#     window resize delay.
+#	 will cause each row to resize whenever the contents change, which is probably
+#	 more often than you want, and will be called in a hidden / nested manner
+#	 inside other table view changes.  So, disable any lines like this, and only
+#	 resize when you really need to.  Removing this line reduced redraw time
+#	 on font change from 12 seconds to 3.  Also, it 'completely' eliminates
+#	 window resize delay.
 #  - delay on entry form close is 'eliminated' / deferred by doing all the
-#     redisplay work in a singleshot after the form is closed
+#	 redisplay work in a singleshot after the form is closed
 #
 # #############################################################################
 # #############################################################################
@@ -1035,11 +1035,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		# #483: Check for recent radiolog sessions on this computer.  If any sessions are found from the previous 4 days,
 		#  ask the operator if this new session is intended to be a continuation of one of those previous incidents.
 		#  If so:
-		#    - set the incident name to the same as that in the selected previous radiolog csv file;
-		#    - set the OP number to one more than the latest OP# in the previous csv
-		#       (with a reminder that OP# can be changed by hand by clicking the OP button);
-		#    - set the next clue number to one more than the latest clue number in the previous CSV
-		#       (with a reminder that clue# can be changed in the clue dialog the next time it is raised)
+		#	- set the incident name to the same as that in the selected previous radiolog csv file;
+		#	- set the OP number to one more than the latest OP# in the previous csv
+		#	   (with a reminder that OP# can be changed by hand by clicking the OP button);
+		#	- set the next clue number to one more than the latest clue number in the previous CSV
+		#	   (with a reminder that clue# can be changed in the clue dialog the next time it is raised)
 
 		if not restoreFlag:
 			self.checkForContinuedIncident()
@@ -1892,18 +1892,18 @@ class MyWindow(QDialog,Ui_Dialog):
 			
 	# FleetSync / NEXEDGE - check for pending data
 	# - check for pending data at regular interval (from timer)
-	#     (it's important to check for ID-only lines, since handhelds with no
-	#      GPS mic will not send $PKLSH / $PKNSH but we still want to spawn a new entry
-	#      dialog; and, $PKLSH / $PKNSH isn't necessarily sent on BOT (Beginning of Transmission) anyway)
-	#     (for 1 second interval, ID-only is always processed separately from $PKLSH/ $PKNSH;
-	#     even for 2 second interval, sometimes ID is processed separately.
-	#     So, if $PKLSH / $PKNSH is processed, add coords to any rececntly-spawned
-	#     'from' new entry dialog for the same fleetsync / nexedge id.)
+	#	 (it's important to check for ID-only lines, since handhelds with no
+	#	  GPS mic will not send $PKLSH / $PKNSH but we still want to spawn a new entry
+	#	  dialog; and, $PKLSH / $PKNSH isn't necessarily sent on BOT (Beginning of Transmission) anyway)
+	#	 (for 1 second interval, ID-only is always processed separately from $PKLSH/ $PKNSH;
+	#	 even for 2 second interval, sometimes ID is processed separately.
+	#	 So, if $PKLSH / $PKNSH is processed, add coords to any rececntly-spawned
+	#	 'from' new entry dialog for the same fleetsync / nexedge id.)
 	# - append any pending data to fsBuffer
 	# - if a clean end of transmission packet is included in this round of data,
-	#    spawn a new entry window (unless one is already open with 'from'
-	#    and the same fleetsync / nexedge ID) with any geographic data
-	#    from the current fsBuffer, then empty the fsBuffer
+	#	spawn a new entry window (unless one is already open with 'from'
+	#	and the same fleetsync / nexedge ID) with any geographic data
+	#	from the current fsBuffer, then empty the fsBuffer
 
 	# NOTE that the data coming in is bytes b'1234' but we want string; use bytes.decode('utf-8') to convert,
 	#  after which /x02 (a.k.a. STX a.k.a. Start of Text) will show up as a happy face 
@@ -1979,9 +1979,9 @@ class MyWindow(QDialog,Ui_Dialog):
 				# opening a port quickly, checking for waiting input, and closing on each iteration does not work; the
 				#  com port must be open when the input begins, in order to catch it in the inWaiting internal buffer.
 				# 1. go through each already-open com port to check for waiting data; if valid Fleetsync data is
-				#     found, then we have the correct com port, abort the rest of the scan
+				#	 found, then we have the correct com port, abort the rest of the scan
 				# 2. (only if no valid data was found in step 1) list com ports; open any new finds and close any
-				#     stale ports (i.e. existed in the list in previous iterations but not in the list now)
+				#	 stale ports (i.e. existed in the list in previous iterations but not in the list now)
 				for comPortTry in self.comPortTryList:
 					if comLog:
 						rprint("  Checking buffer for already-open port "+comPortTry.name)
@@ -1995,14 +1995,14 @@ class MyWindow(QDialog,Ui_Dialog):
 						pass # unicode decode errors may occur here for non-radio com devices
 					else:
 						if isWaiting:
-							rprint("     DATA IS WAITING!!!")
+							rprint("	 DATA IS WAITING!!!")
 							valid=False
 							tmpData=comPortTry.read(comPortTry.inWaiting()).decode("utf-8")
 							if '\x02I' in tmpData or tmpData=='\x020\x03' or tmpData=='\x021\x03' or tmpData.startswith('\x02$PKL'):
-								rprint("      VALID FLEETSYNC DATA!!!")
+								rprint("	  VALID FLEETSYNC DATA!!!")
 								valid=True
 							elif '\x02gI' in tmpData:
-								rprint('      VALID NEXEDGE DATA!!!')
+								rprint('	  VALID NEXEDGE DATA!!!')
 								valid=True
 								# NEXEDGE format (e.g. for ID 03001; NXDN has no concept of fleet:device - just 5-decimal-digit unit ID, max=65536 (4 hex characters))
 								# BOT CID: ☻gI1U03001U03001♥
@@ -2014,7 +2014,7 @@ class MyWindow(QDialog,Ui_Dialog):
 								#   ♥ - postamble (\x03)
 								# GPS: same as with fleetsync, but PKNSH instead of PKLSH; arrives immediately after BOT CID rather than EOT CID
 							else:
-								rprint("      but not valid FleetSync or NEXEDGE data.  Scan continues...")
+								rprint("	  but not valid FleetSync or NEXEDGE data.  Scan continues...")
 								rprint(str(tmpData))
 							if valid:
 								self.fsBuffer=self.fsBuffer+tmpData
@@ -2029,7 +2029,7 @@ class MyWindow(QDialog,Ui_Dialog):
 								self.comPortTryList.remove(comPortTry) # and remove the good com port from the list of ports to try going forward
 						else:
 							if comLog:
-								rprint("     no data")
+								rprint("	 no data")
 				for portIterable in serial.tools.list_ports.comports():
 					if portIterable[0] not in [x.name for x in self.comPortTryList]:
 						try:
@@ -2141,9 +2141,9 @@ class MyWindow(QDialog,Ui_Dialog):
 				# - positive acknowledge received after text sent to individual device
 				# - broadcast text sent (target radios will not try to respond to broadcast)
 				# - positive acknowledge received after location poll, regardless of response from portable radio;
-				#     if target radio has a GPS lock, either current (A status) or stale (V status), 
-				#     the next lines will include $PKLSH etc.  In this case, there is no action to take;
-				#     just move on to the next line.
+				#	 if target radio has a GPS lock, either current (A status) or stale (V status), 
+				#	 the next lines will include $PKLSH etc.  In this case, there is no action to take;
+				#	 just move on to the next line.
 				if self.fsAwaitingResponse and self.fsAwaitingResponse[2]=='Text message sent':
 					[fleet,dev]=self.fsAwaitingResponse[0:2]
 					msg=self.fsAwaitingResponse[4]
@@ -2271,7 +2271,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				#   for the Garmin factory in Olathe, KS
 				# - if valid=='V' set coord field to 'WARNING', do not attempt to parse, and carry on
 				# - if valid=='A' and coords are incomplete or otherwise invalid, set coord field
-				#    to 'INVALID', do not attempt to parse, and carry on
+				#	to 'INVALID', do not attempt to parse, and carry on
 				# 
 				# NEW RADIOS (NX5200):
 				# $PKLSH can contain status 'V' if it had a GPS lock before but does not currently,
@@ -2392,10 +2392,10 @@ class MyWindow(QDialog,Ui_Dialog):
 				# 1. parse line into unique complete packets,
 				#   where 'packet' is defined here as an unbroken string of 6 to 19 digits between '\x02I[1=BOT or 0=EOT]' and '\x03'
 				#   normally, there is only one packet per parsed buffered line;
-				#    for a mic bump, a BOT packet will be immediately followed by an EOT packet - though the EOT may not show
-				#    up until the subsequent buffered line (the subsequent fsParse call);
-				#    even for a mic bump, the second packet is identical to the first, so set() will only have one member;
-				#    if set length != 1 then we know there's garbled data and there's nothing else we can do here
+				#	for a mic bump, a BOT packet will be immediately followed by an EOT packet - though the EOT may not show
+				#	up until the subsequent buffered line (the subsequent fsParse call);
+				#	even for a mic bump, the second packet is identical to the first, so set() will only have one member;
+				#	if set length != 1 then we know there's garbled data and there's nothing else we can do here
 				if('\x02I1') in line:
 					seq.append('BOT')
 				if('\x02I0') in line:
@@ -2661,7 +2661,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# - should radio marker colors be changed, as a function of team status, or time since last call?
 
 		# self.radioMarkerDict - keys are device strings ('<fleet>:<device>' or '<NXDN UID>'),
-		#    values are dicts with the following keys:
+		#	values are dicts with the following keys:
 		#  - caltopoID - caltopo feature ID of this device's caltopo marker, if any
 		#  - label
 		#  - latestTimeString
@@ -3175,14 +3175,14 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	# convertCoords
 	#   coords - 4-element list of strings
-	#      [LatString,NS,LonString,EW]  ex. ['3912.2949', 'N', '12104.5526', 'W']
-	#      LatString - in the format that Kenwood produces: DDMM.mmmm
-	#          (3912.2949 = 39deg 12.2949min)
-	#      NS - North or South hemisphere
-	#      LonString - in the format that Kenwood produces: DDMM.mmmm
-	#      EW - Eeast or West hemisphere
-	#          (W along with a positive LonString means the lon value is actually negative)
-	#          12034.5678 W  --> -120deg 34.5678min
+	#	  [LatString,NS,LonString,EW]  ex. ['3912.2949', 'N', '12104.5526', 'W']
+	#	  LatString - in the format that Kenwood produces: DDMM.mmmm
+	#		  (3912.2949 = 39deg 12.2949min)
+	#	  NS - North or South hemisphere
+	#	  LonString - in the format that Kenwood produces: DDMM.mmmm
+	#	  EW - Eeast or West hemisphere
+	#		  (W along with a positive LonString means the lon value is actually negative)
+	#		  12034.5678 W  --> -120deg 34.5678min
 	#   targetDatum - 'WGS84' or 'NAD27' or 'NAD27 CONUS' (the last two are synonyms in this usage)
 	def convertCoords(self,coords,targetDatum,targetFormat):
 		rprint("convertCoords called: targetDatum="+targetDatum+" targetFormat="+targetFormat+" coords="+str(coords))
@@ -3269,14 +3269,14 @@ class MyWindow(QDialog,Ui_Dialog):
 			t=Table(headerTable,colWidths=[x*inch for x in [0.8,4.2,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
 										  ('FONT',(2,0),(3,0),'Helvetica-Bold'),
-			                       ('FONTSIZE',(1,0),(1,1),18),
+								   ('FONTSIZE',(1,0),(1,1),18),
 										  ('SPAN',(0,0),(0,1)),
 										  ('SPAN',(1,0),(1,1)),
 										  ('LEADING',(1,0),(1,1),20),
 										  ('TOPADDING',(1,0),(1,0),0),
 										  ('BOTTOMPADDING',(1,1),(1,1),4),
-         	                    ('VALIGN',(0,0),(-1,-1),"MIDDLE"),
-            	                 ('ALIGN',(1,0),(1,-1),"CENTER"),
+		 						('VALIGN',(0,0),(-1,-1),"MIDDLE"),
+								 ('ALIGN',(1,0),(1,-1),"CENTER"),
 										  ('ALIGN',(0,0),(0,1),"CENTER"),
 										  ('BOX',(0,0),(-1,-1),2,colors.black),
 										  ('BOX',(2,0),(-1,-1),2,colors.black),
@@ -3287,13 +3287,13 @@ class MyWindow(QDialog,Ui_Dialog):
 					["","","Operational Period: ","Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
 			t=Table(headerTable,colWidths=[x*inch for x in [0.0,5,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
-			                       ('FONT',(2,0),(3,0),'Helvetica-Bold'),
-			                       ('FONTSIZE',(1,0),(1,1),18),
+								   ('FONT',(2,0),(3,0),'Helvetica-Bold'),
+								   ('FONTSIZE',(1,0),(1,1),18),
 										  ('SPAN',(0,0),(0,1)),
 										  ('SPAN',(1,0),(1,1)),
 										  ('LEADING',(1,0),(1,1),20),
-         	                    ('VALIGN',(1,0),(-1,-1),"MIDDLE"),
-            	                 ('ALIGN',(1,0),(1,-1),"CENTER"),
+		 						('VALIGN',(1,0),(-1,-1),"MIDDLE"),
+								 ('ALIGN',(1,0),(1,-1),"CENTER"),
 										  ('BOX',(0,0),(-1,-1),2,colors.black),
 										  ('BOX',(2,0),(-1,-1),2,colors.black),
 										  ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
@@ -3440,10 +3440,10 @@ class MyWindow(QDialog,Ui_Dialog):
 					colWidths=[x*inch for x in [0.5,0.6,1.25,5.5,1.25,0.9]]
 				t=Table(radioLogPrint,repeatRows=1,colWidths=colWidths)
 				t.setStyle(TableStyle([('FONT',(0,0),(-1,-1),'Helvetica'),
-					                    ('FONT',(0,0),(-1,1),'Helvetica-Bold'),
-					                    ('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
-			      	                 ('BOX', (0,0), (-1,-1), 2, colors.black),
-			         	              ('BOX', (0,0), (-1,0), 2, colors.black)]))
+										('FONT',(0,0),(-1,1),'Helvetica-Bold'),
+										('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
+				  					 ('BOX', (0,0), (-1,-1), 2, colors.black),
+					 				  ('BOX', (0,0), (-1,0), 2, colors.black)]))
 				elements.append(t)
 				if teams and team!=teamFilterList[-1]: # don't add a spacer after the last team - it could cause another page!
 					elements.append(Spacer(0,0.25*inch))
@@ -3473,14 +3473,14 @@ class MyWindow(QDialog,Ui_Dialog):
 					["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
 			t=Table(headerTable,colWidths=[x*inch for x in [0.8,4.2,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
-			                       ('FONTSIZE',(1,0),(1,1),18),
+								   ('FONTSIZE',(1,0),(1,1),18),
 										  ('SPAN',(0,0),(0,1)),
 										  ('SPAN',(1,0),(1,1)),
 										  ('LEADING',(1,0),(1,1),20),
 										  ('TOPADDING',(1,0),(1,0),0),
 										  ('BOTTOMPADDING',(1,1),(1,1),4),
-         	                    ('VALIGN',(0,0),(-1,-1),"MIDDLE"),
-            	                 ('ALIGN',(1,0),(1,-1),"CENTER"),
+		 						('VALIGN',(0,0),(-1,-1),"MIDDLE"),
+								 ('ALIGN',(1,0),(1,-1),"CENTER"),
 										  ('ALIGN',(0,0),(0,1),"CENTER"),
 										  ('BOX',(0,0),(-1,-1),2,colors.black),
 										  ('BOX',(2,0),(-1,-1),2,colors.black),
@@ -3491,12 +3491,12 @@ class MyWindow(QDialog,Ui_Dialog):
 					["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
 			t=Table(headerTable,colWidths=[x*inch for x in [0.0,5,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
-			                       ('FONTSIZE',(1,0),(1,1),18),
+								   ('FONTSIZE',(1,0),(1,1),18),
 										  ('SPAN',(0,0),(0,1)),
 										  ('SPAN',(1,0),(1,1)),
 										  ('LEADING',(1,0),(1,1),20),
-         	                    ('VALIGN',(1,0),(-1,-1),"MIDDLE"),
-            	                 ('ALIGN',(1,0),(1,-1),"CENTER"),
+		 						('VALIGN',(1,0),(-1,-1),"MIDDLE"),
+								 ('ALIGN',(1,0),(1,-1),"CENTER"),
 										  ('BOX',(0,0),(-1,-1),2,colors.black),
 										  ('BOX',(2,0),(-1,-1),2,colors.black),
 										  ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
@@ -3513,7 +3513,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint("end of printClueLogHeaderFooter")
 
 	def printClueLog(self,opPeriod):
-##      header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
+##	  header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
 		opPeriod=int(opPeriod)
 		# first, determine if there are any clues to print for this OP; if not, return before generating the pdf
 		rowsToPrint=[]
@@ -3685,10 +3685,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		# clueTableDicts - list of dictionaries, with each dictionary corresponding to a new reportlab table
 		#  data - list of lists, each sublist corresponding to one row of the reportlab table
 		#  heights - list of row heights (in inches) - the length of this list must equal the length of 'data';
-		#    can also be a single number, in which case each row will have the same specified height
+		#	can also be a single number, in which case each row will have the same specified height
 		#  widths - list of column widths - the length of theis list must equal the length of each element of 'data'
-		#    if sum of values adds up to page width in inches, then units are assumed to be in inches;
-		#    otherwise, units are assumed to be equal parts of total page width
+		#	if sum of values adds up to page width in inches, then units are assumed to be in inches;
+		#	otherwise, units are assumed to be equal parts of total page width
 		clueTableDicts=[
 			{ # title bar row
 				'data':[[img,self.agencyNameForPrint,img]],
@@ -3984,14 +3984,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		for n in teamTablesToRedraw:
 			# rprint(" n="+str(n))
 			for i in [2,4]: # hardcode results in significant speedup, but lag still scales with filtered table length
-				# rprint("    i="+str(i))
+				# rprint("	i="+str(i))
 				n.resizeColumnToContents(i)
-			# rprint("    done with i")
+			# rprint("	done with i")
 			n.setColumnWidth(0,self.fontSize*5)
 			n.setColumnWidth(1,self.fontSize*6)
 			n.setColumnWidth(5,self.fontSize*10)
 			n.setColumnWidth(10,self.fontSize*3)
-			# rprint("    resizing rows to contents")
+			# rprint("	resizing rows to contents")
 ##			n.resizeRowsToContents()
 		# rprint("5")
 		# rprint("6")
@@ -4801,7 +4801,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# update the filenames based on current incident name and current date/time
 		# normalize the name for purposes of filenames
 		#  - get rid of all spaces -  no need to be able to reproduce the
-		#    incident name's spaces from the filename
+		#	incident name's spaces from the filename
 		self.incidentNameNormalized=normName(self.incidentName)
 		sessionDirAttempt=os.path.join(self.firstWorkingDir,self.incidentNameNormalized)+'_'+time.strftime('%Y_%m_%d_%H%M%S')
 		if sessionDirAttempt is not self.sessionDir:
@@ -4866,10 +4866,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.newEntryWidget=newEntryWidget(self,sec,formattedLocString,fleet,dev,origLocString,amendFlag,amendRow,isMostRecentForCallsign)
 		# focus rules and timeline:
 		#  openNewEntry
-		#    |-> newEntryWidget.__init__
-		#    |     |-> addTab
-		#    |           |-> focus to new messageField if existing holdSec has elapsed
-		#    |-> process 'key' to further change focus as needed
+		#	|-> newEntryWidget.__init__
+		#	|	 |-> addTab
+		#	|		   |-> focus to new messageField if existing holdSec has elapsed
+		#	|-> process 'key' to further change focus as needed
 		
 		# note, this timeline points out that changing focus in the 'key' handler
 		#  to a widget of the newEntryWidget only makes sense if addTab determined
@@ -4879,15 +4879,15 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		# - if spawned by fleetsync: let addTab determine focus
 		# - if spawned from the keyboard: we can assume the newEntryWidget will
-		#    be the active stack item, since you can't use the keyboard in the main
-		#    GUI if there is an existing message in the stack, so, it's safe
-		#    to set focus to a widget of the newEntryWidget here
+		#	be the active stack item, since you can't use the keyboard in the main
+		#	GUI if there is an existing message in the stack, so, it's safe
+		#	to set focus to a widget of the newEntryWidget here
 		# - if spawned from a mouse click (Add Entry button, or team tab context menu)
-		#    then the new entry should become the active entry ('cutting in line'),
-		#    so it is also safe to set focus to a widget of the newEntryWidget here
-		#     (future improvement: remember which stack item was active before this
-		#      'cutting in line', and go back to it after the new entry is closed,
-		#       if it still exists / has not been auto-cleaned)
+		#	then the new entry should become the active entry ('cutting in line'),
+		#	so it is also safe to set focus to a widget of the newEntryWidget here
+		#	 (future improvement: remember which stack item was active before this
+		#	  'cutting in line', and go back to it after the new entry is closed,
+		#	   if it still exists / has not been auto-cleaned)
 		
 		if key:
 			if self.ui.teamHotkeysWidget.isVisible() and len(key)==1:
@@ -4972,7 +4972,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				matchingLogRows=[i for i in self.fsLog if i[0]=='' and i[1]==str(dev)]
 			if not matchingLogRows or len([i for i in matchingLogRows if i[7]-i[6]<2])>0:
 			# if (fleet and dev and len([i for i in self.fsLog if i[0]==str(fleet) and i[1]==str(dev) and (i[7]-i[6])<2])>0) or \
-			#      (dev and not fleet and len([i for i in self.fsLog if i[0]=='' and i[1]==str(dev) and (i[7]-i[6])<2])>0) : # this is the device's first non-mic-bump call
+			#	  (dev and not fleet and len([i for i in self.fsLog if i[0]=='' and i[1]==str(dev) and (i[7]-i[6])<2])>0) : # this is the device's first non-mic-bump call
 				rprint('First non-mic-bump call from this device.')
 				rval='+CCD'
 				if self.isInCCD1List(callsign):
@@ -5087,7 +5087,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			if extTeamName.lower()==existingExtTeamName.lower():
 				extTeamName=existingExtTeamName
 				break
-      # skip entries with no team like 'radio log begins', or multiple entries like 'all'
+	  # skip entries with no team like 'radio log begins', or multiple entries like 'all'
 		if niceTeamName!='' and not niceTeamName.lower()=="all" and not niceTeamName.lower().startswith("all "):
 			# if it's a team that doesn't already have a tab, make a new tab
 			if extTeamName not in self.extTeamNameList:
@@ -5213,7 +5213,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# rprint('radioLog len = '+str(len(self.radioLog)))
 		# rprint(str(self.radioLog))
 		# #508 - determine if the row being amended is the most recent row regarding the same callsign
-		#    row argument is zero-based, and radiolog always has a dummy row at the end
+		#	row argument is zero-based, and radiolog always has a dummy row at the end
 		team=self.radioLog[row][2]
 		extTeamName=getExtTeamName(team)
 		found=False
@@ -5659,7 +5659,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			deleteTeamTabAction=menu.addAction('Hide tab for '+str(niceTeamName))
 			#698 - single action to hide all tabs with status 'At IC'
 			# - only show this context menu entry if this tab is At IC and
-			#    more than one tab with this status exists
+			#	more than one tab with this status exists
 			deleteMultiAction=-1 # must exist for later action checking; don't use 'None' since this will trigger on Escape
 			if teamStatusDict[extTeamName]=='At IC' and sum(x=='At IC' for x in teamStatusDict.values())>1:
 				deleteMultiAction=menu.addAction('Hide tab for all \'At IC\' teams')
@@ -5747,13 +5747,13 @@ class MyWindow(QDialog,Ui_Dialog):
 	# How do we decide which COM port to send to?  There's no perfect solution, but, let's go with this plan:
 	# Q1: is self.firstComPort alive?
 	#   YES1: Q2: is self.secondComPort alive?
-	#     YES2: Q3: does self.fsLog have an entry for the device in question?
-	#       YES3: send to the com port specified for that device in self.fsLog
-	#                i.e. the com port on which that device was most recently heard from
-	#                 (if failed, send to the other port; if that also fails, show failure message)
-	#       NO3: send to the com port that has the most recent entry (for any device) in self.fsLog
-	#                 (if failed, send to the other port; if that also fails, show failure message)
-	#     NO2: send to firstComPort (if failed, show failure message - there is no second port to try)
+	#	 YES2: Q3: does self.fsLog have an entry for the device in question?
+	#	   YES3: send to the com port specified for that device in self.fsLog
+	#				i.e. the com port on which that device was most recently heard from
+	#				 (if failed, send to the other port; if that also fails, show failure message)
+	#	   NO3: send to the com port that has the most recent entry (for any device) in self.fsLog
+	#				 (if failed, send to the other port; if that also fails, show failure message)
+	#	 NO2: send to firstComPort (if failed, show failure message - there is no second port to try)
 	#   NO1: cannot send - show a message box and return False
 	# 
 
@@ -5825,7 +5825,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 
 	# Serial data format for sendText and pollGPS functions was discovered by using RADtext 
-	#    https://radtext.morganized.com/radtext
+	#	https://radtext.morganized.com/radtext
 	#  along with a virtual COM port bridge, and a COM port terminal emulator to watch the traffic
 
 	# sendText - outgoing serial port data format:
@@ -5844,8 +5844,8 @@ class MyWindow(QDialog,Ui_Dialog):
 	# <msg> - plain-text message
 	# UNUSED: <sequence> - plain-text two-digit decimal sequence identifier - increments with each send - probably not relevant
 	#   NOTE: sequnce is generated by radtext, but, it shows up as part of the message body on the
-	#          receiving device, which is probably not useful.  Interesting point that we could
-	#          add timestamp or such to the message body if needed, but, this is not a separate token.
+	#		  receiving device, which is probably not useful.  Interesting point that we could
+	#		  add timestamp or such to the message body if needed, but, this is not a separate token.
 	# <end> - 03 hex (ascii heart)
 	#
 	# examples:
@@ -6196,7 +6196,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					if len(self.extTeamNameList)>2: # but not if there are no visible tabs
 						rprint("  found back-to-back spacers at indices "+str(n)+" and "+str(n+1))
 						self.deleteTeamTab(self.extTeamNameList[n+1],True)
-						# rprint('    extTeamNameList on return from recursive deleteTeamTab call:'+str(self.extTeamNameList))
+						# rprint('	extTeamNameList on return from recursive deleteTeamTab call:'+str(self.extTeamNameList))
 						break
 		# 741 call rebuildGroupedTabDict to make sure spacer(s) are in appropriate spots after deleting a team
 		# rprint("  extTeamNameList after delete 2: "+str(self.extTeamNameList))
@@ -6573,7 +6573,149 @@ class MyWindow(QDialog,Ui_Dialog):
 			rprint('No existing Radios folder found; creating one now...')
 			fid=self.cts.addFolder('Radios')
 		return fid
+
+######################################
+## START caltopo_python local rewrites
+######################################
+# compare these two functions to those in caltopo_python 1.0.0 with 'ByFolder' removed from the names;
+# caltopo_python 1.0.0 returns flat lists of maps, regardless of folder;
+#  since the radiolog options dialog displays a separate combobox for folders,
+#  the nested map list data structure will work much better;
+#  these two functions could be candidates for inclusion in caltopo_python.
 	
+	def getMapListNestedByFolder(self,groupAccountTitle: str='',includeBookmarks=True,refresh=False,titlesOnly=False) -> list:
+		if refresh or not self.cts.accountData:
+			self.cts.getAccountData()
+		mapLists=[]
+		rval=[]
+		if groupAccountTitle:
+			groupAccountIds=[x['id'] for x in self.cts.groupAccounts if x['properties']['title']==groupAccountTitle]
+			if type(groupAccountIds)==list:
+				if len(groupAccountIds)==0:
+					logging.warning('attempt to get map list for group account "'+groupAccountTitle+'", but the signed-in user is not a member of that group account; returning an empty map list.')
+					return []
+				elif len(groupAccountIds)>1:
+					logging.warning('the signed-in user is a member of more than one group account with the requested name "'+groupAccountTitle+'"; returning an empty list.')
+					return []
+			else:
+				logging.warning('groupAccountIds was not a list; returning an empty list.')
+				return []
+			gid=groupAccountIds[0]
+			folders=[f for f in self.cts.accountData['features']
+				if 'properties' in f.keys()
+				and f['properties'].get('class','')=='UserFolder'
+				and f['properties'].get('accountId','')==gid]
+			maps=[f for f in self.cts.accountData['features']
+					if 'properties' in f.keys()
+					and f['properties'].get('class','')=='CollaborativeMap'
+					and f['properties'].get('accountId','')==gid]
+			mapLists.append({'id':gid,'title':groupAccountTitle,'maps':maps,'folders':folders})
+		else: # personal maps; allow for the possibility of multiple personal accounts
+			if len(self.cts.personalAccounts)>1:
+				logging.info('The currently-signed-in user has more than one personal account; the return value will be a netsted list.')
+			for personalAccount in self.cts.personalAccounts:
+				pid=personalAccount['id']
+				folders=[f for f in self.cts.accountData['features']
+					if 'properties' in f.keys()
+					and f['properties'].get('class','')=='UserFolder'
+					and f['properties'].get('accountId','')==gid]
+				maps=[f for f in self.cts.accountData['features']
+						if 'properties' in f.keys()
+						and f['properties'].get('class','')=='CollaborativeMap'
+						and f['properties'].get('accountId','')==pid]
+				mapLists.append({'id':pid,'title':[x['properties']['title'] for x in self.cts.accountData['accounts'] if x['id']==pid][0],'maps':maps,'folders':folders})
+		# at this point, each map in each mapList includes folderId;
+		#  we need to make sure folderId is preserved in each map as returned by this function
+		#  and also mapped to the folderName
+		for mapList in mapLists:
+			folderDict={}
+			for folder in mapList['folders']:
+				folderDict[folder['id']]=folder['properties']['title']
+			theList=[]
+			for map in mapList['maps']:
+				rprint('  map: '+json.dumps(map,indent=3))
+				mp=map['properties']
+				folderId=mp.get('folderId',None)
+				folderName=''
+				if folderId:
+					folderName=folderDict[folderId]
+				md={
+					'id':map['id'],
+					'title':mp['title'],
+					'updated':mp['updated'],
+					'type':'map',
+					'folderId':folderId,
+					'folderName':folderName
+				}
+				if md not in theList:
+					theList.append(md)
+			if includeBookmarks:
+				bookmarks=[rel for rel in self.cts.accountData['rels']
+						if 'properties' in rel.keys()
+						and rel['properties'].get('class','')=='UserAccountMapRel'
+						and rel['properties'].get('accountId','')==mapList['id']]
+				for bookmark in bookmarks:
+					bp=bookmark['properties']
+					# testing on bookmarks from various QR codes shows that 'type'
+					#  corresponds to permission: 10=read, 16=update, 20=write
+					t=bp.get('type',0)
+					if t==10:
+						permission='read'
+					elif t==16:
+						permission='update'
+					elif t==20:
+						permission='write'
+					else:
+						permission='unknown'
+					folderId=mp.get('folderId',None)
+					folderName=''
+					if folderId:
+						folderName=folderDict[folderId]
+					bd={
+						'id':bp['mapId'],
+						'title':bp['title'],
+						'updated':bp['mapUpdated'],
+						'type':'bookmark',
+						'permission':permission,
+						'folderId':folderId,
+						'folderName':folderName
+					}
+					if bd not in theList:
+						theList.append(bd)
+			# chronological sort by update timestamp
+			theList.sort(key=lambda x: x['updated'],reverse=True)
+			if titlesOnly:
+				rval.append([x['title'] for x in theList])
+			else:
+				rval.append(theList)
+		# if there's only one map list, return it as one list; otherwise return a nested list
+		if len(rval)==1:
+			rval=rval[0]
+		return rval
+
+	# def getAllMapListsNestedByFolder(self,includePersonal=False,includeBookmarks=True,refresh=False,titlesOnly=False) -> list:
+	# 	if refresh or not self.accountData:
+	# 		self.getAccountData()
+	# 	theList=[]
+	# 	if includePersonal:
+	# 		personalRval=self.getMapList(includeBookmarks=includeBookmarks,refresh=False,titlesOnly=titlesOnly)
+	# 		# logging.info('personalRval:'+json.dumps(personalRval,indent=3))
+	# 		if type(personalRval[0])==dict: # not nested; a list of dicts
+	# 			theList.append({'personalAccountTitle':self.personalAccounts[0]['properties']['title'],'mapList':personalRval})
+	# 		else: # nested; multiple personal accounts; a list of lists dicts
+	# 			n=0 # index to self.personalAccounts; this assumes the sequence will be the same
+	# 			for personalAcct in personalRval:
+	# 				theList.append({'personalAccountTitle':self.personalAccounts[n]['properties']['title'],'mapList':personalAcct})
+	# 				n+=1
+	# 	for gat in [x['properties']['title'] for x in self.groupAccounts]:
+	# 		mapList=self.getMapList(gat,includeBookmarks=includeBookmarks,refresh=False,titlesOnly=titlesOnly)
+	# 		theList.append({'groupAccountTitle':gat,'mapList':mapList})
+	# 	return theList
+
+#####################################
+##  END caltopo_python local rewrites
+#####################################
+
 	def createCTS(self):
 		# open a mapless caltopo.com session first, to get the list of maps; if URL is
 		#  already specified before the first createCTS call, then openMap will
@@ -6594,7 +6736,11 @@ class MyWindow(QDialog,Ui_Dialog):
 								account=self.caltopoAccountName)
 		self.optionsDialog.ui.caltopoStatusField.setText('Getting map lists...')
 		self.caltopoMapListDict=self.cts.getAllMapLists()
-		rprint('    map lists:'+json.dumps(self.caltopoMapListDict,indent=3))
+		# rprint('	map lists:'+json.dumps(self.caltopoMapListDict,indent=3))
+		self.caltopoAccountData=self.cts.getAccountData()
+		# rprint('	account data:'+json.dumps(self.caltopoAccountData,indent=3))
+		self.caltopoNestedMapListDict=self.getMapListNestedByFolder(self.caltopoDefaultTeamAccount)
+		rprint('	map list, nested by folder:'+json.dumps(self.caltopoNestedMapListDict,indent=3))
 		self.optionsDialog.ui.caltopoTeamAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.caltopoMapListDict]))
 		self.optionsDialog.ui.caltopoTeamAccountComboBox.setCurrentText(self.caltopoDefaultTeamAccount)
 		self.optionsDialog.ui.caltopoStatusField.setText('Connect to map, or choose a different one')
@@ -7212,7 +7358,7 @@ class findDialog(QWidget,Ui_findDialog):
 		rprint('closing findDialog')
 
 	def onExit(self):
-		# rprint('    onExit')
+		# rprint('	onExit')
 		self.completer.popup().clearSelection()
 		self.parent.ui.tableView.clearSelection()
 		self.parent.ui.tableView.scrollToBottom()
@@ -7267,14 +7413,14 @@ class findDialog(QWidget,Ui_findDialog):
 		elif t==QEvent.Hide:
 			# Hide is called for different reasons:
 			# 1 - dialog and popup are being closed due to left-click or enter/return
-			#     - KeyPress was the previous event
-			#     - in this case, do not clear highlights or reset scrolls
+			#	 - KeyPress was the previous event
+			#	 - in this case, do not clear highlights or reset scrolls
 			# 2 - dialog and popup are being closed due to esc
-			#     - HideToParent was the previous event
-			#     - in this case, clear highlights and reset scrolls by calling onExit
+			#	 - HideToParent was the previous event
+			#	 - in this case, clear highlights and reset scrolls by calling onExit
 			# 3 - findField has been changed such that there is no longer a match
-			#     - KeyPress was the previous event
-			#     - in this case, clear highlights and reset scrolls by calling onExit
+			#	 - KeyPress was the previous event
+			#	 - in this case, clear highlights and reset scrolls by calling onExit
 			# rprint('  hide')
 			if self.lastEventType==QEvent.HideToParent:
 				self.onExit()
@@ -7633,7 +7779,7 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 					# close the related CCD first, since its closeEvent activates newEntryWindow
 					for ccd in changeCallsignDialog.instances:
 						if ccd.parent==tab:
-							rprint('    closing related Change Callsign Dialog')
+							rprint('	closing related Change Callsign Dialog')
 							ccd.close()
 					tab.closeEvent(QEvent(QEvent.Close),accepted=False,force=True)
 					# if this was the only message, and the pending-entry popup was shown, close the popup too
@@ -7807,7 +7953,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		# add this newEntryWidget as a new tab in the newEntryWindow.ui.tabWidget
 		self.parent.newEntryWindow.addTab(time.strftime("%H%M"),self)
 		# do not raise the window if there is an active clue report form
-      # or an active changeCallsignDialog
+	  # or an active changeCallsignDialog
 # 		rprint("clueLog.openDialogCount="+str(clueDialog.openDialogCount))
 # 		rprint("changeCallsignDialog.openDialogCount="+str(changeCallsignDialog.openDialogCount))
 # 		rprint("subjectLocatedDialog.openDialogCount="+str(subjectLocatedDialog.openDialogCount))
@@ -8469,10 +8615,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		# multiple things have to be in place to have a new status text here actually
 		#  change the status of the new entry:
 		# 1. button with matching text() must exist in newEntryWidget and must
-		#     be a member of statusButtonGroup (it can be behind another button
-		#     so that it never gets clicked and is not visible, but, it must exist)
+		#	 be a member of statusButtonGroup (it can be behind another button
+		#	 so that it never gets clicked and is not visible, but, it must exist)
 		# 2. the clicked() signal from that button must have a reciever of
-		#     newEntryWidget.quickTextAction()
+		#	 newEntryWidget.quickTextAction()
 		if "at ic" in message:
 			newStatus="At IC"
 		elif "requesting transport" in message:
@@ -8579,8 +8725,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		# this takes place in two phases:
 		# 1. determine the list of attached callsigns during message entry
 		# 2. when the message is submitted, also create identical messages
-		#     for each of the attached callsigns (and make sure their status
-		#     changes to the same as the originating callsign)	
+		#	 for each of the attached callsigns (and make sure their status
+		#	 changes to the same as the originating callsign)	
 		# also look for "with" or "w/" and if found, attach this message to the
 		#  callsigns in the following token(s)
 		# example: from transport 1: "enroute to IC with team4 and team5"
@@ -9435,9 +9581,9 @@ class printClueLogDialog(QDialog,Ui_printClueLogDialog):
 # - clue dialog and clue log
 # - filenames:
 #  - radio log .csv, clue log .csv - do NOT include op period in filename, since
-#        one file per incident includes all op periods
+#		one file per incident includes all op periods
 #  - generated radio log and clue log pdf - DO include op period in filename,
-#        since each pdf only covers one op period
+#		since each pdf only covers one op period
 
 class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 	def __init__(self,parent):
@@ -9466,7 +9612,7 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 		self.parent.ui.opPeriodButton.setText("OP "+str(self.parent.opPeriod))
 		opText="Operational Period "+str(self.parent.opPeriod)+" Begins: "+time.strftime("%a %b %d, %Y")
 		self.parent.newEntry([time.strftime("%H%M"),"","",opText,"","",time.time(),"",""])
-##      clueData=[number,description,team,clueTime,clueDate,self.parent.parent.opPeriod,location,instructions,radioLoc]
+##	  clueData=[number,description,team,clueTime,clueDate,self.parent.parent.opPeriod,location,instructions,radioLoc]
 		self.parent.clueLog.append(['',opText,'',time.strftime("%H%M"),'','','','',''])
 		self.parent.printDialog.ui.opPeriodComboBox.addItem(self.ui.newOpPeriodField.text())
 		super(opPeriodDialog,self).accept()
@@ -9624,8 +9770,8 @@ class loadDialog(QDialog,Ui_loadDialog):
 # fleetsync filtering scheme:
 # - maintain a table of all known (received) fleetsync device IDs.  This table is empty at startup.
 #   columns: fleet, id, callsign, last time, filtered
-#      callsign may be blank
-#      filtered is true/false
+#	  callsign may be blank
+#	  filtered is true/false
 # - for each incoming FS transmission, add/update the entry for that device, regardless of whether it is filtered.
 # - allow the filtered value to be changed from various places
 #   - fitler dialog - allow click in table cell to toggle
@@ -10109,7 +10255,7 @@ class loginDialog(QDialog,Ui_loginDialog):
 				for item in self.items:
 					if lastName.lower()==item[1][0].lower() and firstName.lower()==item[1][1].lower() and id.lower().replace(' ','')==item[1][2].lower().replace(' ',''):
 						rprint('  exact case-insensitive match with "'+item[0]+'"')
-						box=QMessageBox(QMessageBox.Information,'Exact Match','The specified Last Name, First Name, and ID are the same as this Known Operator:\n\n    '+item[0]+'\n\nYou will be logged in as the existing Known Operator.',
+						box=QMessageBox(QMessageBox.Information,'Exact Match','The specified Last Name, First Name, and ID are the same as this Known Operator:\n\n	'+item[0]+'\n\nYou will be logged in as the existing Known Operator.',
 							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 						box.show()
 						box.raise_()
@@ -10124,7 +10270,7 @@ class loginDialog(QDialog,Ui_loginDialog):
 					if (r1+r2)/2>0.7 or r1>0.8 or r2>0.8:
 						# rprint('  possible match with "'+item[0]+'"')
 						tmp=lastName+', '+firstName+'  '+id
-						box=QMessageBox(QMessageBox.Information,'Possible Match','The specified First-Time Operator values\n\n    '+tmp+'\n\nare similar to this Known Operator:\n\n    '+item[0]+'\n\nLog in as the specified First-Time Operator, or, as the similar Known Operator?',
+						box=QMessageBox(QMessageBox.Information,'Possible Match','The specified First-Time Operator values\n\n	'+tmp+'\n\nare similar to this Known Operator:\n\n	'+item[0]+'\n\nLog in as the specified First-Time Operator, or, as the similar Known Operator?',
 							QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 						box.button(QMessageBox.Yes).setText('First-Time: '+tmp)
 						box.button(QMessageBox.No).setText('Known: '+item[0])
@@ -10712,9 +10858,9 @@ class CustomMessageBox(QMessageBox):
 		# - Esc is the same as clicking 'No' on the message box
 		# - shift- or ctrl- Enter or Return is the same as clicking 'Yes' on the message box
 		# - Enter or Return (without modifier) are blocked, to prevent accidentally finishing the entry
-		#    while the message box is open
+		#	while the message box is open
 		# - all other keypresses are preserved as part of the entry, with a beep and throb, so that
-		#    typing can continue uninterrupted
+		#	typing can continue uninterrupted
 		key=e.key()
 		mod=e.modifiers()
 		if key==Qt.Key_Escape:
