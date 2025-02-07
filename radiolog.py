@@ -1562,6 +1562,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.fsBypassSequenceChecks=False
 		self.caltopoAccountName="NONE"
 		self.caltopoDefaultTeamAccount=None
+		self.caltopoMapMarkers=False
 		
 		if os.name=="nt":
 			rprint("Operating system is Windows.")
@@ -1651,6 +1652,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.caltopoAccountName=tokens[1]
 			elif tokens[0]=='caltopoDefaultTeamAccount':
 				self.caltopoDefaultTeamAccount=tokens[1]
+			elif tokens[0]=='caltopoMapMarkers':
+				self.caltopoMapMarkers=tokens[1]
 					
 		configFile.close()
 		
@@ -1711,6 +1714,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.fsBypassSequenceChecks=eval(self.fsBypassSequenceChecks)
 		if self.fsBypassSequenceChecks:
 			rprint('FleetSync / NEXEDGE sequence checks will be bypassed for this session; every part of every incoming message will raise a new entry popup if needed.')
+
+		if self.caltopoMapMarkers and self.caltopoMapMarkers not in ['True','False']:
+			configErr+='ERROR: caltopoMapMarkers value must be True or False.  Will set to False by default.'
+			self.caltopoMapMarkers='False'
+		if type(self.caltopoMapMarkers)==str:
+			self.caltopoMapMarkers=eval(self.caltopoMapMarkers)
 
 		self.updateOptionsDialog()
 		
@@ -6733,20 +6742,17 @@ class MyWindow(QDialog,Ui_Dialog):
 			# self.updateFeatureList("Folder")
 			# self.updateFeatureList("Marker")
 		rprint('  creating mapless online session for user '+self.caltopoAccountName)
-		self.optionsDialog.ui.caltopoStatusField.setText('Connecting to server...')
 		self.cts=CaltopoSession(domainAndPort='caltopo.com',
 								configpath=os.path.join(self.configDir,'cts.ini'),
 								account=self.caltopoAccountName)
-		self.optionsDialog.ui.caltopoStatusField.setText('Getting map lists...')
 		self.caltopoMapListDict=self.getAllMapListsWithFolders()
 		rprint('	map lists:'+json.dumps(self.caltopoMapListDict,indent=3))
 		# self.caltopoAccountData=self.cts.getAccountData()
 		# rprint('	account data:'+json.dumps(self.caltopoAccountData,indent=3))
 		# self.caltopoNestedMapListDict=self.getMapListNestedByFolder(self.caltopoDefaultTeamAccount)
 		# rprint('	map list, nested by folder:'+json.dumps(self.caltopoNestedMapListDict,indent=3))
-		self.optionsDialog.ui.caltopoTeamAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.caltopoMapListDict]))
-		self.optionsDialog.ui.caltopoTeamAccountComboBox.setCurrentText(self.caltopoDefaultTeamAccount)
-		self.optionsDialog.ui.caltopoStatusField.setText('Choose a map, or type a map ID')
+		self.optionsDialog.ui.caltopoAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.caltopoMapListDict]))
+		self.optionsDialog.ui.caltopoAccountComboBox.setCurrentText(self.caltopoDefaultTeamAccount)
 		# if self.optionsDialog.ui.caltopoMapURLField.text():
 		# 	u=self.optionsDialog.ui.caltopoMapURLField.text()
 		# 	if ':' in u and self.caltopoAccountName=='NONE':
@@ -7089,6 +7095,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.formatField.clearFocus()
 		self.ui.timeoutField.clearFocus()
 		self.ui.secondWorkingDirCheckBox.clearFocus()
+		self.ui.caltopoRadioMarkersCheckBox.setChecked(self.parent.caltopoMapMarkers)
 		self.caltopoEnabledCB()
 
 	def displayTimeout(self):
@@ -7144,11 +7151,11 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# self.parent.createCTS()
 		pass
 
-	def caltopoTeamAccountComboBoxChanged(self):
+	def caltopoAccountComboBoxChanged(self):
 		# groupAccountNames=[d.get('groupAccountTitle',None) for d in self.parent.caltopoMapListDict]
 		# rprint('groupAccountNames:'+str(groupAccountNames))
-		# rprint('currentText:'+str(self.ui.caltopoTeamAccountComboBox.currentText()))
-		mapList=[d for d in self.parent.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoTeamAccountComboBox.currentText()][0]['mapList']
+		# rprint('currentText:'+str(self.ui.caltopoAccountComboBox.currentText()))
+		mapList=[d for d in self.parent.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()][0]['mapList']
 		# take the first non-bookmark entry, since the list is already sorted chronologically		
 		mapsNotBookmarks=[m for m in mapList if m['type']=='map']
 		rprint('mapsNotBookmarks:'+str(json.dumps(mapsNotBookmarks,indent=3)))
@@ -7160,7 +7167,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 
 	def caltopoFolderComboBoxChanged(self):
 		self.ui.caltopoMapNameComboBox.clear()
-		mapList=[d for d in self.parent.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoTeamAccountComboBox.currentText()][0]['mapList']
+		mapList=[d for d in self.parent.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()][0]['mapList']
 		mapsNotBookmarks=[m for m in mapList if m['type']=='map' and m['folderName']==self.ui.caltopoFolderComboBox.currentText()]
 		if mapsNotBookmarks:
 			self.ui.caltopoMapNameComboBox.addItems([m['title'] for m in mapsNotBookmarks])
@@ -7177,7 +7184,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.updateCaltopoMapURLFieldFromTitle(self.ui.caltopoMapNameComboBox.currentText())
 
 	def updateCaltopoMapURLFieldFromTitle(self,title):
-		mapList=[d for d in self.parent.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoTeamAccountComboBox.currentText()][0]['mapList']
+		mapList=[d for d in self.parent.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()][0]['mapList']
 		matches=[m for m in mapList if m['title']==title]
 		if matches:
 			self.ui.caltopoMapURLField.setText(matches[0]['id'])
@@ -7190,15 +7197,15 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		if self.parent.caltopoLink!=0:
 			rprint('  disconnecting')
 			self.parent.closeCTS()
-			self.ui.caltopoConnectButton.setText('Connect')
+			self.ui.caltopoConnectButton.setText('Click to Connect')
 			# need to open a new CTS as long as the group box is enabled
 			self.parent.createCTS()
 			return
 		if ':' in u and self.parent.caltopoAccountName=='NONE':
 			rprint('ERROR: caltopoAccountName was not specified in config file')
 			return
-		if u==self.parent.caltopoURL and self.parent.cts: # url has not changed; keep the existing link and folder list
-			return
+		# if u==self.parent.caltopoURL and self.parent.cts: # url has not changed; keep the existing link and folder list
+		# 	return
 		self.parent.caltopoURL=u
 		if self.parent.caltopoURL.endswith("#"): # pound sign at end of URL causes crash; brute force fix it here
 			self.parent.caltopoURL=self.parent.caltopoURL[:-1]
@@ -7231,7 +7238,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# 	# self.optionsDialog.ui.folderComboBox.setHeader("Select a Folder...")
 		# 	# if the session is good, process any deferred radio markers
 		if self.parent.cts and self.parent.caltopoLink>0:
-			self.ui.caltopoConnectButton.setText('Disconnect')
+			self.ui.caltopoConnectButton.setText('Click to Disconnect')
 			self.parent.radioMarkerFID=self.parent.getOrCreateRadioMarkerFID()
 			# add deferred markers (GPS calls that came in before CTS was created)
 			for (deviceStr,d) in self.parent.radioMarkerDict.items():
