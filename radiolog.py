@@ -6636,7 +6636,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				rprint('  map: '+json.dumps(map,indent=3))
 				mp=map['properties']
 				folderId=mp.get('folderId',None)
-				folderName=''
+				folderName='<Top Level>'
 				if folderId:
 					folderName=folderDict[folderId]
 				md={
@@ -6668,7 +6668,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					else:
 						permission='unknown'
 					folderId=mp.get('folderId',None)
-					folderName=''
+					folderName='<Top Level>'
 					if folderId:
 						folderName=folderDict[folderId]
 					bd={
@@ -7144,13 +7144,24 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		pass
 
 	def caltopoTeamAccountComboBoxChanged(self):
+		rprint('t1')
 		# groupAccountNames=[d.get('groupAccountTitle',None) for d in self.parent.caltopoMapListDict]
 		# rprint('groupAccountNames:'+str(groupAccountNames))
 		# rprint('currentText:'+str(self.ui.caltopoTeamAccountComboBox.currentText()))
-		mapList=[d for d in self.parent.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoTeamAccountComboBox.currentText()][0]['mapList']
+		# mapList=[d for d in self.parent.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoTeamAccountComboBox.currentText()][0]['mapList']
+		mapList=self.parent.caltopoNestedMapListDict
 		# take the first non-bookmark entry, since the list is already sorted chronologically		
 		mapsNotBookmarks=[m for m in mapList if m['type']=='map']
+		rprint('mapsNotBookmarks:'+str(json.dumps(mapsNotBookmarks,indent=3)))
+		folderNames=list(set([m['folderName'] for m in mapsNotBookmarks]))
+		self.ui.caltopoFolderComboBox.clear()
+		self.ui.caltopoFolderComboBox.addItems(sorted(folderNames))
+
+	def caltopoFolderComboBoxChanged(self):
+		rprint('t2')
 		self.ui.caltopoMapNameComboBox.clear()
+		mapList=self.parent.caltopoNestedMapListDict
+		mapsNotBookmarks=[m for m in mapList if m['type']=='map' and m['folderName']==self.ui.caltopoFolderComboBox.currentText()]
 		if mapsNotBookmarks:
 			self.ui.caltopoMapNameComboBox.addItems([m['title'] for m in mapsNotBookmarks])
 			self.ui.caltopoMapNameComboBox.setCurrentIndex(0)
@@ -7161,9 +7172,6 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# else:
 		# 	self.ui.caltopoMapURLField.setText('')
 		# 	self.ui.caltopoMapNameField.setText('Account has no maps')
-
-	def caltopoFolderComboBoxChanged(self):
-		pass
 
 	def caltopoMapNameComboBoxChanged(self):
 		self.updateCaltopoMapURLFieldFromTitle(self.ui.caltopoMapNameComboBox.currentText())
