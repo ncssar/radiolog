@@ -6577,13 +6577,15 @@ class MyWindow(QDialog,Ui_Dialog):
 ######################################
 ## START caltopo_python local rewrites
 ######################################
-# compare these two functions to those in caltopo_python 1.0.0 with 'ByFolder' removed from the names;
+# compare these two functions to those in caltopo_python 1.0.0 with 'WithFolders' removed from the names;
 # caltopo_python 1.0.0 returns flat lists of maps, regardless of folder;
 #  since the radiolog options dialog displays a separate combobox for folders,
 #  the nested map list data structure will work much better;
 #  these two functions could be candidates for inclusion in caltopo_python.
+# update: it's easy enough for the options dialog callbacks to produce separate lists per folder
+#  based on the same flat lists returned here; we just need to make sure folderName is part of each entry
 	
-	def getMapListNestedByFolder(self,groupAccountTitle: str='',includeBookmarks=True,refresh=False,titlesOnly=False) -> list:
+	def getMapListWithFolders(self,groupAccountTitle: str='',includeBookmarks=True,refresh=False,titlesOnly=False) -> list:
 		if refresh or not self.cts.accountData:
 			self.cts.getAccountData()
 		mapLists=[]
@@ -6693,24 +6695,24 @@ class MyWindow(QDialog,Ui_Dialog):
 			rval=rval[0]
 		return rval
 
-	# def getAllMapListsNestedByFolder(self,includePersonal=False,includeBookmarks=True,refresh=False,titlesOnly=False) -> list:
-	# 	if refresh or not self.accountData:
-	# 		self.getAccountData()
-	# 	theList=[]
-	# 	if includePersonal:
-	# 		personalRval=self.getMapList(includeBookmarks=includeBookmarks,refresh=False,titlesOnly=titlesOnly)
-	# 		# logging.info('personalRval:'+json.dumps(personalRval,indent=3))
-	# 		if type(personalRval[0])==dict: # not nested; a list of dicts
-	# 			theList.append({'personalAccountTitle':self.personalAccounts[0]['properties']['title'],'mapList':personalRval})
-	# 		else: # nested; multiple personal accounts; a list of lists dicts
-	# 			n=0 # index to self.personalAccounts; this assumes the sequence will be the same
-	# 			for personalAcct in personalRval:
-	# 				theList.append({'personalAccountTitle':self.personalAccounts[n]['properties']['title'],'mapList':personalAcct})
-	# 				n+=1
-	# 	for gat in [x['properties']['title'] for x in self.groupAccounts]:
-	# 		mapList=self.getMapList(gat,includeBookmarks=includeBookmarks,refresh=False,titlesOnly=titlesOnly)
-	# 		theList.append({'groupAccountTitle':gat,'mapList':mapList})
-	# 	return theList
+	def getAllMapListsWithFolders(self,includePersonal=False,includeBookmarks=True,refresh=False,titlesOnly=False) -> list:
+		if refresh or not self.cts.accountData:
+			self.cts.getAccountData()
+		theList=[]
+		if includePersonal:
+			personalRval=self.getMapListWithFolders(includeBookmarks=includeBookmarks,refresh=False,titlesOnly=titlesOnly)
+			# logging.info('personalRval:'+json.dumps(personalRval,indent=3))
+			if type(personalRval[0])==dict: # not nested; a list of dicts
+				theList.append({'personalAccountTitle':self.cts.personalAccounts[0]['properties']['title'],'mapList':personalRval})
+			else: # nested; multiple personal accounts; a list of lists dicts
+				n=0 # index to self.personalAccounts; this assumes the sequence will be the same
+				for personalAcct in personalRval:
+					theList.append({'personalAccountTitle':self.cts.personalAccounts[n]['properties']['title'],'mapList':personalAcct})
+					n+=1
+		for gat in [x['properties']['title'] for x in self.cts.groupAccounts]:
+			mapList=self.getMapListWithFolders(gat,includeBookmarks=includeBookmarks,refresh=False,titlesOnly=titlesOnly)
+			theList.append({'groupAccountTitle':gat,'mapList':mapList})
+		return theList
 
 #####################################
 ##  END caltopo_python local rewrites
@@ -6735,12 +6737,12 @@ class MyWindow(QDialog,Ui_Dialog):
 								configpath=os.path.join(self.configDir,'cts.ini'),
 								account=self.caltopoAccountName)
 		self.optionsDialog.ui.caltopoStatusField.setText('Getting map lists...')
-		self.caltopoMapListDict=self.cts.getAllMapLists()
-		# rprint('	map lists:'+json.dumps(self.caltopoMapListDict,indent=3))
-		self.caltopoAccountData=self.cts.getAccountData()
+		self.caltopoMapListDict=self.getAllMapListsWithFolders()
+		rprint('	map lists:'+json.dumps(self.caltopoMapListDict,indent=3))
+		# self.caltopoAccountData=self.cts.getAccountData()
 		# rprint('	account data:'+json.dumps(self.caltopoAccountData,indent=3))
-		self.caltopoNestedMapListDict=self.getMapListNestedByFolder(self.caltopoDefaultTeamAccount)
-		rprint('	map list, nested by folder:'+json.dumps(self.caltopoNestedMapListDict,indent=3))
+		# self.caltopoNestedMapListDict=self.getMapListNestedByFolder(self.caltopoDefaultTeamAccount)
+		# rprint('	map list, nested by folder:'+json.dumps(self.caltopoNestedMapListDict,indent=3))
 		self.optionsDialog.ui.caltopoTeamAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.caltopoMapListDict]))
 		self.optionsDialog.ui.caltopoTeamAccountComboBox.setCurrentText(self.caltopoDefaultTeamAccount)
 		self.optionsDialog.ui.caltopoStatusField.setText('Connect to map, or choose a different one')
@@ -7144,23 +7146,22 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		pass
 
 	def caltopoTeamAccountComboBoxChanged(self):
-		rprint('t1')
 		# groupAccountNames=[d.get('groupAccountTitle',None) for d in self.parent.caltopoMapListDict]
 		# rprint('groupAccountNames:'+str(groupAccountNames))
 		# rprint('currentText:'+str(self.ui.caltopoTeamAccountComboBox.currentText()))
-		# mapList=[d for d in self.parent.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoTeamAccountComboBox.currentText()][0]['mapList']
-		mapList=self.parent.caltopoNestedMapListDict
+		mapList=[d for d in self.parent.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoTeamAccountComboBox.currentText()][0]['mapList']
 		# take the first non-bookmark entry, since the list is already sorted chronologically		
 		mapsNotBookmarks=[m for m in mapList if m['type']=='map']
 		rprint('mapsNotBookmarks:'+str(json.dumps(mapsNotBookmarks,indent=3)))
 		folderNames=list(set([m['folderName'] for m in mapsNotBookmarks]))
 		self.ui.caltopoFolderComboBox.clear()
-		self.ui.caltopoFolderComboBox.addItems(sorted(folderNames))
+		if mapsNotBookmarks:
+			self.ui.caltopoFolderComboBox.addItems(sorted(folderNames))
+			self.ui.caltopoFolderComboBox.setCurrentIndex(0)
 
 	def caltopoFolderComboBoxChanged(self):
-		rprint('t2')
 		self.ui.caltopoMapNameComboBox.clear()
-		mapList=self.parent.caltopoNestedMapListDict
+		mapList=[d for d in self.parent.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoTeamAccountComboBox.currentText()][0]['mapList']
 		mapsNotBookmarks=[m for m in mapList if m['type']=='map' and m['folderName']==self.ui.caltopoFolderComboBox.currentText()]
 		if mapsNotBookmarks:
 			self.ui.caltopoMapNameComboBox.addItems([m['title'] for m in mapsNotBookmarks])
