@@ -6724,14 +6724,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  be called after the mapless session is openend
 		rprint('createCTS called:')
 		if self.cts is not None: # close out any previous session
-			print('Closing previous CaltopoSession')
-			self.closeCTS()
+			# rprint('Closing previous CaltopoSession')
+			# self.closeCTS()
+			rprint('  cts is already open; returning')
 			# self.ui.linkIndicator.setText("")
 			# self.updateLinkIndicator()
 			# self.link=-1
 			# self.updateFeatureList("Folder")
 			# self.updateFeatureList("Marker")
-		print("  creating mapless online session for user "+self.caltopoAccountName)
+		rprint('  creating mapless online session for user '+self.caltopoAccountName)
 		self.optionsDialog.ui.caltopoStatusField.setText('Connecting to server...')
 		self.cts=CaltopoSession(domainAndPort='caltopo.com',
 								configpath=os.path.join(self.configDir,'cts.ini'),
@@ -6745,7 +6746,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# rprint('	map list, nested by folder:'+json.dumps(self.caltopoNestedMapListDict,indent=3))
 		self.optionsDialog.ui.caltopoTeamAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.caltopoMapListDict]))
 		self.optionsDialog.ui.caltopoTeamAccountComboBox.setCurrentText(self.caltopoDefaultTeamAccount)
-		self.optionsDialog.ui.caltopoStatusField.setText('Connect to map, or choose a different one')
+		self.optionsDialog.ui.caltopoStatusField.setText('Choose a map, or type a map ID')
 		# if self.optionsDialog.ui.caltopoMapURLField.text():
 		# 	u=self.optionsDialog.ui.caltopoMapURLField.text()
 		# 	if ':' in u and self.caltopoAccountName=='NONE':
@@ -7131,7 +7132,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.caltopoConnectButton.setEnabled(enableMapFields)
 		if enableMapFields:
 			# self.caltopoURLCB() # try to reconnect if mapURL is not blank
-			self.parent.createCTS()
+			if self.parent.cts is None:
+				self.parent.createCTS()
 		else:
 			self.parent.closeCTS()
 
@@ -7140,9 +7142,6 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# 	self.parent.closeCTS()
 		# 	return
 		# self.parent.createCTS()
-		pass
-
-	def caltopoBrowseButtonClicked(self):
 		pass
 
 	def caltopoTeamAccountComboBoxChanged(self):
@@ -7186,7 +7185,15 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.ui.caltopoMapURLField.setText('')
 
 	def caltopoConnectButtonClicked(self):
+		rprint('connect button clicked')
 		u=self.ui.caltopoMapURLField.text()
+		if self.parent.caltopoLink!=0:
+			rprint('  disconnecting')
+			self.parent.closeCTS()
+			self.ui.caltopoConnectButton.setText('Connect')
+			# need to open a new CTS as long as the group box is enabled
+			self.parent.createCTS()
+			return
 		if ':' in u and self.parent.caltopoAccountName=='NONE':
 			rprint('ERROR: caltopoAccountName was not specified in config file')
 			return
@@ -7224,6 +7231,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# 	# self.optionsDialog.ui.folderComboBox.setHeader("Select a Folder...")
 		# 	# if the session is good, process any deferred radio markers
 		if self.parent.cts and self.parent.caltopoLink>0:
+			self.ui.caltopoConnectButton.setText('Disconnect')
 			self.parent.radioMarkerFID=self.parent.getOrCreateRadioMarkerFID()
 			# add deferred markers (GPS calls that came in before CTS was created)
 			for (deviceStr,d) in self.parent.radioMarkerDict.items():
