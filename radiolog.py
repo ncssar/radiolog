@@ -601,30 +601,32 @@ def getFileNameBase(root):
 
 ###### LOGGING CODE BEGIN ######
 
-# do not pass ERRORs to stdout - they already show up on the screen from stderr
-class LoggingFilter(logging.Filter):
-	def filter(self,record):
-		return record.levelno < logging.ERROR
+# # do not pass ERRORs to stdout - they already show up on the screen from stderr
+# class LoggingFilter(logging.Filter):
+# 	def filter(self,record):
+# 		return record.levelno < logging.ERROR
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 logFileLeafName=getFileNameBase('radiolog_log')+'.txt'
 
 def setLogHandlers(dir=None):
-	# remove all existing handlers before adding the new ones
-	for h in logger.handlers[:]:
-		logger.removeHandler(h)
+	sh=logging.StreamHandler(sys.stdout)
+	sh.setLevel(logging.INFO)
+	# sh.addFilter(LoggingFilter())
+	handlers=[sh]
 	# add a filehandler if dir is specified
 	if dir:
-		# logFileName=os.path.join(dir,getFileNameBase("radiolog_log")+".txt")
 		logFileName=os.path.join(dir,logFileLeafName)
 		fh=logging.FileHandler(logFileName)
 		fh.setLevel(logging.INFO)
-		logger.addHandler(fh)
-	ch=logging.StreamHandler(stream=sys.stdout)
-	ch.setLevel(logging.INFO)
-	ch.addFilter(LoggingFilter())
-	logger.addHandler(ch)
+		handlers=[sh,fh]
+	# redo logging.basicConfig here, to overwrite setup from any imported modules
+	logging.basicConfig(
+		level=logging.INFO,
+		datefmt='%H%M%S',
+		format='%(asctime)s [%(module)s:%(lineno)d:%(levelname)s] %(message)s',
+		handlers=handlers,
+		force=True
+	)
 
 setLogHandlers()
 
@@ -633,7 +635,7 @@ setLogHandlers()
 # and https://www.programcreek.com/python/example/1013/sys.excepthook
 def handle_exception(exc_type, exc_value, exc_traceback):
 	if not issubclass(exc_type, KeyboardInterrupt):
-		logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+		logging.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
 	sys.__excepthook__(exc_type, exc_value, exc_traceback)
 	# interesting that the program no longer exits after uncaught exceptions
 	#  if this function replaces __excepthook__.  Probably a good thing but
@@ -642,8 +644,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 # note: 'sys.excepthook = handle_exception' must be done inside main()
 
 def rprint(text):
-	logText=time.strftime("%H%M%S")+":"+str(text)
-	logger.info(logText)
+	logging.info(text)
 
 ###### LOGGING CODE END ######
 
