@@ -602,16 +602,21 @@ def getFileNameBase(root):
 ###### LOGGING CODE BEGIN ######
 
 # # do not pass ERRORs to stdout - they already show up on the screen from stderr
-# class LoggingFilter(logging.Filter):
-# 	def filter(self,record):
-# 		return record.levelno < logging.ERROR
+class LoggingFilter(logging.Filter):
+	def filter(self,record):
+		if 'stopping sync' in record.getMessage():
+			print('DISCONNECT DETECTED!')
+			w.caltopoDisconnectHandler()
+		# return record.levelno < logging.ERROR
+		return True
+		
 
 logFileLeafName=getFileNameBase('radiolog_log')+'.txt'
 
 def setLogHandlers(dir=None):
 	sh=logging.StreamHandler(sys.stdout)
 	sh.setLevel(logging.INFO)
-	# sh.addFilter(LoggingFilter())
+	sh.addFilter(LoggingFilter())
 	handlers=[sh]
 	# add a filehandler if dir is specified
 	if dir:
@@ -2694,8 +2699,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		label=self.getRadioMarkerLabelForCallsign(callsign)
 		if self.cts and self.caltopoLink>0:
 			self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
-			id=self.cts.addMarker(lat,lon,label,latestTimeString,folderId=self.radioMarkerFID,existingId=existingId)
+			try:
+				id=self.cts.addMarker(lat,lon,label,latestTimeString,folderId=self.radioMarkerFID,existingId=existingId)
+			except:
+				rprint('SRM failed; marker queued')
+			else:
+				rprint('SRM success')
 		# add or update the dict entry here, with enough detail for createSTS to add any deferred markers
+		rprint('id after try:'+str(id))
+		rprint('existingId after try:'+str(existingId))
 		self.radioMarkerDict[deviceStr]={
 			'caltopoID': id,
 			'label': label,
@@ -6824,6 +6836,37 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			self.ui.caltopoLinkIndicator.setText('')
 
+	def caltopoDisconnectHandler(self):
+		rprint('disconnect handler called')
+		# must call closeCTS, since caltopo_python doesn't have a method to close a map
+		#  connection while leaving the session open
+		self.closeCTS()
+		self.caltopoLink=-1
+		self.updateCaltopoLinkIndicator()
+		rprint('t1')
+		self.slowTimer.timeout.connect(self.caltopoAttemptReconnect)
+		# while self.caltopoLink<0:
+		# 	QTimer.singleShot(500,lambda:childDialog.throb())
+
+	def caltopoAttemptReconnect(self):
+		rprint('  attempting caltopo reconnect...')
+		try:
+			self.createCTS()
+		except:
+			return
+		parse=self.caltopoURL.replace("http://","").replace("https://","").split("/")
+		if len(parse)>1:
+			domainAndPort=parse[0]
+			mapID=parse[-1]
+		else:
+			domainAndPort='caltopo.com'
+			mapID=parse[0]
+		self.cts.openMap(mapID)
+		self.caltopoLink=self.cts.apiVersion
+		if self.cts.apiVersion==1:
+			self.slowTimer.timeout.disconnect(self.caltopoAttemptReconnect)
+			self.caltopoLink=self.cts.apiVersion
+			self.updateCaltopoLinkIndicator()
 
 class helpWindow(QDialog,Ui_Help):
 	def __init__(self, *args):
