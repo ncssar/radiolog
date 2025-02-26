@@ -6657,7 +6657,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				folderDict[folder['id']]=folder['properties']['title']
 			theList=[]
 			for map in mapList['maps']:
-				rprint('  map: '+json.dumps(map,indent=3))
+				# rprint('  map: '+json.dumps(map,indent=3))
 				mp=map['properties']
 				folderId=mp.get('folderId',None)
 				folderName='<Top Level>'
@@ -6749,6 +6749,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			# rprint('Closing previous CaltopoSession')
 			# self.closeCTS()
 			rprint('  cts is already open; returning')
+			return False
 			# self.ui.linkIndicator.setText("")
 			# self.updateLinkIndicator()
 			# self.link=-1
@@ -6759,13 +6760,14 @@ class MyWindow(QDialog,Ui_Dialog):
 								configpath=os.path.join(self.configDir,'cts.ini'),
 								account=self.caltopoAccountName)
 		self.caltopoMapListDict=self.getAllMapListsWithFolders()
-		rprint('	map lists:'+json.dumps(self.caltopoMapListDict,indent=3))
+		# rprint('	map lists:'+json.dumps(self.caltopoMapListDict,indent=3))
 		# self.caltopoAccountData=self.cts.getAccountData()
 		# rprint('	account data:'+json.dumps(self.caltopoAccountData,indent=3))
 		# self.caltopoNestedMapListDict=self.getMapListNestedByFolder(self.caltopoDefaultTeamAccount)
 		# rprint('	map list, nested by folder:'+json.dumps(self.caltopoNestedMapListDict,indent=3))
 		self.optionsDialog.ui.caltopoAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.caltopoMapListDict]))
 		self.optionsDialog.ui.caltopoAccountComboBox.setCurrentText(self.caltopoDefaultTeamAccount)
+		return True
 		# if self.optionsDialog.ui.caltopoMapURLField.text():
 		# 	u=self.optionsDialog.ui.caltopoMapURLField.text()
 		# 	if ':' in u and self.caltopoAccountName=='NONE':
@@ -6816,25 +6818,36 @@ class MyWindow(QDialog,Ui_Dialog):
 	def closeCTS(self):
 		rprint('closeCTS called')
 		if self.cts:
+			rprint(' closeCTS t1')
 			del self.cts
+			rprint(' closeCTS t2')
 			self.cts=None
 		self.caltopoLink=0
+		rprint(' closeCTS t3')
 		self.updateCaltopoLinkIndicator()
+		rprint(' closeCTS t4')
 
 	def updateCaltopoLinkIndicator(self):
-		rprint('updateCaltopoLinkIndcator called: caltopoLink='+str(self.caltopoLink))
+		rprint('updateCaltopoLinkIndicator called: caltopoLink='+str(self.caltopoLink))
 		if self.caltopoLink==1:
 			ss='background-color:#00ff00'
 		elif self.caltopoLink==-1:
 			ss='background-color:#ff0000'
 		else:
 			ss='background-color:#aaaaaa'
+		rprint('t1')
 		self.optionsDialog.ui.caltopoLinkIndicator.setStyleSheet(ss)
+		rprint('t2')
 		self.ui.caltopoLinkIndicator.setStyleSheet(ss)
+		rprint('t3')
 		if self.cts:
+			rprint('t3a')
 			self.ui.caltopoLinkIndicator.setText(self.cts.mapID)
+			rprint('t3b')
 		else:
+			rprint('t3c')
 			self.ui.caltopoLinkIndicator.setText('')
+			rprint('t3d')
 
 	def caltopoDisconnectHandler(self):
 		rprint('disconnect handler called')
@@ -6843,17 +6856,30 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.closeCTS()
 		self.caltopoLink=-1
 		self.updateCaltopoLinkIndicator()
-		rprint('t1')
+		rprint('t1 - CTS closed')
 		self.slowTimer.timeout.connect(self.caltopoAttemptReconnect)
 		# while self.caltopoLink<0:
 		# 	QTimer.singleShot(500,lambda:childDialog.throb())
 
 	def caltopoAttemptReconnect(self):
 		rprint('  attempting caltopo reconnect...')
+		r=False
 		try:
-			self.createCTS()
+			r=self.createCTS()
 		except:
+			rprint('createCTS failed with exception')
+			if self.cts:
+				del self.cts
+				self.cts=None
 			return
+		if not r:
+			rprint('createCTS failed gracefully')
+			if self.cts:
+				del self.cts
+				self.cts=None
+			return
+		# self.createCTS()
+		rprint('createCTS passed: apiVersion='+str(self.cts.apiVersion))
 		parse=self.caltopoURL.replace("http://","").replace("https://","").split("/")
 		if len(parse)>1:
 			domainAndPort=parse[0]
@@ -7202,7 +7228,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		mapList=[d for d in self.parent.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()][0]['mapList']
 		# take the first non-bookmark entry, since the list is already sorted chronologically		
 		mapsNotBookmarks=[m for m in mapList if m['type']=='map']
-		rprint('mapsNotBookmarks:'+str(json.dumps(mapsNotBookmarks,indent=3)))
+		# rprint('mapsNotBookmarks:'+str(json.dumps(mapsNotBookmarks,indent=3)))
 		folderNames=list(set([m['folderName'] for m in mapsNotBookmarks]))
 		self.ui.caltopoFolderComboBox.clear()
 		if mapsNotBookmarks:
