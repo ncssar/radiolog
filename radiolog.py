@@ -6863,6 +6863,17 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def caltopoAttemptReconnect(self):
 		rprint('  attempting caltopo reconnect...')
+		# first, try a ping - and only try to create the CTS if the ping is alive;
+		#  this avoids excessive CTS object creation which could be a memory leak
+		#  since they don't get garbage-collected (CaltopoSession.__del__ isn't called)
+		#  until a successful reconnect; the need to do this should go away when
+		#  auto-reconnect capability is added to the caltopo_python module
+		try:
+			r=requests.get('https://caltopo.com/').status_code
+		except:
+			rprint('  connection seems to still be down; createCTS not called')
+			return
+		rprint('  connection seems to be alive; calling createCTS')
 		r=False
 		try:
 			r=self.createCTS()
