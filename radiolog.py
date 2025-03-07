@@ -604,9 +604,13 @@ def getFileNameBase(root):
 # # do not pass ERRORs to stdout - they already show up on the screen from stderr
 class LoggingFilter(logging.Filter):
 	def filter(self,record):
-		if 'stopping sync' in record.getMessage():
+		msg=record.getMessage()
+		if 'stopping sync' in msg:
 			print('DISCONNECT DETECTED!')
 			w.caltopoDisconnectHandler()
+			return False # log the 'stopping sync' message, but not the long traceback
+		if 'SENDING GET to' in msg:
+			return False
 		# return record.levelno < logging.ERROR
 		return True
 		
