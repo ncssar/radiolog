@@ -323,6 +323,7 @@ import shutil
 import math
 import textwrap
 import json
+from datetime import datetime
 from collections import defaultdict
 from reportlab.lib import colors,utils
 from reportlab.lib.pagesizes import letter,landscape,portrait
@@ -613,7 +614,15 @@ class LoggingFilter(logging.Filter):
 			return False
 		# return record.levelno < logging.ERROR
 		return True
-		
+
+# only print module name if it is other than radiolog
+class LoggingFormatter(logging.Formatter):
+	def format(self,record):
+		timeStr=datetime.fromtimestamp(record.created).strftime('%H%M%S') # could be refactored for speed
+		if record.module=='radiolog':
+			return timeStr+' [%(lineno)d:%(levelname)s] %(msg)s' % record.__dict__
+		else:
+			return timeStr+' [%(module)s:%(lineno)d:%(levelname)s] %(msg)s' % record.__dict__
 
 logFileLeafName=getFileNameBase('radiolog_log')+'.txt'
 
@@ -621,12 +630,15 @@ def setLogHandlers(dir=None):
 	sh=logging.StreamHandler(sys.stdout)
 	sh.setLevel(logging.INFO)
 	sh.addFilter(LoggingFilter())
+	sh.setFormatter(LoggingFormatter())
 	handlers=[sh]
 	# add a filehandler if dir is specified
 	if dir:
 		logFileName=os.path.join(dir,logFileLeafName)
 		fh=logging.FileHandler(logFileName)
 		fh.setLevel(logging.INFO)
+		fh.addFilter(LoggingFilter())
+		fh.setFormatter(LoggingFormatter())
 		handlers=[sh,fh]
 	# redo logging.basicConfig here, to overwrite setup from any imported modules
 	logging.basicConfig(
