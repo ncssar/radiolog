@@ -2700,7 +2700,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  - lon
 
 		# self.radioMarkerDict entries must have all the info needed for createCTS to add deferred markers,
-		#  i.e. if incoming GPS data was stored before the CTS session was created for any reason
+		#  i.e. if incoming GPS data was stored before the CTS session was created, or during lost connection
 		
 		if uid:
 			deviceStr=str(uid)
@@ -2709,8 +2709,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		d=self.radioMarkerDict.get(deviceStr,None)
 		existingId=None
 		if d:
-			existingId=d.get('caltopoID',None)
+			existingId=d.get('caltopoId',None)
+		rprint('existingId:'+str(existingId))
 		id='' # initialize here so that entry can be saved before cts exists
+		newId=existingId # preserve caltopoID if already set
 		latestTimeString=time.strftime('%H:%M:%S')
 		label=self.getRadioMarkerLabelForCallsign(callsign)
 		if self.cts and self.caltopoLink>0:
@@ -2718,21 +2720,47 @@ class MyWindow(QDialog,Ui_Dialog):
 			try:
 				id=self.cts.addMarker(lat,lon,label,latestTimeString,folderId=self.radioMarkerFID,existingId=existingId)
 			except:
-				rprint('SRM failed; marker queued')
-			else:
-				rprint('SRM success')
+				pass
 		# add or update the dict entry here, with enough detail for createSTS to add any deferred markers
-		rprint('id after try:'+str(id))
-		rprint('existingId after try:'+str(existingId))
+		if id:
+			rprint('  marker sent successfully')
+			if not existingId:
+				newId=id # only set caltopoId if this is the first successful request
+		else:
+			rprint('  marker was not sent; queued for later')
 		self.radioMarkerDict[deviceStr]={
-			'caltopoID': id,
+			'caltopoId': newId, # only set caltopoId if this is the first successful request
+			'lastId': id,  # changed on every request: '' = fail on last attempt, real ID = success on last attempt
 			'label': label,
 			'latestTimeString': latestTimeString,
 			'lat': lat,
 			'lon': lon
 		}
-		# rprint(json.dumps(self.radioMarkerDict,indent=3))
-			
+		rprint(json.dumps(self.radioMarkerDict,indent=3))
+	
+	def sendQueuedRadioMarkers(self):
+		rprint('sendQueuedRadioMarkers called')
+		attempted=None
+		for (deviceStr,d) in self.radioMarkerDict.items():
+			if not d['lastId']:
+				attempted=True
+				label=d['label']
+				id=''
+				existingId=d['caltopoId']
+				rprint('attempting to add/update queued radio marker "'+label+'" for device "'+deviceStr+'"...')
+				try:
+					id=self.cts.addMarker(d['lat'],d['lon'],label,d['latestTimeString'],folderId=self.radioMarkerFID,existingId=existingId)
+				except:
+					rprint('  failed.  The request is still queued.')
+				else:
+					rprint('  success.')
+				self.radioMarkerDict[deviceStr]['lastId']=id # still queued if this try didn't work
+				if id and not existingId: # this was the first successful attempt; set caltopoId
+					self.radioMarkerDict[deviceStr]['caltopoId']=id
+		rprint(json.dumps(self.radioMarkerDict,indent=3))
+		if not attempted:
+			rprint('  all markers already up to date; no queued markers to process')
+
 	# for fsLog, a dictionary would probably be easier, but we have to use an array
 	#  since we will be displaying in a QTableView
 	# if callsign is specified, update the callsign but not the time;
@@ -6920,6 +6948,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.slowTimer.timeout.disconnect(self.caltopoAttemptReconnect)
 			self.caltopoLink=self.cts.apiVersion
 			self.updateCaltopoLinkIndicator()
+			self.sendQueuedRadioMarkers()
 
 class helpWindow(QDialog,Ui_Help):
 	def __init__(self, *args):
@@ -7338,12 +7367,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.ui.caltopoConnectButton.setText('Click to Disconnect')
 			self.parent.radioMarkerFID=self.parent.getOrCreateRadioMarkerFID()
 			# add deferred markers (GPS calls that came in before CTS was created)
-			for (deviceStr,d) in self.parent.radioMarkerDict.items():
-				if not d['caltopoID']:
-					label=d['label']
-					rprint('adding deferred marker "'+label+'" for device "'+deviceStr+'"')
-					id=self.parent.cts.addMarker(d['lat'],d['lon'],label,d['latestTimeString'],folderId=self.parent.radioMarkerFID)
-					self.parent.radioMarkerDict[deviceStr]['caltopoID']=id
+			self.parent.sendQueuedRadioMarkers()
 
 
 # find dialog/completer/popup structure:
