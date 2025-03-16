@@ -2740,7 +2740,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	
 	def sendQueuedRadioMarkers(self):
 		rprint('sendQueuedRadioMarkers called')
-		attempted=None
+		attempted=False
 		for (deviceStr,d) in self.radioMarkerDict.items():
 			if not d['lastId']:
 				attempted=True
@@ -10240,12 +10240,22 @@ class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
 		# 598 - if a redio locator marker was already created with the same device ID,
 		#  change that marker's label now (rather than waiting for parent to be accepted)
 		existingMarker=self.parent.parent.radioMarkerDict.get(deviceStr,None)
-		existingMarkerID=None
+		existingMarkerId=None
 		if existingMarker:
-			existingMarkerID=existingMarker.get('caltopoID',None)
-			existingMarker['label']=self.parent.parent.getRadioMarkerLabelForCallsign(newCallsign)
-		if existingMarkerID:
-			self.parent.parent.cts.editFeature(id=existingMarkerID,properties={'title':self.parent.parent.getRadioMarkerLabelForCallsign(newCallsign)})
+			newLabel=self.parent.parent.getRadioMarkerLabelForCallsign(newCallsign)
+			rprint('  changing radio marker label from '+str(existingMarker.get('label',None))+' to '+str(newLabel))
+			existingMarkerId=existingMarker.get('caltopoId',None)
+			existingMarker['label']=newLabel
+		if existingMarkerId:
+			rprint('  marker was already drawn; changing label on the map')
+			id=None
+			try:
+				id=self.parent.parent.cts.editFeature(id=existingMarkerId,properties={'title':self.parent.parent.getRadioMarkerLabelForCallsign(newCallsign)})
+			except:
+				rprint('    marker request failed; queued for later')
+			existingMarker['lastId']=id # if None, this will queue it
+		else:
+			rprint('  marker has not yet been drawn; request queued')
 		rprint("New callsign pairing created: fleet="+str(fleet)+"  dev="+str(dev)+"  uid="+str(uid)+"  callsign="+newCallsign)
 		self.closeEvent(QEvent(QEvent.Close),True)
 		super(changeCallsignDialog,self).accept()
