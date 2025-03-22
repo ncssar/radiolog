@@ -607,9 +607,11 @@ class LoggingFilter(logging.Filter):
 	def filter(self,record):
 		msg=record.getMessage()
 		if 'stopping sync' in msg:
+			# why does this get called a second time when there's only one 'stopping sync' log line?? 
 			print('DISCONNECT DETECTED!')
 			w.caltopoDisconnectHandler()
 			return False # log the 'stopping sync' message, but not the long traceback
+			# return True # log the entire traceback for debug purposes
 		if 'SENDING GET to' in msg:
 			return False
 		# return record.levelno < logging.ERROR
@@ -617,12 +619,28 @@ class LoggingFilter(logging.Filter):
 
 # only print module name if it is other than radiolog
 class LoggingFormatter(logging.Formatter):
+	# overriding formatException as in the logging cookbook causes tracebacks to be logged to file
+	#  with \n printed as text, instead of newlines
+	# def formatException(self,exc_info):
+	# 	result=super().formatException(exc_info)
+	# 	return repr(result)
+	
 	def format(self,record):
-		timeStr=datetime.fromtimestamp(record.created).strftime('%H%M%S') # could be refactored for speed
+		s=super().format(record)
 		if record.module=='radiolog':
-			return timeStr+' [%(lineno)d:%(levelname)s] %(msg)s' % record.__dict__
-		else:
-			return timeStr+' [%(module)s:%(lineno)d:%(levelname)s] %(msg)s' % record.__dict__
+			s=s.replace('[radiolog:','[')
+		return s
+
+	# def format(self,record):
+	#   returning the entire formatted string built from the dictionary here seems to suppress tracebacks
+	#     in the log file; calling the super format method preserves the traceback in the log file
+	# 	print('LoggingFormatter called with record:'+str(json.dumps(record.__dict__,indent=3)))
+	# 	print('  end LoggingFormatter')
+	# 	timeStr=datetime.fromtimestamp(record.created).strftime('%H%M%S') # could be refactored for speed
+	# 	if record.module=='radiolog':
+	# 		return timeStr+' [%(lineno)d:%(levelname)s] %(msg)s%(exc_text)s' % record.__dict__
+	# 	else:
+	# 		return timeStr+' [%(module)s:%(lineno)d:%(levelname)s] %(msg)s' % record.__dict__
 
 logFileLeafName=getFileNameBase('radiolog_log')+'.txt'
 
@@ -630,7 +648,7 @@ def setLogHandlers(dir=None):
 	sh=logging.StreamHandler(sys.stdout)
 	sh.setLevel(logging.INFO)
 	sh.addFilter(LoggingFilter())
-	sh.setFormatter(LoggingFormatter())
+	sh.setFormatter(LoggingFormatter('%(asctime)s [%(module)s:%(lineno)d:%(levelname)s] %(message)s','%H%M%S'))
 	handlers=[sh]
 	# add a filehandler if dir is specified
 	if dir:
@@ -638,7 +656,7 @@ def setLogHandlers(dir=None):
 		fh=logging.FileHandler(logFileName)
 		fh.setLevel(logging.INFO)
 		fh.addFilter(LoggingFilter())
-		fh.setFormatter(LoggingFormatter())
+		fh.setFormatter(LoggingFormatter('%(asctime)s [%(module)s:%(lineno)d:%(levelname)s] %(message)s','%H%M%S'))
 		handlers=[sh,fh]
 	# redo logging.basicConfig here, to overwrite setup from any imported modules
 	logging.basicConfig(
@@ -4444,6 +4462,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		rcFile.close()
 
 	def checkForResize(self):
+		# rprint('dir:'+str(dir(self)))
+		# rprint('CaltopoSession instance count:'+str(len([i for i in dir(self) if isinstance(eval(i),CaltopoSession)])))
 		# this is probably cleaner, lighter, and more robust than using resizeEvent
 		(x,y,w,h)=self.geometry().getRect()
 		if x!=self.x or y!=self.y or w!=self.w or h!=self.h:
@@ -6902,6 +6922,9 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def caltopoDisconnectHandler(self):
 		rprint('disconnect handler called')
+		if self.caltopoLink<1:
+			rprint('  caltopo disconnect already processed; returning')
+			return
 		# must call closeCTS, since caltopo_python doesn't have a method to close a map
 		#  connection while leaving the session open
 		self.closeCTS()
@@ -6914,6 +6937,8 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def caltopoAttemptReconnect(self):
 		rprint('  attempting caltopo reconnect...')
+		if self.caltopoLink>0:
+			rprint('    already connected; returning')
 		# first, try a ping - and only try to create the CTS if the ping is alive;
 		#  this avoids excessive CTS object creation which could be a memory leak
 		#  since they don't get garbage-collected (CaltopoSession.__del__ isn't called)
@@ -6929,19 +6954,19 @@ class MyWindow(QDialog,Ui_Dialog):
 		try:
 			r=self.createCTS()
 		except:
-			rprint('createCTS failed with exception')
+			rprint('    createCTS failed with exception')
 			if self.cts:
 				del self.cts
 				self.cts=None
 			return
 		if not r:
-			rprint('createCTS failed gracefully')
+			rprint('    createCTS failed gracefully')
 			if self.cts:
 				del self.cts
 				self.cts=None
 			return
 		# self.createCTS()
-		rprint('createCTS passed: apiVersion='+str(self.cts.apiVersion))
+		rprint('    createCTS passed: apiVersion='+str(self.cts.apiVersion))
 		parse=self.caltopoURL.replace("http://","").replace("https://","").split("/")
 		if len(parse)>1:
 			domainAndPort=parse[0]
@@ -6949,13 +6974,17 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			domainAndPort='caltopo.com'
 			mapID=parse[0]
+		rprint('    attempting reconnect to map '+str(mapID))
 		self.cts.openMap(mapID)
 		self.caltopoLink=self.cts.apiVersion
 		if self.cts.apiVersion==1:
+			rprint('      reconnected.')
 			self.slowTimer.timeout.disconnect(self.caltopoAttemptReconnect)
 			self.caltopoLink=self.cts.apiVersion
 			self.updateCaltopoLinkIndicator()
 			self.sendQueuedRadioMarkers()
+		else:
+			rprint('      reconnect failed; attempts will continue; apiVersion='+str(self.cts.apiVersion))
 
 class helpWindow(QDialog,Ui_Help):
 	def __init__(self, *args):
