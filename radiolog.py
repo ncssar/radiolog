@@ -302,6 +302,49 @@
 # #############################################################################
 # #############################################################################
 
+#  Threading - used for Caltopo operations that make http requests, to ensure
+#    any related lag doesn't affect the rest of the radiolog functionality.
+#   NOTE: to prevent crashes and allow Qt GUI integration, QThread is used here
+#     instead of the built-in threading module. Slots and signals from
+#     workers in the QThread are used to trigger GUI changes.  **Changing the
+#     GUI directly from within a threaded worker is known to cause crashes
+#     and was probably the cause of silent crashes (#776).
+#
+#  Class CaltopoWorker contains most of the Caltopo functionality:
+#     - threaded worker methods
+#     - cts object (an instance of CaltopoSession)
+#  
+#  caltopoThread is an instance of QThread.  It is setup in .setupCaltopoThread
+#     along with connections from threaded worker signals to main-thread slots
+#     that modify the GUI.
+
+#  Once started, caltopoThread will stay open until radiolog exits.  This
+#    is inherent behavior of QThreads: they are effectively 'daemon' threads
+#    though QThread has no 'daemon' flag.  To leave a QThread open, just
+#    don't call its quit or deleteLater methods.
+
+#  This allows all caltopo-related functionality to be called by sending a
+#    signal from the main thread.
+
+#  1 - createCTS (initial mapless session, and during automatic reconnect)
+#        - callback: success, with account data
+#        - callback: failure / timeout
+#  2 - openMap (initial connect, and automatic reconnect)
+#        - callback: map opened successfully, with initial sync data
+#        - callback: map open failure / timeout
+#        - connect CTS callbacks to main thread handlers
+#  3 - sendRadioMarker
+#        - callback: marker added / updated successfully
+#        - callback: add/update failure / timeout
+#
+#  how about addFolder?  This is done inside openMap
+# 
+#  Generally, to convert a main-thread function into a multithreaded
+#    function: turn the part up to and including any potential source
+#    of lag into 'function A' and turn everything after that into
+#    'function B'.  Run A is a separate thread, and run B in the main
+#    thread as a callback of A.
+
 import functools
 import sys
 import logging
@@ -612,8 +655,8 @@ class LoggingFilter(logging.Filter):
 			w.caltopoDisconnectHandler()
 			return False # log the 'stopping sync' message, but not the long traceback
 			# return True # log the entire traceback for debug purposes
-		if 'SENDING GET to' in msg:
-			return False
+		# if 'SENDING GET to' in msg: # commented out to help debug silent crashes
+		# 	return False
 		# return record.levelno < logging.ERROR
 		return True
 
@@ -779,6 +822,330 @@ globalStyleSheet="""
 				font-size:14pt;
 			}
 		"""
+
+# class CaltopoConnectWorker(QObject):
+# 	task_finished=pyqtSignal(object)
+	
+	# @pyqtSlot(object)
+	# def caltopoConnectTask(self):
+	# 	self.task_finished.emit(result)
+
+	# @pyqtSlot(object)
+
+
+class CaltopoWorker(QObject):
+	finished=pyqtSignal()
+	linkChanged=pyqtSignal()
+	accountDataChanged=pyqtSignal()
+
+	def __init__(self,parent):
+		QObject.__init__(self)
+		self.parent=parent
+		self.cts=None
+		self.caltopoLink=0
+
+	######################################
+	## START caltopo_python local rewrites
+	######################################
+	# compare these two functions to those in caltopo_python 1.0.0 with 'WithFolders' removed from the names;
+	# caltopo_python 1.0.0 returns flat lists of maps, regardless of folder;
+	#  since the radiolog options dialog displays a separate combobox for folders,
+	#  the nested map list data structure will work much better;
+	#  these two functions could be candidates for inclusion in caltopo_python.
+	# update: it's easy enough for the options dialog callbacks to produce separate lists per folder
+	#  based on the same flat lists returned here; we just need to make sure folderName is part of each entry
+	
+	def getMapListWithFolders(self,groupAccountTitle: str='',includeBookmarks=True,refresh=False,titlesOnly=False) -> list:
+		if refresh or not self.cts.accountData:
+			self.cts.getAccountData()
+		mapLists=[]
+		rval=[]
+		if groupAccountTitle:
+			groupAccountIds=[x['id'] for x in self.cts.groupAccounts if x['properties']['title']==groupAccountTitle]
+			if type(groupAccountIds)==list:
+				if len(groupAccountIds)==0:
+					logging.warning('attempt to get map list for group account "'+groupAccountTitle+'", but the signed-in user is not a member of that group account; returning an empty map list.')
+					return []
+				elif len(groupAccountIds)>1:
+					logging.warning('the signed-in user is a member of more than one group account with the requested name "'+groupAccountTitle+'"; returning an empty list.')
+					return []
+			else:
+				logging.warning('groupAccountIds was not a list; returning an empty list.')
+				return []
+			gid=groupAccountIds[0]
+			folders=[f for f in self.cts.accountData['features']
+				if 'properties' in f.keys()
+				and f['properties'].get('class','')=='UserFolder'
+				and f['properties'].get('accountId','')==gid]
+			maps=[f for f in self.cts.accountData['features']
+					if 'properties' in f.keys()
+					and f['properties'].get('class','')=='CollaborativeMap'
+					and f['properties'].get('accountId','')==gid]
+			mapLists.append({'id':gid,'title':groupAccountTitle,'maps':maps,'folders':folders})
+		else: # personal maps; allow for the possibility of multiple personal accounts
+			if len(self.cts.personalAccounts)>1:
+				logging.info('The currently-signed-in user has more than one personal account; the return value will be a netsted list.')
+			for personalAccount in self.cts.personalAccounts:
+				pid=personalAccount['id']
+				folders=[f for f in self.cts.accountData['features']
+					if 'properties' in f.keys()
+					and f['properties'].get('class','')=='UserFolder'
+					and f['properties'].get('accountId','')==gid]
+				maps=[f for f in self.cts.accountData['features']
+						if 'properties' in f.keys()
+						and f['properties'].get('class','')=='CollaborativeMap'
+						and f['properties'].get('accountId','')==pid]
+				mapLists.append({'id':pid,'title':[x['properties']['title'] for x in self.cts.accountData['accounts'] if x['id']==pid][0],'maps':maps,'folders':folders})
+		# at this point, each map in each mapList includes folderId;
+		#  we need to make sure folderId is preserved in each map as returned by this function
+		#  and also mapped to the folderName
+		for mapList in mapLists:
+			folderDict={}
+			for folder in mapList['folders']:
+				folderDict[folder['id']]=folder['properties']['title']
+			theList=[]
+			for map in mapList['maps']:
+				# rprint('  map: '+json.dumps(map,indent=3))
+				mp=map['properties']
+				folderId=mp.get('folderId',None)
+				folderName='<Top Level>'
+				if folderId:
+					folderName=folderDict[folderId]
+				md={
+					'id':map['id'],
+					'title':mp['title'],
+					'updated':mp['updated'],
+					'type':'map',
+					'folderId':folderId,
+					'folderName':folderName
+				}
+				if md not in theList:
+					theList.append(md)
+			if includeBookmarks:
+				bookmarks=[rel for rel in self.cts.accountData['rels']
+						if 'properties' in rel.keys()
+						and rel['properties'].get('class','')=='UserAccountMapRel'
+						and rel['properties'].get('accountId','')==mapList['id']]
+				for bookmark in bookmarks:
+					bp=bookmark['properties']
+					# testing on bookmarks from various QR codes shows that 'type'
+					#  corresponds to permission: 10=read, 16=update, 20=write
+					t=bp.get('type',0)
+					if t==10:
+						permission='read'
+					elif t==16:
+						permission='update'
+					elif t==20:
+						permission='write'
+					else:
+						permission='unknown'
+					folderId=mp.get('folderId',None)
+					folderName='<Top Level>'
+					if folderId:
+						folderName=folderDict[folderId]
+					bd={
+						'id':bp['mapId'],
+						'title':bp['title'],
+						'updated':bp['mapUpdated'],
+						'type':'bookmark',
+						'permission':permission,
+						'folderId':folderId,
+						'folderName':folderName
+					}
+					if bd not in theList:
+						theList.append(bd)
+			# chronological sort by update timestamp
+			theList.sort(key=lambda x: x['updated'],reverse=True)
+			if titlesOnly:
+				rval.append([x['title'] for x in theList])
+			else:
+				rval.append(theList)
+		# if there's only one map list, return it as one list; otherwise return a nested list
+		if len(rval)==1:
+			rval=rval[0]
+		return rval
+
+	def getAllMapListsWithFolders(self,includePersonal=False,includeBookmarks=True,refresh=False,titlesOnly=False) -> list:
+		if refresh or not self.cts.accountData:
+			self.cts.getAccountData()
+		theList=[]
+		if includePersonal:
+			personalRval=self.getMapListWithFolders(includeBookmarks=includeBookmarks,refresh=False,titlesOnly=titlesOnly)
+			# logging.info('personalRval:'+json.dumps(personalRval,indent=3))
+			if type(personalRval[0])==dict: # not nested; a list of dicts
+				theList.append({'personalAccountTitle':self.cts.personalAccounts[0]['properties']['title'],'mapList':personalRval})
+			else: # nested; multiple personal accounts; a list of lists dicts
+				n=0 # index to self.personalAccounts; this assumes the sequence will be the same
+				for personalAcct in personalRval:
+					theList.append({'personalAccountTitle':self.cts.personalAccounts[n]['properties']['title'],'mapList':personalAcct})
+					n+=1
+		for gat in [x['properties']['title'] for x in self.cts.groupAccounts]:
+			mapList=self.getMapListWithFolders(gat,includeBookmarks=includeBookmarks,refresh=False,titlesOnly=titlesOnly)
+			theList.append({'groupAccountTitle':gat,'mapList':mapList})
+		return theList
+
+	#####################################
+	##  END caltopo_python local rewrites
+	#####################################
+
+	# _ (underscore) prefix indicates a threaded worker method
+	#  that should only be called as a slot, connected with a signal
+	#  from the main thread.  Those connections are made in
+	#  MainWindow.setupCaltopoThread
+
+	def _createCTS(self):
+		rprint('_createCTS called. sleeping...')
+		time.sleep(5)
+		# self.linkChanged.emit('linked')
+		# self.finished.emit()
+
+		# open a mapless caltopo.com session first, to get the list of maps; if URL is
+		#  already specified before the first createCTS call, then openMap will
+		#  be called after the mapless session is openend
+		# rprint('createCTS called:')
+		if self.cts is not None: # close out any previous session
+			# rprint('Closing previous CaltopoSession')
+			# self.closeCTS()
+			rprint('  cts is already open; returning')
+			return False
+			# self.ui.linkIndicator.setText("")
+			# self.updateLinkIndicator()
+			# self.link=-1
+			# self.updateFeatureList("Folder")
+			# self.updateFeatureList("Marker")
+		rprint('  creating mapless online session for user '+self.parent.caltopoAccountName)
+		self.cts=CaltopoSession(domainAndPort='caltopo.com',
+								configpath=os.path.join(self.parent.configDir,'cts.ini'),
+								account=self.parent.caltopoAccountName)
+		self.caltopoMapListDict=self.getAllMapListsWithFolders()
+		# rprint('	map lists:'+json.dumps(self.caltopoMapListDict,indent=3))
+		# self.caltopoAccountData=self.cts.getAccountData()
+		# rprint('	account data:'+json.dumps(self.caltopoAccountData,indent=3))
+		# self.caltopoNestedMapListDict=self.getMapListNestedByFolder(self.caltopoDefaultTeamAccount)
+		# rprint('	map list, nested by folder:'+json.dumps(self.caltopoNestedMapListDict,indent=3))
+		# self.parent.optionsDialog.ui.caltopoAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.caltopoMapListDict]))
+		# self.parent.optionsDialog.ui.caltopoAccountComboBox.setCurrentText(self.parent.caltopoDefaultTeamAccount)
+		self.caltopoLink=1
+		self.accountDataChanged.emit()
+		self.linkChanged.emit() # mapless
+		self.finished.emit()
+		return True
+		# if self.parent.optionsDialog.ui.caltopoMapURLField.text():
+		# 	u=self.parent.optionsDialog.ui.caltopoMapURLField.text()
+		# 	if ':' in u and self.caltopoAccountName=='NONE':
+		# 		rprint('ERROR: caltopoAccountName was not specified in config file')
+		# 		return
+		# 	if u==self.caltopoURL and self.cts: # url has not changed; keep the existing link and folder list
+		# 		return
+		# 	self.caltopoURL=u
+		# 	if self.caltopoURL.endswith("#"): # pound sign at end of URL causes crash; brute force fix it here
+		# 		self.caltopoURL=self.caltopoURL[:-1]
+		# 		self.optionsDialog.ui.caltopoMapURLField.setText(self.caltopoURL)
+		# 	parse=self.caltopoURL.replace("http://","").replace("https://","").split("/")
+		# 	if len(parse)>1:
+		# 		domainAndPort=parse[0]
+		# 		mapID=parse[-1]
+		# 	else:
+		# 		domainAndPort='caltopo.com'
+		# 		mapID=parse[0]
+		# 	print("calling CaltopoSession with domainAndPort="+domainAndPort+" mapID="+mapID)
+		# 	if 'caltopo.com' in domainAndPort.lower():
+		# 		print("  creating online session for user "+self.caltopoAccountName)
+		# 		self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,
+		# 								configpath=os.path.join(self.configDir,'cts.ini'),
+		# 								# sync=False,syncTimeout=0.001,
+		# 								account=self.caltopoAccountName)
+		# 	else:
+		# 		self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID)
+		# 		# self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,sync=False,syncTimeout=0.001)
+		# 	self.caltopoLink=self.cts.apiVersion
+		# 	print("link status:"+str(self.caltopoLink))
+		# 	self.updateCaltopoLinkIndicator()
+		# 	# self.updateLinkIndicator()
+		# 	# if self.link>0:
+		# 	# 	self.ui.linkIndicator.setText(self.cts.mapID)
+		# 	# 	self.updateFeatureList("Folder")
+		# 	# self.optionsDialog.ui.folderComboBox.setHeader("Select a Folder...")
+		# 	# if the session is good, process any deferred radio markers
+		# 	if self.cts and self.caltopoLink>0:
+		# 		self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
+		# 		# add deferred markers (GPS calls that came in before CTS was created)
+		# 		for (deviceStr,d) in self.radioMarkerDict.items():
+		# 			if not d['caltopoID']:
+		# 				label=d['label']
+		# 				rprint('adding deferred marker "'+label+'" for device "'+deviceStr+'"')
+		# 				id=self.cts.addMarker(d['lat'],d['lon'],label,d['latestTimeString'],folderId=self.radioMarkerFID)
+		# 				self.radioMarkerDict[deviceStr]['caltopoID']=id
+	
+	def _closeCTS(self):
+		rprint('_closeCTS called. sleeping...')
+		time.sleep(5)
+		self.linkChanged.emit(0)
+		self.finished.emit()
+
+	def _openMap(self,mapID):
+		rprint('_openMap called. sleeping...')
+		time.sleep(5)
+		self.cts.openMap(mapID)
+		self.caltopoLink=2
+		self.linkChanged.emit()
+		self.finished.emit()
+
+	def _sendMarker(self):
+		rprint('_sendMarker called. sleeping...')
+		time.sleep(5)
+		# self.linkChanged.emit('marker sent')
+		self.finished.emit()
+
+	def _attemptReconnect(self):
+		pass
+
+	def _connectButtonClickedThread(self):
+		rprint('connect thread started')
+		u=self.ui.caltopoMapURLField.text()
+		if self.parent.caltopoLink!=0 and self.parent.cts and self.parent.cts.mapID:
+			rprint('  disconnecting')
+			self.parent.closeCTS()
+			# need to open a new CTS as long as the group box is enabled
+			rprint('  opening new mapless session')
+			self.parent.createCTS()
+			rprint('  new mapless session opened')
+			# self.ui.caltopoConnectButton.setText('Click to Connect')
+			# self.ui.caltopoConnectButton.setEnabled(True)
+			# self._caltopoConnectButtonClickedCB()
+			return
+		# time.sleep(5) # test sleep to check responsiveness in main thread
+		if ':' in u and self.parent.caltopoAccountName=='NONE':
+			rprint('ERROR: caltopoAccountName was not specified in config file')
+			# self._caltopoConnectButtonClickedCB()
+			return
+		# if u==self.parent.caltopoURL and self.parent.cts: # url has not changed; keep the existing link and folder list
+		# 	return
+		self.parent.caltopoURL=u
+		if self.parent.caltopoURL.endswith("#"): # pound sign at end of URL causes crash; brute force fix it here
+			self.parent.caltopoURL=self.parent.caltopoURL[:-1]
+			self.ui.caltopoMapURLField.setText(self.parent.caltopoURL)
+		parse=self.parent.caltopoURL.replace("http://","").replace("https://","").split("/")
+		if len(parse)>1:
+			domainAndPort=parse[0]
+			mapID=parse[-1]
+		else:
+			domainAndPort='caltopo.com'
+			mapID=parse[0]
+		# 	print("calling CaltopoSession with domainAndPort="+domainAndPort+" mapID="+mapID)
+		# 	if 'caltopo.com' in domainAndPort.lower():
+		# 		print("  creating online session for user "+self.caltopoAccountName)
+		# 		self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,
+		# 								configpath=os.path.join(self.configDir,'cts.ini'),
+		# 								# sync=False,syncTimeout=0.001,
+		# 								account=self.caltopoAccountName)
+		# 	else:
+		# 		self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID)
+		# 		# self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,sync=False,syncTimeout=0.001)
+		self.parent.cts.openMap(mapID)
+		# self._caltopoConnectButtonClickedCB()
+
+
 
 class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
@@ -946,6 +1313,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.teamTabsMoreButton.setVisible(False)
 		self.ui.teamTabsMoreButton.setGeometry(1,1,30,35)
 		from PyQt5 import QtGui
+		# from PyQt5.QtCore import QObject, QThread, pyqtSignal, pyqtSlot
 		self.teamTabsMoreButtonIcon = QIcon()
 		self.blankIcon=QIcon()
 		self.teamTabsMoreButtonIcon.addPixmap(QPixmap(":/radiolog_ui/icons/3dots.png"), QIcon.Normal, QIcon.Off)
@@ -1428,6 +1796,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
 		self.showTeamTabsMoreButtonIfNeeded()
+
+		self.setupCaltopoThread()
 
 	def clearSelectionAllTables(self):
 		self.ui.tableView.setCurrentIndex(QModelIndex())
@@ -6667,178 +7037,90 @@ class MyWindow(QDialog,Ui_Dialog):
 			fid=self.cts.addFolder('Radios')
 		return fid
 
-######################################
-## START caltopo_python local rewrites
-######################################
-# compare these two functions to those in caltopo_python 1.0.0 with 'WithFolders' removed from the names;
-# caltopo_python 1.0.0 returns flat lists of maps, regardless of folder;
-#  since the radiolog options dialog displays a separate combobox for folders,
-#  the nested map list data structure will work much better;
-#  these two functions could be candidates for inclusion in caltopo_python.
-# update: it's easy enough for the options dialog callbacks to produce separate lists per folder
-#  based on the same flat lists returned here; we just need to make sure folderName is part of each entry
+	_sig_createCTS=pyqtSignal()
+	_sig_closeCTS=pyqtSignal()
+	_sig_openMap=pyqtSignal(str)
+	_sig_sendMarker=pyqtSignal()
 	
-	def getMapListWithFolders(self,groupAccountTitle: str='',includeBookmarks=True,refresh=False,titlesOnly=False) -> list:
-		if refresh or not self.cts.accountData:
-			self.cts.getAccountData()
-		mapLists=[]
-		rval=[]
-		if groupAccountTitle:
-			groupAccountIds=[x['id'] for x in self.cts.groupAccounts if x['properties']['title']==groupAccountTitle]
-			if type(groupAccountIds)==list:
-				if len(groupAccountIds)==0:
-					logging.warning('attempt to get map list for group account "'+groupAccountTitle+'", but the signed-in user is not a member of that group account; returning an empty map list.')
-					return []
-				elif len(groupAccountIds)>1:
-					logging.warning('the signed-in user is a member of more than one group account with the requested name "'+groupAccountTitle+'"; returning an empty list.')
-					return []
-			else:
-				logging.warning('groupAccountIds was not a list; returning an empty list.')
-				return []
-			gid=groupAccountIds[0]
-			folders=[f for f in self.cts.accountData['features']
-				if 'properties' in f.keys()
-				and f['properties'].get('class','')=='UserFolder'
-				and f['properties'].get('accountId','')==gid]
-			maps=[f for f in self.cts.accountData['features']
-					if 'properties' in f.keys()
-					and f['properties'].get('class','')=='CollaborativeMap'
-					and f['properties'].get('accountId','')==gid]
-			mapLists.append({'id':gid,'title':groupAccountTitle,'maps':maps,'folders':folders})
-		else: # personal maps; allow for the possibility of multiple personal accounts
-			if len(self.cts.personalAccounts)>1:
-				logging.info('The currently-signed-in user has more than one personal account; the return value will be a netsted list.')
-			for personalAccount in self.cts.personalAccounts:
-				pid=personalAccount['id']
-				folders=[f for f in self.cts.accountData['features']
-					if 'properties' in f.keys()
-					and f['properties'].get('class','')=='UserFolder'
-					and f['properties'].get('accountId','')==gid]
-				maps=[f for f in self.cts.accountData['features']
-						if 'properties' in f.keys()
-						and f['properties'].get('class','')=='CollaborativeMap'
-						and f['properties'].get('accountId','')==pid]
-				mapLists.append({'id':pid,'title':[x['properties']['title'] for x in self.cts.accountData['accounts'] if x['id']==pid][0],'maps':maps,'folders':folders})
-		# at this point, each map in each mapList includes folderId;
-		#  we need to make sure folderId is preserved in each map as returned by this function
-		#  and also mapped to the folderName
-		for mapList in mapLists:
-			folderDict={}
-			for folder in mapList['folders']:
-				folderDict[folder['id']]=folder['properties']['title']
-			theList=[]
-			for map in mapList['maps']:
-				# rprint('  map: '+json.dumps(map,indent=3))
-				mp=map['properties']
-				folderId=mp.get('folderId',None)
-				folderName='<Top Level>'
-				if folderId:
-					folderName=folderDict[folderId]
-				md={
-					'id':map['id'],
-					'title':mp['title'],
-					'updated':mp['updated'],
-					'type':'map',
-					'folderId':folderId,
-					'folderName':folderName
-				}
-				if md not in theList:
-					theList.append(md)
-			if includeBookmarks:
-				bookmarks=[rel for rel in self.cts.accountData['rels']
-						if 'properties' in rel.keys()
-						and rel['properties'].get('class','')=='UserAccountMapRel'
-						and rel['properties'].get('accountId','')==mapList['id']]
-				for bookmark in bookmarks:
-					bp=bookmark['properties']
-					# testing on bookmarks from various QR codes shows that 'type'
-					#  corresponds to permission: 10=read, 16=update, 20=write
-					t=bp.get('type',0)
-					if t==10:
-						permission='read'
-					elif t==16:
-						permission='update'
-					elif t==20:
-						permission='write'
-					else:
-						permission='unknown'
-					folderId=mp.get('folderId',None)
-					folderName='<Top Level>'
-					if folderId:
-						folderName=folderDict[folderId]
-					bd={
-						'id':bp['mapId'],
-						'title':bp['title'],
-						'updated':bp['mapUpdated'],
-						'type':'bookmark',
-						'permission':permission,
-						'folderId':folderId,
-						'folderName':folderName
-					}
-					if bd not in theList:
-						theList.append(bd)
-			# chronological sort by update timestamp
-			theList.sort(key=lambda x: x['updated'],reverse=True)
-			if titlesOnly:
-				rval.append([x['title'] for x in theList])
-			else:
-				rval.append(theList)
-		# if there's only one map list, return it as one list; otherwise return a nested list
-		if len(rval)==1:
-			rval=rval[0]
-		return rval
+	def setupCaltopoThread(self):
+		self.caltopoThread=QThread()
+		self.caltopoWorker=CaltopoWorker(self)
+		self.caltopoWorker.moveToThread(self.caltopoThread)
 
-	def getAllMapListsWithFolders(self,includePersonal=False,includeBookmarks=True,refresh=False,titlesOnly=False) -> list:
-		if refresh or not self.cts.accountData:
-			self.cts.getAccountData()
-		theList=[]
-		if includePersonal:
-			personalRval=self.getMapListWithFolders(includeBookmarks=includeBookmarks,refresh=False,titlesOnly=titlesOnly)
-			# logging.info('personalRval:'+json.dumps(personalRval,indent=3))
-			if type(personalRval[0])==dict: # not nested; a list of dicts
-				theList.append({'personalAccountTitle':self.cts.personalAccounts[0]['properties']['title'],'mapList':personalRval})
-			else: # nested; multiple personal accounts; a list of lists dicts
-				n=0 # index to self.personalAccounts; this assumes the sequence will be the same
-				for personalAcct in personalRval:
-					theList.append({'personalAccountTitle':self.cts.personalAccounts[n]['properties']['title'],'mapList':personalAcct})
-					n+=1
-		for gat in [x['properties']['title'] for x in self.cts.groupAccounts]:
-			mapList=self.getMapListWithFolders(gat,includeBookmarks=includeBookmarks,refresh=False,titlesOnly=titlesOnly)
-			theList.append({'groupAccountTitle':gat,'mapList':mapList})
-		return theList
+		# handle incoming thread started/finished signals
+		self.caltopoThread.started.connect(lambda: rprint('caltopo thread started'))
+		self.caltopoThread.finished.connect(lambda: rprint('caltopo thread finished'))
+		# self.caltopoWorker.finished.connect(self.CaltopoThread.quit)
+		# self.caltopoWorker.finished.connect(self.CaltopoWorker.deleteLater)
+		self.caltopoThread.finished.connect(self.caltopoThread.deleteLater)
 
-#####################################
-##  END caltopo_python local rewrites
-#####################################
+		# handle incoming signals from threaded workers
+		self.caltopoWorker.linkChanged.connect(self.updateCaltopoLinkIndicator)
+		self.caltopoWorker.accountDataChanged.connect(self.optionsDialog.caltopoRedrawAccountData)
+		self.caltopoWorker.finished.connect(lambda: rprint('caltopo worker finished'))
+
+		# connect outgoing signals to launch threaded workers
+		self._sig_createCTS.connect(self.caltopoWorker._createCTS)
+		self._sig_closeCTS.connect(self.caltopoWorker._closeCTS)
+		self._sig_openMap.connect(self.caltopoWorker._openMap)
+		self._sig_sendMarker.connect(self.caltopoWorker._sendMarker)
+
+		# start the thread (and leave it running, ready to receive signals)
+		self.caltopoThread.start()
 
 	def createCTS(self):
-		# open a mapless caltopo.com session first, to get the list of maps; if URL is
-		#  already specified before the first createCTS call, then openMap will
-		#  be called after the mapless session is openend
-		rprint('createCTS called:')
-		if self.cts is not None: # close out any previous session
-			# rprint('Closing previous CaltopoSession')
-			# self.closeCTS()
-			rprint('  cts is already open; returning')
-			return False
-			# self.ui.linkIndicator.setText("")
-			# self.updateLinkIndicator()
-			# self.link=-1
-			# self.updateFeatureList("Folder")
-			# self.updateFeatureList("Marker")
-		rprint('  creating mapless online session for user '+self.caltopoAccountName)
-		self.cts=CaltopoSession(domainAndPort='caltopo.com',
-								configpath=os.path.join(self.configDir,'cts.ini'),
-								account=self.caltopoAccountName)
-		self.caltopoMapListDict=self.getAllMapListsWithFolders()
-		# rprint('	map lists:'+json.dumps(self.caltopoMapListDict,indent=3))
-		# self.caltopoAccountData=self.cts.getAccountData()
-		# rprint('	account data:'+json.dumps(self.caltopoAccountData,indent=3))
-		# self.caltopoNestedMapListDict=self.getMapListNestedByFolder(self.caltopoDefaultTeamAccount)
-		# rprint('	map list, nested by folder:'+json.dumps(self.caltopoNestedMapListDict,indent=3))
-		self.optionsDialog.ui.caltopoAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.caltopoMapListDict]))
-		self.optionsDialog.ui.caltopoAccountComboBox.setCurrentText(self.caltopoDefaultTeamAccount)
-		return True
+		rprint('createCTS called')
+		self._sig_createCTS.emit()
+		# self.CaltopoThread.started.connect(self.CaltopoWorker._createCTS)
+		# self.CaltopoThread.start()
+		# self.CaltopoWorker._createCTS() # just calling this will block the GUI
+		rprint('createCTS finished')
+
+	def closeCTS(self):
+		rprint('closeCTS called')
+		self._sig_closeCTS.emit()
+		rprint('closeCTS finished')
+
+	def openMap(self,mapID):
+		rprint('openMap called with url '+str(mapID))
+		self._sig_openMap.emit(mapID)
+		rprint('openMap finished')
+
+	def sendMarker(self):
+		rprint('sendMarker called')
+		self._sig_sendMarker.emit()
+		rprint('sendMarker finished')
+		
+	def caltopoChangeIndicator(self,val):
+		rprint('caltopoChangeIndicator called: '+str(val))
+
+		# # open a mapless caltopo.com session first, to get the list of maps; if URL is
+		# #  already specified before the first createCTS call, then openMap will
+		# #  be called after the mapless session is openend
+		# rprint('createCTS called:')
+		# if self.cts is not None: # close out any previous session
+		# 	# rprint('Closing previous CaltopoSession')
+		# 	# self.closeCTS()
+		# 	rprint('  cts is already open; returning')
+		# 	return False
+		# 	# self.ui.linkIndicator.setText("")
+		# 	# self.updateLinkIndicator()
+		# 	# self.link=-1
+		# 	# self.updateFeatureList("Folder")
+		# 	# self.updateFeatureList("Marker")
+		# rprint('  creating mapless online session for user '+self.caltopoAccountName)
+		# self.cts=CaltopoSession(domainAndPort='caltopo.com',
+		# 						configpath=os.path.join(self.configDir,'cts.ini'),
+		# 						account=self.caltopoAccountName)
+		# self.caltopoMapListDict=self.getAllMapListsWithFolders()
+		# # rprint('	map lists:'+json.dumps(self.caltopoMapListDict,indent=3))
+		# # self.caltopoAccountData=self.cts.getAccountData()
+		# # rprint('	account data:'+json.dumps(self.caltopoAccountData,indent=3))
+		# # self.caltopoNestedMapListDict=self.getMapListNestedByFolder(self.caltopoDefaultTeamAccount)
+		# # rprint('	map list, nested by folder:'+json.dumps(self.caltopoNestedMapListDict,indent=3))
+		# self.optionsDialog.ui.caltopoAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.caltopoMapListDict]))
+		# self.optionsDialog.ui.caltopoAccountComboBox.setCurrentText(self.caltopoDefaultTeamAccount)
+		# return True
 		# if self.optionsDialog.ui.caltopoMapURLField.text():
 		# 	u=self.optionsDialog.ui.caltopoMapURLField.text()
 		# 	if ':' in u and self.caltopoAccountName=='NONE':
@@ -6890,35 +7172,62 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint('closeCTS called')
 		if self.cts:
 			rprint(' closeCTS t1')
-			del self.cts
+			self.cts._stop() # end sync before deleting the object
 			rprint(' closeCTS t2')
+			del self.cts
+			rprint(' closeCTS t3')
 			self.cts=None
 		self.caltopoLink=0
-		rprint(' closeCTS t3')
-		self.updateCaltopoLinkIndicator()
 		rprint(' closeCTS t4')
+		self.updateCaltopoLinkIndicator()
+		rprint(' closeCTS t5')
 
 	def updateCaltopoLinkIndicator(self):
-		rprint('updateCaltopoLinkIndicator called: caltopoLink='+str(self.caltopoLink))
-		if self.caltopoLink==1:
-			ss='background-color:#00ff00'
-		elif self.caltopoLink==-1:
-			ss='background-color:#ff0000'
-		else:
-			ss='background-color:#aaaaaa'
-		rprint('t1')
+		# -1 = unexpectedly disconnected
+		# 0 = not connected
+		# 1 = connected, mapless session
+		# 2 = connected to a map
+		link=self.caltopoWorker.caltopoLink
+		rprint('updateCaltopoLinkIndicator called: caltopoLink='+str(link))
+		ss=''
+		t=''
+		if link==2:
+			ss='background-color:#00ff00' # bright green
+			t=str(self.caltopoWorker.cts.mapID)
+		elif link==1:
+			ss='background-color:#005500' # dark green
+			t='NO MAP'
+		elif link==0:
+			ss='background-color:#aaaaaa' # light gray
+			t=''
+		elif link==-1:
+			ss='background-color:#ff0000' # bright red
 		self.optionsDialog.ui.caltopoLinkIndicator.setStyleSheet(ss)
-		rprint('t2')
 		self.ui.caltopoLinkIndicator.setStyleSheet(ss)
-		rprint('t3')
-		if self.cts:
-			rprint('t3a')
-			self.ui.caltopoLinkIndicator.setText(self.cts.mapID)
-			rprint('t3b')
-		else:
-			rprint('t3c')
-			self.ui.caltopoLinkIndicator.setText('')
-			rprint('t3d')
+		self.ui.caltopoLinkIndicator.setText(t)
+
+		# if self.caltopoLink==1:
+		# 	if self.cts and self.cts.mapID:
+		# 		ss='background-color:#00ff00' # bright green
+		# 	else:
+		# 		ss='background-color:#005500' # dark green
+		# elif self.caltopoLink==-1:
+		# 	ss='background-color:#ff0000' # bright red
+		# else:
+		# 	ss='background-color:#aaaaaa' # light gray
+		# rprint('t1')
+		# self.optionsDialog.ui.caltopoLinkIndicator.setStyleSheet(ss)
+		# rprint('t2')
+		# self.ui.caltopoLinkIndicator.setStyleSheet(ss)
+		# rprint('t3')
+		# if self.cts:
+		# 	rprint('t3a: mapId='+str(self.cts.mapID))
+		# 	self.ui.caltopoLinkIndicator.setText(self.cts.mapID)
+		# 	rprint('t3b')
+		# else:
+		# 	rprint('t3c')
+		# 	self.ui.caltopoLinkIndicator.setText('')
+		# 	rprint('t3d')
 
 	def caltopoDisconnectHandler(self):
 		rprint('disconnect handler called')
@@ -7301,10 +7610,14 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.caltopoConnectButton.setEnabled(enableMapFields)
 		if enableMapFields:
 			# self.caltopoURLCB() # try to reconnect if mapURL is not blank
-			if self.parent.cts is None:
+			if self.parent.caltopoWorker.cts is None:
 				self.parent.createCTS()
 		else:
 			self.parent.closeCTS()
+
+	def caltopoRedrawAccountData(self): # called from worker
+		self.ui.caltopoAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.parent.caltopoWorker.caltopoMapListDict]))
+		self.ui.caltopoAccountComboBox.setCurrentText(self.parent.caltopoDefaultTeamAccount)
 
 	def caltopoURLCB(self):
 		# if self.ui.caltopoMapURLField.text()=='':
@@ -7317,7 +7630,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# groupAccountNames=[d.get('groupAccountTitle',None) for d in self.parent.caltopoMapListDict]
 		# rprint('groupAccountNames:'+str(groupAccountNames))
 		# rprint('currentText:'+str(self.ui.caltopoAccountComboBox.currentText()))
-		mapList=[d for d in self.parent.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()][0]['mapList']
+		mapList=[d for d in self.parent.caltopoWorker.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()][0]['mapList']
 		# take the first non-bookmark entry, since the list is already sorted chronologically		
 		mapsNotBookmarks=[m for m in mapList if m['type']=='map']
 		# rprint('mapsNotBookmarks:'+str(json.dumps(mapsNotBookmarks,indent=3)))
@@ -7329,7 +7642,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 
 	def caltopoFolderComboBoxChanged(self):
 		self.ui.caltopoMapNameComboBox.clear()
-		mapList=[d for d in self.parent.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()][0]['mapList']
+		mapList=[d for d in self.parent.caltopoWorker.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()][0]['mapList']
 		mapsNotBookmarks=[m for m in mapList if m['type']=='map' and m['folderName']==self.ui.caltopoFolderComboBox.currentText()]
 		if mapsNotBookmarks:
 			self.ui.caltopoMapNameComboBox.addItems([m['title'] for m in mapsNotBookmarks])
@@ -7346,52 +7659,88 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.updateCaltopoMapURLFieldFromTitle(self.ui.caltopoMapNameComboBox.currentText())
 
 	def updateCaltopoMapURLFieldFromTitle(self,title):
-		mapList=[d for d in self.parent.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()][0]['mapList']
+		mapList=[d for d in self.parent.caltopoWorker.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()][0]['mapList']
 		matches=[m for m in mapList if m['title']==title]
 		if matches:
 			self.ui.caltopoMapURLField.setText(matches[0]['id'])
 		else:
 			self.ui.caltopoMapURLField.setText('')
 
+	def caltopoPrintTimer(self):
+		rprint('caltopo timer')
+
 	def caltopoConnectButtonClicked(self):
 		rprint('connect button clicked')
-		u=self.ui.caltopoMapURLField.text()
-		if self.parent.caltopoLink!=0:
-			rprint('  disconnecting')
-			self.parent.closeCTS()
-			self.ui.caltopoConnectButton.setText('Click to Connect')
-			# need to open a new CTS as long as the group box is enabled
-			self.parent.createCTS()
-			return
-		if ':' in u and self.parent.caltopoAccountName=='NONE':
-			rprint('ERROR: caltopoAccountName was not specified in config file')
-			return
-		# if u==self.parent.caltopoURL and self.parent.cts: # url has not changed; keep the existing link and folder list
-		# 	return
-		self.parent.caltopoURL=u
-		if self.parent.caltopoURL.endswith("#"): # pound sign at end of URL causes crash; brute force fix it here
-			self.parent.caltopoURL=self.parent.caltopoURL[:-1]
-			self.ui.caltopoMapURLField.setText(self.parent.caltopoURL)
-		parse=self.parent.caltopoURL.replace("http://","").replace("https://","").split("/")
-		if len(parse)>1:
-			domainAndPort=parse[0]
-			mapID=parse[-1]
+		if self.parent.caltopoLink==1: # mapless session
+			self.ui.caltopoConnectButton.setText('Connecting...')
 		else:
-			domainAndPort='caltopo.com'
-			mapID=parse[0]
-		# 	print("calling CaltopoSession with domainAndPort="+domainAndPort+" mapID="+mapID)
-		# 	if 'caltopo.com' in domainAndPort.lower():
-		# 		print("  creating online session for user "+self.caltopoAccountName)
-		# 		self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,
-		# 								configpath=os.path.join(self.configDir,'cts.ini'),
-		# 								# sync=False,syncTimeout=0.001,
-		# 								account=self.caltopoAccountName)
-		# 	else:
-		# 		self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID)
-		# 		# self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,sync=False,syncTimeout=0.001)
-		self.parent.cts.openMap(mapID)
+			self.ui.caltopoConnectButton.setText('Disconnecting...')
+		self.ui.caltopoConnectButton.setEnabled(False)
+		# # threading.Thread(target=self.wrapper).start()
+		# self.caltopoConnectThread=QThread()
+		# self.worker=CaltopoConnectWorker()
+		# self.worker.moveToThread(self.caltopoConnectThread)
+		# self.caltopoConnectThread.started.connect(self.worker._caltopoConnectButtonClickedThread)
+		# self.worker.task_finished.connect(self._caltopoConnectButtonComplete)
+		# self.caltopoConnectThread.start()
+		# self.parent.fastTimer.timeout.connect(self.caltopoPrintTimer)
+
+		# self.CaltopoWorker.moveToThread(self.CaltopoThread)
+		self.parent.openMap(self.ui.caltopoMapURLField.text())
+
+	# def wrapper(self):
+	# 	self._caltopoConnectButtonClickedThread()
+	# 	self._caltopoConnectButtonClickedComplete()
+
+	# def _caltopoConnectButtonClickedThread(self):
+	# 	rprint('connect thread started')
+	# 	u=self.ui.caltopoMapURLField.text()
+	# 	if self.parent.caltopoLink!=0 and self.parent.cts and self.parent.cts.mapID:
+	# 		rprint('  disconnecting')
+	# 		self.parent.closeCTS()
+	# 		# need to open a new CTS as long as the group box is enabled
+	# 		rprint('  opening new mapless session')
+	# 		self.parent.createCTS()
+	# 		rprint('  new mapless session opened')
+	# 		# self.ui.caltopoConnectButton.setText('Click to Connect')
+	# 		# self.ui.caltopoConnectButton.setEnabled(True)
+	# 		# self._caltopoConnectButtonClickedCB()
+	# 		return
+	# 	# time.sleep(5) # test sleep to check responsiveness in main thread
+	# 	if ':' in u and self.parent.caltopoAccountName=='NONE':
+	# 		rprint('ERROR: caltopoAccountName was not specified in config file')
+	# 		# self._caltopoConnectButtonClickedCB()
+	# 		return
+	# 	# if u==self.parent.caltopoURL and self.parent.cts: # url has not changed; keep the existing link and folder list
+	# 	# 	return
+	# 	self.parent.caltopoURL=u
+	# 	if self.parent.caltopoURL.endswith("#"): # pound sign at end of URL causes crash; brute force fix it here
+	# 		self.parent.caltopoURL=self.parent.caltopoURL[:-1]
+	# 		self.ui.caltopoMapURLField.setText(self.parent.caltopoURL)
+	# 	parse=self.parent.caltopoURL.replace("http://","").replace("https://","").split("/")
+	# 	if len(parse)>1:
+	# 		domainAndPort=parse[0]
+	# 		mapID=parse[-1]
+	# 	else:
+	# 		domainAndPort='caltopo.com'
+	# 		mapID=parse[0]
+	# 	# 	print("calling CaltopoSession with domainAndPort="+domainAndPort+" mapID="+mapID)
+	# 	# 	if 'caltopo.com' in domainAndPort.lower():
+	# 	# 		print("  creating online session for user "+self.caltopoAccountName)
+	# 	# 		self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,
+	# 	# 								configpath=os.path.join(self.configDir,'cts.ini'),
+	# 	# 								# sync=False,syncTimeout=0.001,
+	# 	# 								account=self.caltopoAccountName)
+	# 	# 	else:
+	# 	# 		self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID)
+	# 	# 		# self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,sync=False,syncTimeout=0.001)
+	# 	self.parent.cts.openMap(mapID)
+	# 	# self._caltopoConnectButtonClickedCB()
+
+	def _caltopoConnectButtonClickedComplete(self):
 		self.parent.caltopoLink=self.parent.cts.apiVersion
-		print("link status:"+str(self.parent.caltopoLink))
+		self.parent.fastTimer.timeout.disconnect(self.caltopoPrintTimer)
+		rprint('connect thread complete; link status:'+str(self.parent.caltopoLink)+'; cts.mapID='+str(self.parent.cts.mapID))
 		self.parent.updateCaltopoLinkIndicator()
 		# 	# self.updateLinkIndicator()
 		# 	# if self.link>0:
@@ -7399,11 +7748,15 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# 	# 	self.updateFeatureList("Folder")
 		# 	# self.optionsDialog.ui.folderComboBox.setHeader("Select a Folder...")
 		# 	# if the session is good, process any deferred radio markers
-		if self.parent.cts and self.parent.caltopoLink>0:
+		if self.parent.cts and self.parent.caltopoLink>0 and self.parent.cts.mapID:
 			self.ui.caltopoConnectButton.setText('Click to Disconnect')
 			self.parent.radioMarkerFID=self.parent.getOrCreateRadioMarkerFID()
 			# add deferred markers (GPS calls that came in before CTS was created)
 			self.parent.sendQueuedRadioMarkers()
+		else:
+			self.ui.caltopoConnectButton.setText('Click to Connect')
+		self.ui.caltopoConnectButton.setEnabled(True)
+			
 
 
 # find dialog/completer/popup structure:
