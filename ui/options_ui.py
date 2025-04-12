@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_optionsDialog(object):
     def setupUi(self, optionsDialog):
         optionsDialog.setObjectName("optionsDialog")
-        optionsDialog.resize(455, 505)
+        optionsDialog.resize(455, 516)
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(16)
@@ -223,17 +223,17 @@ class Ui_optionsDialog(object):
         self.caltopoMapNameComboBox.setFont(font)
         self.caltopoMapNameComboBox.setObjectName("caltopoMapNameComboBox")
         self.horizontalLayout_2.addWidget(self.caltopoMapNameComboBox)
-        self.caltopoMapURLField = QtWidgets.QLineEdit(self.caltopoGroupBox)
+        self.caltopoMapIDField = QtWidgets.QLineEdit(self.caltopoGroupBox)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.caltopoMapURLField.sizePolicy().hasHeightForWidth())
-        self.caltopoMapURLField.setSizePolicy(sizePolicy)
+        sizePolicy.setHeightForWidth(self.caltopoMapIDField.sizePolicy().hasHeightForWidth())
+        self.caltopoMapIDField.setSizePolicy(sizePolicy)
         font = QtGui.QFont()
         font.setPointSize(11)
-        self.caltopoMapURLField.setFont(font)
-        self.caltopoMapURLField.setObjectName("caltopoMapURLField")
-        self.horizontalLayout_2.addWidget(self.caltopoMapURLField)
+        self.caltopoMapIDField.setFont(font)
+        self.caltopoMapIDField.setObjectName("caltopoMapIDField")
+        self.horizontalLayout_2.addWidget(self.caltopoMapIDField)
         self.caltopoLinkIndicator = QtWidgets.QLineEdit(self.caltopoGroupBox)
         self.caltopoLinkIndicator.setEnabled(False)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
@@ -317,9 +317,9 @@ class Ui_optionsDialog(object):
         self.caltopoRadioMarkersCheckBox.stateChanged['int'].connect(optionsDialog.caltopoEnabledCB) # type: ignore
         self.caltopoConnectButton.clicked.connect(optionsDialog.caltopoConnectButtonClicked) # type: ignore
         self.caltopoFolderComboBox.currentTextChanged['QString'].connect(optionsDialog.caltopoFolderComboBoxChanged) # type: ignore
-        self.caltopoMapURLField.editingFinished.connect(optionsDialog.caltopoURLCB) # type: ignore
         self.caltopoMapNameComboBox.currentTextChanged['QString'].connect(optionsDialog.caltopoMapNameComboBoxChanged) # type: ignore
         self.caltopoAccountComboBox.currentTextChanged['QString'].connect(optionsDialog.caltopoAccountComboBoxChanged) # type: ignore
+        self.caltopoMapIDField.textChanged['QString'].connect(optionsDialog.caltopoMapIDTextChanged) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(optionsDialog)
 
     def retranslateUi(self, optionsDialog):
@@ -344,7 +344,7 @@ class Ui_optionsDialog(object):
         self.radioButton_2.setText(_translate("optionsDialog", "CalTopo Desktop (localhost:8080)"))
         self.caltopoAccountAndFolderLabel.setText(_translate("optionsDialog", "Account & Folder:"))
         self.caltopoMapLabel.setText(_translate("optionsDialog", "Map"))
-        self.caltopoMapURLField.setPlaceholderText(_translate("optionsDialog", "ABCDEFG"))
+        self.caltopoMapIDField.setPlaceholderText(_translate("optionsDialog", "ABCDEFG"))
         self.caltopoConnectButton.setText(_translate("optionsDialog", "Click to Connect"))
         self.caltopoRadioMarkersCheckBox.setText(_translate("optionsDialog", "Add / update radio location markers"))
         self.fsSendButton.setText(_translate("optionsDialog", "FleetSync Send Console"))

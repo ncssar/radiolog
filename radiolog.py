@@ -1017,21 +1017,30 @@ class CaltopoWorker(QObject):
 		self.cts=CaltopoSession(domainAndPort='caltopo.com',
 								configpath=os.path.join(self.parent.configDir,'cts.ini'),
 								account=self.parent.caltopoAccountName)
-		self.caltopoMapListDict=self.getAllMapListsWithFolders()
-		# rprint('	map lists:'+json.dumps(self.caltopoMapListDict,indent=3))
+		noMatchDict={
+			'groupAccountTitle':'<Choose Acct>',
+			'mapList':[{
+				'id':'',
+				'title':'<Choose Map>',
+				'updated':0,
+				'type':'map',
+				'folderId':0,
+				'folderName':'<Top Level>'}]}
+		self.caltopoMapListDicts=[noMatchDict]+self.getAllMapListsWithFolders()
+		# rprint('	map lists:'+json.dumps(self.caltopoMapListDicts,indent=3))
 		# self.caltopoAccountData=self.cts.getAccountData()
 		# rprint('	account data:'+json.dumps(self.caltopoAccountData,indent=3))
 		# self.caltopoNestedMapListDict=self.getMapListNestedByFolder(self.caltopoDefaultTeamAccount)
 		# rprint('	map list, nested by folder:'+json.dumps(self.caltopoNestedMapListDict,indent=3))
-		# self.parent.optionsDialog.ui.caltopoAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.caltopoMapListDict]))
+		# self.parent.optionsDialog.ui.caltopoAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.caltopoMapListDicts]))
 		# self.parent.optionsDialog.ui.caltopoAccountComboBox.setCurrentText(self.parent.caltopoDefaultTeamAccount)
 		self.caltopoLink=1
 		self.accountDataChanged.emit()
 		self.linkChanged.emit() # mapless
 		self.finished.emit()
 		return True
-		# if self.parent.optionsDialog.ui.caltopoMapURLField.text():
-		# 	u=self.parent.optionsDialog.ui.caltopoMapURLField.text()
+		# if self.parent.optionsDialog.ui.caltopoMapIDField.text():
+		# 	u=self.parent.optionsDialog.ui.caltopoMapIDField.text()
 		# 	if ':' in u and self.caltopoAccountName=='NONE':
 		# 		rprint('ERROR: caltopoAccountName was not specified in config file')
 		# 		return
@@ -1040,7 +1049,7 @@ class CaltopoWorker(QObject):
 		# 	self.caltopoURL=u
 		# 	if self.caltopoURL.endswith("#"): # pound sign at end of URL causes crash; brute force fix it here
 		# 		self.caltopoURL=self.caltopoURL[:-1]
-		# 		self.optionsDialog.ui.caltopoMapURLField.setText(self.caltopoURL)
+		# 		self.optionsDialog.ui.caltopoMapIDField.setText(self.caltopoURL)
 		# 	parse=self.caltopoURL.replace("http://","").replace("https://","").split("/")
 		# 	if len(parse)>1:
 		# 		domainAndPort=parse[0]
@@ -1102,7 +1111,7 @@ class CaltopoWorker(QObject):
 
 	def _connectButtonClickedThread(self):
 		rprint('connect thread started')
-		u=self.ui.caltopoMapURLField.text()
+		u=self.ui.caltopoMapIDField.text()
 		if self.parent.caltopoLink!=0 and self.parent.cts and self.parent.cts.mapID:
 			rprint('  disconnecting')
 			self.parent.closeCTS()
@@ -1124,7 +1133,7 @@ class CaltopoWorker(QObject):
 		self.parent.caltopoURL=u
 		if self.parent.caltopoURL.endswith("#"): # pound sign at end of URL causes crash; brute force fix it here
 			self.parent.caltopoURL=self.parent.caltopoURL[:-1]
-			self.ui.caltopoMapURLField.setText(self.parent.caltopoURL)
+			self.ui.caltopoMapIDField.setText(self.parent.caltopoURL)
 		parse=self.parent.caltopoURL.replace("http://","").replace("https://","").split("/")
 		if len(parse)>1:
 			domainAndPort=parse[0]
@@ -7112,17 +7121,17 @@ class MyWindow(QDialog,Ui_Dialog):
 		# self.cts=CaltopoSession(domainAndPort='caltopo.com',
 		# 						configpath=os.path.join(self.configDir,'cts.ini'),
 		# 						account=self.caltopoAccountName)
-		# self.caltopoMapListDict=self.getAllMapListsWithFolders()
-		# # rprint('	map lists:'+json.dumps(self.caltopoMapListDict,indent=3))
+		# self.caltopoMapListDicts=self.getAllMapListsWithFolders()
+		# # rprint('	map lists:'+json.dumps(self.caltopoMapListDicts,indent=3))
 		# # self.caltopoAccountData=self.cts.getAccountData()
 		# # rprint('	account data:'+json.dumps(self.caltopoAccountData,indent=3))
 		# # self.caltopoNestedMapListDict=self.getMapListNestedByFolder(self.caltopoDefaultTeamAccount)
 		# # rprint('	map list, nested by folder:'+json.dumps(self.caltopoNestedMapListDict,indent=3))
-		# self.optionsDialog.ui.caltopoAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.caltopoMapListDict]))
+		# self.optionsDialog.ui.caltopoAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.caltopoMapListDicts]))
 		# self.optionsDialog.ui.caltopoAccountComboBox.setCurrentText(self.caltopoDefaultTeamAccount)
 		# return True
-		# if self.optionsDialog.ui.caltopoMapURLField.text():
-		# 	u=self.optionsDialog.ui.caltopoMapURLField.text()
+		# if self.optionsDialog.ui.caltopoMapIDField.text():
+		# 	u=self.optionsDialog.ui.caltopoMapIDField.text()
 		# 	if ':' in u and self.caltopoAccountName=='NONE':
 		# 		rprint('ERROR: caltopoAccountName was not specified in config file')
 		# 		return
@@ -7131,7 +7140,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# 	self.caltopoURL=u
 		# 	if self.caltopoURL.endswith("#"): # pound sign at end of URL causes crash; brute force fix it here
 		# 		self.caltopoURL=self.caltopoURL[:-1]
-		# 		self.optionsDialog.ui.caltopoMapURLField.setText(self.caltopoURL)
+		# 		self.optionsDialog.ui.caltopoMapIDField.setText(self.caltopoURL)
 		# 	parse=self.caltopoURL.replace("http://","").replace("https://","").split("/")
 		# 	if len(parse)>1:
 		# 		domainAndPort=parse[0]
@@ -7546,6 +7555,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui=Ui_optionsDialog()
 		self.ui.setupUi(self)
 		self.setStyleSheet(globalStyleSheet)
+		self.pauseCB=False
 		self.ui.timeoutField.valueChanged.connect(self.displayTimeout)
 		self.displayTimeout()
 		self.setWindowFlags(Qt.WindowStaysOnTopHint)
@@ -7556,7 +7566,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.setFixedSize(self.size())
 		self.secondWorkingDirCB()
 		self.newEntryWarningCB()
-		self.ui.caltopoMapNameComboBox.textHighlighted.connect(self.updateCaltopoMapURLFieldFromTitle)
+		self.ui.caltopoMapNameComboBox.textHighlighted.connect(self.updateCaltopoMapIDFieldFromTitle)
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
@@ -7604,7 +7614,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		radios=self.ui.caltopoRadioMarkersCheckBox.isChecked()
 		self.ui.caltopoRadioMarkersCheckBox.setEnabled(a)
 		enableMapFields=a and radios
-		self.ui.caltopoMapURLField.setEnabled(enableMapFields)
+		self.ui.caltopoMapIDField.setEnabled(enableMapFields)
 		self.ui.caltopoLinkIndicator.setEnabled(enableMapFields)
 		self.ui.caltopoMapLabel.setEnabled(enableMapFields)
 		self.ui.caltopoConnectButton.setEnabled(enableMapFields)
@@ -7616,55 +7626,97 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.parent.closeCTS()
 
 	def caltopoRedrawAccountData(self): # called from worker
-		self.ui.caltopoAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.parent.caltopoWorker.caltopoMapListDict]))
+		# rprint('caltopoMapListict:')
+		# rprint(json.dumps(self.parent.caltopoWorker.caltopoMapListDicts,indent=3))
+		self.ui.caltopoAccountComboBox.clear()
+		# self.ui.caltopoAccountComboBox.addItem('<Choose Account>') # used when MapIDTextChanged has no match
+		self.ui.caltopoAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.parent.caltopoWorker.caltopoMapListDicts]))
 		self.ui.caltopoAccountComboBox.setCurrentText(self.parent.caltopoDefaultTeamAccount)
 
-	def caltopoURLCB(self):
-		# if self.ui.caltopoMapURLField.text()=='':
-		# 	self.parent.closeCTS()
-		# 	return
-		# self.parent.createCTS()
-		pass
+	def caltopoMapIDTextChanged(self):
+		rprint('caltopoMapIDTextChanged; pausing callbacks')
+		txt=self.ui.caltopoMapIDField.text()
+		dl=self.parent.caltopoWorker.caltopoMapListDicts
+		self.pauseCB=True
+		for d in dl:
+			# rprint(' next d')
+			for map in d['mapList']:
+				# rprint('  next m')
+				if map['id']==txt:
+					# rprint('match:'+str(d['groupAccountTitle'])+'/'+str(map['folderName'])+'/'+str(map['title']))
+					self.ui.caltopoAccountComboBox.setCurrentText(d['groupAccountTitle'])
+					self.ui.caltopoFolderComboBox.setCurrentText(map['folderName'])
+					self.ui.caltopoMapNameComboBox.setCurrentText(map['title'])
+					self.pauseCB=False
+					rprint('  match found; unpausing callbacks')
+					return
+		self.ui.caltopoAccountComboBox.setCurrentIndex(0)
+		self.ui.caltopoFolderComboBox.setCurrentIndex(0)
+		self.ui.caltopoMapNameComboBox.setCurrentIndex(0)
+		self.pauseCB=False
+		rprint('  no match found; unpausing callbacks')
 
 	def caltopoAccountComboBoxChanged(self):
-		# groupAccountNames=[d.get('groupAccountTitle',None) for d in self.parent.caltopoMapListDict]
+		rprint('acct')
+		# if self.pauseCB:
+		# 	rprint(' paused')
+		# 	return
+		# groupAccountNames=[d.get('groupAccountTitle',None) for d in self.parent.caltopoMapListDicts]
 		# rprint('groupAccountNames:'+str(groupAccountNames))
 		# rprint('currentText:'+str(self.ui.caltopoAccountComboBox.currentText()))
-		mapList=[d for d in self.parent.caltopoWorker.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()][0]['mapList']
-		# take the first non-bookmark entry, since the list is already sorted chronologically		
-		mapsNotBookmarks=[m for m in mapList if m['type']=='map']
-		# rprint('mapsNotBookmarks:'+str(json.dumps(mapsNotBookmarks,indent=3)))
-		folderNames=list(set([m['folderName'] for m in mapsNotBookmarks]))
-		self.ui.caltopoFolderComboBox.clear()
-		if mapsNotBookmarks:
-			self.ui.caltopoFolderComboBox.addItems(sorted(folderNames))
-			self.ui.caltopoFolderComboBox.setCurrentIndex(0)
+		dicts=[d for d in self.parent.caltopoWorker.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
+		if dicts:
+			mapList=dicts[0]['mapList']
+			# take the first non-bookmark entry, since the list is already sorted chronologically		
+			mapsNotBookmarks=[m for m in mapList if m['type']=='map']
+			# rprint('mapsNotBookmarks:'+str(json.dumps(mapsNotBookmarks,indent=3)))
+			folderNames=list(set([m['folderName'] for m in mapsNotBookmarks]))
+			self.ui.caltopoFolderComboBox.clear()
+			if mapsNotBookmarks:
+				self.ui.caltopoFolderComboBox.addItems(sorted(folderNames))
+				self.ui.caltopoFolderComboBox.setCurrentIndex(0)
 
 	def caltopoFolderComboBoxChanged(self):
+		rprint('folder')
+		# if self.pauseCB:
+		# 	rprint(' paused')
+		# 	return
 		self.ui.caltopoMapNameComboBox.clear()
-		mapList=[d for d in self.parent.caltopoWorker.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()][0]['mapList']
-		mapsNotBookmarks=[m for m in mapList if m['type']=='map' and m['folderName']==self.ui.caltopoFolderComboBox.currentText()]
-		if mapsNotBookmarks:
-			self.ui.caltopoMapNameComboBox.addItems([m['title'] for m in mapsNotBookmarks])
-			self.ui.caltopoMapNameComboBox.setCurrentIndex(0)
-			# latestMap=mapsNotBookmarks[0]
-			# rprint('latest map: title="'+str(latestMap['title']+'" ID='+str(latestMap['id'])))
-			# self.ui.caltopoMapNameField.setText(str(latestMap['title']))
-			# self.ui.caltopoMapURLField.setText(str(latestMap['id']))
-		# else:
-		# 	self.ui.caltopoMapURLField.setText('')
-		# 	self.ui.caltopoMapNameField.setText('Account has no maps')
+		dicts=[d for d in self.parent.caltopoWorker.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
+		if dicts:
+			mapList=dicts[0]['mapList']
+			mapsNotBookmarks=[m for m in mapList if m['type']=='map' and m['folderName']==self.ui.caltopoFolderComboBox.currentText()]
+			if mapsNotBookmarks:
+				self.ui.caltopoMapNameComboBox.addItems([m['title'] for m in mapsNotBookmarks])
+				self.ui.caltopoMapNameComboBox.setCurrentIndex(0)
+				# latestMap=mapsNotBookmarks[0]
+				# rprint('latest map: title="'+str(latestMap['title']+'" ID='+str(latestMap['id'])))
+				# self.ui.caltopoMapNameField.setText(str(latestMap['title']))
+				# self.ui.caltopoMapIDField.setText(str(latestMap['id']))
+			# else:
+			# 	self.ui.caltopoMapIDField.setText('')
+			# 	self.ui.caltopoMapNameField.setText('Account has no maps')
 
 	def caltopoMapNameComboBoxChanged(self):
-		self.updateCaltopoMapURLFieldFromTitle(self.ui.caltopoMapNameComboBox.currentText())
+		rprint('name')
+		# if self.pauseCB:
+		# 	rprint(' paused')
+		# 	return
+		self.updateCaltopoMapIDFieldFromTitle(self.ui.caltopoMapNameComboBox.currentText())
 
-	def updateCaltopoMapURLFieldFromTitle(self,title):
-		mapList=[d for d in self.parent.caltopoWorker.caltopoMapListDict if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()][0]['mapList']
-		matches=[m for m in mapList if m['title']==title]
-		if matches:
-			self.ui.caltopoMapURLField.setText(matches[0]['id'])
-		else:
-			self.ui.caltopoMapURLField.setText('')
+	def updateCaltopoMapIDFieldFromTitle(self,title):
+		rprint('update ID from title')
+		if self.pauseCB:
+			rprint(' paused')
+			return
+		dicts=[d for d in self.parent.caltopoWorker.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
+		if dicts:
+			mapList=dicts[0]['mapList']
+			matches=[m for m in mapList if m['title']==title]
+			if matches:
+				self.ui.caltopoMapIDField.setText(matches[0]['id'])
+			else:
+				self.ui.caltopoMapIDField.setText('')
 
 	def caltopoPrintTimer(self):
 		rprint('caltopo timer')
@@ -7686,7 +7738,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# self.parent.fastTimer.timeout.connect(self.caltopoPrintTimer)
 
 		# self.CaltopoWorker.moveToThread(self.CaltopoThread)
-		self.parent.openMap(self.ui.caltopoMapURLField.text())
+		self.parent.openMap(self.ui.caltopoMapIDField.text())
 
 	# def wrapper(self):
 	# 	self._caltopoConnectButtonClickedThread()
@@ -7694,7 +7746,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 
 	# def _caltopoConnectButtonClickedThread(self):
 	# 	rprint('connect thread started')
-	# 	u=self.ui.caltopoMapURLField.text()
+	# 	u=self.ui.caltopoMapIDField.text()
 	# 	if self.parent.caltopoLink!=0 and self.parent.cts and self.parent.cts.mapID:
 	# 		rprint('  disconnecting')
 	# 		self.parent.closeCTS()
@@ -7716,7 +7768,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	# 	self.parent.caltopoURL=u
 	# 	if self.parent.caltopoURL.endswith("#"): # pound sign at end of URL causes crash; brute force fix it here
 	# 		self.parent.caltopoURL=self.parent.caltopoURL[:-1]
-	# 		self.ui.caltopoMapURLField.setText(self.parent.caltopoURL)
+	# 		self.ui.caltopoMapIDField.setText(self.parent.caltopoURL)
 	# 	parse=self.parent.caltopoURL.replace("http://","").replace("https://","").split("/")
 	# 	if len(parse)>1:
 	# 		domainAndPort=parse[0]

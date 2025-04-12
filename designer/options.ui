@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>455</width>
-    <height>505</height>
+    <height>516</height>
    </rect>
   </property>
   <property name="font">
@@ -418,7 +418,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QLineEdit" name="caltopoMapURLField">
+           <widget class="QLineEdit" name="caltopoMapIDField">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
               <horstretch>0</horstretch>
@@ -710,22 +710,6 @@
    </hints>
   </connection>
   <connection>
-   <sender>caltopoMapURLField</sender>
-   <signal>editingFinished()</signal>
-   <receiver>optionsDialog</receiver>
-   <slot>caltopoURLCB()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>321</x>
-     <y>366</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>392</x>
-     <y>242</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
    <sender>caltopoMapNameComboBox</sender>
    <signal>currentTextChanged(QString)</signal>
    <receiver>optionsDialog</receiver>
@@ -757,6 +741,22 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>caltopoMapIDField</sender>
+   <signal>textChanged(QString)</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoMapIDTextChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>382</x>
+     <y>354</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>450</x>
+     <y>321</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>secondWorkingDirCB()</slot>
@@ -768,6 +768,7 @@
   <slot>caltopoFolderComboBoxChanged()</slot>
   <slot>caltopoMapNameComboBoxChanged()</slot>
   <slot>caltopoAccountComboBoxChanged()</slot>
+  <slot>caltopoMapIDTextChanged()</slot>
  </slots>
  <buttongroups>
   <buttongroup name="buttonGroup"/>
