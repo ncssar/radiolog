@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="radiolog_ui">
+    <file>icons/caltopo-logo.png</file>
     <file>icons/user_icon_blue_80px.png</file>
     <file>icons/user_icon_80px.png</file>
     <file>icons/3dots.png</file>
