@@ -1263,8 +1263,8 @@ QSlider::handle:horizontal {
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>749</x>
-     <y>449</y>
+     <x>257</x>
+     <y>193</y>
     </hint>
     <hint type="destinationlabel">
      <x>720</x>
@@ -1279,12 +1279,12 @@ QSlider::handle:horizontal {
    <slot>close()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>862</x>
-     <y>464</y>
+     <x>370</x>
+     <y>208</y>
     </hint>
     <hint type="destinationlabel">
-     <x>835</x>
-     <y>333</y>
+     <x>703</x>
+     <y>292</y>
     </hint>
    </hints>
   </connection>
@@ -1295,8 +1295,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>85</x>
-     <y>227</y>
+     <x>-82</x>
+     <y>81</y>
     </hint>
     <hint type="destinationlabel">
      <x>11</x>
@@ -1311,8 +1311,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>361</x>
-     <y>223</y>
+     <x>54</x>
+     <y>77</y>
     </hint>
     <hint type="destinationlabel">
      <x>203</x>
@@ -1327,8 +1327,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>642</x>
-     <y>225</y>
+     <x>195</x>
+     <y>79</y>
     </hint>
     <hint type="destinationlabel">
      <x>433</x>
@@ -1343,8 +1343,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>635</x>
-     <y>276</y>
+     <x>188</x>
+     <y>105</y>
     </hint>
     <hint type="destinationlabel">
      <x>682</x>
@@ -1359,8 +1359,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>102</x>
-     <y>324</y>
+     <x>-80</x>
+     <y>128</y>
     </hint>
     <hint type="destinationlabel">
      <x>6</x>
@@ -1375,8 +1375,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>387</x>
-     <y>319</y>
+     <x>75</x>
+     <y>123</y>
     </hint>
     <hint type="destinationlabel">
      <x>202</x>
@@ -1391,8 +1391,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>530</x>
-     <y>271</y>
+     <x>223</x>
+     <y>100</y>
     </hint>
     <hint type="destinationlabel">
      <x>432</x>
@@ -1407,8 +1407,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>646</x>
-     <y>381</y>
+     <x>194</x>
+     <y>160</y>
     </hint>
     <hint type="destinationlabel">
      <x>203</x>
@@ -1423,8 +1423,8 @@ QSlider::handle:horizontal {
    <slot>quickTextUndo()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>43</x>
-     <y>452</y>
+     <x>-104</x>
+     <y>196</y>
     </hint>
     <hint type="destinationlabel">
      <x>433</x>
@@ -1439,28 +1439,12 @@ QSlider::handle:horizontal {
    <slot>quickTextClueAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>34</x>
-     <y>381</y>
+     <x>-108</x>
+     <y>160</y>
     </hint>
     <hint type="destinationlabel">
      <x>13</x>
      <y>328</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>teamField</sender>
-   <signal>customContextMenuRequested(QPoint)</signal>
-   <receiver>newEntryWidget</receiver>
-   <slot>openChangeCallsignDialog()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>482</x>
-     <y>32</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>581</x>
-     <y>39</y>
     </hint>
    </hints>
   </connection>
@@ -1471,8 +1455,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>716</x>
-     <y>336</y>
+     <x>259</x>
+     <y>140</y>
     </hint>
     <hint type="destinationlabel">
      <x>554</x>
@@ -1487,8 +1471,8 @@ QSlider::handle:horizontal {
    <slot>quickTextSubjectLocatedAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>398</x>
-     <y>398</y>
+     <x>101</x>
+     <y>177</y>
     </hint>
     <hint type="destinationlabel">
      <x>409</x>
@@ -1503,8 +1487,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>89</x>
-     <y>265</y>
+     <x>-78</x>
+     <y>94</y>
     </hint>
     <hint type="destinationlabel">
      <x>61</x>
@@ -1519,8 +1503,8 @@ QSlider::handle:horizontal {
    <slot>setCallsignFromComboBox()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>569</x>
-     <y>61</y>
+     <x>291</x>
+     <y>16</y>
     </hint>
     <hint type="destinationlabel">
      <x>599</x>
@@ -1535,8 +1519,8 @@ QSlider::handle:horizontal {
    <slot>teamFieldTextChanged()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>251</x>
-     <y>45</y>
+     <x>31</x>
+     <y>0</y>
     </hint>
     <hint type="destinationlabel">
      <x>163</x>
@@ -1551,8 +1535,8 @@ QSlider::handle:horizontal {
    <slot>teamFieldEditingFinished()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>212</x>
-     <y>49</y>
+     <x>-8</x>
+     <y>4</y>
     </hint>
     <hint type="destinationlabel">
      <x>207</x>
@@ -1567,8 +1551,8 @@ QSlider::handle:horizontal {
    <slot>relayedByComboBoxChanged()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>111</x>
-     <y>143</y>
+     <x>-43</x>
+     <y>43</y>
     </hint>
     <hint type="destinationlabel">
      <x>8</x>
@@ -1583,8 +1567,8 @@ QSlider::handle:horizontal {
    <slot>relayedCheckBoxStateChanged()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>71</x>
-     <y>92</y>
+     <x>-88</x>
+     <y>14</y>
     </hint>
     <hint type="destinationlabel">
      <x>25</x>
@@ -1599,8 +1583,8 @@ QSlider::handle:horizontal {
    <slot>callsignChangeSliderChanged()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>372</x>
-     <y>79</y>
+     <x>60</x>
+     <y>3</y>
     </hint>
     <hint type="destinationlabel">
      <x>623</x>
@@ -1615,8 +1599,8 @@ QSlider::handle:horizontal {
    <slot>callsignChangeSliderChanged()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>394</x>
-     <y>75</y>
+     <x>82</x>
+     <y>-1</y>
     </hint>
     <hint type="destinationlabel">
      <x>614</x>

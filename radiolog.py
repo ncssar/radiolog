@@ -4913,8 +4913,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					# if it's the only item on the stack, open the change callsign
 					#   dialog right now, since the normal event loop won't process
 					#   needsChangeCallsign until the tab changes
-					if self.newEntryWidget==self.newEntryWindow.ui.tabWidget.currentWidget():
-						QTimer.singleShot(500,lambda:self.newEntryWidget.openChangeCallsignDialog())
+					# if self.newEntryWidget==self.newEntryWindow.ui.tabWidget.currentWidget():
+					# 	QTimer.singleShot(500,lambda:self.newEntryWidget.openChangeCallsignDialog())
 					# note that changeCallsignDialog.accept is responsible for
 					#  setting focus back to the messageField of the active message
 					#  (not always the same as the new message)
@@ -7184,8 +7184,8 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 		if tabCount>2: # skip all this if 'NEWEST' and 'OLDEST' are the only tabs remaining
 			if (tabCount-currentIndex)>1: # don't try to throb the 'OLDEST' label - it has no throb method
 				currentWidget=self.ui.tabWidget.widget(currentIndex)
-				if currentWidget.needsChangeCallsign:
-					QTimer.singleShot(500,lambda:currentWidget.openChangeCallsignDialog())
+				# if currentWidget.needsChangeCallsign:
+				# 	QTimer.singleShot(500,lambda:currentWidget.openChangeCallsignDialog())
 				if throb:
 					currentWidget.throb()
 				#683 but also general timing: respect hold time of >active< widget,
@@ -7433,6 +7433,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		newEntryWidget.instances.append(self)
 		self.ui.setupUi(self)
 		self.setStyleSheet(globalStyleSheet)
+
+		self.ui.callsignChangeSlider.setVisible(False)
+		self.ui.callsignChangeLabel1.setVisible(False)
+		self.ui.callsignChangeLabel2.setVisible(False)
 
 		self.setAttribute(Qt.WA_DeleteOnClose) # so that closeEvent gets called when closed by GUI
 		self.palette=QPalette()
@@ -7718,21 +7722,21 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		else:
 			super().keyPressEvent(event) # pass the event as normal
 
-	def openChangeCallsignDialog(self):
-		# problem: changeCallsignDialog does not stay on top of newEntryWindow!
-		# only open the dialog if the newEntryWidget was created from an incoming fleetSync ID
-		#  (it has no meaning for hotkey-opened newEntryWidgets)
-		rprint('openChangeCallsignDialog: self.fleet='+str(self.fleet)+' self.dev='+str(self.dev))
-		self.needsChangeCallsign=False
-		 # for fleetsync, fleet and dev will both have values; for nexedge, fleet will be None but dev will have a value
-		if self.fleet or self.dev:
-			try:
-				#482: wrap in try/except, since a quick 'esc' will close the NED, deleting teamField,
-				#  before this code executes since it is called from a singleshot timer
-				self.changeCallsignDialog=changeCallsignDialog(self,self.ui.teamField.text(),self.fleet,self.dev)
-				self.changeCallsignDialog.exec_() # required to make it stay on top
-			except:
-				pass
+	# def openChangeCallsignDialog(self):
+	# 	# problem: changeCallsignDialog does not stay on top of newEntryWindow!
+	# 	# only open the dialog if the newEntryWidget was created from an incoming fleetSync ID
+	# 	#  (it has no meaning for hotkey-opened newEntryWidgets)
+	# 	rprint('openChangeCallsignDialog: self.fleet='+str(self.fleet)+' self.dev='+str(self.dev))
+	# 	self.needsChangeCallsign=False
+	# 	 # for fleetsync, fleet and dev will both have values; for nexedge, fleet will be None but dev will have a value
+	# 	if self.fleet or self.dev:
+	# 		try:
+	# 			#482: wrap in try/except, since a quick 'esc' will close the NED, deleting teamField,
+	# 			#  before this code executes since it is called from a singleshot timer
+	# 			self.changeCallsignDialog=changeCallsignDialog(self,self.ui.teamField.text(),self.fleet,self.dev)
+	# 			self.changeCallsignDialog.exec_() # required to make it stay on top
+	# 		except:
+	# 			pass
 
 	def accept(self):
 		if not self.clueDialogOpen and not self.subjectLocatedDialogOpen:
@@ -8024,7 +8028,12 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##		self.setWindowTitle("Radio Log - "+tmpTxt+" - "+self.ui.to_fromField.currentText()+" "+self.ui.teamField.text())
 
 	def teamFieldTextChanged(self):
-		pass # no longer needed due to better post-edit checking 
+		flag=self.dev and self.ui.teamField.text()!=self.originalCallsign
+		rprint('team field text changed: change needed = '+str(flag))
+		self.needsChangeCallsign=flag
+		self.ui.callsignChangeSlider.setVisible(flag)
+		self.ui.callsignChangeLabel1.setVisible(flag)
+		self.ui.callsignChangeLabel2.setVisible(flag)
 
 	def teamFieldEditingFinished(self):
 		cs=re.sub(r' +',r' ',self.ui.teamField.text()).strip() # remove leading and trailing spaces, and reduce chains of spaces to single space
@@ -8055,12 +8064,65 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					self.ui.relayedCheckBox.setChecked(True)
 					self.ui.relayedByComboBox.setCurrentText(t)
 					break
+		if self.needsChangeCallsign:
+			self.changeCallsign()
 
 	def callsignChangeSliderChanged(self):
 		val=self.ui.callsignChangeSlider.value()
 		rprint('callsignChangeSlider changed: current value = '+str(val))
 		self.ui.callsignChangeLabel1.setEnabled(val==0)
 		self.ui.callsignChangeLabel2.setEnabled(val==1)
+
+	# changeCallsign originally ported from changeCallsignDialog.accept
+	def changeCallsign(self):
+		rprint('changeCallsign called')
+		found=False
+		uid=None
+		if self.fleet and self.dev: # fleetsync
+			deviceStr=str(self.fleet)+':'+str(self.dev)
+			rprint('accept: FleetSync fleet='+str(self.fleet)+'  dev='+str(self.dev))
+		elif self.dev:
+			uid=self.dev
+			deviceStr=str(uid)
+			rprint('accept: NEXEDGE uid='+str(uid))
+		# fix #459 (and other places in the code): remove all leading and trailing spaces, and change all chains of spaces to one space
+		newCallsign=re.sub(r' +',r' ',self.ui.teamField.text()).strip()
+		# change existing device entry if found, otherwise add a new entry
+		for n in range(len(self.parent.fsLookup)):
+			entry=self.parent.fsLookup[n]
+			if (entry[0]==self.fleet and entry[1]==self.dev) or (entry[1]==uid):
+				found=True
+				self.parent.fsLookup[n][2]=newCallsign
+		if not found:
+			if self.fleet and self.dev: # fleetsync
+				self.parent.fsLookup.append([self.fleet,self.dev,newCallsign])
+			else: # nexedge
+				self.parent.fsLookup.append(['',uid,newCallsign])
+		# rprint('fsLookup after CCD:'+str(self.parent.parent.fsLookup))
+		# set the current radio log entry teamField also
+		# self.parent.ui.teamField.setText(newCallsign)
+		# save the updated table (filename is set at the same times that csvFilename is set)
+		self.parent.fsSaveLookup()
+		# change the callsign in fsLog
+		if self.fleet: # fleetsync
+			# rprint('calling fsLogUpdate for fleetsync')
+			self.parent.fsLogUpdate(fleet=self.fleet,dev=self.dev,callsign=newCallsign,seq=['CCD'],result='newCallsign')
+			rprint("New callsign pairing created from FleetSync: fleet="+self.fleet+"  dev="+self.dev+"  callsign="+newCallsign)
+		else: # nexedge
+			# rprint('calling fsLogUpdate for nexedge')
+			self.parent.fsLogUpdate(uid=uid,callsign=newCallsign,seq=['CCD'],result='newCallsign')
+			rprint("New callsign pairing created from NEXEDGE: unit ID = "+uid+"  callsign="+newCallsign)
+		# finally, pass the 'accept' signal on up the tree as usual
+		# set the focus to the messageField of the active stack item - not always
+		#  the same as the new entry, as determined by addTab
+		# self.parent.ui.tabWidget.currentWidget().ui.messageField.setFocus()
+		# 751 - set a flag on the parent newEntryWindow to indicate CCD was used, and what the new value is;
+		#  let the newEntryWindow.accept create the change-of-callsign note as needed; in this way,
+		#  repeated or superceded calls to CCD can be recorded in the note
+		self.newCallsignFromCCD=newCallsign
+		rprint("New callsign pairing created: fleet="+str(self.fleet)+"  dev="+str(self.dev)+"  uid="+str(uid)+"  callsign="+newCallsign)
+		# self.closeEvent(QEvent(QEvent.Close),True)
+		# super(changeCallsignDialog,self).accept()
 
 	def setRelayedPrefix(self,relayedBy=None):
 		if relayedBy is None:

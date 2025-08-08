@@ -538,7 +538,6 @@ class Ui_newEntryWidget(object):
         self.quickTextButton11.clicked.connect(newEntryWidget.quickTextAction) # type: ignore
         self.quickTextUndoButton.clicked.connect(newEntryWidget.quickTextUndo) # type: ignore
         self.quickTextButton9.clicked.connect(newEntryWidget.quickTextClueAction) # type: ignore
-        self.teamField.customContextMenuRequested['QPoint'].connect(newEntryWidget.openChangeCallsignDialog) # type: ignore
         self.quickTextButton8.clicked.connect(newEntryWidget.quickTextAction) # type: ignore
         self.quickTextButton10.clicked.connect(newEntryWidget.quickTextSubjectLocatedAction) # type: ignore
         self.quickTextButton1_2.clicked.connect(newEntryWidget.quickTextAction) # type: ignore
