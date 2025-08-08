@@ -2927,10 +2927,10 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def getCallsign(self,fleetOrUid,dev=None):
 		if not isinstance(fleetOrUid,str):
-			rprint('ERROR in call to getCallsign: fleetOrId is not a string.')
+			rprint('WARNING in call to getCallsign: fleetOrId is not a string.')
 			return
 		if dev and not isinstance(dev,str):
-			rprint('ERROR in call to getCallsign: dev is not a string.')
+			rprint('WARNING in call to getCallsign: dev is not a string.')
 			return
 		matches=[]
 
@@ -7421,8 +7421,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.newCallsignFromCCD=None
 		if fleet:
 			self.originalCallsign=parent.getCallsign(fleet,dev)
-		else:
+		elif dev:
 			self.originalCallsign=parent.getCallsign(dev)
+		else:
+			self.originalCallsign=None
 		if amendFlag:
 			row=parent.radioLog[amendRow]
 			self.sec=row[6]
