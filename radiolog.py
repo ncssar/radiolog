@@ -691,6 +691,21 @@ class CustomPlainTextEdit(QPlainTextEdit):
 		self.parent.customFocusOutEvent(self)
 		super(CustomPlainTextEdit,self).focusOutEvent(e)
 
+
+class CustomLineEdit(QLineEdit):
+	def __init__(self,parent,*args,**kwargs):
+		self.parent=parent
+		QLineEdit.__init__(self,parent)
+	
+	def focusOutEvent(self,e):
+		self.parent.customFocusOutEvent(self)
+		super(CustomLineEdit,self).focusOutEvent(e)
+
+	def focusInEvent(self,e):
+		self.parent.customFocusInEvent(self)
+		super(CustomLineEdit,self).focusInEvent(e)
+
+
 from ui.help_ui import Ui_Help
 from ui.options_ui import Ui_optionsDialog
 from ui.fsSendDialog_ui import Ui_fsSendDialog
@@ -7434,9 +7449,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.ui.setupUi(self)
 		self.setStyleSheet(globalStyleSheet)
 
-		self.ui.callsignChangeSlider.setVisible(False)
-		self.ui.callsignChangeLabel1.setVisible(False)
-		self.ui.callsignChangeLabel2.setVisible(False)
+		self.hideChangeCallsignGroup()
 
 		self.setAttribute(Qt.WA_DeleteOnClose) # so that closeEvent gets called when closed by GUI
 		self.palette=QPalette()
@@ -7617,8 +7630,24 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##		self.throb(0)
 
 	def customFocusOutEvent(self,widget):
-		if 'interview' in widget.toPlainText().lower():
+		if widget.objectName()=='teamField':
+			self.hideChangeCallsignGroup()
+			# but not when the slider is clicked - assured by setting slider focus policy to NoFocus
+		elif 'interview' in widget.toPlainText().lower():
 			self.parent.showInterviewPopup(widget)
+
+	def customFocusInEvent(self,widget):
+		# rprint('focus in to widget '+str(widget.objectName()))
+		if widget.objectName()=='teamField':
+			# rprint('t1')
+			self.teamFieldTextChanged()
+
+	def hideChangeCallsignGroup(self):
+		self.ui.changeCallsignGroupBox.setVisible(False)
+		self.ui.changeCallsignSlider.setVisible(False)
+		self.ui.changeCallsignLabel1.setVisible(False)
+		self.ui.changeCallsignLabel2.setVisible(False)
+		self.ui.changeCallsignLabel3.setVisible(False)
 
 	def throb(self,n=0):
 		# this function calls itself recursivly 25 times to throb the background blue->white
@@ -8031,9 +8060,20 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		flag=self.dev and self.ui.teamField.text()!=self.originalCallsign
 		rprint('team field text changed: change needed = '+str(flag))
 		self.needsChangeCallsign=flag
-		self.ui.callsignChangeSlider.setVisible(flag)
-		self.ui.callsignChangeLabel1.setVisible(flag)
-		self.ui.callsignChangeLabel2.setVisible(flag)
+		if flag:
+			uid=None
+			if self.fleet and self.dev: # fleetsync
+				deviceStr=str(self.fleet)+':'+str(self.dev)
+			elif self.dev:
+				deviceStr=str(self.dev)
+			else:
+				deviceStr='N/A'
+			self.ui.changeCallsignLabel3.setText('Was: '+self.originalCallsign+'   [Device: '+deviceStr+']')
+		self.ui.changeCallsignGroupBox.setVisible(flag)
+		self.ui.changeCallsignSlider.setVisible(flag)
+		self.ui.changeCallsignLabel1.setVisible(flag)
+		self.ui.changeCallsignLabel2.setVisible(flag)
+		self.ui.changeCallsignLabel3.setVisible(flag)
 
 	def teamFieldEditingFinished(self):
 		cs=re.sub(r' +',r' ',self.ui.teamField.text()).strip() # remove leading and trailing spaces, and reduce chains of spaces to single space
@@ -8064,14 +8104,15 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					self.ui.relayedCheckBox.setChecked(True)
 					self.ui.relayedByComboBox.setCurrentText(t)
 					break
-		if self.needsChangeCallsign:
+		if self.needsChangeCallsign and self.ui.changeCallsignSlider.value()==0:
 			self.changeCallsign()
+		self.hideChangeCallsignGroup()
 
-	def callsignChangeSliderChanged(self):
-		val=self.ui.callsignChangeSlider.value()
-		rprint('callsignChangeSlider changed: current value = '+str(val))
-		self.ui.callsignChangeLabel1.setEnabled(val==0)
-		self.ui.callsignChangeLabel2.setEnabled(val==1)
+	def changeCallsignSliderChanged(self):
+		val=self.ui.changeCallsignSlider.value()
+		rprint('changeCallsignSlider changed: current value = '+str(val))
+		self.ui.changeCallsignLabel1.setEnabled(val==0)
+		self.ui.changeCallsignLabel2.setEnabled(val==1)
 
 	# changeCallsign originally ported from changeCallsignDialog.accept
 	def changeCallsign(self):

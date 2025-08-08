@@ -706,7 +706,7 @@
     <bool>false</bool>
    </property>
   </widget>
-  <widget class="QLineEdit" name="teamField">
+  <widget class="CustomLineEdit" name="teamField">
    <property name="geometry">
     <rect>
      <x>175</x>
@@ -1124,17 +1124,76 @@
     <bool>false</bool>
    </property>
   </widget>
-  <widget class="QSlider" name="callsignChangeSlider">
+  <widget class="QGroupBox" name="changeCallsignGroupBox">
    <property name="geometry">
     <rect>
-     <x>360</x>
+     <x>180</x>
      <y>70</y>
-     <width>41</width>
-     <height>21</height>
+     <width>391</width>
+     <height>61</height>
     </rect>
    </property>
-   <property name="styleSheet">
-    <string notr="true">QSlider::groove:horizontal {
+   <property name="autoFillBackground">
+    <bool>true</bool>
+   </property>
+   <property name="title">
+    <string/>
+   </property>
+   <widget class="QLabel" name="changeCallsignLabel1">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>0</y>
+      <width>171</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Segoe UI</family>
+      <pointsize>12</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>Change-and-remember</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="changeCallsignLabel2">
+    <property name="geometry">
+     <rect>
+      <x>240</x>
+      <y>0</y>
+      <width>171</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Segoe UI</family>
+      <pointsize>12</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>One-time change</string>
+    </property>
+   </widget>
+   <widget class="QSlider" name="changeCallsignSlider">
+    <property name="geometry">
+     <rect>
+      <x>190</x>
+      <y>0</y>
+      <width>41</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="focusPolicy">
+     <enum>Qt::NoFocus</enum>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QSlider::groove:horizontal {
     border: 1px solid #999999;
     height: 8px; /* the groove expands to the size of the slider height - the border and padding */
     background: #d3d3d3;
@@ -1149,54 +1208,39 @@ QSlider::handle:horizontal {
     margin: -6px 0; /* handle is placed off center to make the handle look bigger than the groove */
     border-radius: 10px; /* Rounded corners for the handle */
 }</string>
-   </property>
-   <property name="maximum">
-    <number>1</number>
-   </property>
-   <property name="pageStep">
-    <number>1</number>
-   </property>
-   <property name="orientation">
-    <enum>Qt::Horizontal</enum>
-   </property>
-  </widget>
-  <widget class="QLabel" name="callsignChangeLabel1">
-   <property name="geometry">
-    <rect>
-     <x>190</x>
-     <y>70</y>
-     <width>171</width>
-     <height>20</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <family>Segoe UI</family>
-     <pointsize>12</pointsize>
-    </font>
-   </property>
-   <property name="text">
-    <string>Change-and-remember</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="callsignChangeLabel2">
-   <property name="geometry">
-    <rect>
-     <x>410</x>
-     <y>70</y>
-     <width>171</width>
-     <height>20</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <family>Segoe UI</family>
-     <pointsize>12</pointsize>
-    </font>
-   </property>
-   <property name="text">
-    <string>One-time change</string>
-   </property>
+    </property>
+    <property name="maximum">
+     <number>1</number>
+    </property>
+    <property name="pageStep">
+     <number>1</number>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Horizontal</enum>
+    </property>
+   </widget>
+   <widget class="QLabel" name="changeCallsignLabel3">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>30</y>
+      <width>361</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Segoe UI</family>
+      <pointsize>12</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>Was: --------    Device: 000:0000</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
   </widget>
   <zorder>teamComboBox</zorder>
   <zorder>quickTextButton3</zorder>
@@ -1234,15 +1278,18 @@ QSlider::handle:horizontal {
   <zorder>line</zorder>
   <zorder>line_2</zorder>
   <zorder>relayedCheckBox</zorder>
-  <zorder>callsignChangeSlider</zorder>
-  <zorder>callsignChangeLabel1</zorder>
-  <zorder>callsignChangeLabel2</zorder>
+  <zorder>changeCallsignGroupBox</zorder>
  </widget>
  <customwidgets>
   <customwidget>
    <class>QLineEditWithDeselect</class>
    <extends>QLineEdit</extends>
    <header>QLineEditWithDeselect.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CustomLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header>radiolog.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>
@@ -1263,8 +1310,8 @@ QSlider::handle:horizontal {
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>257</x>
-     <y>193</y>
+     <x>749</x>
+     <y>449</y>
     </hint>
     <hint type="destinationlabel">
      <x>720</x>
@@ -1279,8 +1326,8 @@ QSlider::handle:horizontal {
    <slot>close()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>370</x>
-     <y>208</y>
+     <x>862</x>
+     <y>464</y>
     </hint>
     <hint type="destinationlabel">
      <x>703</x>
@@ -1295,8 +1342,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>-82</x>
-     <y>81</y>
+     <x>85</x>
+     <y>227</y>
     </hint>
     <hint type="destinationlabel">
      <x>11</x>
@@ -1311,8 +1358,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>54</x>
-     <y>77</y>
+     <x>361</x>
+     <y>223</y>
     </hint>
     <hint type="destinationlabel">
      <x>203</x>
@@ -1327,8 +1374,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>195</x>
-     <y>79</y>
+     <x>642</x>
+     <y>225</y>
     </hint>
     <hint type="destinationlabel">
      <x>433</x>
@@ -1343,8 +1390,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>188</x>
-     <y>105</y>
+     <x>635</x>
+     <y>276</y>
     </hint>
     <hint type="destinationlabel">
      <x>682</x>
@@ -1359,8 +1406,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>-80</x>
-     <y>128</y>
+     <x>102</x>
+     <y>324</y>
     </hint>
     <hint type="destinationlabel">
      <x>6</x>
@@ -1375,8 +1422,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>75</x>
-     <y>123</y>
+     <x>387</x>
+     <y>319</y>
     </hint>
     <hint type="destinationlabel">
      <x>202</x>
@@ -1391,8 +1438,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>223</x>
-     <y>100</y>
+     <x>530</x>
+     <y>271</y>
     </hint>
     <hint type="destinationlabel">
      <x>432</x>
@@ -1407,8 +1454,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>194</x>
-     <y>160</y>
+     <x>646</x>
+     <y>381</y>
     </hint>
     <hint type="destinationlabel">
      <x>203</x>
@@ -1423,8 +1470,8 @@ QSlider::handle:horizontal {
    <slot>quickTextUndo()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>-104</x>
-     <y>196</y>
+     <x>43</x>
+     <y>452</y>
     </hint>
     <hint type="destinationlabel">
      <x>433</x>
@@ -1439,8 +1486,8 @@ QSlider::handle:horizontal {
    <slot>quickTextClueAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>-108</x>
-     <y>160</y>
+     <x>34</x>
+     <y>381</y>
     </hint>
     <hint type="destinationlabel">
      <x>13</x>
@@ -1455,8 +1502,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>259</x>
-     <y>140</y>
+     <x>716</x>
+     <y>336</y>
     </hint>
     <hint type="destinationlabel">
      <x>554</x>
@@ -1471,8 +1518,8 @@ QSlider::handle:horizontal {
    <slot>quickTextSubjectLocatedAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>101</x>
-     <y>177</y>
+     <x>398</x>
+     <y>398</y>
     </hint>
     <hint type="destinationlabel">
      <x>409</x>
@@ -1487,8 +1534,8 @@ QSlider::handle:horizontal {
    <slot>quickTextAction()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>-78</x>
-     <y>94</y>
+     <x>89</x>
+     <y>265</y>
     </hint>
     <hint type="destinationlabel">
      <x>61</x>
@@ -1519,8 +1566,8 @@ QSlider::handle:horizontal {
    <slot>teamFieldTextChanged()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>31</x>
-     <y>0</y>
+     <x>251</x>
+     <y>45</y>
     </hint>
     <hint type="destinationlabel">
      <x>163</x>
@@ -1535,8 +1582,8 @@ QSlider::handle:horizontal {
    <slot>teamFieldEditingFinished()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>-8</x>
-     <y>4</y>
+     <x>212</x>
+     <y>49</y>
     </hint>
     <hint type="destinationlabel">
      <x>207</x>
@@ -1551,8 +1598,8 @@ QSlider::handle:horizontal {
    <slot>relayedByComboBoxChanged()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>-43</x>
-     <y>43</y>
+     <x>111</x>
+     <y>143</y>
     </hint>
     <hint type="destinationlabel">
      <x>8</x>
@@ -1567,8 +1614,8 @@ QSlider::handle:horizontal {
    <slot>relayedCheckBoxStateChanged()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>-88</x>
-     <y>14</y>
+     <x>71</x>
+     <y>92</y>
     </hint>
     <hint type="destinationlabel">
      <x>25</x>
@@ -1577,34 +1624,34 @@ QSlider::handle:horizontal {
    </hints>
   </connection>
   <connection>
-   <sender>callsignChangeSlider</sender>
+   <sender>changeCallsignSlider</sender>
    <signal>sliderReleased()</signal>
    <receiver>newEntryWidget</receiver>
-   <slot>callsignChangeSliderChanged()</slot>
+   <slot>changeCallsignSliderChanged()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>60</x>
-     <y>3</y>
+     <x>390</x>
+     <y>76</y>
     </hint>
     <hint type="destinationlabel">
-     <x>623</x>
-     <y>84</y>
+     <x>614</x>
+     <y>138</y>
     </hint>
    </hints>
   </connection>
   <connection>
-   <sender>callsignChangeSlider</sender>
+   <sender>changeCallsignSlider</sender>
    <signal>valueChanged(int)</signal>
    <receiver>newEntryWidget</receiver>
-   <slot>callsignChangeSliderChanged()</slot>
+   <slot>changeCallsignSliderChanged()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>82</x>
-     <y>-1</y>
+     <x>403</x>
+     <y>75</y>
     </hint>
     <hint type="destinationlabel">
-     <x>614</x>
-     <y>120</y>
+     <x>619</x>
+     <y>116</y>
     </hint>
    </hints>
   </connection>
@@ -1626,6 +1673,7 @@ QSlider::handle:horizontal {
   <slot>relayedByComboBoxChanged()</slot>
   <slot>relayedCheckBoxStateChanged()</slot>
   <slot>callsignChangeSliderChanged()</slot>
+  <slot>changeCallsignSliderChanged()</slot>
  </slots>
  <buttongroups>
   <buttongroup name="statusButtonGroup">

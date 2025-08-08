@@ -276,7 +276,7 @@ class Ui_newEntryWidget(object):
         self.timeField.setFocusPolicy(QtCore.Qt.NoFocus)
         self.timeField.setReadOnly(False)
         self.timeField.setObjectName("timeField")
-        self.teamField = QtWidgets.QLineEdit(newEntryWidget)
+        self.teamField = CustomLineEdit(newEntryWidget)
         self.teamField.setGeometry(QtCore.QRect(175, 8, 415, 61))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
@@ -450,9 +450,30 @@ class Ui_newEntryWidget(object):
         self.relayedCheckBox.setCheckable(True)
         self.relayedCheckBox.setChecked(False)
         self.relayedCheckBox.setObjectName("relayedCheckBox")
-        self.callsignChangeSlider = QtWidgets.QSlider(newEntryWidget)
-        self.callsignChangeSlider.setGeometry(QtCore.QRect(360, 70, 41, 21))
-        self.callsignChangeSlider.setStyleSheet("QSlider::groove:horizontal {\n"
+        self.changeCallsignGroupBox = QtWidgets.QGroupBox(newEntryWidget)
+        self.changeCallsignGroupBox.setGeometry(QtCore.QRect(180, 70, 391, 61))
+        self.changeCallsignGroupBox.setAutoFillBackground(True)
+        self.changeCallsignGroupBox.setTitle("")
+        self.changeCallsignGroupBox.setObjectName("changeCallsignGroupBox")
+        self.changeCallsignLabel1 = QtWidgets.QLabel(self.changeCallsignGroupBox)
+        self.changeCallsignLabel1.setGeometry(QtCore.QRect(10, 0, 171, 21))
+        font = QtGui.QFont()
+        font.setFamily("Segoe UI")
+        font.setPointSize(12)
+        self.changeCallsignLabel1.setFont(font)
+        self.changeCallsignLabel1.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.changeCallsignLabel1.setObjectName("changeCallsignLabel1")
+        self.changeCallsignLabel2 = QtWidgets.QLabel(self.changeCallsignGroupBox)
+        self.changeCallsignLabel2.setGeometry(QtCore.QRect(240, 0, 171, 21))
+        font = QtGui.QFont()
+        font.setFamily("Segoe UI")
+        font.setPointSize(12)
+        self.changeCallsignLabel2.setFont(font)
+        self.changeCallsignLabel2.setObjectName("changeCallsignLabel2")
+        self.changeCallsignSlider = QtWidgets.QSlider(self.changeCallsignGroupBox)
+        self.changeCallsignSlider.setGeometry(QtCore.QRect(190, 0, 41, 21))
+        self.changeCallsignSlider.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.changeCallsignSlider.setStyleSheet("QSlider::groove:horizontal {\n"
 "    border: 1px solid #999999;\n"
 "    height: 8px; /* the groove expands to the size of the slider height - the border and padding */\n"
 "    background: #d3d3d3;\n"
@@ -467,24 +488,18 @@ class Ui_newEntryWidget(object):
 "    margin: -6px 0; /* handle is placed off center to make the handle look bigger than the groove */\n"
 "    border-radius: 10px; /* Rounded corners for the handle */\n"
 "}")
-        self.callsignChangeSlider.setMaximum(1)
-        self.callsignChangeSlider.setPageStep(1)
-        self.callsignChangeSlider.setOrientation(QtCore.Qt.Horizontal)
-        self.callsignChangeSlider.setObjectName("callsignChangeSlider")
-        self.callsignChangeLabel1 = QtWidgets.QLabel(newEntryWidget)
-        self.callsignChangeLabel1.setGeometry(QtCore.QRect(190, 70, 171, 20))
+        self.changeCallsignSlider.setMaximum(1)
+        self.changeCallsignSlider.setPageStep(1)
+        self.changeCallsignSlider.setOrientation(QtCore.Qt.Horizontal)
+        self.changeCallsignSlider.setObjectName("changeCallsignSlider")
+        self.changeCallsignLabel3 = QtWidgets.QLabel(self.changeCallsignGroupBox)
+        self.changeCallsignLabel3.setGeometry(QtCore.QRect(10, 30, 361, 21))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(12)
-        self.callsignChangeLabel1.setFont(font)
-        self.callsignChangeLabel1.setObjectName("callsignChangeLabel1")
-        self.callsignChangeLabel2 = QtWidgets.QLabel(newEntryWidget)
-        self.callsignChangeLabel2.setGeometry(QtCore.QRect(410, 70, 171, 20))
-        font = QtGui.QFont()
-        font.setFamily("Segoe UI")
-        font.setPointSize(12)
-        self.callsignChangeLabel2.setFont(font)
-        self.callsignChangeLabel2.setObjectName("callsignChangeLabel2")
+        self.changeCallsignLabel3.setFont(font)
+        self.changeCallsignLabel3.setAlignment(QtCore.Qt.AlignCenter)
+        self.changeCallsignLabel3.setObjectName("changeCallsignLabel3")
         self.teamComboBox.raise_()
         self.quickTextButton3.raise_()
         self.quickTextButton6.raise_()
@@ -521,9 +536,7 @@ class Ui_newEntryWidget(object):
         self.line.raise_()
         self.line_2.raise_()
         self.relayedCheckBox.raise_()
-        self.callsignChangeSlider.raise_()
-        self.callsignChangeLabel1.raise_()
-        self.callsignChangeLabel2.raise_()
+        self.changeCallsignGroupBox.raise_()
 
         self.retranslateUi(newEntryWidget)
         self.buttonBox.accepted.connect(newEntryWidget.accept) # type: ignore
@@ -546,8 +559,8 @@ class Ui_newEntryWidget(object):
         self.teamField.editingFinished.connect(newEntryWidget.teamFieldEditingFinished) # type: ignore
         self.relayedByComboBox.currentIndexChanged['int'].connect(newEntryWidget.relayedByComboBoxChanged) # type: ignore
         self.relayedCheckBox.stateChanged['int'].connect(newEntryWidget.relayedCheckBoxStateChanged) # type: ignore
-        self.callsignChangeSlider.sliderReleased.connect(newEntryWidget.callsignChangeSliderChanged) # type: ignore
-        self.callsignChangeSlider.valueChanged['int'].connect(newEntryWidget.callsignChangeSliderChanged) # type: ignore
+        self.changeCallsignSlider.sliderReleased.connect(newEntryWidget.changeCallsignSliderChanged) # type: ignore
+        self.changeCallsignSlider.valueChanged['int'].connect(newEntryWidget.changeCallsignSliderChanged) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(newEntryWidget)
         newEntryWidget.setTabOrder(self.teamField, self.messageField)
         newEntryWidget.setTabOrder(self.messageField, self.to_fromField)
@@ -601,7 +614,9 @@ class Ui_newEntryWidget(object):
         self.relayedByLabel.setText(_translate("newEntryWidget", "by"))
         self.datumFormatLabel.setText(_translate("newEntryWidget", "DATUM / FORMAT"))
         self.relayedCheckBox.setText(_translate("newEntryWidget", "Relayed?"))
-        self.callsignChangeLabel1.setText(_translate("newEntryWidget", "Change-and-remember"))
-        self.callsignChangeLabel2.setText(_translate("newEntryWidget", "One-time change"))
+        self.changeCallsignLabel1.setText(_translate("newEntryWidget", "Change-and-remember"))
+        self.changeCallsignLabel2.setText(_translate("newEntryWidget", "One-time change"))
+        self.changeCallsignLabel3.setText(_translate("newEntryWidget", "Was: --------    Device: 000:0000"))
 from QLineEditWithDeselect import QLineEditWithDeselect
+from radiolog import CustomLineEdit
 import radiolog_ui_rc
