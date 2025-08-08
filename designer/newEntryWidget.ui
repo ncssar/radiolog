@@ -376,6 +376,9 @@
    </widget>
   </widget>
   <widget class="QLabel" name="label_5">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
    <property name="geometry">
     <rect>
      <x>361</x>
@@ -785,28 +788,6 @@
     <bool>false</bool>
    </property>
   </widget>
-  <widget class="QLabel" name="label_2">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="geometry">
-    <rect>
-     <x>278</x>
-     <y>68</y>
-     <width>312</width>
-     <height>21</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <family>Segoe UI</family>
-     <pointsize>9</pointsize>
-    </font>
-   </property>
-   <property name="text">
-    <string>Right-click to change and remember callsign</string>
-   </property>
-  </widget>
   <widget class="QPushButton" name="quickTextButton10">
    <property name="geometry">
     <rect>
@@ -1143,6 +1124,80 @@
     <bool>false</bool>
    </property>
   </widget>
+  <widget class="QSlider" name="callsignChangeSlider">
+   <property name="geometry">
+    <rect>
+     <x>360</x>
+     <y>70</y>
+     <width>41</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QSlider::groove:horizontal {
+    border: 1px solid #999999;
+    height: 8px; /* the groove expands to the size of the slider height - the border and padding */
+    background: #d3d3d3;
+    margin: 2px 0;
+    border-radius: 4px; /* Rounded corners for the groove */
+}
+
+QSlider::handle:horizontal {
+    background: #f0f0f0;
+    border: 1px solid #a0a0a0;
+    width: 20px;
+    margin: -6px 0; /* handle is placed off center to make the handle look bigger than the groove */
+    border-radius: 10px; /* Rounded corners for the handle */
+}</string>
+   </property>
+   <property name="maximum">
+    <number>1</number>
+   </property>
+   <property name="pageStep">
+    <number>1</number>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Horizontal</enum>
+   </property>
+  </widget>
+  <widget class="QLabel" name="callsignChangeLabel1">
+   <property name="geometry">
+    <rect>
+     <x>190</x>
+     <y>70</y>
+     <width>171</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Segoe UI</family>
+     <pointsize>12</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>Change-and-remember</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="callsignChangeLabel2">
+   <property name="geometry">
+    <rect>
+     <x>410</x>
+     <y>70</y>
+     <width>171</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Segoe UI</family>
+     <pointsize>12</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>One-time change</string>
+   </property>
+  </widget>
   <zorder>teamComboBox</zorder>
   <zorder>quickTextButton3</zorder>
   <zorder>quickTextButton6</zorder>
@@ -1166,7 +1221,6 @@
   <zorder>teamField</zorder>
   <zorder>quickTextButton7</zorder>
   <zorder>quickTextButton8</zorder>
-  <zorder>label_2</zorder>
   <zorder>quickTextButton10</zorder>
   <zorder>line_5</zorder>
   <zorder>quickTextButton1_2</zorder>
@@ -1180,6 +1234,9 @@
   <zorder>line</zorder>
   <zorder>line_2</zorder>
   <zorder>relayedCheckBox</zorder>
+  <zorder>callsignChangeSlider</zorder>
+  <zorder>callsignChangeLabel1</zorder>
+  <zorder>callsignChangeLabel2</zorder>
  </widget>
  <customwidgets>
   <customwidget>
@@ -1535,6 +1592,38 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>callsignChangeSlider</sender>
+   <signal>sliderReleased()</signal>
+   <receiver>newEntryWidget</receiver>
+   <slot>callsignChangeSliderChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>372</x>
+     <y>79</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>623</x>
+     <y>84</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>callsignChangeSlider</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>newEntryWidget</receiver>
+   <slot>callsignChangeSliderChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>394</x>
+     <y>75</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>614</x>
+     <y>120</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>accept()</slot>
@@ -1552,6 +1641,7 @@
   <slot>relayedButtonReleased()</slot>
   <slot>relayedByComboBoxChanged()</slot>
   <slot>relayedCheckBoxStateChanged()</slot>
+  <slot>callsignChangeSliderChanged()</slot>
  </slots>
  <buttongroups>
   <buttongroup name="statusButtonGroup">

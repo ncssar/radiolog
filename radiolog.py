@@ -7434,11 +7434,6 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.ui.setupUi(self)
 		self.setStyleSheet(globalStyleSheet)
 
-		# blank-out the label under the callsign field if this was a manually / hotkey
-		#  generated newEntryWidget; the label only applies to fleetsync-spawned entries
-		if not fleet:
-			self.ui.label_2.setText("")
-
 		self.setAttribute(Qt.WA_DeleteOnClose) # so that closeEvent gets called when closed by GUI
 		self.palette=QPalette()
 		self.setAutoFillBackground(True)
@@ -8060,6 +8055,12 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					self.ui.relayedCheckBox.setChecked(True)
 					self.ui.relayedByComboBox.setCurrentText(t)
 					break
+
+	def callsignChangeSliderChanged(self):
+		val=self.ui.callsignChangeSlider.value()
+		rprint('callsignChangeSlider changed: current value = '+str(val))
+		self.ui.callsignChangeLabel1.setEnabled(val==0)
+		self.ui.callsignChangeLabel2.setEnabled(val==1)
 
 	def setRelayedPrefix(self,relayedBy=None):
 		if relayedBy is None:
