@@ -7753,6 +7753,9 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			else:
 				self.ui.messageField.setFocus()
 				self.close()
+		elif key==Qt.Key_Space and event.modifiers()==Qt.ControlModifier:
+			if self.ui.teamField.hasFocus() and self.originalCallsign and self.ui.teamField.text()!=self.originalCallsign:
+				self.changeCallsignSliderToggle()
 		else:
 			super().keyPressEvent(event) # pass the event as normal
 
@@ -8074,6 +8077,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			else:
 				deviceStr='N/A'
 			self.ui.changeCallsignLabel3.setText('Was: '+self.originalCallsign+'   [Device: '+deviceStr+']')
+			self.ui.changeCallsignSlider.setValue(0) # enforce the default every time the slider group is opened
 		self.ui.changeCallsignGroupBox.setVisible(flag)
 		self.ui.changeCallsignSlider.setVisible(flag)
 		self.ui.changeCallsignLabel1.setVisible(flag)
@@ -8112,6 +8116,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		if self.needsChangeCallsign and self.ui.changeCallsignSlider.value()==0:
 			self.changeCallsign()
 		self.hideChangeCallsignGroup()
+
+	def changeCallsignSliderToggle(self):
+		val=self.ui.changeCallsignSlider.value()
+		self.ui.changeCallsignSlider.setValue((val+1)%2) # invert: 1->0 and 0->1
 
 	def changeCallsignSliderChanged(self):
 		val=self.ui.changeCallsignSlider.value()
