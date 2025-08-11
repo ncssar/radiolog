@@ -7742,12 +7742,17 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			else:
 				super().keyPressEvent(event) # pass the event as normal
 		elif key==Qt.Key_Escape:
+			rprint('esc pressed')
 			# need to force focus away from callsignField so that
 			#  callsignLostFocus gets called, to keep callsign and tab name in sync,
 			#  otherwise this will cause a crash (hitting the cancel button does
 			#  not cause a crash because the button takes focus before closing)
-			self.ui.messageField.setFocus()
-			self.close()
+			if self.ui.teamField.hasFocus() and self.originalCallsign and self.ui.teamField.text()!=self.originalCallsign:
+				self.ui.teamField.setText(self.originalCallsign)
+				self.hideChangeCallsignGroup()
+			else:
+				self.ui.messageField.setFocus()
+				self.close()
 		else:
 			super().keyPressEvent(event) # pass the event as normal
 
@@ -8057,7 +8062,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##		self.setWindowTitle("Radio Log - "+tmpTxt+" - "+self.ui.to_fromField.currentText()+" "+self.ui.teamField.text())
 
 	def teamFieldTextChanged(self):
-		flag=self.dev and self.ui.teamField.text()!=self.originalCallsign
+		flag=bool(self.dev and self.ui.teamField.text()!=self.originalCallsign) # dev could be None, so, convert to False
 		rprint('team field text changed: change needed = '+str(flag))
 		self.needsChangeCallsign=flag
 		if flag:
@@ -8113,6 +8118,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		rprint('changeCallsignSlider changed: current value = '+str(val))
 		self.ui.changeCallsignLabel1.setEnabled(val==0)
 		self.ui.changeCallsignLabel2.setEnabled(val==1)
+		self.resetLastModAge()
 
 	# changeCallsign originally ported from changeCallsignDialog.accept
 	def changeCallsign(self):
