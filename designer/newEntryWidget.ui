@@ -904,34 +904,6 @@
     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
    </property>
   </widget>
-  <widget class="QTextEdit" name="radioLocField">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="geometry">
-    <rect>
-     <x>379</x>
-     <y>121</y>
-     <width>230</width>
-     <height>30</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <family>Segoe UI</family>
-     <pointsize>12</pointsize>
-    </font>
-   </property>
-   <property name="focusPolicy">
-    <enum>Qt::NoFocus</enum>
-   </property>
-   <property name="verticalScrollBarPolicy">
-    <enum>Qt::ScrollBarAlwaysOff</enum>
-   </property>
-   <property name="horizontalScrollBarPolicy">
-    <enum>Qt::ScrollBarAlwaysOff</enum>
-   </property>
-  </widget>
   <widget class="QComboBox" name="teamComboBox">
    <property name="enabled">
     <bool>true</bool>
@@ -1130,7 +1102,7 @@
      <x>180</x>
      <y>70</y>
      <width>391</width>
-     <height>61</height>
+     <height>71</height>
     </rect>
    </property>
    <property name="autoFillBackground">
@@ -1162,6 +1134,9 @@
     </property>
    </widget>
    <widget class="QLabel" name="changeCallsignLabel2">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>240</x>
@@ -1223,15 +1198,15 @@ QSlider::handle:horizontal {
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>30</y>
+      <y>40</y>
       <width>361</width>
-      <height>21</height>
+      <height>31</height>
      </rect>
     </property>
     <property name="font">
      <font>
       <family>Segoe UI</family>
-      <pointsize>12</pointsize>
+      <pointsize>10</pointsize>
      </font>
     </property>
     <property name="text">
@@ -1241,7 +1216,61 @@ QSlider::handle:horizontal {
      <set>Qt::AlignCenter</set>
     </property>
    </widget>
+   <widget class="QLabel" name="changeCallsignLabel3_2">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>20</y>
+      <width>361</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Segoe UI</family>
+      <pointsize>10</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>(Callsign change takes effect upon leaving this field)</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
   </widget>
+  <widget class="QTextEdit" name="radioLocField">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>380</x>
+     <y>120</y>
+     <width>230</width>
+     <height>30</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Segoe UI</family>
+     <pointsize>12</pointsize>
+    </font>
+   </property>
+   <property name="focusPolicy">
+    <enum>Qt::NoFocus</enum>
+   </property>
+   <property name="verticalScrollBarPolicy">
+    <enum>Qt::ScrollBarAlwaysOff</enum>
+   </property>
+   <property name="horizontalScrollBarPolicy">
+    <enum>Qt::ScrollBarAlwaysOff</enum>
+   </property>
+  </widget>
+  <zorder>radioLocField</zorder>
   <zorder>teamComboBox</zorder>
   <zorder>quickTextButton3</zorder>
   <zorder>quickTextButton6</zorder>
@@ -1271,7 +1300,6 @@ QSlider::handle:horizontal {
   <zorder>line_6</zorder>
   <zorder>attachedField</zorder>
   <zorder>label_7</zorder>
-  <zorder>radioLocField</zorder>
   <zorder>relayedByComboBox</zorder>
   <zorder>relayedByLabel</zorder>
   <zorder>datumFormatLabel</zorder>
