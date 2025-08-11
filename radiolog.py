@@ -2606,7 +2606,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		if widget and (self.currentEntryLastModAge>holdSec or self.newEntryWindow.ui.tabWidget.count()==3):
 			# rprint('  activating New Entry Widget: '+widget.ui.teamField.text())
 			self.newEntryWindow.ui.tabWidget.setCurrentWidget(widget)
-			widget.ui.messageField.setFocus()
+			if not widget.ui.teamField.hasFocus(): # if teamField has focus i.e. is being changed, keep focus there
+				widget.ui.messageField.setFocus()
 		# #722 - end of 'if attemptNEW' clause
 		# else:
 		# 	if fleet:
@@ -4928,8 +4929,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					# if it's the only item on the stack, open the change callsign
 					#   dialog right now, since the normal event loop won't process
 					#   needsChangeCallsign until the tab changes
-					# if self.newEntryWidget==self.newEntryWindow.ui.tabWidget.currentWidget():
-					# 	QTimer.singleShot(500,lambda:self.newEntryWidget.openChangeCallsignDialog())
+					if self.newEntryWidget==self.newEntryWindow.ui.tabWidget.currentWidget():
+						QTimer.singleShot(500,lambda:self.newEntryWidget.promptForCallsign())
 					# note that changeCallsignDialog.accept is responsible for
 					#  setting focus back to the messageField of the active message
 					#  (not always the same as the new message)
@@ -7199,8 +7200,8 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 		if tabCount>2: # skip all this if 'NEWEST' and 'OLDEST' are the only tabs remaining
 			if (tabCount-currentIndex)>1: # don't try to throb the 'OLDEST' label - it has no throb method
 				currentWidget=self.ui.tabWidget.widget(currentIndex)
-				# if currentWidget.needsChangeCallsign:
-				# 	QTimer.singleShot(500,lambda:currentWidget.openChangeCallsignDialog())
+				if currentWidget.needsChangeCallsign:
+					QTimer.singleShot(500,lambda:currentWidget.promptForCallsign())
 				if throb:
 					currentWidget.throb()
 				#683 but also general timing: respect hold time of >active< widget,
@@ -7759,6 +7760,19 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		else:
 			super().keyPressEvent(event) # pass the event as normal
 
+	def promptForCallsign(self):
+		rprint('promptForCallsign called')
+		# self.needsChangeCallsign=False
+		self.ui.changeCallsignSlider.setValue(0) # enforce the default every time the slider group is opened
+		self.ui.changeCallsignGroupBox.setVisible(True)
+		self.ui.changeCallsignSlider.setVisible(True)
+		self.ui.changeCallsignLabel1.setVisible(True)
+		self.ui.changeCallsignLabel2.setVisible(True)
+		self.ui.changeCallsignLabel3.setVisible(True)
+		self.ui.teamField.setText('Team ')
+		self.ui.teamField.setFocus()
+		self.ui.teamField.setSelection(5,1)
+
 	# def openChangeCallsignDialog(self):
 	# 	# problem: changeCallsignDialog does not stay on top of newEntryWindow!
 	# 	# only open the dialog if the newEntryWidget was created from an incoming fleetSync ID
@@ -8176,6 +8190,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		#  repeated or superceded calls to CCD can be recorded in the note
 		self.newCallsignFromCCD=newCallsign
 		rprint("New callsign pairing created: fleet="+str(self.fleet)+"  dev="+str(self.dev)+"  uid="+str(uid)+"  callsign="+newCallsign)
+		self.needsChangeCallsign=False
 		# self.closeEvent(QEvent(QEvent.Close),True)
 		# super(changeCallsignDialog,self).accept()
 
