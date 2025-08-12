@@ -7450,7 +7450,9 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.ui.setupUi(self)
 		self.setStyleSheet(globalStyleSheet)
 
-		self.hideChangeCallsignGroup()
+		# self.hideChangeCallsignGroup()
+		self.ui.changeCallsignGroupBox.setVisible(False)
+		self.ui.firstCallGroupBox.setVisible(False)
 
 		self.setAttribute(Qt.WA_DeleteOnClose) # so that closeEvent gets called when closed by GUI
 		self.palette=QPalette()
@@ -7632,7 +7634,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 
 	def customFocusOutEvent(self,widget):
 		if widget.objectName()=='teamField':
-			self.hideChangeCallsignGroup()
+			self.ui.changeCallsignGroupBox.setVisible(False)
+			self.ui.firstCallGroupBox.setVisible(False)
 			# but not when the slider is clicked - assured by setting slider focus policy to NoFocus
 		elif 'interview' in widget.toPlainText().lower():
 			self.parent.showInterviewPopup(widget)
@@ -7642,13 +7645,6 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		if widget.objectName()=='teamField':
 			# rprint('t1')
 			self.teamFieldTextChanged()
-
-	def hideChangeCallsignGroup(self):
-		self.ui.changeCallsignGroupBox.setVisible(False)
-		self.ui.changeCallsignSlider.setVisible(False)
-		self.ui.changeCallsignLabel1.setVisible(False)
-		self.ui.changeCallsignLabel2.setVisible(False)
-		self.ui.changeCallsignLabel3.setVisible(False)
 
 	def throb(self,n=0):
 		# this function calls itself recursivly 25 times to throb the background blue->white
@@ -7750,7 +7746,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			#  not cause a crash because the button takes focus before closing)
 			if self.ui.teamField.hasFocus() and self.originalCallsign and self.ui.teamField.text()!=self.originalCallsign:
 				self.ui.teamField.setText(self.originalCallsign)
-				self.hideChangeCallsignGroup()
+				self.ui.changeCallsignGroupBox.setVisible(False)
+				self.ui.firstCallGroupBox.setVisible(False)
 			else:
 				self.ui.messageField.setFocus()
 				self.close()
@@ -7763,12 +7760,13 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 	def promptForCallsign(self):
 		rprint('promptForCallsign called')
 		# self.needsChangeCallsign=False
-		self.ui.changeCallsignSlider.setValue(0) # enforce the default every time the slider group is opened
-		self.ui.changeCallsignGroupBox.setVisible(True)
-		self.ui.changeCallsignSlider.setVisible(True)
-		self.ui.changeCallsignLabel1.setVisible(True)
-		self.ui.changeCallsignLabel2.setVisible(True)
-		self.ui.changeCallsignLabel3.setVisible(True)
+		# self.ui.changeCallsignSlider.setValue(0) # enforce the default every time the slider group is opened
+		self.ui.changeCallsignGroupBox.setVisible(False)
+		deviceStr=str(self.fleet)+':'+str(self.dev)
+		if self.fleet is None:
+			deviceStr='NDXN:'+str(self.dev)
+		self.ui.firstCallLabel1.setText('This is the first call from device '+deviceStr+'.')
+		self.ui.firstCallGroupBox.setVisible(True)
 		self.ui.teamField.setText('Team ')
 		self.ui.teamField.setFocus()
 		self.ui.teamField.setSelection(5,1)
@@ -8093,10 +8091,6 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			self.ui.changeCallsignLabel3.setText('Was: '+self.originalCallsign+'   [Device: '+deviceStr+']')
 			self.ui.changeCallsignSlider.setValue(0) # enforce the default every time the slider group is opened
 		self.ui.changeCallsignGroupBox.setVisible(flag)
-		self.ui.changeCallsignSlider.setVisible(flag)
-		self.ui.changeCallsignLabel1.setVisible(flag)
-		self.ui.changeCallsignLabel2.setVisible(flag)
-		self.ui.changeCallsignLabel3.setVisible(flag)
 
 	def teamFieldEditingFinished(self):
 		cs=re.sub(r' +',r' ',self.ui.teamField.text()).strip() # remove leading and trailing spaces, and reduce chains of spaces to single space
@@ -8129,7 +8123,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					break
 		if self.needsChangeCallsign and self.ui.changeCallsignSlider.value()==0:
 			self.changeCallsign()
-		self.hideChangeCallsignGroup()
+		self.ui.changeCallsignGroupBox.setVisible(False)
+		self.ui.firstCallGroupBox.setVisible(False)
 
 	def changeCallsignSliderToggle(self):
 		val=self.ui.changeCallsignSlider.value()
@@ -8191,6 +8186,9 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.newCallsignFromCCD=newCallsign
 		rprint("New callsign pairing created: fleet="+str(self.fleet)+"  dev="+str(self.dev)+"  uid="+str(uid)+"  callsign="+newCallsign)
 		self.needsChangeCallsign=False
+		self.ui.firstCallLabel1.setVisible(False)
+		self.ui.firstCallLabel2.setVisible(False)
+		self.ui.firstCallLabel3.setVisible(False)
 		# self.closeEvent(QEvent(QEvent.Close),True)
 		# super(changeCallsignDialog,self).accept()
 
