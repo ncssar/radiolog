@@ -1762,22 +1762,6 @@ QSlider::handle:horizontal {
   </connection>
   <connection>
    <sender>changeCallsignSlider</sender>
-   <signal>sliderReleased()</signal>
-   <receiver>newEntryWidget</receiver>
-   <slot>changeCallsignSliderChanged()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>390</x>
-     <y>76</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>614</x>
-     <y>138</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>changeCallsignSlider</sender>
    <signal>valueChanged(int)</signal>
    <receiver>newEntryWidget</receiver>
    <slot>changeCallsignSliderChanged()</slot>
@@ -1789,6 +1773,22 @@ QSlider::handle:horizontal {
     <hint type="destinationlabel">
      <x>619</x>
      <y>116</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>changeCallsignSlider</sender>
+   <signal>sliderPressed()</signal>
+   <receiver>newEntryWidget</receiver>
+   <slot>changeCallsignSliderToggle()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>380</x>
+     <y>79</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>602</x>
+     <y>155</y>
     </hint>
    </hints>
   </connection>
@@ -1811,6 +1811,7 @@ QSlider::handle:horizontal {
   <slot>relayedCheckBoxStateChanged()</slot>
   <slot>callsignChangeSliderChanged()</slot>
   <slot>changeCallsignSliderChanged()</slot>
+  <slot>changeCallsignSliderToggle()</slot>
  </slots>
  <buttongroups>
   <buttongroup name="statusButtonGroup">

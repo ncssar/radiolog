@@ -613,8 +613,8 @@ class Ui_newEntryWidget(object):
         self.teamField.editingFinished.connect(newEntryWidget.teamFieldEditingFinished) # type: ignore
         self.relayedByComboBox.currentIndexChanged['int'].connect(newEntryWidget.relayedByComboBoxChanged) # type: ignore
         self.relayedCheckBox.stateChanged['int'].connect(newEntryWidget.relayedCheckBoxStateChanged) # type: ignore
-        self.changeCallsignSlider.sliderReleased.connect(newEntryWidget.changeCallsignSliderChanged) # type: ignore
         self.changeCallsignSlider.valueChanged['int'].connect(newEntryWidget.changeCallsignSliderChanged) # type: ignore
+        self.changeCallsignSlider.sliderPressed.connect(newEntryWidget.changeCallsignSliderToggle) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(newEntryWidget)
         newEntryWidget.setTabOrder(self.teamField, self.messageField)
         newEntryWidget.setTabOrder(self.messageField, self.to_fromField)
