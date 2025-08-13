@@ -441,17 +441,16 @@ class Ui_newEntryWidget(object):
         self.relayedCheckBox.setObjectName("relayedCheckBox")
         self.changeCallsignGroupBox = QtWidgets.QGroupBox(newEntryWidget)
         self.changeCallsignGroupBox.setEnabled(True)
-        self.changeCallsignGroupBox.setGeometry(QtCore.QRect(180, 70, 391, 71))
+        self.changeCallsignGroupBox.setGeometry(QtCore.QRect(180, 60, 391, 81))
         self.changeCallsignGroupBox.setAutoFillBackground(False)
         self.changeCallsignGroupBox.setStyleSheet("QGroupBox#changeCallsignGroupBox {\n"
 "    border: 3px inset blue;\n"
-"    border-top: 0px;\n"
 "    background-color: #ddf;\n"
 "}")
         self.changeCallsignGroupBox.setTitle("")
         self.changeCallsignGroupBox.setObjectName("changeCallsignGroupBox")
         self.changeCallsignLabel1 = QtWidgets.QLabel(self.changeCallsignGroupBox)
-        self.changeCallsignLabel1.setGeometry(QtCore.QRect(10, 0, 171, 21))
+        self.changeCallsignLabel1.setGeometry(QtCore.QRect(10, 10, 171, 21))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(12)
@@ -460,14 +459,14 @@ class Ui_newEntryWidget(object):
         self.changeCallsignLabel1.setObjectName("changeCallsignLabel1")
         self.changeCallsignLabel2 = QtWidgets.QLabel(self.changeCallsignGroupBox)
         self.changeCallsignLabel2.setEnabled(False)
-        self.changeCallsignLabel2.setGeometry(QtCore.QRect(240, 0, 171, 21))
+        self.changeCallsignLabel2.setGeometry(QtCore.QRect(240, 10, 171, 21))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(12)
         self.changeCallsignLabel2.setFont(font)
         self.changeCallsignLabel2.setObjectName("changeCallsignLabel2")
         self.changeCallsignSlider = QtWidgets.QSlider(self.changeCallsignGroupBox)
-        self.changeCallsignSlider.setGeometry(QtCore.QRect(190, 0, 41, 21))
+        self.changeCallsignSlider.setGeometry(QtCore.QRect(190, 10, 41, 21))
         self.changeCallsignSlider.setFocusPolicy(QtCore.Qt.NoFocus)
         self.changeCallsignSlider.setStyleSheet("QSlider::groove:horizontal {\n"
 "    border: 1px solid #999999;\n"
@@ -489,7 +488,7 @@ class Ui_newEntryWidget(object):
         self.changeCallsignSlider.setOrientation(QtCore.Qt.Horizontal)
         self.changeCallsignSlider.setObjectName("changeCallsignSlider")
         self.changeCallsignLabel3 = QtWidgets.QLabel(self.changeCallsignGroupBox)
-        self.changeCallsignLabel3.setGeometry(QtCore.QRect(10, 40, 361, 31))
+        self.changeCallsignLabel3.setGeometry(QtCore.QRect(10, 50, 361, 31))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(10)
@@ -498,7 +497,7 @@ class Ui_newEntryWidget(object):
         self.changeCallsignLabel3.setObjectName("changeCallsignLabel3")
         self.changeCallsignLabel4 = QtWidgets.QLabel(self.changeCallsignGroupBox)
         self.changeCallsignLabel4.setEnabled(False)
-        self.changeCallsignLabel4.setGeometry(QtCore.QRect(10, 20, 361, 31))
+        self.changeCallsignLabel4.setGeometry(QtCore.QRect(10, 30, 361, 31))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(10)
@@ -518,17 +517,16 @@ class Ui_newEntryWidget(object):
         self.radioLocField.setObjectName("radioLocField")
         self.firstCallGroupBox = QtWidgets.QGroupBox(newEntryWidget)
         self.firstCallGroupBox.setEnabled(True)
-        self.firstCallGroupBox.setGeometry(QtCore.QRect(180, 70, 391, 71))
+        self.firstCallGroupBox.setGeometry(QtCore.QRect(180, 60, 391, 81))
         self.firstCallGroupBox.setAutoFillBackground(False)
         self.firstCallGroupBox.setStyleSheet("QGroupBox#firstCallGroupBox {\n"
 "    background-color: #dfd;\n"
 "    border: 2px outset green;\n"
-"    border-top: 0px;\n"
 "}")
         self.firstCallGroupBox.setTitle("")
         self.firstCallGroupBox.setObjectName("firstCallGroupBox")
         self.firstCallLabel1 = QtWidgets.QLabel(self.firstCallGroupBox)
-        self.firstCallLabel1.setGeometry(QtCore.QRect(10, 0, 371, 21))
+        self.firstCallLabel1.setGeometry(QtCore.QRect(10, 10, 371, 21))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(12)
@@ -539,7 +537,7 @@ class Ui_newEntryWidget(object):
         self.firstCallLabel1.setObjectName("firstCallLabel1")
         self.firstCallLabel3 = QtWidgets.QLabel(self.firstCallGroupBox)
         self.firstCallLabel3.setEnabled(False)
-        self.firstCallLabel3.setGeometry(QtCore.QRect(10, 40, 361, 31))
+        self.firstCallLabel3.setGeometry(QtCore.QRect(10, 50, 361, 31))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(10)
@@ -548,7 +546,7 @@ class Ui_newEntryWidget(object):
         self.firstCallLabel3.setObjectName("firstCallLabel3")
         self.firstCallLabel2 = QtWidgets.QLabel(self.firstCallGroupBox)
         self.firstCallLabel2.setEnabled(True)
-        self.firstCallLabel2.setGeometry(QtCore.QRect(10, 20, 371, 31))
+        self.firstCallLabel2.setGeometry(QtCore.QRect(10, 30, 371, 31))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(12)
@@ -576,7 +574,6 @@ class Ui_newEntryWidget(object):
         self.label_6.raise_()
         self.quickTextUndoButton.raise_()
         self.timeField.raise_()
-        self.teamField.raise_()
         self.quickTextButton7.raise_()
         self.quickTextButton8.raise_()
         self.quickTextButton10.raise_()
@@ -593,6 +590,7 @@ class Ui_newEntryWidget(object):
         self.relayedCheckBox.raise_()
         self.changeCallsignGroupBox.raise_()
         self.firstCallGroupBox.raise_()
+        self.teamField.raise_()
 
         self.retranslateUi(newEntryWidget)
         self.buttonBox.accepted.connect(newEntryWidget.accept) # type: ignore
