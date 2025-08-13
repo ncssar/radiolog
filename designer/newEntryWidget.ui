@@ -1109,7 +1109,14 @@
     </rect>
    </property>
    <property name="autoFillBackground">
-    <bool>true</bool>
+    <bool>false</bool>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QGroupBox#changeCallsignGroupBox {
+	border: 3px inset blue;
+	border-top: 0px;
+	background-color: #ddf;
+}</string>
    </property>
    <property name="title">
     <string/>
@@ -1286,7 +1293,14 @@ QSlider::handle:horizontal {
     </rect>
    </property>
    <property name="autoFillBackground">
-    <bool>true</bool>
+    <bool>false</bool>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QGroupBox#firstCallGroupBox {
+	background-color: #dfd;
+	border: 2px outset green;
+	border-top: 0px;
+}</string>
    </property>
    <property name="title">
     <string/>

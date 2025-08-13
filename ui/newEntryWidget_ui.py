@@ -442,7 +442,12 @@ class Ui_newEntryWidget(object):
         self.changeCallsignGroupBox = QtWidgets.QGroupBox(newEntryWidget)
         self.changeCallsignGroupBox.setEnabled(True)
         self.changeCallsignGroupBox.setGeometry(QtCore.QRect(180, 70, 391, 71))
-        self.changeCallsignGroupBox.setAutoFillBackground(True)
+        self.changeCallsignGroupBox.setAutoFillBackground(False)
+        self.changeCallsignGroupBox.setStyleSheet("QGroupBox#changeCallsignGroupBox {\n"
+"    border: 3px inset blue;\n"
+"    border-top: 0px;\n"
+"    background-color: #ddf;\n"
+"}")
         self.changeCallsignGroupBox.setTitle("")
         self.changeCallsignGroupBox.setObjectName("changeCallsignGroupBox")
         self.changeCallsignLabel1 = QtWidgets.QLabel(self.changeCallsignGroupBox)
@@ -514,7 +519,12 @@ class Ui_newEntryWidget(object):
         self.firstCallGroupBox = QtWidgets.QGroupBox(newEntryWidget)
         self.firstCallGroupBox.setEnabled(True)
         self.firstCallGroupBox.setGeometry(QtCore.QRect(180, 70, 391, 71))
-        self.firstCallGroupBox.setAutoFillBackground(True)
+        self.firstCallGroupBox.setAutoFillBackground(False)
+        self.firstCallGroupBox.setStyleSheet("QGroupBox#firstCallGroupBox {\n"
+"    background-color: #dfd;\n"
+"    border: 2px outset green;\n"
+"    border-top: 0px;\n"
+"}")
         self.firstCallGroupBox.setTitle("")
         self.firstCallGroupBox.setObjectName("firstCallGroupBox")
         self.firstCallLabel1 = QtWidgets.QLabel(self.firstCallGroupBox)

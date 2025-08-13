@@ -8090,6 +8090,12 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				deviceStr='N/A'
 			self.ui.changeCallsignLabel3.setText('Was: '+self.originalCallsign+'   [Device: '+deviceStr+']')
 			self.ui.changeCallsignSlider.setValue(0) # enforce the default every time the slider group is opened
+			if self.ui.firstCallGroupBox.isVisible():
+				self.ui.teamField.setStyleSheet('border:3px inset green;')
+			else:
+				self.ui.teamField.setStyleSheet('border:3px inset blue;')
+		else:
+			self.ui.teamField.setStyleSheet('border:3px inset gray;')
 		self.ui.changeCallsignGroupBox.setVisible(flag)
 
 	def teamFieldEditingFinished(self):
@@ -8186,9 +8192,11 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.newCallsignFromCCD=newCallsign
 		rprint("New callsign pairing created: fleet="+str(self.fleet)+"  dev="+str(self.dev)+"  uid="+str(uid)+"  callsign="+newCallsign)
 		self.needsChangeCallsign=False
-		self.ui.firstCallLabel1.setVisible(False)
-		self.ui.firstCallLabel2.setVisible(False)
-		self.ui.firstCallLabel3.setVisible(False)
+		self.ui.teamField.setStyleSheet('border:3px inset gray;')
+		self.ui.firstCallGroupBox.setVisible(False)
+		# self.ui.firstCallLabel1.setVisible(False)
+		# self.ui.firstCallLabel2.setVisible(False)
+		# self.ui.firstCallLabel3.setVisible(False)
 		# self.closeEvent(QEvent(QEvent.Close),True)
 		# super(changeCallsignDialog,self).accept()
 
