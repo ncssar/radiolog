@@ -7637,14 +7637,15 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			self.ui.changeCallsignGroupBox.setVisible(False)
 			self.ui.firstCallGroupBox.setVisible(False)
 			# but not when the slider is clicked - assured by setting slider focus policy to NoFocus
+			self.ui.teamField.setToolTip('Type a callsign, or, choose from existing callsigns') # reset after customFocusInEvent
 		elif 'interview' in widget.toPlainText().lower():
 			self.parent.showInterviewPopup(widget)
 
 	def customFocusInEvent(self,widget):
 		# rprint('focus in to widget '+str(widget.objectName()))
 		if widget.objectName()=='teamField':
-			# rprint('t1')
 			self.teamFieldTextChanged()
+			self.ui.teamField.setToolTip('') # tooltip gets in the way when field is focused
 
 	def throb(self,n=0):
 		# this function calls itself recursivly 25 times to throb the background blue->white
