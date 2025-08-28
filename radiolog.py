@@ -7749,6 +7749,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				self.ui.teamField.setText(self.originalCallsign)
 				self.ui.changeCallsignGroupBox.setVisible(False)
 				self.ui.firstCallGroupBox.setVisible(False)
+				self.ui.messageField.setFocus() # leavving focus in teamField after pressing Esc isn't helpful
 			else:
 				self.ui.messageField.setFocus()
 				self.close()
@@ -8130,6 +8131,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					break
 		if self.needsChangeCallsign and self.ui.changeCallsignSlider.value()==0:
 			self.changeCallsign()
+			self.originalCallsign=self.ui.teamField.text()
 		self.ui.changeCallsignGroupBox.setVisible(False)
 		self.ui.firstCallGroupBox.setVisible(False)
 
