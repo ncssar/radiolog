@@ -7760,10 +7760,14 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			#  callsignLostFocus gets called, to keep callsign and tab name in sync,
 			#  otherwise this will cause a crash (hitting the cancel button does
 			#  not cause a crash because the button takes focus before closing)
-			if self.ui.teamField.hasFocus() and self.originalCallsign and self.ui.teamField.text()!=self.originalCallsign:
-				self.ui.teamField.setText(self.originalCallsign)
-				# self.ui.changeCallsignGroupBox.setVisible(False)
-				# self.ui.firstCallGroupBox.setVisible(False)
+			# change logic: when esc is pressed while teamField has focus, don't try to close the dialog;
+			#  just set focus to the message field
+			if self.ui.teamField.hasFocus():
+			# if self.ui.teamField.hasFocus() and self.originalCallsign and self.ui.teamField.text()!=self.originalCallsign:
+				if self.originalCallsign and self.ui.teamField.text()!=self.originalCallsign:
+					self.ui.teamField.setText(self.originalCallsign)
+					# self.ui.changeCallsignGroupBox.setVisible(False)
+					# self.ui.firstCallGroupBox.setVisible(False)
 				self.ui.messageField.setFocus() # leavving focus in teamField after pressing Esc isn't helpful
 			else:
 				self.ui.messageField.setFocus()
