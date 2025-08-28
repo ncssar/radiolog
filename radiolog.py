@@ -7448,11 +7448,24 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##		newEntryDialog.newEntryDialogUsedPositionList[self.position]=True
 		newEntryWidget.instances.append(self)
 		self.ui.setupUi(self)
+
+		blockerPalette=QPalette()
+		blockerPalette.setColor(QPalette.Background,QColor(255,255,255))
+		self.ui.groupBlocker.setPalette(blockerPalette)
+
 		self.setStyleSheet(globalStyleSheet)
 
 		# self.hideChangeCallsignGroup()
-		self.ui.changeCallsignGroupBox.setVisible(False)
-		self.ui.firstCallGroupBox.setVisible(False)
+		# self.ui.changeCallsignGroupBox.setVisible(False)
+		# self.ui.firstCallGroupBox.setVisible(False)
+
+		self.changeCallsignGroupAnimation=QPropertyAnimation(self.ui.changeCallsignGroupBox,b'pos')
+		self.changeCallsignGroupAnimation.setDuration(150)
+		self.firstCallGroupAnimation=QPropertyAnimation(self.ui.firstCallGroupBox,b'pos')
+		self.firstCallGroupAnimation.setDuration(150)
+
+		self.callsignGroupBoxShown='init' # to force 'none' to hide the group boxes on this first call
+		self.callsignGroupBoxesShowHide(show='none',animate=False)
 
 		self.setAttribute(Qt.WA_DeleteOnClose) # so that closeEvent gets called when closed by GUI
 		self.palette=QPalette()
@@ -7634,8 +7647,9 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 
 	def customFocusOutEvent(self,widget):
 		if widget.objectName()=='teamField':
-			self.ui.changeCallsignGroupBox.setVisible(False)
-			self.ui.firstCallGroupBox.setVisible(False)
+			# self.ui.changeCallsignGroupBox.setVisible(False)
+			self.callsignGroupBoxesShowHide(show='none')
+			# self.ui.firstCallGroupBox.setVisible(False)
 			# but not when the slider is clicked - assured by setting slider focus policy to NoFocus
 			self.ui.teamField.setToolTip('Type a callsign, or, choose from existing callsigns') # reset after customFocusInEvent
 		elif 'interview' in widget.toPlainText().lower():
@@ -7644,6 +7658,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 	def customFocusInEvent(self,widget):
 		# rprint('focus in to widget '+str(widget.objectName()))
 		if widget.objectName()=='teamField':
+			# self.callsignGroupBoxesShowHide(show='changeCallsign')
 			self.teamFieldTextChanged()
 			self.ui.teamField.setToolTip('') # tooltip gets in the way when field is focused
 
@@ -7747,8 +7762,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			#  not cause a crash because the button takes focus before closing)
 			if self.ui.teamField.hasFocus() and self.originalCallsign and self.ui.teamField.text()!=self.originalCallsign:
 				self.ui.teamField.setText(self.originalCallsign)
-				self.ui.changeCallsignGroupBox.setVisible(False)
-				self.ui.firstCallGroupBox.setVisible(False)
+				# self.ui.changeCallsignGroupBox.setVisible(False)
+				# self.ui.firstCallGroupBox.setVisible(False)
 				self.ui.messageField.setFocus() # leavving focus in teamField after pressing Esc isn't helpful
 			else:
 				self.ui.messageField.setFocus()
@@ -7763,12 +7778,13 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		rprint('promptForCallsign called')
 		# self.needsChangeCallsign=False
 		# self.ui.changeCallsignSlider.setValue(0) # enforce the default every time the slider group is opened
-		self.ui.changeCallsignGroupBox.setVisible(False)
+		# self.ui.changeCallsignGroupBox.setVisible(False)
 		deviceStr=str(self.fleet)+':'+str(self.dev)
 		if self.fleet is None:
 			deviceStr='NDXN:'+str(self.dev)
 		self.ui.firstCallLabel1.setText('This is the first call from device '+deviceStr+'.')
-		self.ui.firstCallGroupBox.setVisible(True)
+		# self.ui.firstCallGroupBox.setVisible(True)
+		self.callsignGroupBoxesShowHide(show='firstCall')
 		self.ui.teamField.setText('Team ')
 		self.ui.teamField.setFocus()
 		self.ui.teamField.setSelection(5,1)
@@ -8092,13 +8108,18 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				deviceStr='N/A'
 			self.ui.changeCallsignLabel3.setText('Was: '+self.originalCallsign+'   [Device: '+deviceStr+']')
 			self.ui.changeCallsignSlider.setValue(0) # enforce the default every time the slider group is opened
-			if self.ui.firstCallGroupBox.isVisible():
+			if self.callsignGroupBoxShown=='firstCall':
 				self.ui.teamField.setStyleSheet('border:3px inset green;')
 			else:
 				self.ui.teamField.setStyleSheet('border:3px inset blue;')
 		else:
 			self.ui.teamField.setStyleSheet('border:3px inset gray;')
-		self.ui.changeCallsignGroupBox.setVisible(flag)
+		# self.ui.changeCallsignGroupBox.setVisible(flag)
+		# self.callsignGroupBoxesShowHide(show='changeCallsign')
+		if flag and self.callsignGroupBoxShown=='none':
+			self.callsignGroupBoxesShowHide(show='changeCallsign')
+		if not flag and self.callsignGroupBoxShown=='changeCallsign':
+			self.callsignGroupBoxesShowHide(show='none')
 
 	def teamFieldEditingFinished(self):
 		cs=re.sub(r' +',r' ',self.ui.teamField.text()).strip() # remove leading and trailing spaces, and reduce chains of spaces to single space
@@ -8132,8 +8153,42 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		if self.needsChangeCallsign and self.ui.changeCallsignSlider.value()==0:
 			self.changeCallsign()
 			self.originalCallsign=self.ui.teamField.text()
-		self.ui.changeCallsignGroupBox.setVisible(False)
-		self.ui.firstCallGroupBox.setVisible(False)
+		# self.ui.changeCallsignGroupBox.setVisible(False)
+		self.callsignGroupBoxesShowHide(show='none')
+		# self.ui.firstCallGroupBox.setVisible(False)
+
+	# reveal a group box, or hide both group boxes
+	def callsignGroupBoxesShowHide(self,show='none',animate=True):
+		rprint('showHide called: show='+str(show)+'  animate='+str(animate))
+		if show!=self.callsignGroupBoxShown:
+			ccx=self.ui.changeCallsignGroupBox.x()
+			fcx=self.ui.firstCallGroupBox.x()
+			ccgh=self.ui.changeCallsignGroupBox.height()
+			fcgh=self.ui.firstCallGroupBox.height()
+			tfBot=self.ui.teamField.y()+self.ui.teamField.height()
+			changeCallsignGroupBoxShownPos=QPoint(ccx,tfBot-3)
+			changeCallsignGroupBoxHiddenPos=QPoint(ccx,tfBot-ccgh)
+			firstCallGroupBoxShownPos=QPoint(fcx,tfBot-3)
+			firstCallGroupBoxHiddenPos=QPoint(fcx,tfBot-fcgh)
+			# if self.ui.changeCallsignGroupBox.pos().y()>-100:
+			# if not self.changeCallsignGroupBoxIsShown:
+			duration=150
+			if not animate:
+				duration=0
+			self.changeCallsignGroupAnimation.setDuration(duration)
+			self.firstCallGroupAnimation.setDuration(duration)
+			if show=='changeCallsign':
+				self.changeCallsignGroupAnimation.setEndValue(changeCallsignGroupBoxShownPos)
+				self.changeCallsignGroupAnimation.start()
+			elif show=='firstCall':
+				self.firstCallGroupAnimation.setEndValue(firstCallGroupBoxShownPos)
+				self.firstCallGroupAnimation.start()
+			else:
+				self.changeCallsignGroupAnimation.setEndValue(changeCallsignGroupBoxHiddenPos)
+				self.firstCallGroupAnimation.setEndValue(firstCallGroupBoxHiddenPos)
+				self.changeCallsignGroupAnimation.start()
+				self.firstCallGroupAnimation.start()
+			self.callsignGroupBoxShown=show
 
 	def changeCallsignSliderToggle(self):
 		val=self.ui.changeCallsignSlider.value()
@@ -8196,7 +8251,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		rprint("New callsign pairing created: fleet="+str(self.fleet)+"  dev="+str(self.dev)+"  uid="+str(uid)+"  callsign="+newCallsign)
 		self.needsChangeCallsign=False
 		self.ui.teamField.setStyleSheet('border:3px inset gray;')
-		self.ui.firstCallGroupBox.setVisible(False)
+		# self.ui.firstCallGroupBox.setVisible(False)
 		# self.ui.firstCallLabel1.setVisible(False)
 		# self.ui.firstCallLabel2.setVisible(False)
 		# self.ui.firstCallLabel3.setVisible(False)

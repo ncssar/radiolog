@@ -17,7 +17,6 @@ class Ui_newEntryWidget(object):
         newEntryWidget.setEnabled(True)
         newEntryWidget.resize(952, 490)
         newEntryWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        newEntryWidget.setStyleSheet("")
         self.quickTextButton3 = QtWidgets.QPushButton(newEntryWidget)
         self.quickTextButton3.setGeometry(QtCore.QRect(630, 210, 251, 31))
         font = QtGui.QFont()
@@ -553,8 +552,12 @@ class Ui_newEntryWidget(object):
         self.firstCallLabel2.setFont(font)
         self.firstCallLabel2.setAlignment(QtCore.Qt.AlignCenter)
         self.firstCallLabel2.setObjectName("firstCallLabel2")
+        self.groupBlocker = QtWidgets.QGroupBox(newEntryWidget)
+        self.groupBlocker.setGeometry(QtCore.QRect(170, -21, 451, 81))
+        self.groupBlocker.setAutoFillBackground(True)
+        self.groupBlocker.setFlat(True)
+        self.groupBlocker.setObjectName("groupBlocker")
         self.radioLocField.raise_()
-        self.teamComboBox.raise_()
         self.quickTextButton3.raise_()
         self.quickTextButton6.raise_()
         self.line_3.raise_()
@@ -590,6 +593,8 @@ class Ui_newEntryWidget(object):
         self.relayedCheckBox.raise_()
         self.changeCallsignGroupBox.raise_()
         self.firstCallGroupBox.raise_()
+        self.groupBlocker.raise_()
+        self.teamComboBox.raise_()
         self.teamField.raise_()
 
         self.retranslateUi(newEntryWidget)
@@ -675,6 +680,7 @@ class Ui_newEntryWidget(object):
         self.firstCallLabel1.setText(_translate("newEntryWidget", "This is the first call from device 000:0000."))
         self.firstCallLabel3.setText(_translate("newEntryWidget", "(Callsign change takes effect upon leaving this field)"))
         self.firstCallLabel2.setText(_translate("newEntryWidget", "Type a callsign to associate with this device."))
+        self.groupBlocker.setTitle(_translate("newEntryWidget", "GroupBox"))
 from QLineEditWithDeselect import QLineEditWithDeselect
 from radiolog import CustomLineEdit
 import radiolog_ui_rc

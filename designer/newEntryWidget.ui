@@ -19,9 +19,6 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <property name="styleSheet">
-   <string notr="true"/>
-  </property>
   <widget class="QPushButton" name="quickTextButton3">
    <property name="geometry">
     <rect>
@@ -1378,8 +1375,26 @@ QSlider::handle:horizontal {
     </property>
    </widget>
   </widget>
+  <widget class="QGroupBox" name="groupBlocker">
+   <property name="geometry">
+    <rect>
+     <x>170</x>
+     <y>-21</y>
+     <width>451</width>
+     <height>81</height>
+    </rect>
+   </property>
+   <property name="autoFillBackground">
+    <bool>true</bool>
+   </property>
+   <property name="title">
+    <string>GroupBox</string>
+   </property>
+   <property name="flat">
+    <bool>true</bool>
+   </property>
+  </widget>
   <zorder>radioLocField</zorder>
-  <zorder>teamComboBox</zorder>
   <zorder>quickTextButton3</zorder>
   <zorder>quickTextButton6</zorder>
   <zorder>line_3</zorder>
@@ -1415,6 +1430,8 @@ QSlider::handle:horizontal {
   <zorder>relayedCheckBox</zorder>
   <zorder>changeCallsignGroupBox</zorder>
   <zorder>firstCallGroupBox</zorder>
+  <zorder>groupBlocker</zorder>
+  <zorder>teamComboBox</zorder>
   <zorder>teamField</zorder>
  </widget>
  <customwidgets>
