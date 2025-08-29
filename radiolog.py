@@ -8128,6 +8128,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 	def teamFieldEditingFinished(self):
 		cs=re.sub(r' +',r' ',self.ui.teamField.text()).strip() # remove leading and trailing spaces, and reduce chains of spaces to single space
 		# rprint('teamFieldEditingFinished: cs="'+cs+'"')
+		if cs=='Team': # probably because a different tab on the stack was activated before a callsign was typed
+			return
 		if not cs in self.parent.allTeamsList: # if not already an exact case-sensitive match for an existing callsign:
 			if re.match(r'.*\D.*',cs): # if there are any characters that are not numbers
 				# change it to any case-insensitive-matching existing callsign
