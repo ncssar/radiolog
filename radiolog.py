@@ -9372,7 +9372,7 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 		else:
 			dayText=str(ciwd)+' days'
 		self.ui.instructionsLabel.setText('If so, select a row from the following list of radiolog sessions that were run on this computer within the last '+dayText+', then click YES.')
-		self.ui.theTable.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+		self.ui.theTable.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 		# automatically expand the 'Incident name' column width to fill available space
 		self.ui.theTable.horizontalHeader().setSectionResizeMode(0,QHeaderView.Stretch)
 		centerDelegate=alignCenterDelegate(self.ui.theTable)
