@@ -1129,11 +1129,11 @@
     <property name="font">
      <font>
       <family>Segoe UI</family>
-      <pointsize>12</pointsize>
+      <pointsize>11</pointsize>
      </font>
     </property>
     <property name="text">
-     <string>Change-and-remember</string>
+     <string>Change &amp; remember</string>
     </property>
     <property name="alignment">
      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -1145,16 +1145,16 @@
     </property>
     <property name="geometry">
      <rect>
-      <x>240</x>
+      <x>225</x>
       <y>10</y>
-      <width>171</width>
+      <width>186</width>
       <height>21</height>
      </rect>
     </property>
     <property name="font">
      <font>
       <family>Segoe UI</family>
-      <pointsize>12</pointsize>
+      <pointsize>11</pointsize>
      </font>
     </property>
     <property name="text">
@@ -1164,10 +1164,10 @@
    <widget class="QSlider" name="changeCallsignSlider">
     <property name="geometry">
      <rect>
-      <x>190</x>
-      <y>10</y>
-      <width>41</width>
-      <height>21</height>
+      <x>185</x>
+      <y>11</y>
+      <width>36</width>
+      <height>20</height>
      </rect>
     </property>
     <property name="focusPolicy">
@@ -1212,7 +1212,7 @@ QSlider::handle:horizontal {
     <property name="font">
      <font>
       <family>Segoe UI</family>
-      <pointsize>10</pointsize>
+      <pointsize>9</pointsize>
      </font>
     </property>
     <property name="text">
@@ -1237,7 +1237,7 @@ QSlider::handle:horizontal {
     <property name="font">
      <font>
       <family>Segoe UI</family>
-      <pointsize>10</pointsize>
+      <pointsize>9</pointsize>
      </font>
     </property>
     <property name="text">
@@ -1303,16 +1303,16 @@ QSlider::handle:horizontal {
    <widget class="QLabel" name="firstCallLabel1">
     <property name="geometry">
      <rect>
-      <x>10</x>
+      <x>0</x>
       <y>10</y>
-      <width>371</width>
+      <width>391</width>
       <height>21</height>
      </rect>
     </property>
     <property name="font">
      <font>
       <family>Segoe UI</family>
-      <pointsize>12</pointsize>
+      <pointsize>11</pointsize>
       <weight>75</weight>
       <bold>true</bold>
      </font>
@@ -1330,16 +1330,16 @@ QSlider::handle:horizontal {
     </property>
     <property name="geometry">
      <rect>
-      <x>10</x>
+      <x>0</x>
       <y>50</y>
-      <width>361</width>
+      <width>391</width>
       <height>31</height>
      </rect>
     </property>
     <property name="font">
      <font>
       <family>Segoe UI</family>
-      <pointsize>10</pointsize>
+      <pointsize>9</pointsize>
      </font>
     </property>
     <property name="text">
@@ -1355,16 +1355,16 @@ QSlider::handle:horizontal {
     </property>
     <property name="geometry">
      <rect>
-      <x>10</x>
+      <x>0</x>
       <y>30</y>
-      <width>371</width>
+      <width>391</width>
       <height>31</height>
      </rect>
     </property>
     <property name="font">
      <font>
       <family>Segoe UI</family>
-      <pointsize>12</pointsize>
+      <pointsize>11</pointsize>
      </font>
     </property>
     <property name="text">
@@ -1428,8 +1428,8 @@ QSlider::handle:horizontal {
   <zorder>line</zorder>
   <zorder>line_2</zorder>
   <zorder>relayedCheckBox</zorder>
-  <zorder>changeCallsignGroupBox</zorder>
   <zorder>firstCallGroupBox</zorder>
+  <zorder>changeCallsignGroupBox</zorder>
   <zorder>groupBlocker</zorder>
   <zorder>teamComboBox</zorder>
   <zorder>teamField</zorder>
