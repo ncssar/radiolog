@@ -4742,6 +4742,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			progressBox.close()
 			if self.sidebar.isVisible():
 				self.sidebar.showEvent() # refresh display
+			#788: not sure why this fixes tabBar width issues; could investigate more in the future
+			w=self.width()
+			h=self.height()
+			self.resize(w+1,h)
+			self.resize(w,h)
 			return True # success
 
 	def updateFileNames(self):
