@@ -8386,11 +8386,6 @@ class newEntryWindow(QDialog,Ui_newEntryWindow):
 				#683 - don't pause timers, but do prevent auto-cleanup, if there are child dialog(s)
 				if tab.ui.messageField.text()=="" and tab.lastModAge>60 and not tab.childDialogs:
 					rprint('  closing unused new entry widget for '+str(tab.ui.teamField.text())+' due to inactivity')
-					# close the related CCD first, since its closeEvent activates newEntryWindow
-					for ccd in changeCallsignDialog.instances:
-						if ccd.parent==tab:
-							rprint('	closing related Change Callsign Dialog')
-							ccd.close()
 					tab.closeEvent(QEvent(QEvent.Close),accepted=False,force=True)
 					# if this was the only message, and the pending-entry popup was shown, close the popup too
 					remaining=len(newEntryWidget.instances)
@@ -8563,7 +8558,6 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		# add this newEntryWidget as a new tab in the newEntryWindow.ui.tabWidget
 		self.parent.newEntryWindow.addTab(time.strftime("%H%M"),self)
 		# do not raise the window if there is an active clue report form
-	  # or an active changeCallsignDialog
 # 		rprint("clueLog.openDialogCount="+str(clueDialog.openDialogCount))
 # 		rprint("changeCallsignDialog.openDialogCount="+str(changeCallsignDialog.openDialogCount))
 # 		rprint("subjectLocatedDialog.openDialogCount="+str(subjectLocatedDialog.openDialogCount))
@@ -10585,158 +10579,6 @@ class fsSendMessageDialog(QDialog,Ui_fsSendMessageDialog):
 			return
 		self.parent.sendText([fdc[0:2] for fdc in self.fdcList],message=msg)
 		super(fsSendMessageDialog,self).accept()
-
-
-class changeCallsignDialog(QDialog,Ui_changeCallsignDialog):
-	openDialogCount=0
-	instances=[]
-	def __init__(self,parent,callsign,fleet=None,device=None):
-		QDialog.__init__(self)
-		self.ui=Ui_changeCallsignDialog()
-		self.ui.setupUi(self)
-		self.setStyleSheet(globalStyleSheet)
-		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
-		self.setAttribute(Qt.WA_DeleteOnClose)
-		self.parent=parent
-		self.currentCallsign=callsign
-		self.fleet=fleet
-		self.device=device
-		
-		rprint("changeCallsignDialog created.  fleet="+str(self.fleet)+"  dev="+str(self.device))
-
-		if fleet: # fleetsync
-			self.ui.idLabel.setText('FleetSync ID')
-			self.ui.idField1.setText(str(fleet))
-			self.ui.idField2.setText(str(device))
-		else: # nexedge
-			self.ui.idLabel.setText('NEXEDGE ID')
-			self.ui.idLabel1.setText('Unit ID')
-			self.ui.idField1.setText(str(device))
-			self.ui.idLabel2.setVisible(False)
-			self.ui.idField2.setVisible(False)
-		self.ui.currentCallsignField.setText(callsign)
-		self.ui.newCallsignField.setFocus()
-		self.ui.newCallsignField.setText("Team  ")
-		self.ui.newCallsignField.setSelection(5,1)
-		self.ui.fsFilterButton.clicked.connect(self.fsFilterConfirm)
-		changeCallsignDialog.openDialogCount+=1
-		changeCallsignDialog.instances.append(self)
-		self.setFixedSize(self.size())
-		self.completer=QCompleter(self.parent.parent.callsignCompletionWordList)
-		# performance speedups: see https://stackoverflow.com/questions/33447843
-		self.completer.setCaseSensitivity(Qt.CaseInsensitive)
-		self.completer.setModelSorting(QCompleter.CaseSensitivelySortedModel)
-		self.completer.popup().setUniformItemSizes(True)
-		self.completer.popup().setLayoutMode(QListView.Batched)
-		completerFont=self.ui.newCallsignField.font()
-		completerFont.setPointSize(int(completerFont.pointSize()*0.70))
-		completerFont.setBold(False)
-		self.completer.popup().setFont(completerFont)
-		self.ui.newCallsignField.setCompleter(self.completer)
-
-	def changeEvent(self,event):
-		if event.type()==QEvent.ActivationChange:
-			self.parent.parent.activationChange()
-
-	def fsFilterConfirm(self):
-		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Filter (ignore) future incoming messages\n  from this device?",
-			QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-		if really.exec_()==QMessageBox.No:
-			self.close()
-			return
-		self.parent.parent.fsFilterEdit(self.fleet,self.device,True)
-		self.close()
-		# also close the related new entry dialog if its message field is blank, in the same manner as autoCleanup
-		if self.parent.ui.messageField.text()=="":
-			self.parent.closeEvent(QEvent(QEvent.Close),accepted=False,force=True)
-		
-	def accept(self):
-		rprint('changeCallsignDialog accept called')
-		found=False
-		id1=self.ui.idField1.text()
-		id2=self.ui.idField2.text()
-		fleet=''
-		dev=''
-		uid=''
-		if id2: # fleetsync
-			fleet=id1
-			dev=id2
-			deviceStr=str(fleet)+':'+str(dev)
-			rprint('accept: FleetSync fleet='+str(fleet)+'  dev='+str(dev))
-		else:
-			uid=id1
-			deviceStr=str(uid)
-			rprint('accept: NEXEDGE uid='+str(uid))
-		# fix #459 (and other places in the code): remove all leading and trailing spaces, and change all chains of spaces to one space
-		newCallsign=re.sub(r' +',r' ',self.ui.newCallsignField.text()).strip()
-		# change existing device entry if found, otherwise add a new entry
-		for n in range(len(self.parent.parent.fsLookup)):
-			entry=self.parent.parent.fsLookup[n]
-			if (entry[0]==fleet and entry[1]==dev) or (entry[1]==uid):
-				found=True
-				self.parent.parent.fsLookup[n][2]=newCallsign
-		if not found:
-			if fleet and dev: # fleetsync
-				self.parent.parent.fsLookup.append([fleet,dev,newCallsign])
-			else: # nexedge
-				self.parent.parent.fsLookup.append(['',uid,newCallsign])
-		# rprint('fsLookup after CCD:'+str(self.parent.parent.fsLookup))
-		# set the current radio log entry teamField also
-		self.parent.ui.teamField.setText(newCallsign)
-		# save the updated table (filename is set at the same times that csvFilename is set)
-		self.parent.parent.fsSaveLookup()
-		# change the callsign in fsLog
-		if id2: # fleetsync
-			# rprint('calling fsLogUpdate for fleetsync')
-			self.parent.parent.fsLogUpdate(fleet=fleet,dev=dev,callsign=newCallsign,seq=['CCD'],result='newCallsign')
-			rprint("New callsign pairing created from FleetSync: fleet="+fleet+"  dev="+dev+"  callsign="+newCallsign)
-		else: # nexedge
-			# rprint('calling fsLogUpdate for nexedge')
-			self.parent.parent.fsLogUpdate(uid=uid,callsign=newCallsign,seq=['CCD'],result='newCallsign')
-			rprint("New callsign pairing created from NEXEDGE: unit ID = "+uid+"  callsign="+newCallsign)
-		# finally, pass the 'accept' signal on up the tree as usual
-		# set the focus to the messageField of the active stack item - not always
-		#  the same as the new entry, as determined by addTab
-		self.parent.parent.newEntryWindow.ui.tabWidget.currentWidget().ui.messageField.setFocus()
-		# 751 - set a flag on the parent newEntryWindow to indicate CCD was used, and what the new value is;
-		#  let the newEntryWindow.accept create the change-of-callsign note as needed; in this way,
-		#  repeated or superceded calls to CCD can be recorded in the note
-		self.parent.newCallsignFromCCD=newCallsign
-		# 598 - if a redio locator marker was already created with the same device ID,
-		#  change that marker's label now (rather than waiting for parent to be accepted)
-		self.parent.parent.sendRadioMarker(fleet,dev,uid,newCallsign)
-		# existingMarker=self.parent.parent.radioMarkerDict.get(deviceStr,None)
-		# existingMarkerId=None
-		# if existingMarker:
-		# 	newLabel=self.parent.parent.getRadioMarkerLabelForCallsign(newCallsign)
-		# 	rprint('  changing radio marker label from '+str(existingMarker.get('label',None))+' to '+str(newLabel))
-		# 	existingMarkerId=existingMarker.get('caltopoId',None)
-		# 	existingMarker['label']=newLabel
-		# if existingMarkerId:
-		# 	rprint('  marker was already drawn; changing label on the map')
-		# 	id=None
-		# 	try:
-		# 		id=self.parent.parent.cts.editFeature(id=existingMarkerId,properties={'title':self.parent.parent.getRadioMarkerLabelForCallsign(newCallsign)})
-		# 	except:
-		# 		rprint('    marker request failed; queued for later')
-		# 	existingMarker['lastId']=id # if None, this will queue it
-		# else:
-		# 	rprint('  marker has not yet been drawn; request queued')
-		rprint("New callsign pairing created: fleet="+str(fleet)+"  dev="+str(dev)+"  uid="+str(uid)+"  callsign="+newCallsign)
-		self.closeEvent(QEvent(QEvent.Close),True)
-		super(changeCallsignDialog,self).accept()
-
-	# by default, esc key calls reject but not closeEvent
-	def reject(self):
-		self.closeEvent(QEvent(QEvent.Close))
-		super(changeCallsignDialog,self).reject()
-
-	def closeEvent(self,event,accepted=False):
-		newCallsign=re.sub(r' +',r' ',self.ui.newCallsignField.text()).strip()
-		self.parent.parent.sendPendingGet(newCallsign)
-		changeCallsignDialog.openDialogCount-=1
-		changeCallsignDialog.instances.remove(self)
-		self.parent.parent.newEntryWindow.activateWindow()
 		
 
 class clickableWidget(QWidget):
