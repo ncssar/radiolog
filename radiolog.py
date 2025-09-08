@@ -332,6 +332,7 @@ from PyPDF2 import PdfReader,PdfWriter
 from FingerTabs import *
 from pygeodesy import Datums,ellipsoidalBase,dms
 from difflib import SequenceMatcher
+from caltopo_python import CaltopoSession
 
 __version__ = "3.13.1"
 
@@ -603,26 +604,39 @@ def getFileNameBase(root):
 class LoggingFilter(logging.Filter):
 	def filter(self,record):
 		return record.levelno < logging.ERROR
+	
+# only print module name if it is other than radiolog
+class LoggingFormatter(logging.Formatter):
+	def format(self,record):
+		s=super().format(record)
+		if record.module=='radiolog':
+			s=s.replace('[radiolog:','[')
+		return s
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 logFileLeafName=getFileNameBase('radiolog_log')+'.txt'
 
 def setLogHandlers(dir=None):
-	# remove all existing handlers before adding the new ones
-	for h in logger.handlers[:]:
-		logger.removeHandler(h)
+	sh=logging.StreamHandler(sys.stdout)
+	sh.setLevel(logging.INFO)
+	sh.addFilter(LoggingFilter())
+	sh.setFormatter(LoggingFormatter('%(asctime)s [%(module)s:%(lineno)d:%(levelname)s] %(message)s','%H%M%S'))
+	handlers=[sh]
 	# add a filehandler if dir is specified
 	if dir:
-		# logFileName=os.path.join(dir,getFileNameBase("radiolog_log")+".txt")
 		logFileName=os.path.join(dir,logFileLeafName)
 		fh=logging.FileHandler(logFileName)
 		fh.setLevel(logging.INFO)
-		logger.addHandler(fh)
-	ch=logging.StreamHandler(stream=sys.stdout)
-	ch.setLevel(logging.INFO)
-	ch.addFilter(LoggingFilter())
-	logger.addHandler(ch)
+		fh.addFilter(LoggingFilter())
+		fh.setFormatter(LoggingFormatter('%(asctime)s [%(module)s:%(lineno)d:%(levelname)s] %(message)s','%H%M%S'))
+		handlers=[sh,fh]
+	# redo logging.basicConfig here, to overwrite setup from any imported modules
+	logging.basicConfig(
+		level=logging.INFO,
+		datefmt='%H%M%S',
+		format='%(asctime)s [%(module)s:%(lineno)d:%(levelname)s] %(message)s',
+		handlers=handlers,
+		force=True
+	)
 
 setLogHandlers()
 
@@ -631,7 +645,7 @@ setLogHandlers()
 # and https://www.programcreek.com/python/example/1013/sys.excepthook
 def handle_exception(exc_type, exc_value, exc_traceback):
 	if not issubclass(exc_type, KeyboardInterrupt):
-		logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+		logging.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
 	sys.__excepthook__(exc_type, exc_value, exc_traceback)
 	# interesting that the program no longer exits after uncaught exceptions
 	#  if this function replaces __excepthook__.  Probably a good thing but
@@ -640,8 +654,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 # note: 'sys.excepthook = handle_exception' must be done inside main()
 
 def rprint(text):
-	logText=time.strftime("%H%M%S")+":"+str(text)
-	logger.info(logText)
+	logging.info(text)
 
 ###### LOGGING CODE END ######
 
@@ -989,6 +1002,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.operatorLastName='?'
 		self.operatorFirstName='?'
 		self.operatorId='???'
+
+		self.cts=None
+		self.caltopoURL=''
+		self.caltopoLink=0
+		self.radioMarkerDict={}
+		self.radioMarkerFID=None
 
 		self.optionsDialog=optionsDialog(self)
 		self.optionsDialog.accepted.connect(self.optionsAccepted)
@@ -1394,6 +1413,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
 		self.showTeamTabsMoreButtonIfNeeded()
+		self.setupCaltopo()
 
 	def clearSelectionAllTables(self):
 		self.ui.tableView.setCurrentIndex(QModelIndex())
@@ -1566,6 +1586,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.continuedIncidentWindowDays="4"
 		self.continueSec="20"
 		self.fsBypassSequenceChecks=False
+		self.caltopoAccountName="NONE"
+		self.caltopoDefaultTeamAccount=None
+		self.caltopoMapMarkers=False
 		
 		if os.name=="nt":
 			rprint("Operating system is Windows.")
@@ -1651,6 +1674,12 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.continueSec=tokens[1]
 			elif tokens[0]=='fsBypassSequenceChecks':
 				self.fsBypassSequenceChecks=tokens[1]
+			elif tokens[0]=='caltopoAccountName':
+				self.caltopoAccountName=tokens[1]
+			elif tokens[0]=='caltopoDefaultTeamAccount':
+				self.caltopoDefaultTeamAccount=tokens[1]
+			elif tokens[0]=='caltopoMapMarkers':
+				self.caltopoMapMarkers=tokens[1]
 					
 		configFile.close()
 		
@@ -1711,6 +1740,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.fsBypassSequenceChecks=eval(self.fsBypassSequenceChecks)
 		if self.fsBypassSequenceChecks:
 			rprint('FleetSync / NEXEDGE sequence checks will be bypassed for this session; every part of every incoming message will raise a new entry popup if needed.')
+
+		if self.caltopoMapMarkers and self.caltopoMapMarkers not in ['True','False']:
+			configErr+='ERROR: caltopoMapMarkers value must be True or False.  Will set to False by default.'
+			self.caltopoMapMarkers='False'
+		if type(self.caltopoMapMarkers)==str:
+			self.caltopoMapMarkers=eval(self.caltopoMapMarkers)
 
 		self.updateOptionsDialog()
 		
@@ -2277,7 +2312,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				# $PKLSH can contain status 'V' if it had a GPS lock before but does not currently,
 				#   in which case the real coodinates of the last known lock will be included.
 				#   If this happens, we do want to see the coordinates in the entry body, but we do not want
-				#   to update the sartopo locator.
+				#   to update the caltopo locator.
 				# - iv valid=='V', append the formatted string with an asterisk, but do not update the locator
 				# - if valid=='A' - as with old radios
 				# so:
@@ -2325,6 +2360,8 @@ class MyWindow(QDialog,Ui_Dialog):
 							# TODO: change this hardcode to deal with other default device names - see #635
 							if not devTxt.startswith("Radio "):
 								self.getString=self.getString+devTxt
+							# if self.optionsDialog.ui.caltopoRadioMarkersCheckBox.isChecked() and self.cts:
+							self.sendRadioMarker(fleet,dev,uid,devTxt,lat,lon) # always send or queue
 
 						# was this a response to a location request for this device?
 						if self.fsAwaitingResponse and [fleet,dev]==[x for x in self.fsAwaitingResponse[0:2]]:
@@ -2616,6 +2653,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 
 	def sendPendingGet(self,suffix=""):
+		rprint('sendPendingGet called')
 		# NOTE that requests.get can cause a blocking delay; so, do it AFTER spawning the newEntryDialog
 		# if sarsoft is not running to handle this get request, Windows will complain with nested exceptions:
 		# ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
@@ -2642,6 +2680,12 @@ class MyWindow(QDialog,Ui_Dialog):
 					rprint("  exception during sending of GET request: "+str(e))
 				self.getString=''
 				
+	def getRadioMarkerLabelForCallsign(self,callsign):
+		return callsign.replace('Team ','T')
+	
+	def sendRadioMarker(self,fleet,dev,uid,callsign,lat=None,lon=None):
+		rprint('sendRadioMarker called')
+
 	# for fsLog, a dictionary would probably be easier, but we have to use an array
 	#  since we will be displaying in a QTableView
 	# if callsign is specified, update the callsign but not the time;
@@ -6492,6 +6536,18 @@ class MyWindow(QDialog,Ui_Dialog):
 			new=current+1
 		target.newEntryWindow.ui.tabWidget.setCurrentIndex(new)
 
+	def getOrCreateRadioMarkerFID(self):
+		fid=self.radioMarkerFID
+		if not fid:
+			radioFolders=self.cts.getFeatures(featureClass='Folder',title='Radios',allowMultiTitleMatch=True)
+			if radioFolders:
+				fid=radioFolders[-1]['id'] # if there are multple folders, just pick one
+			rprint('Radios folder already exists: '+str(fid))
+		if not fid:
+			rprint('No existing Radios folder found; creating one now...')
+			fid=self.cts.addFolder('Radios')
+		return fid
+
 
 class helpWindow(QDialog,Ui_Help):
 	def __init__(self, *args):
@@ -6790,6 +6846,232 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.show()
 			self.raise_()
 			self.parent.fsSaveLog()
+
+	def caltopoEnabledCB(self): # called from stateChanged of group box AND of radio markers checkbox
+		a=self.ui.caltopoGroupBox.isChecked()
+		# if a and self.parent.caltopoLink<1:
+		# 	rprint('checking for latest map in default group "'+str(self.parent.caltopoDefaultTeamAccount))
+		# 	rprint(str(self.parent.cts.getAllMapLists()))
+		radios=self.ui.caltopoRadioMarkersCheckBox.isChecked()
+		self.ui.caltopoRadioMarkersCheckBox.setEnabled(a)
+		enableMapFields=a and radios
+		self.ui.caltopoMapIDField.setEnabled(enableMapFields)
+		self.ui.caltopoLinkIndicator.setEnabled(enableMapFields)
+		self.ui.caltopoMapLabel.setEnabled(enableMapFields)
+		self.ui.caltopoConnectButton.setEnabled(enableMapFields)
+		if enableMapFields:
+			# self.caltopoURLCB() # try to reconnect if mapURL is not blank
+			if self.parent.caltopoWorker.cts is None:
+				self.parent.createCTS()
+		else:
+			self.parent.closeCTS()
+
+	def caltopoRedrawAccountData(self): # called from worker
+		# rprint('caltopoMapListict:')
+		# rprint(json.dumps(self.parent.caltopoWorker.caltopoMapListDicts,indent=3))
+		rprint('rad1')
+		self.pauseAccountCB=True
+		self.ui.caltopoAccountComboBox.clear()
+		rprint('rad2')
+		# self.ui.caltopoAccountComboBox.addItem('<Choose Account>') # used when MapIDTextChanged has no match
+		self.ui.caltopoAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.parent.caltopoWorker.caltopoMapListDicts]))
+		rprint('rad3')
+		self.pauseAccountCB=False
+		self.ui.caltopoAccountComboBox.setCurrentText(self.parent.caltopoDefaultTeamAccount)
+		rprint('rad4')
+
+	def caltopoMapIDTextChanged(self):
+		rprint('caltopoMapIDTextChanged; pausing callbacks')
+		txt=self.ui.caltopoMapIDField.text()
+		# force uppercase
+		txtU=txt.upper()
+		if txt!=txtU:
+			self.ui.caltopoMapIDField.setText(txtU)
+		dl=self.parent.caltopoWorker.caltopoMapListDicts
+		self.pauseCB=True
+		for d in dl:
+			# rprint(' next d')
+			for map in d['mapList']:
+				# rprint('  next m')
+				if map['id']==txt:
+					# rprint('match:'+str(d['groupAccountTitle'])+'/'+str(map['folderName'])+'/'+str(map['title']))
+					rprint('  match: setting text on account combo box')
+					self.ui.caltopoAccountComboBox.setCurrentText(d['groupAccountTitle'])
+					rprint('  match: setting text on folder combo box')
+					self.ui.caltopoFolderComboBox.setCurrentText(map['folderName'])
+					rprint('  match: setting text on title combo box')
+					self.ui.caltopoMapNameComboBox.setCurrentText(map['title'])
+					self.pauseCB=False
+					rprint('  match processing complete; unpausing callbacks')
+					return
+		rprint('  no match: setting text on account combo box')
+		self.ui.caltopoAccountComboBox.setCurrentIndex(0)
+		rprint('  no match: setting text on folder combo box')
+		self.ui.caltopoFolderComboBox.setCurrentIndex(0)
+		rprint('  no match: setting text on title combo box')
+		self.ui.caltopoMapNameComboBox.setCurrentIndex(0)
+		self.pauseCB=False
+		rprint('  no match processing complete; unpausing callbacks')
+
+	def caltopoAccountComboBoxChanged(self):
+		rprint('acct')
+		time.sleep(2)
+		if self.pauseAccountCB:
+			rprint(' paused')
+			return
+		# groupAccountNames=[d.get('groupAccountTitle',None) for d in self.parent.caltopoMapListDicts]
+		# rprint('groupAccountNames:'+str(groupAccountNames))
+		# rprint('currentText:'+str(self.ui.caltopoAccountComboBox.currentText()))
+		dicts=[d for d in self.parent.caltopoWorker.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
+		if dicts:
+			rprint('dicts with groupAccountTitle name = '+str(self.ui.caltopoAccountComboBox.currentText()))
+			rprint(json.dumps(dicts,indent=3))
+			mapList=dicts[0]['mapList']
+			# take the first non-bookmark entry, since the list is already sorted chronologically		
+			mapsNotBookmarks=[m for m in mapList if m['type']=='map']
+			rprint('mapsNotBookmarks:'+str(json.dumps(mapsNotBookmarks,indent=3)))
+			folderNames=list(set([m['folderName'] for m in mapsNotBookmarks]))
+			self.ui.caltopoFolderComboBox.clear()
+			if mapsNotBookmarks:
+				self.ui.caltopoFolderComboBox.addItems(sorted(folderNames))
+				self.ui.caltopoFolderComboBox.setCurrentIndex(0)
+		rprint('acct.end')
+
+	def caltopoFolderComboBoxChanged(self):
+		rprint('folder')
+		time.sleep(2)
+		# if self.pauseCB:
+		# 	rprint(' paused')
+		# 	return
+		self.ui.caltopoMapNameComboBox.clear()
+		dicts=[d for d in self.parent.caltopoWorker.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
+		if dicts:
+			mapList=dicts[0]['mapList']
+			mapsNotBookmarks=[m for m in mapList if m['type']=='map' and m['folderName']==self.ui.caltopoFolderComboBox.currentText()]
+			if mapsNotBookmarks:
+				self.ui.caltopoMapNameComboBox.addItems([m['title'] for m in mapsNotBookmarks])
+				self.ui.caltopoMapNameComboBox.setCurrentIndex(0)
+				# latestMap=mapsNotBookmarks[0]
+				# rprint('latest map: title="'+str(latestMap['title']+'" ID='+str(latestMap['id'])))
+				# self.ui.caltopoMapNameField.setText(str(latestMap['title']))
+				# self.ui.caltopoMapIDField.setText(str(latestMap['id']))
+			# else:
+			# 	self.ui.caltopoMapIDField.setText('')
+			# 	self.ui.caltopoMapNameField.setText('Account has no maps')
+
+	def caltopoMapNameComboBoxChanged(self):
+		rprint('name')
+		time.sleep(2)
+		# if self.pauseCB:
+		# 	rprint(' paused')
+		# 	return
+		self.updateCaltopoMapIDFieldFromTitle(self.ui.caltopoMapNameComboBox.currentText())
+
+	def updateCaltopoMapIDFieldFromTitle(self,title):
+		rprint('update ID from title')
+		time.sleep(2)
+		if self.pauseCB:
+			rprint(' paused')
+			return
+		dicts=[d for d in self.parent.caltopoWorker.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
+		if dicts:
+			mapList=dicts[0]['mapList']
+			matches=[m for m in mapList if m['title']==title]
+			if matches:
+				self.ui.caltopoMapIDField.setText(matches[0]['id'])
+			else:
+				self.ui.caltopoMapIDField.setText('')
+
+	def caltopoPrintTimer(self):
+		rprint('caltopo timer')
+
+	def caltopoConnectButtonClicked(self):
+		rprint('connect button clicked')
+		if self.parent.caltopoLink==1: # mapless session
+			self.ui.caltopoConnectButton.setText('Connecting...')
+		else:
+			self.ui.caltopoConnectButton.setText('Disconnecting...')
+		self.ui.caltopoConnectButton.setEnabled(False)
+		# # threading.Thread(target=self.wrapper).start()
+		# self.caltopoConnectThread=QThread()
+		# self.worker=CaltopoConnectWorker()
+		# self.worker.moveToThread(self.caltopoConnectThread)
+		# self.caltopoConnectThread.started.connect(self.worker._caltopoConnectButtonClickedThread)
+		# self.worker.task_finished.connect(self._caltopoConnectButtonComplete)
+		# self.caltopoConnectThread.start()
+		# self.parent.fastTimer.timeout.connect(self.caltopoPrintTimer)
+
+		# self.CaltopoWorker.moveToThread(self.CaltopoThread)
+		self.parent.openMap(self.ui.caltopoMapIDField.text())
+
+	# def wrapper(self):
+	# 	self._caltopoConnectButtonClickedThread()
+	# 	self._caltopoConnectButtonClickedComplete()
+
+	# def _caltopoConnectButtonClickedThread(self):
+	# 	rprint('connect thread started')
+	# 	u=self.ui.caltopoMapIDField.text()
+	# 	if self.parent.caltopoLink!=0 and self.parent.cts and self.parent.cts.mapID:
+	# 		rprint('  disconnecting')
+	# 		self.parent.closeCTS()
+	# 		# need to open a new CTS as long as the group box is enabled
+	# 		rprint('  opening new mapless session')
+	# 		self.parent.createCTS()
+	# 		rprint('  new mapless session opened')
+	# 		# self.ui.caltopoConnectButton.setText('Click to Connect')
+	# 		# self.ui.caltopoConnectButton.setEnabled(True)
+	# 		# self._caltopoConnectButtonClickedCB()
+	# 		return
+	# 	# time.sleep(5) # test sleep to check responsiveness in main thread
+	# 	if ':' in u and self.parent.caltopoAccountName=='NONE':
+	# 		rprint('ERROR: caltopoAccountName was not specified in config file')
+	# 		# self._caltopoConnectButtonClickedCB()
+	# 		return
+	# 	# if u==self.parent.caltopoURL and self.parent.cts: # url has not changed; keep the existing link and folder list
+	# 	# 	return
+	# 	self.parent.caltopoURL=u
+	# 	if self.parent.caltopoURL.endswith("#"): # pound sign at end of URL causes crash; brute force fix it here
+	# 		self.parent.caltopoURL=self.parent.caltopoURL[:-1]
+	# 		self.ui.caltopoMapIDField.setText(self.parent.caltopoURL)
+	# 	parse=self.parent.caltopoURL.replace("http://","").replace("https://","").split("/")
+	# 	if len(parse)>1:
+	# 		domainAndPort=parse[0]
+	# 		mapID=parse[-1]
+	# 	else:
+	# 		domainAndPort='caltopo.com'
+	# 		mapID=parse[0]
+	# 	# 	print("calling CaltopoSession with domainAndPort="+domainAndPort+" mapID="+mapID)
+	# 	# 	if 'caltopo.com' in domainAndPort.lower():
+	# 	# 		print("  creating online session for user "+self.caltopoAccountName)
+	# 	# 		self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,
+	# 	# 								configpath=os.path.join(self.configDir,'cts.ini'),
+	# 	# 								# sync=False,syncTimeout=0.001,
+	# 	# 								account=self.caltopoAccountName)
+	# 	# 	else:
+	# 	# 		self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID)
+	# 	# 		# self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,sync=False,syncTimeout=0.001)
+	# 	self.parent.cts.openMap(mapID)
+	# 	# self._caltopoConnectButtonClickedCB()
+
+	def _caltopoConnectButtonClickedComplete(self):
+		self.parent.caltopoLink=self.parent.cts.apiVersion
+		self.parent.fastTimer.timeout.disconnect(self.caltopoPrintTimer)
+		rprint('connect thread complete; link status:'+str(self.parent.caltopoLink)+'; cts.mapID='+str(self.parent.cts.mapID))
+		self.parent.updateCaltopoLinkIndicator()
+		# 	# self.updateLinkIndicator()
+		# 	# if self.link>0:
+		# 	# 	self.ui.linkIndicator.setText(self.cts.mapID)
+		# 	# 	self.updateFeatureList("Folder")
+		# 	# self.optionsDialog.ui.folderComboBox.setHeader("Select a Folder...")
+		# 	# if the session is good, process any deferred radio markers
+		if self.parent.cts and self.parent.caltopoLink>0 and self.parent.cts.mapID:
+			self.ui.caltopoConnectButton.setText('Click to Disconnect')
+			self.parent.radioMarkerFID=self.parent.getOrCreateRadioMarkerFID()
+			# add deferred markers (GPS calls that came in before CTS was created)
+			self.parent.sendQueuedRadioMarkers()
+		else:
+			self.ui.caltopoConnectButton.setText('Click to Connect')
+		self.ui.caltopoConnectButton.setEnabled(True)
 
 
 # find dialog/completer/popup structure:
