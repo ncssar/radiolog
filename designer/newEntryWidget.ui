@@ -19,9 +19,6 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <property name="styleSheet">
-   <string notr="true"/>
-  </property>
   <widget class="QPushButton" name="quickTextButton3">
    <property name="geometry">
     <rect>
@@ -376,6 +373,9 @@
    </widget>
   </widget>
   <widget class="QLabel" name="label_5">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
    <property name="geometry">
     <rect>
      <x>361</x>
@@ -703,7 +703,7 @@
     <bool>false</bool>
    </property>
   </widget>
-  <widget class="QLineEdit" name="teamField">
+  <widget class="CustomLineEdit" name="teamField">
    <property name="geometry">
     <rect>
      <x>175</x>
@@ -783,28 +783,6 @@
    </property>
    <property name="checked">
     <bool>false</bool>
-   </property>
-  </widget>
-  <widget class="QLabel" name="label_2">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="geometry">
-    <rect>
-     <x>278</x>
-     <y>68</y>
-     <width>312</width>
-     <height>21</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <family>Segoe UI</family>
-     <pointsize>9</pointsize>
-    </font>
-   </property>
-   <property name="text">
-    <string>Right-click to change and remember callsign</string>
    </property>
   </widget>
   <widget class="QPushButton" name="quickTextButton10">
@@ -921,34 +899,6 @@
    </property>
    <property name="alignment">
     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-   </property>
-  </widget>
-  <widget class="QTextEdit" name="radioLocField">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="geometry">
-    <rect>
-     <x>379</x>
-     <y>121</y>
-     <width>230</width>
-     <height>30</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <family>Segoe UI</family>
-     <pointsize>12</pointsize>
-    </font>
-   </property>
-   <property name="focusPolicy">
-    <enum>Qt::NoFocus</enum>
-   </property>
-   <property name="verticalScrollBarPolicy">
-    <enum>Qt::ScrollBarAlwaysOff</enum>
-   </property>
-   <property name="horizontalScrollBarPolicy">
-    <enum>Qt::ScrollBarAlwaysOff</enum>
    </property>
   </widget>
   <widget class="QComboBox" name="teamComboBox">
@@ -1143,7 +1093,308 @@
     <bool>false</bool>
    </property>
   </widget>
-  <zorder>teamComboBox</zorder>
+  <widget class="QGroupBox" name="changeCallsignGroupBox">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>180</x>
+     <y>60</y>
+     <width>391</width>
+     <height>81</height>
+    </rect>
+   </property>
+   <property name="autoFillBackground">
+    <bool>false</bool>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QGroupBox#changeCallsignGroupBox {
+	border: 3px inset blue;
+	background-color: #ddf;
+}</string>
+   </property>
+   <property name="title">
+    <string/>
+   </property>
+   <widget class="QLabel" name="changeCallsignLabel1">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>10</y>
+      <width>171</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Segoe UI</family>
+      <pointsize>11</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>Change &amp; remember</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="changeCallsignLabel2">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>225</x>
+      <y>10</y>
+      <width>186</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Segoe UI</family>
+      <pointsize>11</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>One-time change</string>
+    </property>
+   </widget>
+   <widget class="QSlider" name="changeCallsignSlider">
+    <property name="geometry">
+     <rect>
+      <x>185</x>
+      <y>11</y>
+      <width>36</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="focusPolicy">
+     <enum>Qt::NoFocus</enum>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QSlider::groove:horizontal {
+    border: 1px solid #999999;
+    height: 8px; /* the groove expands to the size of the slider height - the border and padding */
+    background: #d3d3d3;
+    margin: 2px 0;
+    border-radius: 4px; /* Rounded corners for the groove */
+}
+
+QSlider::handle:horizontal {
+    background: #f0f0f0;
+    border: 1px solid #a0a0a0;
+    width: 20px;
+    margin: -6px 0; /* handle is placed off center to make the handle look bigger than the groove */
+    border-radius: 10px; /* Rounded corners for the handle */
+}</string>
+    </property>
+    <property name="maximum">
+     <number>1</number>
+    </property>
+    <property name="pageStep">
+     <number>1</number>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Horizontal</enum>
+    </property>
+   </widget>
+   <widget class="QLabel" name="changeCallsignLabel3">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>50</y>
+      <width>361</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Segoe UI</family>
+      <pointsize>9</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>Was: --------    Device: 000:0000</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="changeCallsignLabel4">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>30</y>
+      <width>361</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Segoe UI</family>
+      <pointsize>9</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>(Callsign change takes effect upon leaving this field)</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QTextEdit" name="radioLocField">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>380</x>
+     <y>120</y>
+     <width>230</width>
+     <height>30</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Segoe UI</family>
+     <pointsize>12</pointsize>
+    </font>
+   </property>
+   <property name="focusPolicy">
+    <enum>Qt::NoFocus</enum>
+   </property>
+   <property name="verticalScrollBarPolicy">
+    <enum>Qt::ScrollBarAlwaysOff</enum>
+   </property>
+   <property name="horizontalScrollBarPolicy">
+    <enum>Qt::ScrollBarAlwaysOff</enum>
+   </property>
+  </widget>
+  <widget class="QGroupBox" name="firstCallGroupBox">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>180</x>
+     <y>60</y>
+     <width>391</width>
+     <height>81</height>
+    </rect>
+   </property>
+   <property name="autoFillBackground">
+    <bool>false</bool>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QGroupBox#firstCallGroupBox {
+	background-color: #dfd;
+	border: 2px outset green;
+}</string>
+   </property>
+   <property name="title">
+    <string/>
+   </property>
+   <widget class="QLabel" name="firstCallLabel1">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>10</y>
+      <width>391</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Segoe UI</family>
+      <pointsize>11</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="text">
+     <string>This is the first call from device 000:0000.</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="firstCallLabel3">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>50</y>
+      <width>391</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Segoe UI</family>
+      <pointsize>9</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>(Callsign change takes effect upon leaving this field)</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="firstCallLabel2">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>30</y>
+      <width>391</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Segoe UI</family>
+      <pointsize>11</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>Type a callsign to associate with this device.</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QGroupBox" name="groupBlocker">
+   <property name="geometry">
+    <rect>
+     <x>170</x>
+     <y>-21</y>
+     <width>451</width>
+     <height>81</height>
+    </rect>
+   </property>
+   <property name="autoFillBackground">
+    <bool>true</bool>
+   </property>
+   <property name="title">
+    <string>GroupBox</string>
+   </property>
+   <property name="flat">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <zorder>radioLocField</zorder>
   <zorder>quickTextButton3</zorder>
   <zorder>quickTextButton6</zorder>
   <zorder>line_3</zorder>
@@ -1163,29 +1414,36 @@
   <zorder>label_6</zorder>
   <zorder>quickTextUndoButton</zorder>
   <zorder>timeField</zorder>
-  <zorder>teamField</zorder>
   <zorder>quickTextButton7</zorder>
   <zorder>quickTextButton8</zorder>
-  <zorder>label_2</zorder>
   <zorder>quickTextButton10</zorder>
   <zorder>line_5</zorder>
   <zorder>quickTextButton1_2</zorder>
   <zorder>line_6</zorder>
   <zorder>attachedField</zorder>
   <zorder>label_7</zorder>
-  <zorder>radioLocField</zorder>
   <zorder>relayedByComboBox</zorder>
   <zorder>relayedByLabel</zorder>
   <zorder>datumFormatLabel</zorder>
   <zorder>line</zorder>
   <zorder>line_2</zorder>
   <zorder>relayedCheckBox</zorder>
+  <zorder>firstCallGroupBox</zorder>
+  <zorder>changeCallsignGroupBox</zorder>
+  <zorder>groupBlocker</zorder>
+  <zorder>teamComboBox</zorder>
+  <zorder>teamField</zorder>
  </widget>
  <customwidgets>
   <customwidget>
    <class>QLineEditWithDeselect</class>
    <extends>QLineEdit</extends>
    <header>QLineEditWithDeselect.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CustomLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header>radiolog.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>
@@ -1226,8 +1484,8 @@
      <y>464</y>
     </hint>
     <hint type="destinationlabel">
-     <x>835</x>
-     <y>333</y>
+     <x>703</x>
+     <y>292</y>
     </hint>
    </hints>
   </connection>
@@ -1392,22 +1650,6 @@
    </hints>
   </connection>
   <connection>
-   <sender>teamField</sender>
-   <signal>customContextMenuRequested(QPoint)</signal>
-   <receiver>newEntryWidget</receiver>
-   <slot>openChangeCallsignDialog()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>482</x>
-     <y>32</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>581</x>
-     <y>39</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
    <sender>quickTextButton8</sender>
    <signal>clicked()</signal>
    <receiver>newEntryWidget</receiver>
@@ -1462,8 +1704,8 @@
    <slot>setCallsignFromComboBox()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>569</x>
-     <y>61</y>
+     <x>291</x>
+     <y>16</y>
     </hint>
     <hint type="destinationlabel">
      <x>599</x>
@@ -1535,6 +1777,38 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>changeCallsignSlider</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>newEntryWidget</receiver>
+   <slot>changeCallsignSliderChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>403</x>
+     <y>75</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>619</x>
+     <y>116</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>changeCallsignSlider</sender>
+   <signal>sliderPressed()</signal>
+   <receiver>newEntryWidget</receiver>
+   <slot>changeCallsignSliderToggle()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>380</x>
+     <y>79</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>602</x>
+     <y>155</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>accept()</slot>
@@ -1552,6 +1826,9 @@
   <slot>relayedButtonReleased()</slot>
   <slot>relayedByComboBoxChanged()</slot>
   <slot>relayedCheckBoxStateChanged()</slot>
+  <slot>callsignChangeSliderChanged()</slot>
+  <slot>changeCallsignSliderChanged()</slot>
+  <slot>changeCallsignSliderToggle()</slot>
  </slots>
  <buttongroups>
   <buttongroup name="statusButtonGroup">
