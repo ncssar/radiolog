@@ -1413,6 +1413,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
 		self.showTeamTabsMoreButtonIfNeeded()
+
+		self.cts=None
 		# self.setupCaltopo()
 
 	def clearSelectionAllTables(self):
@@ -6618,6 +6620,82 @@ class MyWindow(QDialog,Ui_Dialog):
 			rprint('No existing Radios folder found; creating one now...')
 			fid=self.cts.addFolder('Radios')
 		return fid
+	
+	def createCTS(self):
+		rprint('createCTS called')
+		# open a mapless caltopo.com session first, to get the list of maps; if URL is
+		#  already specified before the first createCTS call, then openMap will
+		#  be called after the mapless session is openend
+		# rprint('createCTS called:')
+		if self.cts is not None: # close out any previous session
+			# rprint('Closing previous CaltopoSession')
+			# self.closeCTS()
+			rprint('  cts is already open; returning')
+			return False
+			# self.ui.linkIndicator.setText("")
+			# self.updateLinkIndicator()
+			# self.link=-1
+			# self.updateFeatureList("Folder")
+			# self.updateFeatureList("Marker")
+		rprint('  creating mapless online session for user '+self.caltopoAccountName)
+		self.cts=CaltopoSession(domainAndPort='caltopo.com',
+								configpath=os.path.join(self.configDir,'cts.ini'),
+								account=self.caltopoAccountName)
+		rprint('  back from CaltopoSession init')
+		noMatchDict={
+			'groupAccountTitle':'<Choose Acct>',
+			'mapList':[{
+				'id':'',
+				'title':'<Choose Map>',
+				'updated':0,
+				'type':'map',
+				'folderId':0,
+				'folderName':'<Top Level>'}]}
+		self.caltopoMapListDicts=[noMatchDict]+self.cts.getAllMapLists()
+		self.caltopoLink=1
+		# self.accountDataChanged.emit()
+		# self.linkChanged.emit() # mapless
+		# self.finished.emit()
+		rprint('  end of createCTS')
+		return True
+	
+	def closeCTS(self):
+		rprint('closeCTS called')
+		if self.cts:
+			rprint(' closeCTS t1')
+			self.cts._stop() # end sync before deleting the object
+			rprint(' closeCTS t2')
+			del self.cts
+			rprint(' closeCTS t3')
+			self.cts=None
+		self.caltopoLink=0
+		rprint(' closeCTS t4')
+		self.updateCaltopoLinkIndicator()
+		rprint(' closeCTS t5')
+
+	def updateCaltopoLinkIndicator(self):
+		# -1 = unexpectedly disconnected
+		# 0 = not connected
+		# 1 = connected, mapless session
+		# 2 = connected to a map
+		link=self.caltopoLink
+		rprint('updateCaltopoLinkIndicator called: caltopoLink='+str(link))
+		ss=''
+		t=''
+		if link==2:
+			ss='background-color:#00ff00' # bright green
+			t=str(self.cts.mapID)
+		elif link==1:
+			ss='background-color:#005500' # dark green
+			t='NO MAP'
+		elif link==0:
+			ss='background-color:#aaaaaa' # light gray
+			t=''
+		elif link==-1:
+			ss='background-color:#ff0000' # bright red
+		self.optionsDialog.ui.caltopoLinkIndicator.setStyleSheet(ss)
+		self.ui.caltopoLinkIndicator.setStyleSheet(ss)
+		self.ui.caltopoLinkIndicator.setText(t)
 
 
 class helpWindow(QDialog,Ui_Help):
@@ -6871,6 +6949,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui=Ui_optionsDialog()
 		self.ui.setupUi(self)
 		self.setStyleSheet(globalStyleSheet)
+		self.pauseCB=False
+		self.pauseAccountCB=False
 		self.ui.timeoutField.valueChanged.connect(self.displayTimeout)
 		self.displayTimeout()
 		self.setWindowFlags(Qt.WindowStaysOnTopHint)
@@ -6881,6 +6961,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.setFixedSize(self.size())
 		self.secondWorkingDirCB()
 		self.newEntryWarningCB()
+		self.ui.caltopoMapNameComboBox.textHighlighted.connect(self.updateCaltopoMapIDFieldFromTitle)
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
@@ -6932,10 +7013,16 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.caltopoConnectButton.setEnabled(enableMapFields)
 		if enableMapFields:
 			# self.caltopoURLCB() # try to reconnect if mapURL is not blank
-			if self.parent.caltopoWorker.cts is None:
+			if self.parent.cts is None:
+				rprint('calling createCTS')
 				self.parent.createCTS()
+				rprint('createCTS completed')
+				rprint('caltopoMapListDicts:')
+				rprint(json.dumps(self.parent.caltopoMapListDicts,indent=3))
+				self.caltopoRedrawAccountData()
 		else:
 			self.parent.closeCTS()
+			rprint('closeCTS completed')
 
 	def caltopoRedrawAccountData(self): # called from worker
 		# rprint('caltopoMapListict:')
@@ -6945,7 +7032,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.caltopoAccountComboBox.clear()
 		rprint('rad2')
 		# self.ui.caltopoAccountComboBox.addItem('<Choose Account>') # used when MapIDTextChanged has no match
-		self.ui.caltopoAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.parent.caltopoWorker.caltopoMapListDicts]))
+		self.ui.caltopoAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.parent.caltopoMapListDicts]))
 		rprint('rad3')
 		self.pauseAccountCB=False
 		self.ui.caltopoAccountComboBox.setCurrentText(self.parent.caltopoDefaultTeamAccount)
@@ -6958,7 +7045,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		txtU=txt.upper()
 		if txt!=txtU:
 			self.ui.caltopoMapIDField.setText(txtU)
-		dl=self.parent.caltopoWorker.caltopoMapListDicts
+		dl=self.parent.caltopoMapListDicts
 		self.pauseCB=True
 		for d in dl:
 			# rprint(' next d')
@@ -6986,14 +7073,14 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 
 	def caltopoAccountComboBoxChanged(self):
 		rprint('acct')
-		time.sleep(2)
 		if self.pauseAccountCB:
 			rprint(' paused')
 			return
+		# time.sleep(2)
 		# groupAccountNames=[d.get('groupAccountTitle',None) for d in self.parent.caltopoMapListDicts]
 		# rprint('groupAccountNames:'+str(groupAccountNames))
 		# rprint('currentText:'+str(self.ui.caltopoAccountComboBox.currentText()))
-		dicts=[d for d in self.parent.caltopoWorker.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
+		dicts=[d for d in self.parent.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
 		if dicts:
 			rprint('dicts with groupAccountTitle name = '+str(self.ui.caltopoAccountComboBox.currentText()))
 			rprint(json.dumps(dicts,indent=3))
@@ -7015,7 +7102,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# 	rprint(' paused')
 		# 	return
 		self.ui.caltopoMapNameComboBox.clear()
-		dicts=[d for d in self.parent.caltopoWorker.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
+		dicts=[d for d in self.parent.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
 		if dicts:
 			mapList=dicts[0]['mapList']
 			mapsNotBookmarks=[m for m in mapList if m['type']=='map' and m['folderName']==self.ui.caltopoFolderComboBox.currentText()]
@@ -7044,7 +7131,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		if self.pauseCB:
 			rprint(' paused')
 			return
-		dicts=[d for d in self.parent.caltopoWorker.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
+		dicts=[d for d in self.parent.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
 		if dicts:
 			mapList=dicts[0]['mapList']
 			matches=[m for m in mapList if m['title']==title]
@@ -7073,7 +7160,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# self.parent.fastTimer.timeout.connect(self.caltopoPrintTimer)
 
 		# self.CaltopoWorker.moveToThread(self.CaltopoThread)
-		self.parent.openMap(self.ui.caltopoMapIDField.text())
+		self.parent.cts.openMap(self.ui.caltopoMapIDField.text())
 
 	# def wrapper(self):
 	# 	self._caltopoConnectButtonClickedThread()
