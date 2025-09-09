@@ -2685,6 +2685,77 @@ class MyWindow(QDialog,Ui_Dialog):
 	
 	def sendRadioMarker(self,fleet,dev,uid,callsign,lat=None,lon=None):
 		rprint('sendRadioMarker called')
+		# mimic the old 'Locator Group' behavior:
+		# - create a 'Radios' folder on the first call to this function; place markers in that folder
+		# - if a marker for the callsign already exists, move it (and update the time)
+		# - if a marker for the callsign does not yet exist, add one (with updated time)
+		# - one marker per device (as opposed to one marker per callsign)
+		#  - there could be multiple markers (multiple devices) with the same callsign
+
+		# questions:
+		# - should radio markers be deleted at any point?
+		# - should radio marker colors be changed, as a function of team status, or time since last call?
+
+		# self.radioMarkerDict - keys are device strings ('<fleet>:<device>' or '<NXDN UID>'),
+		#	values are dicts with the following keys:
+		#  - caltopoID - caltopo feature ID of this device's caltopo marker, if any
+		#  - label
+		#  - latestTimeString
+		#  - lat
+		#  - lon
+
+		# self.radioMarkerDict entries must have all the info needed for createCTS to add deferred markers,
+		#  i.e. if incoming GPS data was stored before the CTS session was created, or during lost connection
+		
+		if uid:
+			deviceStr=str(uid)
+		else:
+			deviceStr=str(fleet)+':'+str(dev)
+		d=self.radioMarkerDict.get(deviceStr,None)
+		existingId=None
+		if d:
+			existingId=d.get('caltopoId',None)
+			if not lat:
+				lat=d.get('lat',None)
+				lon=d.get('lon',None)
+				rprint('  label update only; using previous lat,lon='+str(lat)+','+str(lon))
+		if not lat or not lon:
+			rprint('  lat or lon not specified in current or previous request')
+		rprint('existingId:'+str(existingId))
+		id='' # initialize here so that entry can be saved before cts exists
+		newId=existingId # preserve caltopoID if already set
+		latestTimeString=time.strftime('%H:%M:%S')
+		label=self.getRadioMarkerLabelForCallsign(callsign)
+		if self.cts and self.caltopoLink>0:
+			self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
+			try:
+				rprint('  addMarker:  label='+str(label))
+				r=self.cts.addMarker(lat,lon,label,latestTimeString,
+						  folderId=self.radioMarkerFID,
+						  existingId=existingId,
+						  callbacks=[['self.handleRadioMarkerResponse',['.result']]])
+			except:
+				pass
+		# add or update the dict entry here, with enough detail for createSTS to add any deferred markers
+		if r==True:
+			rprint('  marker request queued successfully')
+			if not existingId:
+				newId=id # only set caltopoId if this is the first successful request
+		else:
+			rprint('  marker request failed')
+
+	def handleRadioMarkerResponse(result):
+		rprint('  inside handlerRadioMarkerResponse:')
+		rprint(json.dumps(result,indent=3))
+		# self.radioMarkerDict[deviceStr]={
+		# 	'caltopoId': newId, # only set caltopoId if this is the first successful request
+		# 	'lastId': id,  # changed on every request: '' = fail on last attempt, real ID = success on last attempt
+		# 	'label': label,
+		# 	'latestTimeString': latestTimeString,
+		# 	'lat': lat,
+		# 	'lon': lon
+		# }
+		# rprint(json.dumps(self.radioMarkerDict,indent=3))
 
 	# for fsLog, a dictionary would probably be easier, but we have to use an array
 	#  since we will be displaying in a QTableView
