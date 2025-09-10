@@ -1963,6 +1963,7 @@ class CaltopoSession():
             # first element is the callable
             # second element is the list of positional arguments
             # third element is the dict of kwargs
+            logging.info('handleResponse: calling callback '+str(cb[0])+' with args='+str(cb[1])+' and kwargs='+str(cb[2]))
             cb[0](*cb[1],**cb[2])
 
     def addFolder(self,
@@ -1998,17 +1999,18 @@ class CaltopoSession():
             self.dataQueue.setdefault('folder',[]).append(j)
             return 0
         else:
-            # return self._sendRequest("post","folder",j,returnJson="ID")
+            # return self._sendRequest('post','marker',j,id=existingId,returnJson='ID')
             # add to .mapData immediately
-            rj=self._sendRequest('post','folder',j,returnJson='ALL',timeout=timeout,callbacks=callbacks)
-            if rj:
-                rjr=rj['result']
-                id=rjr['id']
-                self.mapData['ids'].setdefault('Folder',[]).append(id)
-                self.mapData['state']['features'].append(rjr)
-                return id
+            # rj=self._sendRequest('post','marker',j,id=existingId,returnJson='ALL',timeout=timeout,callback=callback,callbackArgs=callbackArgs)
+            logging.info('addFolder: callbacks before prepend:'+str(callbacks))
+            callbacks=[[self._addCallback,['.result']]]+callbacks # add to .mapData immediately for use by any downstream-specified callbacks
+            logging.info('addFolder: callbacks after prepend:'+str(callbacks))
+            r=self._sendRequest('post','folder',j,returnJson='ALL',timeout=timeout,callbacks=callbacks)
+            logging.info('r in addFolder:'+str(r))
+            if isinstance(r,dict): # blocking request, returning response.json()
+                return self._addCallback(r['result']) # normally returns the id
             else:
-                return False
+                return r # could be False if error, or True if non-blocking request submitted to the queue
     
     def addMarker(self,
             lat: float,
@@ -2094,13 +2096,9 @@ class CaltopoSession():
             callbacks=[[self._addCallback,['.result']]]+callbacks # add to .mapData immediately for use by any downstream-specified callbacks
             logging.info('addMarker: callbacks after prepend:'+str(callbacks))
             r=self._sendRequest('post','marker',j,id=existingId,returnJson='ALL',timeout=timeout,callbacks=callbacks)
+            logging.info('r in addMarker:'+str(r))
             if isinstance(r,dict): # blocking request, returning response.json()
                 return self._addCallback(r['result']) # normally returns the id
-                # rjr=rj['result']
-                # id=rjr['id']
-                # self.mapData['ids'].setdefault('Marker',[]).append(id)
-                # self.mapData['state']['features'].append(rjr)
-                # return id
             else:
                 return r # could be False if error, or True if non-blocking request submitted to the queue
 

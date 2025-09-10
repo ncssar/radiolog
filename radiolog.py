@@ -2731,7 +2731,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		if self.cts and self.caltopoLink>0:
 			self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
 			try:
-				rprint('  addMarker:  label='+str(label))
+				rprint('  addMarker:  label='+str(label)+'  folderId='+str(self.radioMarkerFID))
 				r=self.cts.addMarker(lat,lon,label,latestTimeString,
 						  folderId=self.radioMarkerFID,
 						  existingId=existingId,
@@ -6609,17 +6609,28 @@ class MyWindow(QDialog,Ui_Dialog):
 			new=current+1
 		target.newEntryWindow.ui.tabWidget.setCurrentIndex(new)
 
+	# since the folder creation request is non-blocking, but this method returns a value immediately,
+	#  it's likely that the return value will be None the first time this method is called
 	def getOrCreateRadioMarkerFID(self):
 		fid=self.radioMarkerFID
-		if not fid:
+		if fid:
+			return fid
+		else:
+			rprint('t1')
 			radioFolders=self.cts.getFeatures(featureClass='Folder',title='Radios',allowMultiTitleMatch=True)
+			rprint('t2')
 			if radioFolders:
 				fid=radioFolders[-1]['id'] # if there are multple folders, just pick one
-			rprint('Radios folder already exists: '+str(fid))
-		if not fid:
-			rprint('No existing Radios folder found; creating one now...')
-			fid=self.cts.addFolder('Radios')
-		return fid
+				rprint('Radios folder already exists: '+str(fid))
+				self.radioMarkerFID=fid
+				return fid
+		rprint('No existing Radios folder found; creating one now...')
+		self.cts.addFolder('Radios',callbacks=[[self.setRadioMarkerFID,['.result.id']]])
+		return None
+
+	def setRadioMarkerFID(self,fid):
+		rprint('addFolder callback triggered: setting radio FID to '+str(fid))
+		self.radioMarkerFID=fid
 	
 	def createCTS(self):
 		rprint('createCTS called')
@@ -7097,7 +7108,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 
 	def caltopoFolderComboBoxChanged(self):
 		rprint('folder')
-		time.sleep(2)
+		# time.sleep(2)
 		# if self.pauseCB:
 		# 	rprint(' paused')
 		# 	return
@@ -7119,7 +7130,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 
 	def caltopoMapNameComboBoxChanged(self):
 		rprint('name')
-		time.sleep(2)
+		# time.sleep(2)
 		# if self.pauseCB:
 		# 	rprint(' paused')
 		# 	return
@@ -7127,7 +7138,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 
 	def updateCaltopoMapIDFieldFromTitle(self,title):
 		rprint('update ID from title')
-		time.sleep(2)
+		# time.sleep(2)
 		if self.pauseCB:
 			rprint(' paused')
 			return
@@ -7161,6 +7172,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 
 		# self.CaltopoWorker.moveToThread(self.CaltopoThread)
 		self.parent.cts.openMap(self.ui.caltopoMapIDField.text())
+		self.parent.getOrCreateRadioMarkerFID() # call it now so that hopefully the folder exists before the first radio marker
 
 	# def wrapper(self):
 	# 	self._caltopoConnectButtonClickedThread()
