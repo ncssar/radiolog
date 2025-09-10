@@ -2735,7 +2735,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				r=self.cts.addMarker(lat,lon,label,latestTimeString,
 						  folderId=self.radioMarkerFID,
 						  existingId=existingId,
-						  callbacks=[['self.handleRadioMarkerResponse',['.result']]])
+						  callbacks=[[self.handleRadioMarkerResponse,['.result']]])
 			except:
 				pass
 		# add or update the dict entry here, with enough detail for createSTS to add any deferred markers
@@ -2746,7 +2746,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			rprint('  marker request failed')
 
-	def handleRadioMarkerResponse(result):
+	def handleRadioMarkerResponse(self,result):
 		rprint('  inside handlerRadioMarkerResponse:')
 		rprint(json.dumps(result,indent=3))
 		# self.radioMarkerDict[deviceStr]={
@@ -6616,16 +6616,16 @@ class MyWindow(QDialog,Ui_Dialog):
 		if fid:
 			return fid
 		else:
-			rprint('t1')
+			# rprint('t1')
 			radioFolders=self.cts.getFeatures(featureClass='Folder',title='Radios',allowMultiTitleMatch=True)
-			rprint('t2')
+			# rprint('t2')
 			if radioFolders:
 				fid=radioFolders[-1]['id'] # if there are multple folders, just pick one
 				rprint('Radios folder already exists: '+str(fid))
 				self.radioMarkerFID=fid
 				return fid
 		rprint('No existing Radios folder found; creating one now...')
-		self.cts.addFolder('Radios',callbacks=[[self.setRadioMarkerFID,['.result.id']]])
+		self.cts.addFolder('Radios',visible=False,callbacks=[[self.setRadioMarkerFID,['.result.id']]])
 		return None
 
 	def setRadioMarkerFID(self,fid):

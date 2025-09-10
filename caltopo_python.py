@@ -1582,6 +1582,7 @@ class CaltopoSession():
                 self.requestQueue.put(requestQueueEntry)
                 if self.requestQueueChangedCallback:
                     self.requestQueueChangedCallback(self.requestQueue)
+                logging.info('POST: setting requestEvent')
                 self.requestEvent.set()
                 return True # successfully submitted to the queue
         elif type=="GET": # no need for json in GET; sending null JSON causes downstream error
@@ -1619,6 +1620,7 @@ class CaltopoSession():
                 self.requestQueue.put(requestQueueEntry)
                 if self.requestQueueChangedCallback:
                     self.requestQueueChangedCallback(self.requestQueue)
+                logging.info('GET: setting requestEvent')
                 self.requestEvent.set()
                 return True # successfully submitted to the queue
             # logging.info("SENDING GET to '"+url+"'")
@@ -1658,6 +1660,7 @@ class CaltopoSession():
                 self.requestQueue.put(requestQueueEntry)
                 if self.requestQueueChangedCallback:
                     self.requestQueueChangedCallback(self.requestQueue)
+                logging.info('DELETE: setting requestEvent')
                 self.requestEvent.set()
                 return True # successfully submitted to the queue
             # logging.info("URL:"+str(url))
@@ -1701,14 +1704,23 @@ class CaltopoSession():
             logging.info('requestWorker: waiting for event...')
             e.wait()
             logging.info('  requestWorker: event received, processing requestQueue...')
+            # if self.syncing:
+            #     logging.info('   (currently in a sync call - waiting until sync is done before processing the queue...')
+            #     while self.syncing: # wait until any current sync is finished
+            #         pass
+            # self.syncPause=True # set pause here to avoid leaving it set
             e.clear()
             while not self.requestQueue.empty():
                 logging.info('  queue size at start of iteration:'+str(self.requestQueue.qsize()))
                 qr=self.requestQueue.get()
-                # logging.info('  queued request:'+json.dumps(qr,indent=3))
+                logging.info('  processing queued request:')
+                # apparently json.dumps of qr causes this thread to hang...? 9/10/25
+                # logging.info(json.dumps(qr,indent=3))
+                logging.info(str(qr))
                 keepTrying=True
                 r=None
                 while keepTrying:
+                    logging.info('t1')
                     if qr['method']=='POST':
                         logging.info('    processing POST...')
                         try:
@@ -1723,6 +1735,7 @@ class CaltopoSession():
                                 allow_redirects=qr.get('allow_redirects')
                             )
                         except:
+                            logging.info('t2')
                             self.syncPause=False # don't leave it set, in case of exception
                     elif qr['method']=='GET':
                         logging.info('    processing GET...')
@@ -1738,6 +1751,7 @@ class CaltopoSession():
                                 allow_redirects=qr.get('allow_redirects')
                             )
                         except:
+                            logging.info('t3')
                             self.syncPause=False # don't leave it set, in case of exception
                     elif qr['method']=='DELETE':
                         logging.info('    processing DELETE...')
@@ -1753,6 +1767,7 @@ class CaltopoSession():
                                 allow_redirects=qr.get('allow_redirects')
                             )
                         except:
+                            logging.info('t4')
                             self.syncPause=False # don't leave it set, in case of exception
                     else:
                         logging.info('    unknown queued request removed from queue: '+json.dumps(qr,indent=3))
@@ -1761,6 +1776,7 @@ class CaltopoSession():
                             self.requestQueueChangedCallback(self.requestQueue)
                         continue
                     if r and r.status_code==200:
+                        logging.info('t5')
                         keepTrying=False
                         if self.disconnectedFlag:
                             logging.info('reconnected (successful response from queued request)')
@@ -1774,7 +1790,9 @@ class CaltopoSession():
                             self.requestQueueChangedCallback(self.requestQueue)
                         # self.holdRequests=False
                         logging.info('sending callbacks:'+str(qr['callbacks']))
+                        logging.info('t5b')
                         rv=self._handleResponse(r,callbacks=qr['callbacks'])
+                        logging.info('t5c')
                         self.syncPause=False # leave it set until after _handleResponse to avoid cache race conditions
                     else:
                         self.syncPause=False # resume sync immediately if response wasn't valid
@@ -1787,10 +1805,13 @@ class CaltopoSession():
                             if self.disconnectedCallback:
                                 self.disconnectedCallback()
                         # self.holdRequests=True
+                        logging.info('t6')
                         time.sleep(5)
                 logging.info('  queue size at end of iteration:'+str(self.requestQueue.qsize()))
+            logging.info('t7')
             if self.requestQueueChangedCallback:
                 self.requestQueueChangedCallback(self.requestQueue)
+            self.syncPause=False
             logging.info('  requestWorker: request queue processing complete...')
 
     def _handleResponse(self,
@@ -1808,7 +1829,7 @@ class CaltopoSession():
         if r.status_code!=200:
             logging.info("response code = "+str(r.status_code))
 
-        logging.info('response json:')
+        logging.info('inside handleResponse; json:')
         logging.info(json.dumps(r.json(),indent=3))
 
         # 'callbacks' argument structure: list of lists
@@ -1965,6 +1986,7 @@ class CaltopoSession():
             # third element is the dict of kwargs
             logging.info('handleResponse: calling callback '+str(cb[0])+' with args='+str(cb[1])+' and kwargs='+str(cb[2]))
             cb[0](*cb[1],**cb[2])
+        logging.info('handleResponse: done calling all callbacks')
 
     def addFolder(self,
             label="New Folder",
