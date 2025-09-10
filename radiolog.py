@@ -2715,18 +2715,19 @@ class MyWindow(QDialog,Ui_Dialog):
 			deviceStr=str(fleet)+':'+str(dev)
 		d=self.radioMarkerDict.get(deviceStr,None)
 		existingId=None
+		latestTimeString=time.strftime('%H:%M:%S')
 		if d:
 			existingId=d.get('caltopoId',None)
 			if not lat:
 				lat=d.get('lat',None)
 				lon=d.get('lon',None)
-				rprint('  label update only; using previous lat,lon='+str(lat)+','+str(lon))
+				latestTimeString=d.get('latestTimeString','')
+				rprint('  label update only; using previous lat,lon='+str(lat)+','+str(lon)+' and preserving time string '+str(latestTimeString))
 		if not lat or not lon:
 			rprint('  lat or lon not specified in current or previous request')
 		rprint('existingId:'+str(existingId))
 		id='' # initialize here so that entry can be saved before cts exists
 		newId=existingId # preserve caltopoID if already set
-		latestTimeString=time.strftime('%H:%M:%S')
 		label=self.getRadioMarkerLabelForCallsign(callsign)
 		if self.cts and self.caltopoLink>0:
 			self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
@@ -6644,7 +6645,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	def setRadioMarkerFID(self,fid):
 		rprint('addFolder callback triggered: setting radio FID to '+str(fid))
 		self.radioMarkerFID=fid
-	
+
 	def createCTS(self):
 		rprint('createCTS called')
 		# open a mapless caltopo.com session first, to get the list of maps; if URL is
@@ -8580,9 +8581,15 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 					self.ui.relayedCheckBox.setChecked(True)
 					self.ui.relayedByComboBox.setCurrentText(t)
 					break
-		if self.needsChangeCallsign and self.ui.changeCallsignSlider.value()==0:
-			self.changeCallsign()
-			self.originalCallsign=self.ui.teamField.text()
+		if self.needsChangeCallsign:
+			cs=re.sub(r' +',r' ',self.ui.teamField.text()).strip()
+			uid=None
+			if not self.fleet:
+				uid=self.dev
+			self.parent.sendRadioMarker(self.fleet,self.dev,uid,cs) # update label; use previous location
+			if self.ui.changeCallsignSlider.value()==0:
+				self.changeCallsign()
+				self.originalCallsign=self.ui.teamField.text()
 		# self.ui.changeCallsignGroupBox.setVisible(False)
 		self.callsignGroupBoxesShowHide(show='none')
 		# self.ui.firstCallGroupBox.setVisible(False)
