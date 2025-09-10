@@ -2735,29 +2735,42 @@ class MyWindow(QDialog,Ui_Dialog):
 				r=self.cts.addMarker(lat,lon,label,latestTimeString,
 						  folderId=self.radioMarkerFID,
 						  existingId=existingId,
-						  callbacks=[[self.handleRadioMarkerResponse,['.result']]])
+						  callbacks=[[self.handleRadioMarkerResponse,[{
+							  'deviceStr':deviceStr,
+							  'lat':lat,
+							  'lon':lon,
+							  'label':label,
+							  'latestTimeString':latestTimeString,
+							  'id':'.result.id', # will be equal to existingId on subsequent updates
+							  'existingId':existingId # will be None on first call from a device
+						  }]]])
 			except:
 				pass
 		# add or update the dict entry here, with enough detail for createSTS to add any deferred markers
 		if r==True:
 			rprint('  marker request queued successfully')
-			if not existingId:
-				newId=id # only set caltopoId if this is the first successful request
+			# if not existingId:
+			# 	newId=id # only set caltopoId if this is the first successful request
 		else:
 			rprint('  marker request failed')
 
-	def handleRadioMarkerResponse(self,result):
-		rprint('  inside handlerRadioMarkerResponse:')
-		rprint(json.dumps(result,indent=3))
-		# self.radioMarkerDict[deviceStr]={
-		# 	'caltopoId': newId, # only set caltopoId if this is the first successful request
-		# 	'lastId': id,  # changed on every request: '' = fail on last attempt, real ID = success on last attempt
-		# 	'label': label,
-		# 	'latestTimeString': latestTimeString,
-		# 	'lat': lat,
-		# 	'lon': lon
-		# }
-		# rprint(json.dumps(self.radioMarkerDict,indent=3))
+	def handleRadioMarkerResponse(self,**kwargs):
+		# note that kwargs is now a dict, to be referenced as such
+		rprint('  inside handleRadioMarkerResponse:')
+		rprint(json.dumps(kwargs,indent=3))
+		newId=kwargs['existingId'] # preserve the id if this is not the first call from the device
+		if not newId: # this must be the first call from the device
+			newId=kwargs['id']
+		self.radioMarkerDict[kwargs['deviceStr']]={
+			'caltopoId': newId, # only set caltopoId if this is the first successful request
+			'lastId': kwargs['id'],  # changed on every request: '' = fail on last attempt, real ID = success on last attempt
+			'label': kwargs['label'],
+			'latestTimeString': kwargs['latestTimeString'],
+			'lat': kwargs['lat'],
+			'lon': kwargs['lon']
+		}
+		rprint('updated radioMarkerDict:')
+		rprint(json.dumps(self.radioMarkerDict,indent=3))
 
 	# for fsLog, a dictionary would probably be easier, but we have to use an array
 	#  since we will be displaying in a QTableView

@@ -1826,6 +1826,7 @@ class CaltopoSession():
         # urlEnd=r.url.split('/')[-1] # the url of the original request, used to determine what code to run at the end
         # logging.info(' inside handleResponse... urlEnd='+urlEnd)
         # logging.info('  full response:'+json.dumps(r.json(),indent=3))
+        self.syncPause=True
         if r.status_code!=200:
             logging.info("response code = "+str(r.status_code))
 
@@ -1857,19 +1858,23 @@ class CaltopoSession():
                 callbackKwArgs={}
                 for arg in args:
                     if isinstance(arg,dict): # dict? it's the kwargs dict
+                        logging.info('dict found; processing into kwargs')
                         if callbackKwArgs:
                             logging.error('callback arguments parsing violation: callback arguments structure has more than one dictionary')
                             return False
                         callbackKwArgs=arg
                     else: # not a dict? it's a positional arg
-                        if arg.startswith('.'): # nested r.json() dict keys
+                        if isinstance(arg,str) and arg.startswith('.'): # nested r.json() dict keys
                             argText="r.json()['"+arg[1:].replace(".","']['")+"']" # .a.b.c --> r.json()['a']['b']['c']
                             arg=eval(argText)
                         callbackArgs.append(arg)
                 for key in callbackKwArgs.keys():
-                    if callbackKwArgs[key].startswith('.'):
+                    logging.info('processing key '+str(key))
+                    if isinstance(callbackKwArgs[key],str) and callbackKwArgs[key].startswith('.'):
                         valText="r.json()['"+callbackKwArgs[key][1:].replace(".","']['")+"']" # .a.b.c --> r.json()['a']['b']['c']
+                        logging.info('  valText='+str(valText))
                         callbackKwArgs[key]=eval(valText)
+                    logging.info('  evalualted value='+str(callbackKwArgs[key]))
             processedCallbacks.append([cbFunc,callbackArgs,callbackKwArgs])
         callbacks=processedCallbacks
 
@@ -1887,7 +1892,7 @@ class CaltopoSession():
                     rj=r.json()
                 except:
                     logging.error('New map request failed: response had do decodable json:'+str(r.status_code)+':'+r.text)
-                    # self.syncPause=False
+                    self.syncPause=False
                     return False
                 else:
                     rjr=rj.get('result')
@@ -1896,15 +1901,15 @@ class CaltopoSession():
                         newUrl=rjr['id']
                     if newUrl:
                         logging.info('New map URL:'+newUrl)
-                        # self.syncPause=False
+                        self.syncPause=False
                         return newUrl
                     else:
                         logging.error('No new map URL was returned in the response json:'+str(r.status_code)+':'+json.dumps(rj))
-                        # self.syncPause=False
+                        self.syncPause=False
                         return False
             else:
                 logging.error('New map request failed:'+str(r.status_code)+':'+r.text)
-                # self.syncPause=False
+                self.syncPause=False
                 return False
 
             # old redirect method worked with CTD 4214:
@@ -1939,7 +1944,7 @@ class CaltopoSession():
                     rj=r.json()
                 except:
                     logging.error("sendRequest: response had no decodable json:"+str(r))
-                    # self.syncPause=False
+                    self.syncPause=False
                     return False
                 else:
                     if 'status' in rj and rj['status'].lower()!='ok':
@@ -1948,7 +1953,7 @@ class CaltopoSession():
                             msg+='; maybe the user does not have necessary permissions on this map'
                         msg+=':  '+str(rj)
                         logging.warning(msg)
-                        # self.syncPause=False
+                        self.syncPause=False
                         return False
                     if returnJson=="ID":
                         id=None
@@ -1957,14 +1962,14 @@ class CaltopoSession():
                         elif 'id' in rj:
                             id=rj['id']
                         elif not rj['result']['state']['features']:  # response if no new info
-                            # self.syncPause=False
+                            self.syncPause=False
                             return 0
                         elif 'result' in rj and 'id' in rj['result']['state']['features'][0]:
                             id=rj['result']['state']['features'][0]['id']
                         else:
                             logging.info("sendRequest: No valid ID was returned from the request:")
                             logging.info(json.dumps(rj,indent=3))
-                        # self.syncPause=False
+                        self.syncPause=False
                         return id
                     if returnJson=="ALL":
                         # since CTD 4221 returns 'title' as an empty string for all assignments,
@@ -1977,7 +1982,7 @@ class CaltopoSession():
                             alist=[f for f in rj['result']['state']['features'] if 'properties' in f.keys() and 'class' in f['properties'].keys() and f['properties']['class'].lower()=='assignment']
                             for a in alist:
                                 a['properties']['title']=str(a['properties'].get('letter',''))+' '+str(a['properties'].get('number',''))
-                        # self.syncPause=False
+                        self.syncPause=False
                         return rj
         # self.syncPause=False
         for cb in callbacks: # call any callbacks in sequence
@@ -1987,6 +1992,7 @@ class CaltopoSession():
             logging.info('handleResponse: calling callback '+str(cb[0])+' with args='+str(cb[1])+' and kwargs='+str(cb[2]))
             cb[0](*cb[1],**cb[2])
         logging.info('handleResponse: done calling all callbacks')
+        self.syncPause=False
 
     def addFolder(self,
             label="New Folder",
