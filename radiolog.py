@@ -2725,10 +2725,12 @@ class MyWindow(QDialog,Ui_Dialog):
 				rprint('  label update only; using previous lat,lon='+str(lat)+','+str(lon)+' and preserving time string '+str(latestTimeString))
 		if not lat or not lon:
 			rprint('  lat or lon not specified in current or previous request')
+			return False
 		rprint('existingId:'+str(existingId))
 		id='' # initialize here so that entry can be saved before cts exists
 		newId=existingId # preserve caltopoID if already set
 		label=self.getRadioMarkerLabelForCallsign(callsign)
+		r=False
 		if self.cts and self.caltopoLink>0:
 			self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
 			try:
@@ -2745,8 +2747,8 @@ class MyWindow(QDialog,Ui_Dialog):
 							  'id':'.result.id', # will be equal to existingId on subsequent updates
 							  'existingId':existingId # will be None on first call from a device
 						  }]]])
-			except:
-				pass
+			except Exception as e:
+				rprint('Exception during addMarker:'+str(e))
 		# add or update the dict entry here, with enough detail for createSTS to add any deferred markers
 		if r==True:
 			rprint('  marker request queued successfully')
@@ -8685,7 +8687,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		#  let the newEntryWindow.accept create the change-of-callsign note as needed; in this way,
 		#  repeated or superceded calls to CCD can be recorded in the note
 		self.newCallsignFromCCD=newCallsign
-		rprint("New callsign pairing created: fleet="+str(self.fleet)+"  dev="+str(self.dev)+"  uid="+str(uid)+"  callsign="+newCallsign)
+		# rprint("New callsign pairing created: fleet="+str(self.fleet)+"  dev="+str(self.dev)+"  uid="+str(uid)+"  callsign="+newCallsign)
 		self.needsChangeCallsign=False
 		self.ui.teamField.setStyleSheet('border:3px inset gray;')
 

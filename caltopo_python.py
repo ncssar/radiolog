@@ -136,6 +136,15 @@ from shapely.ops import split,unary_union
 class CTSException(BaseException):
     pass
 
+# CustomEncoder enables json.dumps for dicts with lists of callables
+#  (to avoid "TypeError: Object of type function is not JSON serializable")
+#  usage: json.dumps(callable_list, cls=CustomEncoder)
+class CustomEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if callable(obj):
+            return f"Callable: {obj.__name__ if hasattr(obj, '__name__') else str(obj)}"
+        return json.JSONEncoder.default(self, obj)
+        
 class CaltopoSession():
     def __init__(self,
             domainAndPort: str='localhost:8080',
@@ -1579,6 +1588,8 @@ class CaltopoSession():
                     'allow_redirects':False,
                     'callbacks':callbacks
                 }
+                logging.info('----- QUEUE (put) ----- ')
+                logging.info(json.dumps(requestQueueEntry,indent=3,cls=CustomEncoder)) # CustomEncoder due to callables
                 self.requestQueue.put(requestQueueEntry)
                 if self.requestQueueChangedCallback:
                     self.requestQueueChangedCallback(self.requestQueue)
@@ -1617,6 +1628,8 @@ class CaltopoSession():
                     'allow_redirects':False,
                     'callbacks':callbacks
                 }
+                logging.info('----- QUEUE (put) ----- ')
+                logging.info(json.dumps(requestQueueEntry,indent=3,cls=CustomEncoder)) # CustomEncoder due to callables
                 self.requestQueue.put(requestQueueEntry)
                 if self.requestQueueChangedCallback:
                     self.requestQueueChangedCallback(self.requestQueue)
@@ -1657,6 +1670,8 @@ class CaltopoSession():
                     'allow_redirects':False,
                     'callbacks':callbacks
                 }
+                logging.info('----- QUEUE (put) ----- ')
+                logging.info(json.dumps(requestQueueEntry,indent=3,cls=CustomEncoder)) # CustomEncoder due to callables
                 self.requestQueue.put(requestQueueEntry)
                 if self.requestQueueChangedCallback:
                     self.requestQueueChangedCallback(self.requestQueue)
@@ -1713,10 +1728,8 @@ class CaltopoSession():
             while not self.requestQueue.empty():
                 logging.info('  queue size at start of iteration:'+str(self.requestQueue.qsize()))
                 qr=self.requestQueue.get()
-                logging.info('  processing queued request:')
-                # apparently json.dumps of qr causes this thread to hang...? 9/10/25
-                # logging.info(json.dumps(qr,indent=3))
-                logging.info(str(qr))
+                logging.info('----- QUEUE (get) -----')
+                logging.info(json.dumps(qr,indent=3,cls=CustomEncoder)) # CustomEncoder due to callables
                 keepTrying=True
                 r=None
                 while keepTrying:
@@ -1734,8 +1747,8 @@ class CaltopoSession():
                                 proxies=qr.get('proxies'),
                                 allow_redirects=qr.get('allow_redirects')
                             )
-                        except:
-                            logging.info('t2')
+                        except Exception as e:
+                            logging.info('Exception during processing of queued request: '+str(e))
                             self.syncPause=False # don't leave it set, in case of exception
                     elif qr['method']=='GET':
                         logging.info('    processing GET...')
@@ -1750,8 +1763,8 @@ class CaltopoSession():
                                 proxies=qr.get('proxies'),
                                 allow_redirects=qr.get('allow_redirects')
                             )
-                        except:
-                            logging.info('t3')
+                        except Exception as e:
+                            logging.info('Exception during processing of queued request: '+str(e))
                             self.syncPause=False # don't leave it set, in case of exception
                     elif qr['method']=='DELETE':
                         logging.info('    processing DELETE...')
@@ -1766,8 +1779,8 @@ class CaltopoSession():
                                 proxies=qr.get('proxies'),
                                 allow_redirects=qr.get('allow_redirects')
                             )
-                        except:
-                            logging.info('t4')
+                        except Exception as e:
+                            logging.info('Exception during processing of queued request: '+str(e))
                             self.syncPause=False # don't leave it set, in case of exception
                     else:
                         logging.info('    unknown queued request removed from queue: '+json.dumps(qr,indent=3))
