@@ -2724,6 +2724,12 @@ class MyWindow(QDialog,Ui_Dialog):
 				latestTimeString=d.get('latestTimeString','')
 				rprint('  label update only; using previous lat,lon='+str(lat)+','+str(lon)+' and preserving time string '+str(latestTimeString))
 		if not lat or not lon:
+			# no lat or lon, and also no radioMarkerDict entry:
+			#  this is the case for label-change requests while disconnected,
+			#  for a device whose marker creation request also happened while disconnected,
+			#  therefore no radioMarkerDict entry was ever created;
+			#  will need to determine existingId later, when the queued request is
+			#  pulled from the queue and processed.
 			rprint('  lat or lon not specified in current or previous request')
 			return False
 		rprint('existingId:'+str(existingId))

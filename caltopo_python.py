@@ -992,7 +992,7 @@ class CaltopoSession():
         if rj and rj['status']=='ok':
             if self.disconnectedFlag:
                 self.disconnectedFlag=False
-                logging.info('reconnected (successful sync)')
+                logging.info('reconnected (successful sync); queue size is '+str(self.requestQueue.qsize()))
                 if self.reconnectedCallback:
                     self.reconnectedCallback()
             # self.holdRequests=False
@@ -1176,7 +1176,7 @@ class CaltopoSession():
             # self.holdRequests=True
             if not self.disconnectedFlag:
                 self.disconnectedFlag=True
-                logging.info('disconnected (first failed response from sync)')
+                logging.info('disconnected (first failed response from sync); queue size is '+str(self.requestQueue.qsize()))
                 if self.disconnectedCallback:
                     self.disconnectedCallback()
         self.syncing=False
@@ -1323,7 +1323,7 @@ class CaltopoSession():
                     logging.error('Sync attempt failed (exception during call to _doSync)')
                     if not self.disconnectedFlag:
                         self.disconnectedFlag=True
-                        logging.info('disconnected (first exception during response from sync)')
+                        logging.info('disconnected (first exception during response from sync); queue size is '+str(self.requestQueue.qsize()))
                         if self.disconnectedCallback:
                             self.disconnectedCallback()
                     # self.holdRequests=True
@@ -1792,7 +1792,7 @@ class CaltopoSession():
                         logging.info('t5')
                         keepTrying=False
                         if self.disconnectedFlag:
-                            logging.info('reconnected (successful response from queued request)')
+                            logging.info('reconnected (successful response from queued request '+str(qr.get('url'))+'); queue size is '+str(self.requestQueue.qsize()))
                             self.disconnectedFlag=False
                             # self._refresh(forceImmediate=True) # should be handled by the first callback of each request
                             if self.reconnectedCallback:
@@ -1809,11 +1809,11 @@ class CaltopoSession():
                         self.syncPause=False # leave it set until after _handleResponse to avoid cache race conditions
                     else:
                         self.syncPause=False # resume sync immediately if response wasn't valid
-                        logging.info('    response not valid; trying again in 5 seconds...')
+                        logging.info('    response not valid; trying again in 5 seconds... '+str(qr.get('url')))
                         if self.failedRequestCallback:
                             self.failedRequestCallback(qr,r)
                         if not self.disconnectedFlag:
-                            logging.info('disconnected (no response or bad response from queued request)')
+                            logging.info('disconnected (no response or bad response from queued request '+str(qr.get('url'))+')')
                             self.disconnectedFlag=True
                             if self.disconnectedCallback:
                                 self.disconnectedCallback()
