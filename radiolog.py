@@ -2741,7 +2741,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
 			try:
 				rprint('  addMarker:  label='+str(label)+'  folderId='+str(self.radioMarkerFID))
-				r=self.cts.addMarker(lat,lon,label,latestTimeString,
+				r=self.cts.addMarker(lat,lon,label,latestTimeString+'   ['+deviceStr+']',
 						  folderId=self.radioMarkerFID,
 						  existingId=existingId,
 						  callbacks=[[self.handleRadioMarkerResponse,[{

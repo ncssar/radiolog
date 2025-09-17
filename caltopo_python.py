@@ -1448,7 +1448,7 @@ class CaltopoSession():
         return rval
 
     def _sendRequest(self,
-            type: str,
+            method: str,
             apiUrlEnd: str,
             j: dict,
             id: str='',
@@ -1460,8 +1460,8 @@ class CaltopoSession():
             callbacks=[]): # see 'callbacks' structure notes
         """Send HTTP request to the server.
 
-        :param type: HTTP request action verb; currently, the only acceptable values are 'GET', 'POST', or 'DELETE'
-        :type type: str
+        :param method: HTTP request action verb; currently, the only acceptable values are 'GET', 'POST', or 'DELETE'
+        :type method: str
         :param apiUrlEnd: Text of the 'final section' of the request URL \n
           - typical values are 'Folder', 'Shape', 'Marker', etc.
           - any occurrances of '[MAPID]' in apiUrlEnd will be replaced by the current map ID
@@ -1490,7 +1490,7 @@ class CaltopoSession():
         """        
         # objgraph.show_growth()
         # logging.info('RAM:'+str(process.memory_info().rss/1024**2)+'MB')
-        type=type.upper()
+        method=method.upper()
         # validate coordinates
         if self.validatePoints and j:
             jg=j.get('geometry')
@@ -1502,7 +1502,7 @@ class CaltopoSession():
         timeout=timeout or self.syncTimeout
         newMap='[NEW]' in apiUrlEnd  # specific mapID that indicates a new map should be created
         if self.apiVersion<0:
-            logging.error("sendRequest: caltopo session is invalid or is not associated with a map; request aborted: type="+str(type)+" apiUrlEnd="+str(apiUrlEnd))
+            logging.error("sendRequest: caltopo session is invalid or is not associated with a map; request aborted: method="+str(method)+" apiUrlEnd="+str(apiUrlEnd))
             return False
         mid=self.apiUrlMid
         if 'api/' in apiUrlEnd.lower():
@@ -1553,22 +1553,32 @@ class CaltopoSession():
         #     logging.info("sending "+str(type)+" to "+url)
         params={}
         paramsPrint={}
-        if type=="POST":
-            payload_string = json.dumps(j) if j else ""
-            if internet:
-                expires=int(time.time()*1000)+120000 # 2 minutes from current time, in milliseconds
-                data="POST "+mid+apiUrlEnd+"\n"+str(expires)+"\n"+json.dumps(j)
-                params["id"]=self.id
-                params["expires"]=expires
-                params["signature"]=self._getToken(data)
-                # params["signature"]=self.sign(type,url,expires,payload_string,self.key)
-            params["json"]=payload_string
+
+        if method.upper() in ['POST','GET','DELETE']:
+            params=self._buildParams(method,mid+apiUrlEnd,j,internet)
             if internet:
                 paramsPrint=copy.deepcopy(params)
                 paramsPrint['id']='.....'
                 paramsPrint['signature']='.....'
             else:
                 paramsPrint=params
+
+        # if type=="POST":
+            # payload_string = json.dumps(j) if j else ""
+            # if internet:
+            #     expires=int(time.time()*1000)+120000 # 2 minutes from current time, in milliseconds
+            #     data="POST "+mid+apiUrlEnd+"\n"+str(expires)+"\n"+json.dumps(j)
+            #     params["id"]=self.id
+            #     params["expires"]=expires
+            #     params["signature"]=self._getToken(data)
+            #     # params["signature"]=self.sign(type,url,expires,payload_string,self.key)
+            # params["json"]=payload_string
+            # if internet:
+            #     paramsPrint=copy.deepcopy(params)
+            #     paramsPrint['id']='.....'
+            #     paramsPrint['signature']='.....'
+            # else:
+            #     paramsPrint=params
             # logging.info("SENDING POST to '"+url+"':")
             # logging.info(json.dumps(paramsPrint,indent=3))
             # don't print the entire PDF generation request - upstream code can print a PDF data summary
@@ -1577,11 +1587,18 @@ class CaltopoSession():
             # send the dict in the request body for POST requests, using the 'data' arg instead of 'params'
             if skipQueue:
                 self.syncPause=True
-                r=self.s.post(url,data=params,timeout=timeout,proxies=self.proxyDict,allow_redirects=False)
+                if method=='POST':
+                    r=self.s.post(url,data=params,timeout=timeout,proxies=self.proxyDict,allow_redirects=False)
+                elif method=='GET':
+                    r=self.s.get(url,params=params,timeout=timeout,proxies=self.proxyDict,allow_redirects=False)
+                elif method=='DELETE':
+                    r=self.s.delete(url,params=params,timeout=timeout,proxies=self.proxyDict)   ## use params for query vs data for body data
             else:
                 requestQueueEntry={
-                    'method':'POST',
+                    'method':method,
                     'url':url,
+                    'urlPart':mid+apiUrlEnd, # to make re-signing easier when pulled from queue
+                    'internet':internet, # to make re-signing easier when pulled from queue
                     'data':params,
                     'timeout':timeout,
                     'proxies':self.proxyDict,
@@ -1596,92 +1613,92 @@ class CaltopoSession():
                 logging.info('POST: setting requestEvent')
                 self.requestEvent.set()
                 return True # successfully submitted to the queue
-        elif type=="GET": # no need for json in GET; sending null JSON causes downstream error
-            # logging.info("SENDING GET to '"+url+"':")
-            if internet:
-                expires=int(time.time()*1000)+120000 # 2 minutes from current time, in milliseconds
-                data="GET "+mid+apiUrlEnd+"\n"+str(expires)+"\n"  #last newline needed as placeholder for json
-                params["json"]=''   # no body, but is required
-                params["id"]=self.id
-                params["expires"]=expires
-                params["signature"]=self._getToken(data)
-            if internet:
-                paramsPrint=copy.deepcopy(params)
-                paramsPrint['id']='.....'
-                paramsPrint['signature']='.....'
-            else:
-                paramsPrint=params
-                # 'data' argument sends dict in body; 'params' sends dict in URL query string,
-                #   which is needed by signed GET requests such as api/v1/acct/....../since/0
-                #   and for all requests to maps with 'secret' permission; so, might as well just
-                #   sign all GET requests to the internet, rather than try to determine permission
-            if skipQueue:
-                self.syncPause=True
-                r=self.s.get(url,params=params,timeout=timeout,proxies=self.proxyDict,allow_redirects=False)
-            else:
-                requestQueueEntry={
-                    'method':'GET',
-                    'url':url,
-                    'params':params,
-                    'timeout':timeout,
-                    'proxies':self.proxyDict,
-                    'allow_redirects':False,
-                    'callbacks':callbacks
-                }
-                logging.info('----- QUEUE (put) ----- ')
-                logging.info(json.dumps(requestQueueEntry,indent=3,cls=CustomEncoder)) # CustomEncoder due to callables
-                self.requestQueue.put(requestQueueEntry)
-                if self.requestQueueChangedCallback:
-                    self.requestQueueChangedCallback(self.requestQueue)
-                logging.info('GET: setting requestEvent')
-                self.requestEvent.set()
-                return True # successfully submitted to the queue
-            # logging.info("SENDING GET to '"+url+"'")
-            # logging.info(json.dumps(paramsPrint,indent=3))
-            # logging.info('Prepared request URL:')
-            # logging.info(r.request.url)
-        elif type=="DELETE":
-            if internet:
-                expires=int(time.time()*1000)+120000 # 2 minutes from current time, in milliseconds
-                data="DELETE "+mid+apiUrlEnd+"\n"+str(expires)+"\n"  #last newline needed as placeholder for json
-                params["json"]=''   # no body, but is required
-                params["id"]=self.id
-                params["expires"]=expires
-                params["signature"]=self._getToken(data)
-            if internet:
-                paramsPrint=copy.deepcopy(params)
-                paramsPrint['id']='.....'
-                paramsPrint['signature']='.....'
-            else:
-                paramsPrint=params
-            # logging.info("SENDING DELETE to '"+url+"'")
-            # logging.info(json.dumps(paramsPrint,indent=3))
-            # logging.info("Key:"+str(self.key))
-            if skipQueue:
-                self.syncPause=True
-                r=self.s.delete(url,params=params,timeout=timeout,proxies=self.proxyDict)   ## use params for query vs data for body data
-            else:
-                requestQueueEntry={
-                    'method':'DELETE',
-                    'url':url,
-                    'params':params,
-                    'timeout':timeout,
-                    'proxies':self.proxyDict,
-                    'allow_redirects':False,
-                    'callbacks':callbacks
-                }
-                logging.info('----- QUEUE (put) ----- ')
-                logging.info(json.dumps(requestQueueEntry,indent=3,cls=CustomEncoder)) # CustomEncoder due to callables
-                self.requestQueue.put(requestQueueEntry)
-                if self.requestQueueChangedCallback:
-                    self.requestQueueChangedCallback(self.requestQueue)
-                logging.info('DELETE: setting requestEvent')
-                self.requestEvent.set()
-                return True # successfully submitted to the queue
-            # logging.info("URL:"+str(url))
-            # logging.info("Ris:"+str(r))
+        # elif type=="GET": # no need for json in GET; sending null JSON causes downstream error
+        #     # logging.info("SENDING GET to '"+url+"':")
+        #     if internet:
+        #         expires=int(time.time()*1000)+120000 # 2 minutes from current time, in milliseconds
+        #         data="GET "+mid+apiUrlEnd+"\n"+str(expires)+"\n"  #last newline needed as placeholder for json
+        #         params["json"]=''   # no body, but is required
+        #         params["id"]=self.id
+        #         params["expires"]=expires
+        #         params["signature"]=self._getToken(data)
+        #     if internet:
+        #         paramsPrint=copy.deepcopy(params)
+        #         paramsPrint['id']='.....'
+        #         paramsPrint['signature']='.....'
+        #     else:
+        #         paramsPrint=params
+        #         # 'data' argument sends dict in body; 'params' sends dict in URL query string,
+        #         #   which is needed by signed GET requests such as api/v1/acct/....../since/0
+        #         #   and for all requests to maps with 'secret' permission; so, might as well just
+        #         #   sign all GET requests to the internet, rather than try to determine permission
+        #     if skipQueue:
+        #         self.syncPause=True
+        #         r=self.s.get(url,params=params,timeout=timeout,proxies=self.proxyDict,allow_redirects=False)
+        #     else:
+        #         requestQueueEntry={
+        #             'method':'GET',
+        #             'url':url,
+        #             'params':params,
+        #             'timeout':timeout,
+        #             'proxies':self.proxyDict,
+        #             'allow_redirects':False,
+        #             'callbacks':callbacks
+        #         }
+        #         logging.info('----- QUEUE (put) ----- ')
+        #         logging.info(json.dumps(requestQueueEntry,indent=3,cls=CustomEncoder)) # CustomEncoder due to callables
+        #         self.requestQueue.put(requestQueueEntry)
+        #         if self.requestQueueChangedCallback:
+        #             self.requestQueueChangedCallback(self.requestQueue)
+        #         logging.info('GET: setting requestEvent')
+        #         self.requestEvent.set()
+        #         return True # successfully submitted to the queue
+        #     # logging.info("SENDING GET to '"+url+"'")
+        #     # logging.info(json.dumps(paramsPrint,indent=3))
+        #     # logging.info('Prepared request URL:')
+        #     # logging.info(r.request.url)
+        # elif type=="DELETE":
+        #     if internet:
+        #         expires=int(time.time()*1000)+120000 # 2 minutes from current time, in milliseconds
+        #         data="DELETE "+mid+apiUrlEnd+"\n"+str(expires)+"\n"  #last newline needed as placeholder for json
+        #         params["json"]=''   # no body, but is required
+        #         params["id"]=self.id
+        #         params["expires"]=expires
+        #         params["signature"]=self._getToken(data)
+        #     if internet:
+        #         paramsPrint=copy.deepcopy(params)
+        #         paramsPrint['id']='.....'
+        #         paramsPrint['signature']='.....'
+        #     else:
+        #         paramsPrint=params
+        #     # logging.info("SENDING DELETE to '"+url+"'")
+        #     # logging.info(json.dumps(paramsPrint,indent=3))
+        #     # logging.info("Key:"+str(self.key))
+        #     if skipQueue:
+        #         self.syncPause=True
+        #         r=self.s.delete(url,params=params,timeout=timeout,proxies=self.proxyDict)   ## use params for query vs data for body data
+        #     else:
+        #         requestQueueEntry={
+        #             'method':'DELETE',
+        #             'url':url,
+        #             'params':params,
+        #             'timeout':timeout,
+        #             'proxies':self.proxyDict,
+        #             'allow_redirects':False,
+        #             'callbacks':callbacks
+        #         }
+        #         logging.info('----- QUEUE (put) ----- ')
+        #         logging.info(json.dumps(requestQueueEntry,indent=3,cls=CustomEncoder)) # CustomEncoder due to callables
+        #         self.requestQueue.put(requestQueueEntry)
+        #         if self.requestQueueChangedCallback:
+        #             self.requestQueueChangedCallback(self.requestQueue)
+        #         logging.info('DELETE: setting requestEvent')
+        #         self.requestEvent.set()
+        #         return True # successfully submitted to the queue
+        #     # logging.info("URL:"+str(url))
+        #     # logging.info("Ris:"+str(r))
         else:
-            logging.error("sendRequest: Unrecognized request type:"+str(type))
+            logging.error("sendRequest: Unrecognized request method:"+str(method))
             # self.syncPause=False
             return False
         if skipQueue: # blocking request
@@ -1690,6 +1707,24 @@ class CaltopoSession():
             logging.info('_sendRequest: back from _handleResponse when skipQueue=True')
             self.syncPause=False
             return rval
+
+    # made _buildParams method from _sendRequest core, to allow signuature to be created again when pulled from queue
+    def _buildParams(self,method,urlPart,j,internet):
+        params={}
+        payload_string = json.dumps(j) if j else ""
+        if internet:
+            expires=int(time.time()*1000)+120000 # 2 minutes from current time, in milliseconds
+            data=method.upper()+' '+urlPart+'\n'+str(expires)+'\n'
+            if method.upper()=='POST':
+                data+=payload_string
+            else:
+                params['json']=''  # no body, but is required
+            params['id']=self.id
+            params['expires']=expires
+            params['signature']=self._getToken(data)
+        if method.upper()=='POST':
+            params['json']=payload_string
+        return params
 
     def _requestWorker(self,e):
         # daemon or non-daemon?
@@ -1740,6 +1775,18 @@ class CaltopoSession():
                             while self.syncing: # wait until any current sync is finished
                                 pass
                             self.syncPause=True # set pause here to avoid leaving it set
+                            # perform deferredHook now if specified as part of the queued request
+                            if qr.get('deferredHook'):
+                                logging.info('deferred hook specified - evaluating it now...')
+                                eval(qr['deferredHook'])
+                                logging.info('done with deferred hook')
+                            # if the signature would expire in the next 10 seconds, get a new signature now
+                            expires=qr.get('data')['expires']
+                            now=time.time()*1000
+                            if expires-now<10000:
+                                logging.info('queued request signature might be stale: now='+str(now)+' expires='+str(expires)+'; regenerating signature...')
+                                qr['data']=self._buildParams(qr['method'],qr['urlPart'],json.loads(qr['data']['json']),qr['internet'])
+                                logging.info('signature regenerated')
                             r=self.s.post(
                                 qr.get('url'),
                                 data=qr.get('data'),
