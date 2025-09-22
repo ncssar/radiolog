@@ -982,222 +982,223 @@ class CaltopoSession():
            - called as needed from ._refresh
 
         """
-        # do not use a try/except block in this function: disconnect detection relies on exceptions getting handled by _syncLoop
-        
-        logging.info('inside doSync')
-        # logging.info('sync marker: '+self.mapID+' begin')
-        if not self.mapID or self.apiVersion<0:
-            logging.error('sync request invalid: this caltopo session is not associated with a map.')
-            return False
-        if self.syncing:
-            logging.warning('sync-within-sync requested; returning to calling code.')
-            return False
-        self.syncing=True
+        try:
+            logging.info('inside doSync')
+            # logging.info('sync marker: '+self.mapID+' begin')
+            if not self.mapID or self.apiVersion<0:
+                logging.error('sync request invalid: this caltopo session is not associated with a map.')
+                return False
+            if self.syncing:
+                logging.warning('sync-within-sync requested; returning to calling code.')
+                return False
+            self.syncing=True
 
-        # Keys under 'result':
-        # 1 - 'ids' will only exist on first sync or after a deletion, so, if 'ids' exists
-        #     then just use it to replace the entire cached 'ids', and also do cleanup later
-        #     by deleting any state->features from the cache whose 'id' value is not in 'ids'
-        # 2 - state->features is an array of changed existing features, and the array will
-        #     have complete data for 'geometry', 'id', 'type', and 'properties', so, for each
-        #     item in state->features, just replace the entire existing cached feature of
-        #     the same id
+            # Keys under 'result':
+            # 1 - 'ids' will only exist on first sync or after a deletion, so, if 'ids' exists
+            #     then just use it to replace the entire cached 'ids', and also do cleanup later
+            #     by deleting any state->features from the cache whose 'id' value is not in 'ids'
+            # 2 - state->features is an array of changed existing features, and the array will
+            #     have complete data for 'geometry', 'id', 'type', and 'properties', so, for each
+            #     item in state->features, just replace the entire existing cached feature of
+            #     the same id
 
-        # logging.info('Sending caltopo "since" request...')
-        rj=self._sendRequest('get','since/'+str(max(0,self.lastSuccessfulSyncTimestamp-500)),None,returnJson='ALL',timeout=self.syncTimeout,skipQueue=True)
-        if rj and rj['status']=='ok':
-            if self.disconnectedFlag:
-                self._disconnectedFlagClear()
-                logging.info('reconnected (successful sync); queue size is '+str(self.requestQueue.qsize()))
-                if self.reconnectedCallback:
-                    self.reconnectedCallback()
-            # self.holdRequests=False
-            if self.syncDumpFile:
-                with open(insertBeforeExt(self.syncDumpFile,'.since'+str(max(0,self.lastSuccessfulSyncTimestamp-500))),"w") as f:
-                    f.write(json.dumps(rj,indent=3))
-            # response timestamp is an integer number of milliseconds; equivalent to
-            # int(time.time()*1000))
-            self.lastSuccessfulSyncTimestamp=rj['result']['timestamp']
-            # logging.info('Successful caltopo sync: timestamp='+str(self.lastSuccessfulSyncTimestamp))
-            if self.syncCallback:
-                self.syncCallback()
-            rjr=rj['result']
-            rjrsf=rjr['state']['features']
-            
-            # 1 - if 'ids' exists, use it verbatim; cleanup happens later
-            idsBefore=None
-            if 'ids' in rjr.keys():
-                idsBefore=copy.deepcopy(self.mapData['ids'])
-                self.mapData['ids']=rjr['ids']
-                logging.info('  Updating "ids"')
-            
-            # 2 - update existing features as needed
-            if len(rjrsf)>0:
-                logging.info('  processing '+str(len(rjrsf))+' feature(s):'+str([x['id'] for x in rjrsf]))
-                # logging.info(json.dumps(rj,indent=3))
-                for f in rjrsf:
-                    rjrfid=f['id']
-                    prop=f['properties']
-                    title=str(prop.get('title',None))
-                    featureClass=str(prop['class'])
-                    processed=False
-                    for i in range(len(self.mapData['state']['features'])):
-                        # only modify existing cache data if id and class are both matches:
-                        #  subset apptracks can have the same id as the finished apptrack shape
-                        if self.mapData['state']['features'][i]['id']==rjrfid and self.mapData['state']['features'][i]['properties']['class']==featureClass:
-                            # don't simply overwrite the entire feature entry:
-                            #  - if only geometry was changed, indicated by properties['nop']=true,
-                            #    then leave properties alone and just overwrite geometry;
-                            #  - if only properties were changed, geometry will not be in the response,
-                            #    so leave geometry alone
-                            #  SO:
-                            #  - if f->prop->title exists, replace the entire prop dict
-                            #  - if f->geometry exists, replace the entire geometry dict
-                            if 'title' in prop.keys():
-                                if self.mapData['state']['features'][i]['properties']!=prop:
-                                    logging.info('  Updating properties for '+featureClass+':'+title)
-                                    # logging.info('    old:'+json.dumps(self.mapData['state']['features'][i]['properties']))
-                                    # logging.info('    new:'+json.dumps(prop))
-                                    self.mapData['state']['features'][i]['properties']=prop
-                                    if self.propertyUpdateCallback:
-                                        self.propertyUpdateCallback(f)
-                                else:
-                                    logging.info('  response contained properties for '+featureClass+':'+title+' but they matched the cache, so no cache update or callback is performed')
-                            if title=='None':
-                                title=self.mapData['state']['features'][i]['properties']['title']
-                            if 'geometry' in f.keys():
-                                if self.mapData['state']['features'][i]['geometry']!=f['geometry']:
-                                    logging.info('  Updating geometry for '+featureClass+':'+title)
-                                    # if geometry.incremental exists and is true, append new coordinates to existing coordinates
-                                    # otherwise, replace the entire geometry value
-                                    fg=f['geometry']
-                                    mdsfg=self.mapData['state']['features'][i]['geometry']
-                                    if fg.get('incremental',None):
-                                        mdsfgc=mdsfg['coordinates']
-                                        latestExistingTS=mdsfgc[-1][3]
-                                        fgc=fg.get('coordinates',[])
-                                        # avoid duplicates without walking the entire existing list of points;
-                                        #  assume that timestamps are strictly increasing in list item sequence
-                                        # walk forward through new points:
-                                        # if timestamp is more recent than latest existing point, then append the rest of the new point list
-                                        for n in range(len(fgc)):
-                                            if fgc[n][3]>latestExistingTS:
-                                                mdsfgc+=fgc[n:]
-                                                break
-                                        mdsfg['size']=len(mdsfgc)
+            # logging.info('Sending caltopo "since" request...')
+            rj=self._sendRequest('get','since/'+str(max(0,self.lastSuccessfulSyncTimestamp-500)),None,returnJson='ALL',timeout=self.syncTimeout,skipQueue=True)
+            if rj and rj['status']=='ok':
+                if self.disconnectedFlag:
+                    self._disconnectedFlagClear()
+                    logging.info('reconnected (successful sync); queue size is '+str(self.requestQueue.qsize()))
+                    if self.reconnectedCallback:
+                        self.reconnectedCallback()
+                # self.holdRequests=False
+                if self.syncDumpFile:
+                    with open(insertBeforeExt(self.syncDumpFile,'.since'+str(max(0,self.lastSuccessfulSyncTimestamp-500))),"w") as f:
+                        f.write(json.dumps(rj,indent=3))
+                # response timestamp is an integer number of milliseconds; equivalent to
+                # int(time.time()*1000))
+                self.lastSuccessfulSyncTimestamp=rj['result']['timestamp']
+                # logging.info('Successful caltopo sync: timestamp='+str(self.lastSuccessfulSyncTimestamp))
+                if self.syncCallback:
+                    self.syncCallback()
+                rjr=rj['result']
+                rjrsf=rjr['state']['features']
+                
+                # 1 - if 'ids' exists, use it verbatim; cleanup happens later
+                idsBefore=None
+                if 'ids' in rjr.keys():
+                    idsBefore=copy.deepcopy(self.mapData['ids'])
+                    self.mapData['ids']=rjr['ids']
+                    logging.info('  Updating "ids"')
+                
+                # 2 - update existing features as needed
+                if len(rjrsf)>0:
+                    logging.info('  processing '+str(len(rjrsf))+' feature(s):'+str([x['id'] for x in rjrsf]))
+                    # logging.info(json.dumps(rj,indent=3))
+                    for f in rjrsf:
+                        rjrfid=f['id']
+                        prop=f['properties']
+                        title=str(prop.get('title',None))
+                        featureClass=str(prop['class'])
+                        processed=False
+                        for i in range(len(self.mapData['state']['features'])):
+                            # only modify existing cache data if id and class are both matches:
+                            #  subset apptracks can have the same id as the finished apptrack shape
+                            if self.mapData['state']['features'][i]['id']==rjrfid and self.mapData['state']['features'][i]['properties']['class']==featureClass:
+                                # don't simply overwrite the entire feature entry:
+                                #  - if only geometry was changed, indicated by properties['nop']=true,
+                                #    then leave properties alone and just overwrite geometry;
+                                #  - if only properties were changed, geometry will not be in the response,
+                                #    so leave geometry alone
+                                #  SO:
+                                #  - if f->prop->title exists, replace the entire prop dict
+                                #  - if f->geometry exists, replace the entire geometry dict
+                                if 'title' in prop.keys():
+                                    if self.mapData['state']['features'][i]['properties']!=prop:
+                                        logging.info('  Updating properties for '+featureClass+':'+title)
+                                        # logging.info('    old:'+json.dumps(self.mapData['state']['features'][i]['properties']))
+                                        # logging.info('    new:'+json.dumps(prop))
+                                        self.mapData['state']['features'][i]['properties']=prop
+                                        if self.propertyUpdateCallback:
+                                            self.propertyUpdateCallback(f)
                                     else:
-                                        self.mapData['state']['features'][i]['geometry']=f['geometry']
-                                    if self.geometryUpdateCallback:
-                                        self.geometryUpdateCallback(f)
-                                else:
-                                    logging.info('  response contained geometry for '+featureClass+':'+title+' but it matched the cache, so no cache update or callback is performed')
-                            processed=True
-                            break
-                    # 2b - otherwise, create it - and add to ids so it doesn't get cleaned
-                    if not processed:
-                        # logging.info('Adding to cache:'+featureClass+':'+title)
-                        self.mapData['state']['features'].append(f)
-                        if f['id'] not in self.mapData['ids'][prop['class']]:
-                            self.mapData['ids'][prop['class']].append(f['id'])
-                        # logging.info('mapData immediate:\n'+json.dumps(self.mapData,indent=3))
-                        if self.newFeatureCallback:
-                            self.newFeatureCallback(f)
+                                        logging.info('  response contained properties for '+featureClass+':'+title+' but they matched the cache, so no cache update or callback is performed')
+                                if title=='None':
+                                    title=self.mapData['state']['features'][i]['properties']['title']
+                                if 'geometry' in f.keys():
+                                    if self.mapData['state']['features'][i]['geometry']!=f['geometry']:
+                                        logging.info('  Updating geometry for '+featureClass+':'+title)
+                                        # if geometry.incremental exists and is true, append new coordinates to existing coordinates
+                                        # otherwise, replace the entire geometry value
+                                        fg=f['geometry']
+                                        mdsfg=self.mapData['state']['features'][i]['geometry']
+                                        if fg.get('incremental',None):
+                                            mdsfgc=mdsfg['coordinates']
+                                            latestExistingTS=mdsfgc[-1][3]
+                                            fgc=fg.get('coordinates',[])
+                                            # avoid duplicates without walking the entire existing list of points;
+                                            #  assume that timestamps are strictly increasing in list item sequence
+                                            # walk forward through new points:
+                                            # if timestamp is more recent than latest existing point, then append the rest of the new point list
+                                            for n in range(len(fgc)):
+                                                if fgc[n][3]>latestExistingTS:
+                                                    mdsfgc+=fgc[n:]
+                                                    break
+                                            mdsfg['size']=len(mdsfgc)
+                                        else:
+                                            self.mapData['state']['features'][i]['geometry']=f['geometry']
+                                        if self.geometryUpdateCallback:
+                                            self.geometryUpdateCallback(f)
+                                    else:
+                                        logging.info('  response contained geometry for '+featureClass+':'+title+' but it matched the cache, so no cache update or callback is performed')
+                                processed=True
+                                break
+                        # 2b - otherwise, create it - and add to ids so it doesn't get cleaned
+                        if not processed:
+                            # logging.info('Adding to cache:'+featureClass+':'+title)
+                            self.mapData['state']['features'].append(f)
+                            if f['id'] not in self.mapData['ids'][prop['class']]:
+                                self.mapData['ids'][prop['class']].append(f['id'])
+                            # logging.info('mapData immediate:\n'+json.dumps(self.mapData,indent=3))
+                            if self.newFeatureCallback:
+                                self.newFeatureCallback(f)
 
-            # 3 - cleanup - remove features from the cache whose ids are no longer in cached id list
-            #  (ids will be part of the response whenever feature(s) were added or deleted)
-            #  (finishing an apptrack moves the id from AppTracks to Shapes, so the id count is not affected)
-            #  (if the server does not remove the apptrack correctly after finishing, the same id will
-            #   be in AppTracks and in Shapes)
-            # beforeStr='mapData before cleanup:'+json.dumps(self.mapData,indent=3)
-            #  at this point in the code, the deleted feature has been removed from ids but is still part of state-features
-            # self.mapIDs=sum(self.mapData['ids'].values(),[])
-            # mapSFIDsBefore=[f['id'] for f in self.mapData['state']['features']]
-            # edit the cache directly: https://stackoverflow.com/a/1157174/3577105
+                # 3 - cleanup - remove features from the cache whose ids are no longer in cached id list
+                #  (ids will be part of the response whenever feature(s) were added or deleted)
+                #  (finishing an apptrack moves the id from AppTracks to Shapes, so the id count is not affected)
+                #  (if the server does not remove the apptrack correctly after finishing, the same id will
+                #   be in AppTracks and in Shapes)
+                # beforeStr='mapData before cleanup:'+json.dumps(self.mapData,indent=3)
+                #  at this point in the code, the deleted feature has been removed from ids but is still part of state-features
+                # self.mapIDs=sum(self.mapData['ids'].values(),[])
+                # mapSFIDsBefore=[f['id'] for f in self.mapData['state']['features']]
+                # edit the cache directly: https://stackoverflow.com/a/1157174/3577105
 
-            if idsBefore:
-                deletedDict={}
-                deletedAnythingFlag=False
-                for c in idsBefore.keys():
-                    for id in idsBefore[c]:
-                        if id not in self.mapData['ids'][c]:
-                            self.mapData['state']['features'][:]=(f for f in self.mapData['state']['features'] if not(f['id']==id and f['properties']['class']==c))
-                            deletedDict.setdefault(c,[]).append(id)
-                            deletedAnythingFlag=True
-                            if self.deletedFeatureCallback:
-                                self.deletedFeatureCallback(id,c)
-                if deletedAnythingFlag:
-                    logging.info('deleted items have been removed from cache:\n'+json.dumps(deletedDict,indent=3))
-            
+                if idsBefore:
+                    deletedDict={}
+                    deletedAnythingFlag=False
+                    for c in idsBefore.keys():
+                        for id in idsBefore[c]:
+                            if id not in self.mapData['ids'][c]:
+                                self.mapData['state']['features'][:]=(f for f in self.mapData['state']['features'] if not(f['id']==id and f['properties']['class']==c))
+                                deletedDict.setdefault(c,[]).append(id)
+                                deletedAnythingFlag=True
+                                if self.deletedFeatureCallback:
+                                    self.deletedFeatureCallback(id,c)
+                    if deletedAnythingFlag:
+                        logging.info('deleted items have been removed from cache:\n'+json.dumps(deletedDict,indent=3))
+                
 
-            # l1=len(self.mapData['state']['features'])
-            # logging.info('before:'+str(l1)+':'+str(self.mapData['state']['features']))
-            # self.mapData['state']['features'][:]=(f for f in self.mapData['state']['features'] if f['id'] in self.mapIDs)
-            # mapSFIDs=[f['id'] for f in self.mapData['state']['features']]
-            # l2=len(self.mapData['state']['features'])
-            # logging.info('after:'+str(l1)+':'+str(self.mapData['state']['features']))
-            # if l2!=l1:
-            #     deletedIds=list(set(mapSFIDsBefore)-set(mapSFIDs))
-            #     logging.info('cleaned up '+str(l1-l2)+' feature(s) from the cache:'+str(deletedIds))
-            #     if self.deletedFeatureCallback:
-            #         for did in deletedIds:
-            #             self.deletedFeatureCallback(did)
-                # logging.info(beforeStr)
-                # logging.info('mapData after cleanup:'+json.dumps(self.mapData,indent=3))
+                # l1=len(self.mapData['state']['features'])
+                # logging.info('before:'+str(l1)+':'+str(self.mapData['state']['features']))
+                # self.mapData['state']['features'][:]=(f for f in self.mapData['state']['features'] if f['id'] in self.mapIDs)
+                # mapSFIDs=[f['id'] for f in self.mapData['state']['features']]
+                # l2=len(self.mapData['state']['features'])
+                # logging.info('after:'+str(l1)+':'+str(self.mapData['state']['features']))
+                # if l2!=l1:
+                #     deletedIds=list(set(mapSFIDsBefore)-set(mapSFIDs))
+                #     logging.info('cleaned up '+str(l1-l2)+' feature(s) from the cache:'+str(deletedIds))
+                #     if self.deletedFeatureCallback:
+                #         for did in deletedIds:
+                #             self.deletedFeatureCallback(did)
+                    # logging.info(beforeStr)
+                    # logging.info('mapData after cleanup:'+json.dumps(self.mapData,indent=3))
 
-            # logging.info('mapData:\n'+json.dumps(self.mapData,indent=3))
-            # logging.info('\n'+self.mapID+':\n  mapIDs:'+str(self.mapIDs)+'\nmapSFIDs:'+str(mapSFIDs))
+                # logging.info('mapData:\n'+json.dumps(self.mapData,indent=3))
+                # logging.info('\n'+self.mapID+':\n  mapIDs:'+str(self.mapIDs)+'\nmapSFIDs:'+str(mapSFIDs))
 
-            # bug: i is defined as an index into mapSFIDs but is used as an index into self.mapData['state']['features']:
-            # # for i in range(len(mapSFIDs)):
-            # #     if mapSFIDs[i] not in self.mapIDs:
-            # #         prop=self.mapData['state']['features'][i]['properties']
-            # #         logging.info('  Deleting '+mapSFIDs[i]+':'+str(prop['class'])+':'+str(prop['title']))
-            # #         if self.deletedFeatureCallback:
-            # #             self.deletedFeatureCallback(self.mapData['state']['features'][i])
-            # #         del self.mapData['state']['features'][i]
-            
+                # bug: i is defined as an index into mapSFIDs but is used as an index into self.mapData['state']['features']:
+                # # for i in range(len(mapSFIDs)):
+                # #     if mapSFIDs[i] not in self.mapIDs:
+                # #         prop=self.mapData['state']['features'][i]['properties']
+                # #         logging.info('  Deleting '+mapSFIDs[i]+':'+str(prop['class'])+':'+str(prop['title']))
+                # #         if self.deletedFeatureCallback:
+                # #             self.deletedFeatureCallback(self.mapData['state']['features'][i])
+                # #         del self.mapData['state']['features'][i]
+                
 
-            if self.cacheDumpFile:
-                with open(insertBeforeExt(self.cacheDumpFile,'.cache'+str(max(0,self.lastSuccessfulSyncTimestamp))),"w") as f:
-                    f.write('sync cleanup:')
-                    f.write('  mapIDs='+str(self.mapID)+'\n\n')
-                    # f.write('  mapSFIDs='+str(mapSFIDs)+'\n\n')
-                    f.write(json.dumps(self.mapData,indent=3))
+                if self.cacheDumpFile:
+                    with open(insertBeforeExt(self.cacheDumpFile,'.cache'+str(max(0,self.lastSuccessfulSyncTimestamp))),"w") as f:
+                        f.write('sync cleanup:')
+                        f.write('  mapIDs='+str(self.mapID)+'\n\n')
+                        # f.write('  mapSFIDs='+str(mapSFIDs)+'\n\n')
+                        f.write(json.dumps(self.mapData,indent=3))
 
-            # self.syncing=False
-            self.lastSuccessfulSyncTSLocal=int(time.time()*1000)
-            if self.sync:
-                if not threading.main_thread().is_alive():
-                    logging.info('Main thread has ended; sync is stopping...')
-                    self.sync=False
-                # if threading.main_thread().is_alive():
-                #     # this is where the blocking sleep happens, instead of spawning a new thread;
-                #     #  normally this function is being called in a separate thread anyway, so
-                #     #  the main thread can continue while this thread sleeps
-                #     logging.info('  sleeping for specified sync interval ('+str(self.syncInterval)+' seconds)...')
-                #     time.sleep(self.syncInterval)
-                #     while self.syncPause: # wait until at least one second after sendRequest finishes
-                #         logging.info('  sync is paused - sleeping for one second')
-                #         time.sleep(1)
-                #     self._doSync() # will this trigger the recursion limit eventually?  Rethink looping method!
-                # else:
-                #     logging.info('Main thread has ended; sync is stopping...')
+                # self.syncing=False
+                self.lastSuccessfulSyncTSLocal=int(time.time()*1000)
+                if self.sync:
+                    if not threading.main_thread().is_alive():
+                        logging.info('Main thread has ended; sync is stopping...')
+                        self.sync=False
+                    # if threading.main_thread().is_alive():
+                    #     # this is where the blocking sleep happens, instead of spawning a new thread;
+                    #     #  normally this function is being called in a separate thread anyway, so
+                    #     #  the main thread can continue while this thread sleeps
+                    #     logging.info('  sleeping for specified sync interval ('+str(self.syncInterval)+' seconds)...')
+                    #     time.sleep(self.syncInterval)
+                    #     while self.syncPause: # wait until at least one second after sendRequest finishes
+                    #         logging.info('  sync is paused - sleeping for one second')
+                    #         time.sleep(1)
+                    #     self._doSync() # will this trigger the recursion limit eventually?  Rethink looping method!
+                    # else:
+                    #     logging.info('Main thread has ended; sync is stopping...')
 
-        else:
-            # logging.error('Sync returned invalid or no response; sync aborted:'+str(rj))
-            # self.sync=False
-            # self.apiVersion=-1 # downstream tools may use apiVersion as indicator of link status
-            # logging.error('Sync attempt failed; setting holdRequests')
-            logging.error('Sync attempt failed')
-            # self.holdRequests=True
-            if not self.disconnectedFlag:
-                self._disconnectedFlagSet()
-                logging.info('disconnected (first failed response from sync); queue size is '+str(self.requestQueue.qsize()))
-                if self.disconnectedCallback:
-                    self.disconnectedCallback()
-        self.syncing=False
-        logging.info(' dsx: requestThread is alive: '+str(self.requestThread.is_alive()))
-        # logging.info('sync marker: '+self.mapID+' end')
+            else:
+                # logging.error('Sync returned invalid or no response; sync aborted:'+str(rj))
+                # self.sync=False
+                # self.apiVersion=-1 # downstream tools may use apiVersion as indicator of link status
+                # logging.error('Sync attempt failed; setting holdRequests')
+                logging.error('Sync attempt failed')
+                # self.holdRequests=True
+                if not self.disconnectedFlag:
+                    self._disconnectedFlagSet()
+                    logging.info('disconnected (first failed response from sync); queue size is '+str(self.requestQueue.qsize()))
+                    if self.disconnectedCallback:
+                        self.disconnectedCallback()
+            self.syncing=False
+            logging.info(' dsx: requestThread is alive: '+str(self.requestThread.is_alive()))
+        except Exception as e:
+            logging.error('Exception during _doSync:'+str(e))
+            # logging.info('sync marker: '+self.mapID+' end')
 
     # _refresh - update the cache (self.mapData) by calling _doSync once;
     #   only relevant if sync is off; if the latest refresh is within the sync interval value (even when sync is off),
@@ -1353,7 +1354,7 @@ class CaltopoSession():
                     self._doSync()
                     self.syncCompletedCount+=1
                 except Exception as e:
-                    logging.error('Exception during sync :'+str(e)) # logging.exception logs details and traceback
+                    # logging.exception('Exception during sync of map '+self.mapID+'; stopping sync:') # logging.exception logs details and traceback
                     # remove sync blockers, to let the thread shut down cleanly, avoiding a zombie loop when sync restart is attempted
                     logging.info('f0p5: clearing syncPause')
                     self._syncPauseClear()
@@ -1778,7 +1779,7 @@ class CaltopoSession():
             params['json']=payload_string
         return params
 
-    def _requestWorker(self,event):
+    def _requestWorker(self,e):
         # daemon or non-daemon?
         #  - if this method is run in a daemon thread, it could abort in the middle of execution,
         #     meaning that some requests might never get sent, if the downstream application ends
@@ -1805,14 +1806,14 @@ class CaltopoSession():
         try:
             while True:
                 logging.info('requestWorker: waiting for event...')
-                event.wait()
+                e.wait()
                 logging.info('  requestWorker: event received, processing requestQueue...')
                 # if self.syncing:
                 #     logging.info('   (currently in a sync call - waiting until sync is done before processing the queue...')
                 #     while self.syncing: # wait until any current sync is finished
                 #         pass
                 # self.syncPause=True # set pause here to avoid leaving it set
-                event.clear()
+                e.clear()
                 while not self.requestQueue.empty():
                     logging.info('  queue size at start of iteration:'+str(self.requestQueue.qsize()))
                     qr=self.requestQueue.get()

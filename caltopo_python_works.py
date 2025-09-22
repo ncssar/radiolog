@@ -982,8 +982,6 @@ class CaltopoSession():
            - called as needed from ._refresh
 
         """
-        # do not use a try/except block in this function: disconnect detection relies on exceptions getting handled by _syncLoop
-        
         logging.info('inside doSync')
         # logging.info('sync marker: '+self.mapID+' begin')
         if not self.mapID or self.apiVersion<0:
@@ -1196,7 +1194,6 @@ class CaltopoSession():
                 if self.disconnectedCallback:
                     self.disconnectedCallback()
         self.syncing=False
-        logging.info(' dsx: requestThread is alive: '+str(self.requestThread.is_alive()))
         # logging.info('sync marker: '+self.mapID+' end')
 
     # _refresh - update the cache (self.mapData) by calling _doSync once;
@@ -1353,7 +1350,7 @@ class CaltopoSession():
                     self._doSync()
                     self.syncCompletedCount+=1
                 except Exception as e:
-                    logging.error('Exception during sync :'+str(e)) # logging.exception logs details and traceback
+                    # logging.exception('Exception during sync of map '+self.mapID+'; stopping sync:') # logging.exception logs details and traceback
                     # remove sync blockers, to let the thread shut down cleanly, avoiding a zombie loop when sync restart is attempted
                     logging.info('f0p5: clearing syncPause')
                     self._syncPauseClear()
@@ -1638,9 +1635,7 @@ class CaltopoSession():
                 if method=='POST':
                     r=self.s.post(url,data=params,timeout=timeout,proxies=self.proxyDict,allow_redirects=False)
                 elif method=='GET':
-                    logging.info('sending GET')
                     r=self.s.get(url,params=params,timeout=timeout,proxies=self.proxyDict,allow_redirects=False)
-                    logging.info('back from GET')
                 elif method=='DELETE':
                     r=self.s.delete(url,params=params,timeout=timeout,proxies=self.proxyDict)   ## use params for query vs data for body data
             else:
@@ -1649,7 +1644,7 @@ class CaltopoSession():
                     'url':url,
                     'urlPart':mid+apiUrlEnd, # to make re-signing easier when pulled from queue
                     'internet':internet, # to make re-signing easier when pulled from queue
-                    'params':params,
+                    'data':params,
                     'timeout':timeout,
                     'proxies':self.proxyDict,
                     'allow_redirects':False,
@@ -1778,7 +1773,7 @@ class CaltopoSession():
             params['json']=payload_string
         return params
 
-    def _requestWorker(self,event):
+    def _requestWorker(self,e):
         # daemon or non-daemon?
         #  - if this method is run in a daemon thread, it could abort in the middle of execution,
         #     meaning that some requests might never get sent, if the downstream application ends
@@ -1802,152 +1797,149 @@ class CaltopoSession():
         # while not self.holdRequests:
         # use a while clause to make sure the wait restarts after the queue is empty;
         #  disconnetedFlag should be irrelevant at this point
-        try:
-            while True:
-                logging.info('requestWorker: waiting for event...')
-                event.wait()
-                logging.info('  requestWorker: event received, processing requestQueue...')
-                # if self.syncing:
-                #     logging.info('   (currently in a sync call - waiting until sync is done before processing the queue...')
-                #     while self.syncing: # wait until any current sync is finished
-                #         pass
-                # self.syncPause=True # set pause here to avoid leaving it set
-                event.clear()
-                while not self.requestQueue.empty():
-                    logging.info('  queue size at start of iteration:'+str(self.requestQueue.qsize()))
-                    qr=self.requestQueue.get()
-                    method=qr['method']
-                    urlEnd=qr['url'].split('/')[-1]
-                    try:
-                        rest=qr['callbacks'][1][1][0]['deviceStr']+' '+json.loads(qr['params']['json'])['properties']['title']
-                    except:
-                        rest=''
-                    logging.info(f'-- QUEUE (get) {method} {urlEnd} {rest}')
-                    logging.info(json.dumps(qr,indent=3,cls=CustomEncoder)) # CustomEncoder due to callables
-                    keepTrying=True
-                    r=None
-                    while keepTrying:
-                        logging.info('t1')
-                        if qr['method']=='POST':
-                            logging.info('    processing POST...')
-                            try:
-                                while self.syncing: # wait until any current sync is finished
-                                    pass
-                                logging.info('p1: setting syncPause')
-                                self._syncPauseSet() # set pause here to avoid leaving it set
+        while True:
+            logging.info('requestWorker: waiting for event...')
+            e.wait()
+            logging.info('  requestWorker: event received, processing requestQueue...')
+            # if self.syncing:
+            #     logging.info('   (currently in a sync call - waiting until sync is done before processing the queue...')
+            #     while self.syncing: # wait until any current sync is finished
+            #         pass
+            # self.syncPause=True # set pause here to avoid leaving it set
+            e.clear()
+            while not self.requestQueue.empty():
+                logging.info('  queue size at start of iteration:'+str(self.requestQueue.qsize()))
+                qr=self.requestQueue.get()
+                method=qr['method']
+                urlEnd=qr['url'].split('/')[-1]
+                try:
+                    rest=qr['callbacks'][1][1][0]['deviceStr']+' '+json.loads(qr['params']['json'])['properties']['title']
+                except:
+                    rest=''
+                logging.info(f'-- QUEUE (get) {method} {urlEnd} {rest}')
+                logging.info(json.dumps(qr,indent=3,cls=CustomEncoder)) # CustomEncoder due to callables
+                keepTrying=True
+                r=None
+                while keepTrying:
+                    logging.info('t1')
+                    if qr['method']=='POST':
+                        logging.info('    processing POST...')
+                        try:
+                            while self.syncing: # wait until any current sync is finished
+                                pass
+                            logging.info('p1: setting syncPause')
+                            self._syncPauseSet() # set pause here to avoid leaving it set
 
-                                # perform deferredHook now if specified as part of the queued request
-                                if qr.get('deferredHook'):
-                                    logging.info('deferred hook specified - evaluating it now...')
-                                    eval(qr['deferredHook'])
-                                    logging.info('done with deferred hook')
-                                # if the signature would expire in the next 10 seconds, get a new signature now
+                            # perform deferredHook now if specified as part of the queued request
+                            if qr.get('deferredHook'):
+                                logging.info('deferred hook specified - evaluating it now...')
+                                eval(qr['deferredHook'])
+                                logging.info('done with deferred hook')
+                            # if the signature would expire in the next 10 seconds, get a new signature now
                                 expires=qr.get('params')['expires']
-                                now=time.time()*1000
-                                if expires-now<10000:
-                                    logging.info('queued request signature might be stale: now='+str(now)+' expires='+str(expires)+'; regenerating signature...')
-                                    qr['params']=self._buildParams(qr['method'],qr['urlPart'],json.loads(qr['params']['json']),qr['internet'])
-                                    logging.info('signature regenerated')
-                                r=self.s.post(
-                                    qr.get('url'),
-                                    data=qr.get('params'), # qr.params should be used as post.data, but get.params and delete.params
-                                    timeout=qr.get('timeout'),
-                                    proxies=qr.get('proxies'),
-                                    allow_redirects=qr.get('allow_redirects')
-                                )
-                            except Exception as e:
-                                logging.info('Exception during processing of queued request: '+str(e))
-                                logging.info('f3: clearing syncPause')
-                                self._syncPauseClear() # don't leave it set, in case of exception
-                        elif qr['method']=='GET':
-                            logging.info('    processing GET...')
-                            try:
-                                while self.syncing: # wait until any current sync is finished
-                                    pass
-                                logging.info('p2: setting syncPause')
-                                self._syncPauseSet() # set pause here to avoid leaving it set
-                                r=self.s.get(
-                                    qr.get('url'),
-                                    params=qr.get('params'),
-                                    timeout=qr.get('timeout'),
-                                    proxies=qr.get('proxies'),
-                                    allow_redirects=qr.get('allow_redirects')
-                                )
-                            except Exception as e:
-                                logging.info('Exception during processing of queued request: '+str(e))
-                                logging.info('f4: clearing syncPause')
-                                self._syncPauseClear() # don't leave it set, in case of exception
-                        elif qr['method']=='DELETE':
-                            logging.info('    processing DELETE...')
-                            try:
-                                while self.syncing: # wait until any current sync is finished
-                                    pass
-                                logging.info('p3: setting syncPause')
-                                self._syncPauseSet() # set pause here to avoid leaving it set
-                                r=self.s.delete(
-                                    qr.get('url'),
-                                    params=qr.get('params'),
-                                    timeout=qr.get('timeout'),
-                                    proxies=qr.get('proxies'),
-                                    allow_redirects=qr.get('allow_redirects')
-                                )
-                            except Exception as e:
-                                logging.info('Exception during processing of queued request: '+str(e))
-                                logging.info('f5: clearing syncPause')
-                                self._syncPauseClear() # don't leave it set, in case of exception
-                                logging.info(' d1: requestThread is alive: '+str(self.requestThread.is_alive()))
-                        else:
-                            logging.info('    unknown queued request removed from queue: '+json.dumps(qr,indent=3))
-                            self.requestQueue.task_done()
-                            if self.requestQueueChangedCallback:
-                                self.requestQueueChangedCallback(self.requestQueue)
-                            continue
-                        if r and r.status_code==200:
-                            logging.info('t5')
-                            keepTrying=False
-                            if self.disconnectedFlag:
-                                logging.info('reconnected (successful response from queued request '+str(qr.get('url'))+'); queue size is '+str(self.requestQueue.qsize()))
-                                self._disconnectedFlagClear()
-                                # self._refresh(forceImmediate=True) # should be handled by the first callback of each request
-                                if self.reconnectedCallback:
-                                    self.reconnectedCallback()
-                            logging.info('    200 response received; removing this request from the queue')
-                            self.requestQueue.task_done()
-                            if self.requestQueueChangedCallback:
-                                self.requestQueueChangedCallback(self.requestQueue)
-                            # self.holdRequests=False
-                            logging.info('sending callbacks:'+str(qr['callbacks']))
-                            logging.info('t5b')
-                            rv=self._handleResponse(r,callbacks=qr['callbacks'])
-                            logging.info('t5c: clearing syncPause')
-                            self._syncPauseClear() # leave it set until after _handleResponse to avoid cache race conditions
-                            logging.info(' t5c: requestThread is alive: '+str(self.requestThread.is_alive()))
-                        else:
-                            logging.info('f6: clearing syncPause')
-                            self._syncPauseClear() # resume sync immediately if response wasn't valid
-                            logging.info('    response not valid; trying again in 5 seconds... '+str(qr.get('url')))
-                            logging.info('    r='+str(r))
-                            if r:
-                                logging.info('    r.status_code='+str(r.status_code))
-                            if self.failedRequestCallback:
-                                self.failedRequestCallback(qr,r)
-                            if not self.disconnectedFlag:
-                                logging.info('disconnected (no response or bad response from queued request '+str(qr.get('url'))+')')
-                                self._disconnectedFlagSet()
-                                if self.disconnectedCallback:
-                                    self.disconnectedCallback()
-                            # self.holdRequests=True
-                            logging.info('t6')
-                            time.sleep(5)
-                    logging.info('  queue size at end of iteration:'+str(self.requestQueue.qsize()))
-                logging.info('t7')
-                if self.requestQueueChangedCallback:
-                    self.requestQueueChangedCallback(self.requestQueue)
-                logging.info('f7: clearing syncPause')
-                self._syncPauseClear()
-                logging.info('  requestWorker: request queue processing complete...')
-        except Exception as e:
-            logging.error('exception in _requestWorker; requestThread will end: '+str(e))
+                            now=time.time()*1000
+                            if expires-now<10000:
+                                logging.info('queued request signature might be stale: now='+str(now)+' expires='+str(expires)+'; regenerating signature...')
+                                qr['params']=self._buildParams(qr['method'],qr['urlPart'],json.loads(qr['params']['json']),qr['internet'])
+                                logging.info('signature regenerated')
+                            r=self.s.post(
+                                qr.get('url'),
+                                data=qr.get('params'), # qr.params should be used as post.data, but get.params and delete.params
+                                timeout=qr.get('timeout'),
+                                proxies=qr.get('proxies'),
+                                allow_redirects=qr.get('allow_redirects')
+                            )
+                        except Exception as e:
+                            logging.info('Exception during processing of queued request: '+str(e))
+                            logging.info('f3: clearing syncPause')
+                            self._syncPauseClear() # don't leave it set, in case of exception
+                    elif qr['method']=='GET':
+                        logging.info('    processing GET...')
+                        try:
+                            while self.syncing: # wait until any current sync is finished
+                                pass
+                            logging.info('p2: setting syncPause')
+                            self._syncPauseSet() # set pause here to avoid leaving it set
+                            r=self.s.get(
+                                qr.get('url'),
+                                params=qr.get('params'),
+                                timeout=qr.get('timeout'),
+                                proxies=qr.get('proxies'),
+                                allow_redirects=qr.get('allow_redirects')
+                            )
+                        except Exception as e:
+                            logging.info('Exception during processing of queued request: '+str(e))
+                            logging.info('f4: clearing syncPause')
+                            self._syncPauseClear() # don't leave it set, in case of exception
+                    elif qr['method']=='DELETE':
+                        logging.info('    processing DELETE...')
+                        try:
+                            while self.syncing: # wait until any current sync is finished
+                                pass
+                            logging.info('p3: setting syncPause')
+                            self._syncPauseSet() # set pause here to avoid leaving it set
+                            r=self.s.delete(
+                                qr.get('url'),
+                                params=qr.get('params'),
+                                timeout=qr.get('timeout'),
+                                proxies=qr.get('proxies'),
+                                allow_redirects=qr.get('allow_redirects')
+                            )
+                        except Exception as e:
+                            logging.info('Exception during processing of queued request: '+str(e))
+                            logging.info('f5: clearing syncPause')
+                            self._syncPauseClear() # don't leave it set, in case of exception
+                            logging.info(' d1: requestThread is alive: '+str(self.requestThread.is_alive()))
+                    else:
+                        logging.info('    unknown queued request removed from queue: '+json.dumps(qr,indent=3))
+                        self.requestQueue.task_done()
+                        if self.requestQueueChangedCallback:
+                            self.requestQueueChangedCallback(self.requestQueue)
+                        continue
+                    if r and r.status_code==200:
+                        logging.info('t5')
+                        keepTrying=False
+                        if self.disconnectedFlag:
+                            logging.info('reconnected (successful response from queued request '+str(qr.get('url'))+'); queue size is '+str(self.requestQueue.qsize()))
+                            self._disconnectedFlagClear()
+                            # self._refresh(forceImmediate=True) # should be handled by the first callback of each request
+                            if self.reconnectedCallback:
+                                self.reconnectedCallback()
+                        logging.info('    200 response received; removing this request from the queue')
+                        self.requestQueue.task_done()
+                        if self.requestQueueChangedCallback:
+                            self.requestQueueChangedCallback(self.requestQueue)
+                        # self.holdRequests=False
+                        logging.info('sending callbacks:'+str(qr['callbacks']))
+                        logging.info('t5b')
+                        rv=self._handleResponse(r,callbacks=qr['callbacks'])
+                        logging.info('t5c: clearing syncPause')
+                        self._syncPauseClear() # leave it set until after _handleResponse to avoid cache race conditions
+                        logging.info(' t5c: requestThread is alive: '+str(self.requestThread.is_alive()))
+                    else:
+                        logging.info('f6: clearing syncPause')
+                        self._syncPauseClear() # resume sync immediately if response wasn't valid
+                        logging.info('    response not valid; trying again in 5 seconds... '+str(qr.get('url')))
+                        logging.info('    r='+str(r))
+                        if r:
+                            logging.info('    r.status_code='+str(r.status_code))
+                        if self.failedRequestCallback:
+                            self.failedRequestCallback(qr,r)
+                        if not self.disconnectedFlag:
+                            logging.info('disconnected (no response or bad response from queued request '+str(qr.get('url'))+')')
+                            self._disconnectedFlagSet()
+                            if self.disconnectedCallback:
+                                self.disconnectedCallback()
+                        # self.holdRequests=True
+                        logging.info('t6')
+                        time.sleep(5)
+                logging.info('  queue size at end of iteration:'+str(self.requestQueue.qsize()))
+            logging.info('t7')
+            if self.requestQueueChangedCallback:
+                self.requestQueueChangedCallback(self.requestQueue)
+            logging.info('f7: clearing syncPause')
+            self._syncPauseClear()
+            logging.info('  requestWorker: request queue processing complete...')
 
     def _handleResponse(self,
             r,

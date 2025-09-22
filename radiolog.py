@@ -618,7 +618,7 @@ logFileLeafName=getFileNameBase('radiolog_log')+'.txt'
 def setLogHandlers(dir=None):
 	sh=logging.StreamHandler(sys.stdout)
 	sh.setLevel(logging.INFO)
-	sh.addFilter(LoggingFilter())
+	# sh.addFilter(LoggingFilter())
 	sh.setFormatter(LoggingFormatter('%(asctime)s [%(module)s:%(lineno)d:%(levelname)s] %(message)s','%H%M%S'))
 	handlers=[sh]
 	# add a filehandler if dir is specified
@@ -626,7 +626,7 @@ def setLogHandlers(dir=None):
 		logFileName=os.path.join(dir,logFileLeafName)
 		fh=logging.FileHandler(logFileName)
 		fh.setLevel(logging.INFO)
-		fh.addFilter(LoggingFilter())
+		# fh.addFilter(LoggingFilter())
 		fh.setFormatter(LoggingFormatter('%(asctime)s [%(module)s:%(lineno)d:%(levelname)s] %(message)s','%H%M%S'))
 		handlers=[sh,fh]
 	# redo logging.basicConfig here, to overwrite setup from any imported modules
@@ -764,6 +764,17 @@ globalStyleSheet="""
 				font-size:14pt;
 			}
 		"""
+
+
+# CustomEncoder enables json.dumps for dicts with lists of callables
+#  (to avoid "TypeError: Object of type function is not JSON serializable")
+#  usage: json.dumps(callable_list, cls=CustomEncoder)
+class CustomEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if callable(obj):
+            return f"Callable: {obj.__name__ if hasattr(obj, '__name__') else str(obj)}"
+        return json.JSONEncoder.default(self, obj)
+	
 
 class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
@@ -2685,92 +2696,138 @@ class MyWindow(QDialog,Ui_Dialog):
 	def getRadioMarkerLabelForCallsign(self,callsign):
 		return callsign.replace('Team ','T')
 	
+	# def radioMarkerDeferredHook(self,d):
+	# 	# # modify the queued entry now before the request is sent
+	# 	# rprint('deferred hook called with this queued entry dict:')
+	# 	# rprint(json.dumps(d,indent=3,cls=CustomEncoder))
+	# 	# # 1. determine devStr (fleet:device, or uid for NXDN) from the dict
+	# 	# # j=json.loads(d['json'])
+	# 	# # jdc
+	# 	# deviceStr=d['callbacks'][1][1]['deviceStr'] # assumes the first arg to the second callback is a dict
+	# 	# # 2. call addRadioMarker again to enqueue a new request which will
+	# 	# #     now have the correct ID of the dame device's existing marker
+	# 	# self.sendRadioMarker(fleet,dev,uid,callsign,lat,lon)
+	# 	# # 3. cancel the current request
+	# 	# return 'CANCEL'
+	# 	pass
+
 	def sendRadioMarker(self,fleet,dev,uid,callsign,lat=None,lon=None):
-		rprint('sendRadioMarker called')
-		# mimic the old 'Locator Group' behavior:
-		# - create a 'Radios' folder on the first call to this function; place markers in that folder
-		# - if a marker for the callsign already exists, move it (and update the time)
-		# - if a marker for the callsign does not yet exist, add one (with updated time)
-		# - one marker per device (as opposed to one marker per callsign)
-		#  - there could be multiple markers (multiple devices) with the same callsign
+		try:
+			rprint(f'sendRadioMarker called: fleet={fleet} dev={dev} uid={uid} callsign={callsign} lat={lat} lon={lon}')
+			# mimic the old 'Locator Group' behavior:
+			# - create a 'Radios' folder on the first call to this function; place markers in that folder
+			# - if a marker for the callsign already exists, move it (and update the time)
+			# - if a marker for the callsign does not yet exist, add one (with updated time)
+			# - one marker per device (as opposed to one marker per callsign)
+			#  - there could be multiple markers (multiple devices) with the same callsign
 
-		# questions:
-		# - should radio markers be deleted at any point?
-		# - should radio marker colors be changed, as a function of team status, or time since last call?
+			# questions:
+			# - should radio markers be deleted at any point?
+			# - should radio marker colors be changed, as a function of team status, or time since last call?
 
-		# self.radioMarkerDict - keys are device strings ('<fleet>:<device>' or '<NXDN UID>'),
-		#	values are dicts with the following keys:
-		#  - caltopoID - caltopo feature ID of this device's caltopo marker, if any
-		#  - label
-		#  - latestTimeString
-		#  - lat
-		#  - lon
+			# self.radioMarkerDict - keys are device strings ('<fleet>:<device>' or '<NXDN UID>'),
+			#	values are dicts with the following keys:
+			#  - caltopoID - caltopo feature ID of this device's caltopo marker, if any
+			#  - label
+			#  - latestTimeString
+			#  - lat
+			#  - lon
 
-		# self.radioMarkerDict entries must have all the info needed for createCTS to add deferred markers,
-		#  i.e. if incoming GPS data was stored before the CTS session was created, or during lost connection
-		
-		if uid:
-			deviceStr=str(uid)
-		else:
-			deviceStr=str(fleet)+':'+str(dev)
-		d=self.radioMarkerDict.get(deviceStr,None)
-		existingId=None
-		latestTimeString=time.strftime('%H:%M:%S')
-		if d:
-			existingId=d.get('caltopoId',None)
-			if not lat:
-				lat=d.get('lat',None)
-				lon=d.get('lon',None)
-				latestTimeString=d.get('latestTimeString','')
-				rprint('  label update only; using previous lat,lon='+str(lat)+','+str(lon)+' and preserving time string '+str(latestTimeString))
-		if not lat or not lon:
-			# no lat or lon, and also no radioMarkerDict entry:
-			#  this is the case for label-change requests while disconnected,
-			#  for a device whose marker creation request also happened while disconnected,
-			#  therefore no radioMarkerDict entry was ever created;
-			#  will need to determine existingId later, when the queued request is
-			#  pulled from the queue and processed.
-			rprint('  lat or lon not specified in current or previous request')
-			return False
-		rprint('existingId:'+str(existingId))
-		id='' # initialize here so that entry can be saved before cts exists
-		newId=existingId # preserve caltopoID if already set
-		label=self.getRadioMarkerLabelForCallsign(callsign)
-		r=False
-		if self.cts and self.caltopoLink>0:
-			self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
-			try:
-				rprint('  addMarker:  label='+str(label)+'  folderId='+str(self.radioMarkerFID))
-				r=self.cts.addMarker(lat,lon,label,latestTimeString+'   ['+deviceStr+']',
-						  folderId=self.radioMarkerFID,
-						  existingId=existingId,
-						  callbacks=[[self.handleRadioMarkerResponse,[{
-							  'deviceStr':deviceStr,
-							  'lat':lat,
-							  'lon':lon,
-							  'label':label,
-							  'latestTimeString':latestTimeString,
-							  'id':'.result.id', # will be equal to existingId on subsequent updates
-							  'existingId':existingId # will be None on first call from a device
-						  }]]])
-			except Exception as e:
-				rprint('Exception during addMarker:'+str(e))
-		# add or update the dict entry here, with enough detail for createSTS to add any deferred markers
-		if r==True:
-			rprint('  marker request queued successfully')
-			# if not existingId:
-			# 	newId=id # only set caltopoId if this is the first successful request
-		else:
-			rprint('  marker request failed')
+			# self.radioMarkerDict entries must have all the info needed for createCTS to add deferred markers,
+			#  i.e. if incoming GPS data was stored before the CTS session was created, or during lost connection
+			
+			if uid:
+				deviceStr=str(uid)
+			else:
+				deviceStr=str(fleet)+':'+str(dev)
+			label=self.getRadioMarkerLabelForCallsign(callsign)
+			d=self.radioMarkerDict.get(deviceStr,None)
+			existingId=None
+			latestTimeString=time.strftime('%H:%M:%S')
+			if d:
+				rprint('am1a: d["'+str(deviceStr)+'"]='+str(d))
+				existingId=d.get('caltopoId',None)
+				if not lat:
+					lat=d.get('lat',None)
+					lon=d.get('lon',None)
+					latestTimeString=d.get('latestTimeString','')
+					rprint('  label update only; using previous lat,lon='+str(lat)+','+str(lon)+' and preserving time string '+str(latestTimeString))
+			else:
+				rprint('am1b: no dict entry found for deviceStr='+str(deviceStr))
+				# add placeholder radioMarkerDict entry now, to allow updating while disconnected
+				self.radioMarkerDict[deviceStr]={
+					'caltopoId': None, # only set caltopoId if this is the first successful request
+					'lastId': None,  # changed on every request: '' = fail on last attempt, real ID = success on last attempt
+					'label': label,
+					'latestTimeString': latestTimeString,
+					'lat': lat,
+					'lon': lon
+				}
+				if not lat or not lon:
+					# no lat or lon, and also no radioMarkerDict entry:
+					#  this is the case for label-change requests while disconnected,
+					#  for a device whose marker creation request also happened while disconnected,
+					#  therefore no radioMarkerDict entry was ever created during _handleResponse;
+					#  will need to determine existingId later, when the queued request is
+					#  pulled from the queue and processed.
+					rprint('  lat or lon not specified in current or previous request')
+					return False
+			rprint('existingId:'+str(existingId))
+			id='' # initialize here so that entry can be saved before cts exists
+			newId=existingId # preserve caltopoID if already set
+			# label=self.getRadioMarkerLabelForCallsign(callsign)
+			r=False
+			if self.cts and self.caltopoLink>0:
+				self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
+				try:
+					rprint('  addMarker:  label='+str(label)+'  folderId='+str(self.radioMarkerFID))
+					r=self.cts.addMarker(lat,lon,label,latestTimeString+'   ['+deviceStr+']',
+							folderId=self.radioMarkerFID,
+							existingId=existingId,
+							# deferredHook=self.radioMarkerDeferredHook,
+							callbacks=[[self.handleRadioMarkerResponse,[{
+								'deviceStr':deviceStr,
+								'lat':lat,
+								'lon':lon,
+								'label':label,
+								'latestTimeString':latestTimeString,
+								'id':'.result.id', # will be equal to existingId on subsequent updates
+								'existingId':existingId # will be None on first call from a device
+							}]]])
+				except Exception as e:
+					rprint('Exception during addMarker:'+str(e))
+			# add or update the dict entry here, with enough detail for createSTS to add any deferred markers
+			if r==True:
+				rprint('  marker request queued successfully')
+				# if not existingId:
+				# 	newId=id # only set caltopoId if this is the first successful request
+			else:
+				rprint('  marker request failed')
+		except Exception as e:
+			rprint('error: exception during sendRadioMarker: '+str(e))
 
 	def handleRadioMarkerResponse(self,**kwargs):
 		# note that kwargs is now a dict, to be referenced as such
 		rprint('  inside handleRadioMarkerResponse:')
 		rprint(json.dumps(kwargs,indent=3))
+
+		# delete any earlier marker with the same deviceStr due to duplication during disconnect;
+		#  this would be the case if the ddeviceStr already has an entry in radioMarkerDict
+		#  but with a different id;
+		#  as long as this cleanup is performed after every new marker addition, multiple stale
+		#  markers should all be cleaned up because there will only be one after any given addition
+		deviceStr=kwargs['deviceStr']
+		if deviceStr in self.radioMarkerDict.keys():
+			oldId=self.radioMarkerDict[deviceStr]['caltopoId']
+			if oldId!=kwargs['id']:
+				rprint(' cleaning up stale radio marker for '+str(deviceStr)+'  id='+str(oldId))
+				self.cts.delMarker(oldId)
+
 		newId=kwargs['existingId'] # preserve the id if this is not the first call from the device
 		if not newId: # this must be the first call from the device
 			newId=kwargs['id']
-		self.radioMarkerDict[kwargs['deviceStr']]={
+		rprint('hrmr2')
+		self.radioMarkerDict[deviceStr]={
 			'caltopoId': newId, # only set caltopoId if this is the first successful request
 			'lastId': kwargs['id'],  # changed on every request: '' = fail on last attempt, real ID = success on last attempt
 			'label': kwargs['label'],

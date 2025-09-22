@@ -982,8 +982,6 @@ class CaltopoSession():
            - called as needed from ._refresh
 
         """
-        # do not use a try/except block in this function: disconnect detection relies on exceptions getting handled by _syncLoop
-        
         logging.info('inside doSync')
         # logging.info('sync marker: '+self.mapID+' begin')
         if not self.mapID or self.apiVersion<0:
@@ -1196,7 +1194,6 @@ class CaltopoSession():
                 if self.disconnectedCallback:
                     self.disconnectedCallback()
         self.syncing=False
-        logging.info(' dsx: requestThread is alive: '+str(self.requestThread.is_alive()))
         # logging.info('sync marker: '+self.mapID+' end')
 
     # _refresh - update the cache (self.mapData) by calling _doSync once;
@@ -1353,7 +1350,7 @@ class CaltopoSession():
                     self._doSync()
                     self.syncCompletedCount+=1
                 except Exception as e:
-                    logging.error('Exception during sync :'+str(e)) # logging.exception logs details and traceback
+                    # logging.exception('Exception during sync of map '+self.mapID+'; stopping sync:') # logging.exception logs details and traceback
                     # remove sync blockers, to let the thread shut down cleanly, avoiding a zombie loop when sync restart is attempted
                     logging.info('f0p5: clearing syncPause')
                     self._syncPauseClear()
@@ -1638,9 +1635,7 @@ class CaltopoSession():
                 if method=='POST':
                     r=self.s.post(url,data=params,timeout=timeout,proxies=self.proxyDict,allow_redirects=False)
                 elif method=='GET':
-                    logging.info('sending GET')
                     r=self.s.get(url,params=params,timeout=timeout,proxies=self.proxyDict,allow_redirects=False)
-                    logging.info('back from GET')
                 elif method=='DELETE':
                     r=self.s.delete(url,params=params,timeout=timeout,proxies=self.proxyDict)   ## use params for query vs data for body data
             else:
@@ -1778,7 +1773,7 @@ class CaltopoSession():
             params['json']=payload_string
         return params
 
-    def _requestWorker(self,event):
+    def _requestWorker(self,e):
         # daemon or non-daemon?
         #  - if this method is run in a daemon thread, it could abort in the middle of execution,
         #     meaning that some requests might never get sent, if the downstream application ends
@@ -1805,14 +1800,14 @@ class CaltopoSession():
         try:
             while True:
                 logging.info('requestWorker: waiting for event...')
-                event.wait()
+                e.wait()
                 logging.info('  requestWorker: event received, processing requestQueue...')
                 # if self.syncing:
                 #     logging.info('   (currently in a sync call - waiting until sync is done before processing the queue...')
                 #     while self.syncing: # wait until any current sync is finished
                 #         pass
                 # self.syncPause=True # set pause here to avoid leaving it set
-                event.clear()
+                e.clear()
                 while not self.requestQueue.empty():
                     logging.info('  queue size at start of iteration:'+str(self.requestQueue.qsize()))
                     qr=self.requestQueue.get()
