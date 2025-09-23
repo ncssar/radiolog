@@ -1832,6 +1832,7 @@ class CaltopoSession():
                             logging.info('    processing POST...')
                             try:
                                 while self.syncing: # wait until any current sync is finished
+                                    time.sleep(1)
                                     pass
                                 logging.info('p1: setting syncPause')
                                 self._syncPauseSet() # set pause here to avoid leaving it set
@@ -1856,7 +1857,7 @@ class CaltopoSession():
                                     allow_redirects=qr.get('allow_redirects')
                                 )
                             except Exception as e:
-                                logging.info('Exception during processing of queued request: '+str(e))
+                                logging.error('Exception during processing of queued request: '+str(e))
                                 logging.info('f3: clearing syncPause')
                                 self._syncPauseClear() # don't leave it set, in case of exception
                         elif qr['method']=='GET':
@@ -1874,7 +1875,7 @@ class CaltopoSession():
                                     allow_redirects=qr.get('allow_redirects')
                                 )
                             except Exception as e:
-                                logging.info('Exception during processing of queued request: '+str(e))
+                                logging.error('Exception during processing of queued request: '+str(e))
                                 logging.info('f4: clearing syncPause')
                                 self._syncPauseClear() # don't leave it set, in case of exception
                         elif qr['method']=='DELETE':
@@ -1892,7 +1893,7 @@ class CaltopoSession():
                                     allow_redirects=qr.get('allow_redirects')
                                 )
                             except Exception as e:
-                                logging.info('Exception during processing of queued request: '+str(e))
+                                logging.error('Exception during processing of queued request: '+str(e))
                                 logging.info('f5: clearing syncPause')
                                 self._syncPauseClear() # don't leave it set, in case of exception
                                 logging.info(' d1: requestThread is alive: '+str(self.requestThread.is_alive()))
