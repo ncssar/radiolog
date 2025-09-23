@@ -2747,7 +2747,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			if d:
 				rprint('am1a: d["'+str(deviceStr)+'"]='+str(d))
 				existingId=d.get('caltopoId',None)
-				if not lat:
+				if lat: # latitude specified: it's a new call: update the time string
+					d['latestTimeString']=latestTimeString
+				else: # latitude not specified: it's not a new call - must be callsign change from already-open NED
 					lat=d.get('lat',None)
 					lon=d.get('lon',None)
 					latestTimeString=d.get('latestTimeString','')
@@ -2835,7 +2837,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			'lat': kwargs['lat'],
 			'lon': kwargs['lon']
 		}
-		rprint('updated radioMarkerDict:')
+		rprint('updated radioMarkerDict at end of handleRadioMarkerResponse:')
 		rprint(json.dumps(self.radioMarkerDict,indent=3))
 
 	# for fsLog, a dictionary would probably be easier, but we have to use an array
