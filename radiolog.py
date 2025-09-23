@@ -7063,6 +7063,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.formatField.clearFocus()
 		self.ui.timeoutField.clearFocus()
 		self.ui.secondWorkingDirCheckBox.clearFocus()
+		self.caltopoEnabledCB()
 
 	def displayTimeout(self):
 		self.ui.timeoutLabel.setText("Timeout: "+timeoutDisplayList[self.ui.timeoutField.value()][0])
@@ -7099,22 +7100,37 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		radios=self.ui.caltopoRadioMarkersCheckBox.isChecked()
 		self.ui.caltopoRadioMarkersCheckBox.setEnabled(a)
 		enableMapFields=a and radios
-		self.ui.caltopoMapIDField.setEnabled(enableMapFields)
-		self.ui.caltopoLinkIndicator.setEnabled(enableMapFields)
-		self.ui.caltopoMapLabel.setEnabled(enableMapFields)
-		self.ui.caltopoConnectButton.setEnabled(enableMapFields)
 		if enableMapFields:
 			# self.caltopoURLCB() # try to reconnect if mapURL is not blank
 			if self.parent.cts is None:
 				rprint('calling createCTS')
+				self.ui.caltopoConnectButton.setText('Getting account data...')
+				self.ui.caltopoConnectButton.setEnabled(False)
+				QCoreApplication.processEvents()
 				self.parent.createCTS()
 				rprint('createCTS completed')
 				rprint('caltopoMapListDicts:')
 				rprint(json.dumps(self.parent.caltopoMapListDicts,indent=3))
 				self.caltopoRedrawAccountData()
+				self.ui.caltopoConnectButton.setText('Click to Connect')
+				self.ui.caltopoConnectButton.setEnabled(True)
+				QCoreApplication.processEvents()
 		else:
 			self.parent.closeCTS()
 			rprint('closeCTS completed')
+		self.caltopoGroupFieldsSetEnabled(enableMapFields)
+
+	def caltopoGroupFieldsSetEnabled(self,e):
+		self.ui.radioButton.setEnabled(e)
+		self.ui.radioButton_2.setEnabled(e)
+		self.ui.caltopoAccountAndFolderLabel.setEnabled(e)
+		self.ui.caltopoAccountComboBox.setEnabled(e)
+		self.ui.caltopoFolderComboBox.setEnabled(e)
+		self.ui.caltopoMapLabel.setEnabled(e)
+		self.ui.caltopoMapNameComboBox.setEnabled(e)
+		self.ui.caltopoMapIDField.setEnabled(e)
+		self.ui.caltopoLinkIndicator.setEnabled(e)
+		self.ui.caltopoConnectButton.setEnabled(e)
 
 	def caltopoRedrawAccountData(self): # called from worker
 		# rprint('caltopoMapListict:')
@@ -7242,6 +7258,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		else:
 			self.ui.caltopoConnectButton.setText('Disconnecting...')
 		self.ui.caltopoConnectButton.setEnabled(False)
+		QCoreApplication.processEvents()
 		# # threading.Thread(target=self.wrapper).start()
 		# self.caltopoConnectThread=QThread()
 		# self.worker=CaltopoConnectWorker()
@@ -7253,6 +7270,9 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 
 		# self.CaltopoWorker.moveToThread(self.CaltopoThread)
 		self.parent.cts.openMap(self.ui.caltopoMapIDField.text())
+		self.ui.caltopoConnectButton.setText('Connected. Click to Disconnect.')
+		self.ui.caltopoConnectButton.setEnabled(True)
+		QCoreApplication.processEvents()
 		self.parent.getOrCreateRadioMarkerFID() # call it now so that hopefully the folder exists before the first radio marker
 
 	# def wrapper(self):
