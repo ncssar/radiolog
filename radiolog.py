@@ -2763,7 +2763,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					'label': label,
 					'latestTimeString': latestTimeString,
 					'lat': lat,
-					'lon': lon
+					'lon': lon,
+					'history':[]
 				}
 				if not lat or not lon:
 					# no lat or lon, and also no radioMarkerDict entry:
@@ -2819,16 +2820,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  as long as this cleanup is performed after every new marker addition, multiple stale
 		#  markers should all be cleaned up because there will only be one after any given addition
 		deviceStr=kwargs['deviceStr']
+		prevHistory=[]
 		if deviceStr in self.radioMarkerDict.keys():
 			oldId=self.radioMarkerDict[deviceStr]['caltopoId']
-			if oldId!=kwargs['id']:
+			if oldId and oldId!=kwargs['id']:
 				rprint(' cleaning up stale radio marker for '+str(deviceStr)+'  id='+str(oldId))
 				self.cts.delMarker(oldId)
+			prevHistory=self.radioMarkerDict[deviceStr].get('history',[])
 
 		newId=kwargs['existingId'] # preserve the id if this is not the first call from the device
 		if not newId: # this must be the first call from the device
 			newId=kwargs['id']
-		rprint('hrmr2')
+		rprint('hrmr2 - prevHistory='+str(prevHistory))
 		self.radioMarkerDict[deviceStr]={
 			'caltopoId': newId, # only set caltopoId if this is the first successful request
 			'lastId': kwargs['id'],  # changed on every request: '' = fail on last attempt, real ID = success on last attempt
@@ -2837,6 +2840,14 @@ class MyWindow(QDialog,Ui_Dialog):
 			'lat': kwargs['lat'],
 			'lon': kwargs['lon']
 		}
+		# update the history, in case it's ever needed to audit or show on caltopo
+		# if 'history' not in self.radioMarkerDict[deviceStr].keys():
+		# 	self.radioMarkerDict[deviceStr]['history']=[]
+		self.radioMarkerDict[deviceStr]['history']=prevHistory+[[
+				kwargs['latestTimeString'],
+				kwargs['label'],
+				kwargs['lat'],
+				kwargs['lon']]]
 		rprint('updated radioMarkerDict at end of handleRadioMarkerResponse:')
 		rprint(json.dumps(self.radioMarkerDict,indent=3))
 
