@@ -7136,14 +7136,24 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# rprint('caltopoMapListict:')
 		# rprint(json.dumps(self.parent.caltopoWorker.caltopoMapListDicts,indent=3))
 		rprint('rad1')
+		rprint('map items a:'+str([self.ui.caltopoMapNameComboBox.itemText(i) for i in range(self.ui.caltopoMapNameComboBox.count())]))
 		self.pauseAccountCB=True
+		# clear out combo box choices now, even if they don't redisplay, to avoid conflict later during caltopoAccountComboBoxChanged
 		self.ui.caltopoAccountComboBox.clear()
+		self.ui.caltopoFolderComboBox.clear()
+		self.ui.caltopoMapNameComboBox.clear()
+		self.ui.caltopoMapIDField.setText('')
 		rprint('rad2')
 		# self.ui.caltopoAccountComboBox.addItem('<Choose Account>') # used when MapIDTextChanged has no match
-		self.ui.caltopoAccountComboBox.addItems(sorted([d['groupAccountTitle'] for d in self.parent.caltopoMapListDicts]))
+		accounts=sorted([d['groupAccountTitle'] for d in self.parent.caltopoMapListDicts])
+		rprint('accounts:'+str(accounts))
+		self.ui.caltopoAccountComboBox.addItems(accounts)
+		rprint('acct items:'+str([self.ui.caltopoAccountComboBox.itemText(i) for i in range(self.ui.caltopoAccountComboBox.count())]))
 		rprint('rad3')
 		self.pauseAccountCB=False
+		rprint('map items b:'+str([self.ui.caltopoMapNameComboBox.itemText(i) for i in range(self.ui.caltopoMapNameComboBox.count())]))
 		self.ui.caltopoAccountComboBox.setCurrentText(self.parent.caltopoDefaultTeamAccount)
+		rprint('map items c:'+str([self.ui.caltopoMapNameComboBox.itemText(i) for i in range(self.ui.caltopoMapNameComboBox.count())]))
 		rprint('rad4')
 
 	def caltopoMapIDTextChanged(self):
@@ -7252,11 +7262,15 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		rprint('caltopo timer')
 
 	def caltopoConnectButtonClicked(self):
-		rprint('connect button clicked')
+		rprint('connect button clicked: caltopoLink='+str(self.parent.caltopoLink))
 		if self.parent.caltopoLink==1: # mapless session
 			self.ui.caltopoConnectButton.setText('Connecting...')
-		else:
+		else: # 2 = connected to a map
 			self.ui.caltopoConnectButton.setText('Disconnecting...')
+			QCoreApplication.processEvents()
+			self.parent.closeCTS()
+			self.caltopoEnabledCB()
+			return
 		self.ui.caltopoConnectButton.setEnabled(False)
 		QCoreApplication.processEvents()
 		# # threading.Thread(target=self.wrapper).start()
@@ -7269,11 +7283,14 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# self.parent.fastTimer.timeout.connect(self.caltopoPrintTimer)
 
 		# self.CaltopoWorker.moveToThread(self.CaltopoThread)
-		self.parent.cts.openMap(self.ui.caltopoMapIDField.text())
-		self.ui.caltopoConnectButton.setText('Connected. Click to Disconnect.')
-		self.ui.caltopoConnectButton.setEnabled(True)
-		QCoreApplication.processEvents()
-		self.parent.getOrCreateRadioMarkerFID() # call it now so that hopefully the folder exists before the first radio marker
+		if self.parent.cts.openMap(self.ui.caltopoMapIDField.text()):
+			self.parent.caltopoLink=2 # connected to a map
+			self.ui.caltopoConnectButton.setText('Connected. Click to Disconnect.')
+			self.ui.caltopoConnectButton.setEnabled(True)
+			QCoreApplication.processEvents()
+			self.parent.getOrCreateRadioMarkerFID() # call it now so that hopefully the folder exists before the first radio marker
+		else:
+			rprint('ERROR: could not connect to map '+str(self.ui.caltopoMapIDField.text()))
 
 	# def wrapper(self):
 	# 	self._caltopoConnectButtonClickedThread()
