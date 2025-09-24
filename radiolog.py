@@ -7116,6 +7116,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 				self.ui.caltopoConnectButton.setEnabled(True)
 				QCoreApplication.processEvents()
 		else:
+			self.ui.caltopoConnectButton.setText('Caltopo Integration Disabled.')
 			self.parent.closeCTS()
 			rprint('closeCTS completed')
 		self.caltopoGroupFieldsSetEnabled(enableMapFields)
@@ -7137,6 +7138,10 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.caltopoMapIDField.setEnabled(e)
 		self.ui.caltopoLinkIndicator.setEnabled(e)
 		self.ui.caltopoConnectButton.setEnabled(e)
+		if e:
+			self.ui.caltopoConnectButton.setToolTip('')
+		else:
+			self.ui.caltopoConnectButton.setToolTip("To enable this button:\nEnable 'Caltopo Integration' AND at least one Caltopo integration feature.")
 
 	def caltopoRedrawAccountData(self): # called from worker
 		# rprint('caltopoMapListict:')
