@@ -7122,6 +7122,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.parent.caltopoLink=0
 		if self.parent.cts:
 			self.parent.caltopoLink=self.parent.cts.apiVersion
+			if self.parent.cts.mapID:
+				self.parent.caltopoLink=2
 		self.parent.caltopoUpdateLinkIndicator()
 
 	def caltopoGroupFieldsSetEnabled(self,e):
