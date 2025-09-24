@@ -205,6 +205,7 @@ class Ui_Dialog(object):
         self.caltopoLayout.addLayout(self.horizontalLayout_3)
         self.caltopoLinkIndicator = QtWidgets.QLineEdit(Dialog)
         self.caltopoLinkIndicator.setEnabled(False)
+        self.caltopoLinkIndicator.setAlignment(QtCore.Qt.AlignCenter)
         self.caltopoLinkIndicator.setObjectName("caltopoLinkIndicator")
         self.caltopoLayout.addWidget(self.caltopoLinkIndicator)
         self.caltopoLayout.setStretch(1, 1)

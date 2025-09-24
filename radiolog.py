@@ -6762,29 +6762,29 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.cts=None
 		self.caltopoLink=0
 		rprint(' closeCTS t4')
-		self.updateCaltopoLinkIndicator()
+		self.caltopoUpdateLinkIndicator()
 		rprint(' closeCTS t5')
 
-	def updateCaltopoLinkIndicator(self):
+	def caltopoUpdateLinkIndicator(self):
 		# -1 = unexpectedly disconnected
 		# 0 = not connected
 		# 1 = connected, mapless session
 		# 2 = connected to a map
 		link=self.caltopoLink
-		rprint('updateCaltopoLinkIndicator called: caltopoLink='+str(link))
+		rprint('caltopoUpdateLinkIndicator called: caltopoLink='+str(link))
 		ss=''
 		t=''
-		if link==2:
-			ss='background-color:#00ff00' # bright green
+		if link==2: # connected to a map
+			ss='background-color:#00ff00;color:black' # bright green
 			t=str(self.cts.mapID)
-		elif link==1:
-			ss='background-color:#005500' # dark green
+		elif link==1: # connected to a mapless session
+			ss='background-color:#009900;color:white' # medium green
 			t='NO MAP'
-		elif link==0:
-			ss='background-color:#aaaaaa' # light gray
+		elif link==0: # not connected to any caltopo session
+			ss='background-color:#aaaaaa;color:white' # light gray
 			t=''
-		elif link==-1:
-			ss='background-color:#ff0000' # bright red
+		elif link==-1: # error condition
+			ss='background-color:#ff0000;color:white' # bright red
 		self.optionsDialog.ui.caltopoLinkIndicator.setStyleSheet(ss)
 		self.ui.caltopoLinkIndicator.setStyleSheet(ss)
 		self.ui.caltopoLinkIndicator.setText(t)
@@ -7053,7 +7053,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.setFixedSize(self.size())
 		self.secondWorkingDirCB()
 		self.newEntryWarningCB()
-		self.ui.caltopoMapNameComboBox.textHighlighted.connect(self.updateCaltopoMapIDFieldFromTitle)
+		self.ui.caltopoMapNameComboBox.textHighlighted.connect(self.caltopoUpdateMapIDFieldFromTitle)
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
@@ -7119,6 +7119,10 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.parent.closeCTS()
 			rprint('closeCTS completed')
 		self.caltopoGroupFieldsSetEnabled(enableMapFields)
+		self.parent.caltopoLink=0
+		if self.parent.cts:
+			self.parent.caltopoLink=self.parent.cts.apiVersion
+		self.parent.caltopoUpdateLinkIndicator()
 
 	def caltopoGroupFieldsSetEnabled(self,e):
 		self.ui.radioButton.setEnabled(e)
@@ -7241,9 +7245,9 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# if self.pauseCB:
 		# 	rprint(' paused')
 		# 	return
-		self.updateCaltopoMapIDFieldFromTitle(self.ui.caltopoMapNameComboBox.currentText())
+		self.caltopoUpdateMapIDFieldFromTitle(self.ui.caltopoMapNameComboBox.currentText())
 
-	def updateCaltopoMapIDFieldFromTitle(self,title):
+	def caltopoUpdateMapIDFieldFromTitle(self,title):
 		rprint('update ID from title')
 		# time.sleep(2)
 		if self.pauseCB:
@@ -7285,6 +7289,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# self.CaltopoWorker.moveToThread(self.CaltopoThread)
 		if self.parent.cts.openMap(self.ui.caltopoMapIDField.text()):
 			self.parent.caltopoLink=2 # connected to a map
+			self.parent.caltopoUpdateLinkIndicator()
 			self.ui.caltopoConnectButton.setText('Connected. Click to Disconnect.')
 			self.ui.caltopoConnectButton.setEnabled(True)
 			QCoreApplication.processEvents()
@@ -7345,7 +7350,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.parent.caltopoLink=self.parent.cts.apiVersion
 		self.parent.fastTimer.timeout.disconnect(self.caltopoPrintTimer)
 		rprint('connect thread complete; link status:'+str(self.parent.caltopoLink)+'; cts.mapID='+str(self.parent.cts.mapID))
-		self.parent.updateCaltopoLinkIndicator()
+		self.parent.caltopoUpdateLinkIndicator()
 		# 	# self.updateLinkIndicator()
 		# 	# if self.link>0:
 		# 	# 	self.ui.linkIndicator.setText(self.cts.mapID)
