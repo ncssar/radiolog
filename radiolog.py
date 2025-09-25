@@ -777,6 +777,7 @@ class CustomEncoder(json.JSONEncoder):
 	
 
 class MyWindow(QDialog,Ui_Dialog):
+	_sig_caltopoUpdateLinkIndicator=pyqtSignal() # thread-safe signal to update the link indicator
 	def __init__(self,parent):
 		QDialog.__init__(self)
 		self.newWorkingDir=False # is this the first time using a newly created working dir?  (if so, suppress some warnings)
@@ -1017,6 +1018,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.cts=None
 		self.caltopoURL=''
 		self.caltopoLink=0
+		self.caltopoLinkPrev=0
 		self.radioMarkerDict={}
 		self.radioMarkerFID=None
 
@@ -1424,6 +1426,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		# save current resource file, to capture lastFileName without a clean shutdown
 		self.saveRcFile()
 		self.showTeamTabsMoreButtonIfNeeded()
+
+		self.caltopoLinkPrev=self.caltopoLink
+		self.caltopoLink=-1
+		self._sig_caltopoUpdateLinkIndicator.connect(self.caltopoUpdateLinkIndicator)
 
 		self.cts=None
 		# self.setupCaltopo()
@@ -6745,7 +6751,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint('  creating mapless online session for user '+self.caltopoAccountName)
 		self.cts=CaltopoSession(domainAndPort='caltopo.com',
 								configpath=os.path.join(self.configDir,'cts.ini'),
-								account=self.caltopoAccountName)
+								account=self.caltopoAccountName,
+								disconnectedCallback=self.caltopoDisconnectedCallback,
+								reconnectedCallback=self.caltopoReconnectedCallback)
 		rprint('  back from CaltopoSession init')
 		noMatchDict={
 			'groupAccountTitle':'<Choose Acct>',
@@ -6777,6 +6785,28 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint(' closeCTS t4')
 		self.caltopoUpdateLinkIndicator()
 		rprint(' closeCTS t5')
+
+	def caltopoDisconnectedCallback(self):
+		# called from caltopo_python when unexpectedly disconnected
+		#  (not called when disconneted due to user action in the options GUI)
+		# THREAD WARNING: don't do GUI actions in this function,
+		#  since it could be called from a different thread in caltopo_python;
+		#  us pyqtSignal instead
+		self.caltopoLinkPrev=self.caltopoLink
+		self.caltopoLink=-1
+		self._sig_caltopoUpdateLinkIndicator.emit()
+		
+	def caltopoReconnectedCallback(self):
+		# called from caltopo_python when automatically reconnected after unexpected disconnect
+		#  (not called when conneted due to user action in the options GUI)
+		# THREAD WARNING: don't do GUI actions in this function,
+		#  since it could be called from a different thread in caltopo_python;
+		#  us pyqtSignal instead
+		self.caltopoLink=self.caltopoLinkPrev
+		self._sig_caltopoUpdateLinkIndicator.emit()
+
+	def caltopoDisconnectedCallback_mainThread(self):
+		self.caltopoUpdateLinkIndicator()
 
 	def caltopoProcessLatestMarkers(self):
 		# this is only called after a map is opened;
@@ -6813,16 +6843,17 @@ class MyWindow(QDialog,Ui_Dialog):
 		ss=''
 		t=''
 		if link==2: # connected to a map
-			ss='background-color:#00ff00;color:black' # bright green
+			ss='background-color:#00ff00;color:black;font-weight:normal' # bright green
 			t=str(self.cts.mapID)
 		elif link==1: # connected to a mapless session
-			ss='background-color:#009900;color:white' # medium green
+			ss='background-color:#009900;color:white;font-weight:normal' # medium green
 			t='NO MAP'
 		elif link==0: # not connected to any caltopo session
-			ss='background-color:#aaaaaa;color:white' # light gray
+			ss='background-color:#aaaaaa;color:white;font-weight:normal' # light gray
 			t=''
 		elif link==-1: # error condition
-			ss='background-color:#ff0000;color:white' # bright red
+			ss='background-color:#ff0000;color:white;font-weight:bold' # bright red
+			t='OFFLINE'
 		self.optionsDialog.ui.caltopoLinkIndicator.setStyleSheet(ss)
 		self.ui.caltopoLinkIndicator.setStyleSheet(ss)
 		self.ui.caltopoLinkIndicator.setText(t)
@@ -7158,12 +7189,13 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.parent.closeCTS()
 			rprint('closeCTS completed')
 		self.caltopoGroupFieldsSetEnabled(enableMapFields)
-		self.parent.caltopoLink=0
-		if self.parent.cts:
-			self.parent.caltopoLink=self.parent.cts.apiVersion
-			if self.parent.cts.mapID:
-				self.parent.caltopoLink=2
-		self.parent.caltopoUpdateLinkIndicator()
+		if self.parent.caltopoLink>=0: # don't run this clause if currently unexpectedly disconnected
+			self.parent.caltopoLink=0
+			if self.parent.cts:
+				self.parent.caltopoLink=self.parent.cts.apiVersion
+				if self.parent.cts.mapID:
+					self.parent.caltopoLink=2
+			self.parent.caltopoUpdateLinkIndicator()
 
 	def caltopoGroupFieldsSetEnabled(self,e):
 		self.ui.radioButton.setEnabled(e)
@@ -9981,6 +10013,7 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 # allow different justifications for different columns of qtableview
 # from https://stackoverflow.com/a/52644764
 from PyQt5 import QtCore,QtWidgets
+from PyQt5.QtCore import pyqtSignal
 class alignCenterDelegate(QtWidgets.QStyledItemDelegate):
 	def initStyleOption(self,option,index):
 		super(alignCenterDelegate,self).initStyleOption(option,index)
