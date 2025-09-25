@@ -2711,9 +2711,9 @@ class MyWindow(QDialog,Ui_Dialog):
 	# 	# return 'CANCEL'
 	# 	pass
 
-	def sendRadioMarker(self,fleet,dev,uid,callsign,lat=None,lon=None):
+	def sendRadioMarker(self,fleet,dev,uid,callsign,lat=None,lon=None,timeStr=None,label=None):
 		try:
-			rprint(f'sendRadioMarker called: fleet={fleet} dev={dev} uid={uid} callsign={callsign} lat={lat} lon={lon}')
+			rprint(f'sendRadioMarker called: fleet={fleet} dev={dev} uid={uid} callsign={callsign} lat={lat} lon={lon} timeStr={timeStr} label={label}')
 			# mimic the old 'Locator Group' behavior:
 			# - create a 'Radios' folder on the first call to this function; place markers in that folder
 			# - if a marker for the callsign already exists, move it (and update the time)
@@ -2732,6 +2732,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			#  - latestTimeString
 			#  - lat
 			#  - lon
+			#  - history - list of lists, each one being a call from that device (oldest first): [timeStr,label,lat,lon]
 
 			# self.radioMarkerDict entries must have all the info needed for createCTS to add deferred markers,
 			#  i.e. if incoming GPS data was stored before the CTS session was created, or during lost connection
@@ -2740,10 +2741,10 @@ class MyWindow(QDialog,Ui_Dialog):
 				deviceStr=str(uid)
 			else:
 				deviceStr=str(fleet)+':'+str(dev)
-			label=self.getRadioMarkerLabelForCallsign(callsign)
+			label=label or self.getRadioMarkerLabelForCallsign(callsign)
 			d=self.radioMarkerDict.get(deviceStr,None)
 			existingId=None
-			latestTimeString=time.strftime('%H:%M:%S')
+			latestTimeString=timeStr or time.strftime('%H:%M:%S')
 			if d:
 				rprint('am1a: d["'+str(deviceStr)+'"]='+str(d))
 				existingId=d.get('caltopoId',None)
@@ -2753,7 +2754,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					lat=d.get('lat',None)
 					lon=d.get('lon',None)
 					latestTimeString=d.get('latestTimeString','')
-					rprint('  label update only; using previous lat,lon='+str(lat)+','+str(lon)+' and preserving time string '+str(latestTimeString))
+					rprint('  label update only (--> '+str(label)+'); using previous lat,lon='+str(lat)+','+str(lon)+' and preserving time string '+str(latestTimeString))
+					d['label']=label # set here, in case cts doesn't exist yet
 			else:
 				rprint('am1b: no dict entry found for deviceStr='+str(deviceStr))
 				# add placeholder radioMarkerDict entry now, to allow updating while disconnected
@@ -6776,6 +6778,31 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.caltopoUpdateLinkIndicator()
 		rprint(' closeCTS t5')
 
+	def caltopoProcessLatestMarkers(self):
+		# this is only called after a map is opened;
+		# walk through deviceStrs in radioMarkerDict;
+		# for each one, add a radio marker for the latest coords and time string;
+		# could call this from the openMap callback, after the cache has been
+		#  populated, to see if any of those markers (matching deviceStr/time/coords)
+		#  already exist, i.e. if the map was manually disconnected then reconnected;
+		# probably best to run this in a separate thread in case it takes several seconds
+		for (deviceStr,d) in self.radioMarkerDict.items():
+			rprint('processing latest radio marker for '+str(deviceStr))
+			rprint(json.dumps(d,indent=3))
+			fleet=None
+			dev=None
+			uid=None
+			callsign=None # because we will specify the exact label instead
+			if ':' in deviceStr:
+				(fleet,dev)=map(int,deviceStr.split(':'))
+			else:
+				uid=int(deviceStr)
+			self.sendRadioMarker(fleet,dev,uid,callsign,
+						lat=d['lat'],
+						lon=d['lon'],
+						timeStr=d['latestTimeString'],
+						label=d['label'])
+
 	def caltopoUpdateLinkIndicator(self):
 		# -1 = unexpectedly disconnected
 		# 0 = not connected
@@ -7312,6 +7339,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.ui.caltopoConnectButton.setEnabled(True)
 			QCoreApplication.processEvents()
 			self.parent.getOrCreateRadioMarkerFID() # call it now so that hopefully the folder exists before the first radio marker
+			self.parent.caltopoProcessLatestMarkers() # add markers for any calls that were made before the map was opened
 		else:
 			rprint('ERROR: could not connect to map '+str(self.ui.caltopoMapIDField.text()))
 
