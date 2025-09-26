@@ -777,7 +777,11 @@ class CustomEncoder(json.JSONEncoder):
 	
 
 class MyWindow(QDialog,Ui_Dialog):
-	_sig_caltopoUpdateLinkIndicator=pyqtSignal() # thread-safe signal to update the link indicator
+
+	# inter-thread signals (GUI must only be modified by main-thread code to avoid crashes!)
+	_sig_caltopoDisconnected=pyqtSignal()
+	_sig_caltopoReconnected=pyqtSignal()
+
 	def __init__(self,parent):
 		QDialog.__init__(self)
 		self.newWorkingDir=False # is this the first time using a newly created working dir?  (if so, suppress some warnings)
@@ -1019,6 +1023,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.caltopoURL=''
 		self.caltopoLink=0
 		self.caltopoLinkPrev=0
+		self.caltopoConnectButtonPrevText=''
+		self.caltopoGroupFieldsPrevEnabled=False
 		self.radioMarkerDict={}
 		self.radioMarkerFID=None
 
@@ -1427,9 +1433,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.saveRcFile()
 		self.showTeamTabsMoreButtonIfNeeded()
 
-		self.caltopoLinkPrev=self.caltopoLink
-		self.caltopoLink=-1
-		self._sig_caltopoUpdateLinkIndicator.connect(self.caltopoUpdateLinkIndicator)
+		# connect inter-thread signals to main-thread slots
+		self._sig_caltopoDisconnected.connect(self.caltopoDisconnectedCallback_mainThread)
+		self._sig_caltopoReconnected.connect(self.caltopoReconnectedCallback_mainThread)
 
 		self.cts=None
 		# self.setupCaltopo()
@@ -6791,21 +6797,30 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  (not called when disconneted due to user action in the options GUI)
 		# THREAD WARNING: don't do GUI actions in this function,
 		#  since it could be called from a different thread in caltopo_python;
-		#  us pyqtSignal instead
+		#  use thread-safe inter-thread pyqtSignal instead
 		self.caltopoLinkPrev=self.caltopoLink
 		self.caltopoLink=-1
-		self._sig_caltopoUpdateLinkIndicator.emit()
+		self._sig_caltopoDisconnected.emit()
 		
+	def caltopoDisconnectedCallback_mainThread(self):
+		self.caltopoConnectButtonPrevText=self.optionsDialog.ui.caltopoConnectButton.text()
+		self.optionsDialog.ui.caltopoConnectButton.setText('Offline; attempting to reconnect...')
+		self.caltopoGroupFieldsPrevEnabled=self.optionsDialog.ui.caltopoConnectButton.isEnabled()
+		self.optionsDialog.caltopoGroupFieldsSetEnabled(False)
+		self.caltopoUpdateLinkIndicator()
+
 	def caltopoReconnectedCallback(self):
 		# called from caltopo_python when automatically reconnected after unexpected disconnect
 		#  (not called when conneted due to user action in the options GUI)
 		# THREAD WARNING: don't do GUI actions in this function,
 		#  since it could be called from a different thread in caltopo_python;
-		#  us pyqtSignal instead
+		#  use thread-safe inter-thread pyqtSignal instead
 		self.caltopoLink=self.caltopoLinkPrev
-		self._sig_caltopoUpdateLinkIndicator.emit()
+		self._sig_caltopoReconnected.emit()
 
-	def caltopoDisconnectedCallback_mainThread(self):
+	def caltopoReconnectedCallback_mainThread(self):
+		self.optionsDialog.ui.caltopoConnectButton.setText(self.caltopoConnectButtonPrevText)
+		self.optionsDialog.caltopoGroupFieldsSetEnabled(self.caltopoGroupFieldsPrevEnabled)
 		self.caltopoUpdateLinkIndicator()
 
 	def caltopoProcessLatestMarkers(self):
@@ -7162,34 +7177,34 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.parent.fsSaveLog()
 
 	def caltopoEnabledCB(self): # called from stateChanged of group box AND of radio markers checkbox
-		a=self.ui.caltopoGroupBox.isChecked()
-		# if a and self.parent.caltopoLink<1:
-		# 	rprint('checking for latest map in default group "'+str(self.parent.caltopoDefaultTeamAccount))
-		# 	rprint(str(self.parent.cts.getAllMapLists()))
-		radios=self.ui.caltopoRadioMarkersCheckBox.isChecked()
-		self.ui.caltopoRadioMarkersCheckBox.setEnabled(a)
-		enableMapFields=a and radios
-		if enableMapFields:
-			# self.caltopoURLCB() # try to reconnect if mapURL is not blank
-			if self.parent.cts is None:
-				rprint('calling createCTS')
-				self.ui.caltopoConnectButton.setText('Getting account data...')
-				self.ui.caltopoConnectButton.setEnabled(False)
-				QCoreApplication.processEvents()
-				self.parent.createCTS()
-				rprint('createCTS completed')
-				rprint('caltopoMapListDicts:')
-				rprint(json.dumps(self.parent.caltopoMapListDicts,indent=3))
-				self.caltopoRedrawAccountData()
-				self.ui.caltopoConnectButton.setText('Click to Connect')
-				self.ui.caltopoConnectButton.setEnabled(True)
-				QCoreApplication.processEvents()
-		else:
-			self.ui.caltopoConnectButton.setText('Caltopo Integration Disabled.')
-			self.parent.closeCTS()
-			rprint('closeCTS completed')
-		self.caltopoGroupFieldsSetEnabled(enableMapFields)
-		if self.parent.caltopoLink>=0: # don't run this clause if currently unexpectedly disconnected
+		if self.parent.caltopoLink>=0: # don't run any of this if currently unexpectedly disconnected
+			a=self.ui.caltopoGroupBox.isChecked()
+			# if a and self.parent.caltopoLink<1:
+			# 	rprint('checking for latest map in default group "'+str(self.parent.caltopoDefaultTeamAccount))
+			# 	rprint(str(self.parent.cts.getAllMapLists()))
+			radios=self.ui.caltopoRadioMarkersCheckBox.isChecked()
+			self.ui.caltopoRadioMarkersCheckBox.setEnabled(a)
+			enableMapFields=a and radios
+			if enableMapFields:
+				# self.caltopoURLCB() # try to reconnect if mapURL is not blank
+				if self.parent.cts is None:
+					rprint('calling createCTS')
+					self.ui.caltopoConnectButton.setText('Getting account data...')
+					self.ui.caltopoConnectButton.setEnabled(False)
+					QCoreApplication.processEvents()
+					self.parent.createCTS()
+					rprint('createCTS completed')
+					rprint('caltopoMapListDicts:')
+					rprint(json.dumps(self.parent.caltopoMapListDicts,indent=3))
+					self.caltopoRedrawAccountData()
+					self.ui.caltopoConnectButton.setText('Click to Connect')
+					self.ui.caltopoConnectButton.setEnabled(True)
+					QCoreApplication.processEvents()
+			else:
+				self.ui.caltopoConnectButton.setText('Caltopo Integration Disabled.')
+				self.parent.closeCTS()
+				rprint('closeCTS completed')
+			self.caltopoGroupFieldsSetEnabled(enableMapFields)
 			self.parent.caltopoLink=0
 			if self.parent.cts:
 				self.parent.caltopoLink=self.parent.cts.apiVersion
@@ -7210,8 +7225,10 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.caltopoConnectButton.setEnabled(e)
 		if e:
 			self.ui.caltopoConnectButton.setToolTip('')
+		elif self.parent.caltopoLink>=0:
+			self.ui.caltopoConnectButton.setToolTip("To enable this button:\nEnable 'Caltopo Integration'\nAND\nat least one Caltopo integration feature.")
 		else:
-			self.ui.caltopoConnectButton.setToolTip("To enable this button:\nEnable 'Caltopo Integration' AND at least one Caltopo integration feature.")
+			self.ui.caltopoConnectButton.setToolTip('Attempting to reconnect...')
 
 	def caltopoRedrawAccountData(self): # called from worker
 		# rprint('caltopoMapListict:')
