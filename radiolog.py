@@ -6803,10 +6803,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self._sig_caltopoDisconnected.emit()
 		
 	def caltopoDisconnectedCallback_mainThread(self):
-		self.caltopoConnectButtonPrevText=self.optionsDialog.ui.caltopoConnectButton.text()
-		self.optionsDialog.ui.caltopoConnectButton.setText('Offline; attempting to reconnect...')
-		self.caltopoGroupFieldsPrevEnabled=self.optionsDialog.ui.caltopoConnectButton.isEnabled()
-		self.optionsDialog.caltopoGroupFieldsSetEnabled(False)
+		# self.caltopoConnectButtonPrevText=self.optionsDialog.ui.caltopoConnectButton.text()
+		# self.optionsDialog.ui.caltopoConnectButton.setText('Offline; attempting to reconnect...')
+		# self.caltopoGroupFieldsPrevEnabled=self.optionsDialog.ui.caltopoConnectButton.isEnabled()
+		self.optionsDialog.caltopoUpdateGUI()
 		self.caltopoUpdateLinkIndicator()
 
 	def caltopoReconnectedCallback(self):
@@ -6819,8 +6819,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		self._sig_caltopoReconnected.emit()
 
 	def caltopoReconnectedCallback_mainThread(self):
-		self.optionsDialog.ui.caltopoConnectButton.setText(self.caltopoConnectButtonPrevText)
-		self.optionsDialog.caltopoGroupFieldsSetEnabled(self.caltopoGroupFieldsPrevEnabled)
+		# self.optionsDialog.ui.caltopoConnectButton.setText(self.caltopoConnectButtonPrevText)
+		# self.optionsDialog.caltopoGroupFieldsSetEnabled(self.caltopoGroupFieldsPrevEnabled)
+		self.optionsDialog.caltopoUpdateGUI()
 		self.caltopoUpdateLinkIndicator()
 
 	def caltopoProcessLatestMarkers(self):
@@ -7138,6 +7139,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.secondWorkingDirCB()
 		self.newEntryWarningCB()
 		self.ui.caltopoMapNameComboBox.textHighlighted.connect(self.caltopoUpdateMapIDFieldFromTitle)
+		self.caltopoUpdateGUI()
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
@@ -7147,7 +7149,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.formatField.clearFocus()
 		self.ui.timeoutField.clearFocus()
 		self.ui.secondWorkingDirCheckBox.clearFocus()
-		self.caltopoEnabledCB()
+		# self.caltopoEnabledCB()
 
 	def displayTimeout(self):
 		self.ui.timeoutLabel.setText("Timeout: "+timeoutDisplayList[self.ui.timeoutField.value()][0])
@@ -7176,59 +7178,145 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.raise_()
 			self.parent.fsSaveLog()
 
-	def caltopoEnabledCB(self): # called from stateChanged of group box AND of radio markers checkbox
-		if self.parent.caltopoLink>=0: # don't run any of this if currently unexpectedly disconnected
-			a=self.ui.caltopoGroupBox.isChecked()
-			# if a and self.parent.caltopoLink<1:
-			# 	rprint('checking for latest map in default group "'+str(self.parent.caltopoDefaultTeamAccount))
-			# 	rprint(str(self.parent.cts.getAllMapLists()))
-			radios=self.ui.caltopoRadioMarkersCheckBox.isChecked()
-			self.ui.caltopoRadioMarkersCheckBox.setEnabled(a)
-			enableMapFields=a and radios
-			if enableMapFields:
-				# self.caltopoURLCB() # try to reconnect if mapURL is not blank
-				if self.parent.cts is None:
-					rprint('calling createCTS')
-					self.ui.caltopoConnectButton.setText('Getting account data...')
-					self.ui.caltopoConnectButton.setEnabled(False)
-					QCoreApplication.processEvents()
-					self.parent.createCTS()
-					rprint('createCTS completed')
-					rprint('caltopoMapListDicts:')
-					rprint(json.dumps(self.parent.caltopoMapListDicts,indent=3))
-					self.caltopoRedrawAccountData()
-					self.ui.caltopoConnectButton.setText('Click to Connect')
-					self.ui.caltopoConnectButton.setEnabled(True)
-					QCoreApplication.processEvents()
-			else:
-				self.ui.caltopoConnectButton.setText('Caltopo Integration Disabled.')
-				self.parent.closeCTS()
-				rprint('closeCTS completed')
-			self.caltopoGroupFieldsSetEnabled(enableMapFields)
-			self.parent.caltopoLink=0
-			if self.parent.cts:
-				self.parent.caltopoLink=self.parent.cts.apiVersion
-				if self.parent.cts.mapID:
-					self.parent.caltopoLink=2
-			self.parent.caltopoUpdateLinkIndicator()
+	def caltopoUpdateGUI(self):
+		# self.parent.caltopoLink states:
+		#  -1 = offline
+		#   0 = not connected to server
+		#   1 = connected to mapless caltopo session
+		#   2 = connected to a map
+		#   3 = in transition (connecting or disconnecting)
+		link=self.parent.caltopoLink
+		en=self.ui.caltopoGroupBox.isChecked()
+		rm=self.ui.caltopoRadioMarkersCheckBox.isChecked()
+		# dc=self.parent.disconnectedFlag
 
-	def caltopoGroupFieldsSetEnabled(self,e):
-		self.ui.radioButton.setEnabled(e)
-		self.ui.radioButton_2.setEnabled(e)
-		self.ui.caltopoAccountAndFolderLabel.setEnabled(e)
-		self.ui.caltopoAccountComboBox.setEnabled(e)
-		self.ui.caltopoFolderComboBox.setEnabled(e)
-		self.ui.caltopoMapLabel.setEnabled(e)
-		self.ui.caltopoMapNameComboBox.setEnabled(e)
-		self.ui.caltopoMapIDField.setEnabled(e)
-		self.ui.caltopoLinkIndicator.setEnabled(e)
-		self.ui.caltopoConnectButton.setEnabled(e)
+		# set enabled/disabled for caltopo group fields
+		self.ui.caltopoRadioMarkersCheckBox.setEnabled(en)
+		e=en and rm
+		e2=e and link==1
+		rprint('e='+str(e)+'  e2='+str(e2))
+		self.ui.radioButton.setEnabled(e2)
+		self.ui.radioButton_2.setEnabled(e2)
+		self.ui.caltopoAccountAndFolderLabel.setEnabled(e2)
+		self.ui.caltopoAccountComboBox.setEnabled(e2)
+		self.ui.caltopoFolderComboBox.setEnabled(e2)
+		self.ui.caltopoMapLabel.setEnabled(e2)
+		self.ui.caltopoMapNameComboBox.setEnabled(e2)
+		self.ui.caltopoMapIDField.setEnabled(e2)
+		self.ui.caltopoLinkIndicator.setEnabled(e2)
+		self.ui.caltopoConnectButton.setEnabled(e and link in [1,2])
+		
+		# set the connect button text
+		txt=self.ui.caltopoConnectButton.text()
+		if e:
+			if link==0: # not yet connected to a mapless session, but checkboxes enabled
+				txt='Getting account data...'
+			elif link==1:
+				txt='Click to connect.'
+			elif link==2:
+				txt='Connected. Click to disconnect.'
+			elif link==-1:
+				txt='Offline. Attempting to reconnect...'
+			elif link!=3: # leave as-is if in transition
+				txt='-----'
+		else:
+			txt='Caltopo Integration Disabled.'
+		self.ui.caltopoConnectButton.setText(txt)
+
+		# set the connect button tooltip
 		if e:
 			self.ui.caltopoConnectButton.setToolTip('')
 		elif self.parent.caltopoLink>=0:
 			self.ui.caltopoConnectButton.setToolTip("To enable this button:\nEnable 'Caltopo Integration'\nAND\nat least one Caltopo integration feature.")
 		else:
 			self.ui.caltopoConnectButton.setToolTip('Attempting to reconnect...')
+			
+		# processEvents, in case this is being called with other GUI actions
+		QCoreApplication.processEvents()
+
+	def caltopoEnabledCB(self): # called from stateChanged of group box AND of radio markers checkbox
+		en=self.ui.caltopoGroupBox.isChecked()
+		rm=self.ui.caltopoRadioMarkersCheckBox.isChecked()
+		e=en and rm
+		self.caltopoUpdateGUI()
+		if e:
+			if self.parent.caltopoLink==0: # checkboxes enabled but not yet connected to a mapless session
+				# rprint('calling createCTS')
+				# self.ui.caltopoConnectButton.setText('Getting account data...')
+				# self.ui.caltopoConnectButton.setEnabled(False)
+				# QCoreApplication.processEvents()
+				self.parent.createCTS()
+				# rprint('createCTS completed')
+				# rprint('caltopoMapListDicts:')
+				# rprint(json.dumps(self.parent.caltopoMapListDicts,indent=3))
+				self.caltopoRedrawAccountData()
+				self.caltopoUpdateGUI()
+				# self.ui.caltopoConnectButton.setText('Click to Connect')
+				# self.ui.caltopoConnectButton.setEnabled(True)
+		else:
+			self.parent.closeCTS()
+			self.caltopoUpdateGUI()
+		self.parent.caltopoLink=0
+		if self.parent.cts:
+			self.parent.caltopoLink=self.parent.cts.apiVersion
+			if self.parent.cts.mapID:
+				self.parent.caltopoLink=2
+		self.caltopoUpdateGUI()
+		self.parent.caltopoUpdateLinkIndicator()
+
+	# def caltopoEnabledCB(self): # called from stateChanged of group box AND of radio markers checkbox
+	# 	# if self.parent.caltopoLink>=0: # don't run any of this if currently unexpectedly disconnected
+	# 	a=self.ui.caltopoGroupBox.isChecked()
+	# 	# if a and self.parent.caltopoLink<1:
+	# 	# 	rprint('checking for latest map in default group "'+str(self.parent.caltopoDefaultTeamAccount))
+	# 	# 	rprint(str(self.parent.cts.getAllMapLists()))
+	# 	radios=self.ui.caltopoRadioMarkersCheckBox.isChecked()
+	# 	self.ui.caltopoRadioMarkersCheckBox.setEnabled(a)
+	# 	enableMapFields=a and radios
+	# 	if enableMapFields:
+	# 		# self.caltopoURLCB() # try to reconnect if mapURL is not blank
+	# 		if self.parent.cts is None:
+	# 			rprint('calling createCTS')
+	# 			self.ui.caltopoConnectButton.setText('Getting account data...')
+	# 			self.ui.caltopoConnectButton.setEnabled(False)
+	# 			QCoreApplication.processEvents()
+	# 			self.parent.createCTS()
+	# 			rprint('createCTS completed')
+	# 			rprint('caltopoMapListDicts:')
+	# 			rprint(json.dumps(self.parent.caltopoMapListDicts,indent=3))
+	# 			self.caltopoRedrawAccountData()
+	# 			self.ui.caltopoConnectButton.setText('Click to Connect')
+	# 			self.ui.caltopoConnectButton.setEnabled(True)
+	# 			QCoreApplication.processEvents()
+	# 	else:
+	# 		self.ui.caltopoConnectButton.setText('Caltopo Integration Disabled.')
+	# 		self.parent.closeCTS()
+	# 		rprint('closeCTS completed')
+	# 	self.caltopoGroupFieldsSetEnabled(enableMapFields)
+	# 	self.parent.caltopoLink=0
+	# 	if self.parent.cts:
+	# 		self.parent.caltopoLink=self.parent.cts.apiVersion
+	# 		if self.parent.cts.mapID:
+	# 			self.parent.caltopoLink=2
+	# 	self.parent.caltopoUpdateLinkIndicator()
+
+	# def caltopoGroupFieldsSetEnabled(self,e):
+	# 	self.ui.radioButton.setEnabled(e)
+	# 	self.ui.radioButton_2.setEnabled(e)
+	# 	self.ui.caltopoAccountAndFolderLabel.setEnabled(e)
+	# 	self.ui.caltopoAccountComboBox.setEnabled(e)
+	# 	self.ui.caltopoFolderComboBox.setEnabled(e)
+	# 	self.ui.caltopoMapLabel.setEnabled(e)
+	# 	self.ui.caltopoMapNameComboBox.setEnabled(e)
+	# 	self.ui.caltopoMapIDField.setEnabled(e)
+	# 	self.ui.caltopoLinkIndicator.setEnabled(e)
+	# 	self.ui.caltopoConnectButton.setEnabled(e)
+	# 	if e:
+	# 		self.ui.caltopoConnectButton.setToolTip('')
+	# 	elif self.parent.caltopoLink>=0:
+	# 		self.ui.caltopoConnectButton.setToolTip("To enable this button:\nEnable 'Caltopo Integration'\nAND\nat least one Caltopo integration feature.")
+	# 	else:
+	# 		self.ui.caltopoConnectButton.setToolTip('Attempting to reconnect...')
 
 	def caltopoRedrawAccountData(self): # called from worker
 		# rprint('caltopoMapListict:')
@@ -7363,14 +7451,21 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		rprint('connect button clicked: caltopoLink='+str(self.parent.caltopoLink))
 		if self.parent.caltopoLink==1: # mapless session
 			self.ui.caltopoConnectButton.setText('Connecting...')
+			self.parent.caltopoLink=3 # in transition
+			self.caltopoUpdateGUI()
+			# QCoreApplication.processEvents()
 		else: # 2 = connected to a map
 			self.ui.caltopoConnectButton.setText('Disconnecting...')
-			QCoreApplication.processEvents()
-			self.parent.closeCTS()
-			self.caltopoEnabledCB()
+			self.parent.caltopoLink=3 # in transition
+			self.caltopoUpdateGUI()
+			# QCoreApplication.processEvents()
+			self.parent.closeCTS() # sets caltopoLink to 0
+			self.caltopoUpdateGUI()
+			self.caltopoEnabledCB() # mimic turning both checkboxes on, which gets account data etc.
 			return
-		self.ui.caltopoConnectButton.setEnabled(False)
-		QCoreApplication.processEvents()
+		# self.caltopoUpdateGUI()
+		# self.ui.caltopoConnectButton.setEnabled(False)
+		# QCoreApplication.processEvents()
 		# # threading.Thread(target=self.wrapper).start()
 		# self.caltopoConnectThread=QThread()
 		# self.worker=CaltopoConnectWorker()
@@ -7384,12 +7479,16 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		if self.parent.cts.openMap(self.ui.caltopoMapIDField.text()):
 			self.parent.caltopoLink=2 # connected to a map
 			self.parent.caltopoUpdateLinkIndicator()
-			self.ui.caltopoConnectButton.setText('Connected. Click to Disconnect.')
-			self.ui.caltopoConnectButton.setEnabled(True)
-			QCoreApplication.processEvents()
+			self.caltopoUpdateGUI()
+			# self.ui.caltopoConnectButton.setText('Connected. Click to Disconnect.')
+			# self.caltopoGroupFieldsSetEnabled(False) # disallow map field changes while connected
+			# self.ui.caltopoConnectButton.setEnabled(True)
+			# QCoreApplication.processEvents()
 			self.parent.getOrCreateRadioMarkerFID() # call it now so that hopefully the folder exists before the first radio marker
 			self.parent.caltopoProcessLatestMarkers() # add markers for any calls that were made before the map was opened
 		else:
+			self.parent.caltopoLink=1
+			self.caltopoUpdateGUI()
 			rprint('ERROR: could not connect to map '+str(self.ui.caltopoMapIDField.text()))
 
 	# def wrapper(self):
@@ -7441,25 +7540,25 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	# 	self.parent.cts.openMap(mapID)
 	# 	# self._caltopoConnectButtonClickedCB()
 
-	def _caltopoConnectButtonClickedComplete(self):
-		self.parent.caltopoLink=self.parent.cts.apiVersion
-		self.parent.fastTimer.timeout.disconnect(self.caltopoPrintTimer)
-		rprint('connect thread complete; link status:'+str(self.parent.caltopoLink)+'; cts.mapID='+str(self.parent.cts.mapID))
-		self.parent.caltopoUpdateLinkIndicator()
-		# 	# self.updateLinkIndicator()
-		# 	# if self.link>0:
-		# 	# 	self.ui.linkIndicator.setText(self.cts.mapID)
-		# 	# 	self.updateFeatureList("Folder")
-		# 	# self.optionsDialog.ui.folderComboBox.setHeader("Select a Folder...")
-		# 	# if the session is good, process any deferred radio markers
-		if self.parent.cts and self.parent.caltopoLink>0 and self.parent.cts.mapID:
-			self.ui.caltopoConnectButton.setText('Click to Disconnect')
-			self.parent.radioMarkerFID=self.parent.getOrCreateRadioMarkerFID()
-			# add deferred markers (GPS calls that came in before CTS was created)
-			self.parent.sendQueuedRadioMarkers()
-		else:
-			self.ui.caltopoConnectButton.setText('Click to Connect')
-		self.ui.caltopoConnectButton.setEnabled(True)
+	# def _caltopoConnectButtonClickedComplete(self):
+	# 	self.parent.caltopoLink=self.parent.cts.apiVersion
+	# 	self.parent.fastTimer.timeout.disconnect(self.caltopoPrintTimer)
+	# 	rprint('connect thread complete; link status:'+str(self.parent.caltopoLink)+'; cts.mapID='+str(self.parent.cts.mapID))
+	# 	self.parent.caltopoUpdateLinkIndicator()
+	# 	# 	# self.updateLinkIndicator()
+	# 	# 	# if self.link>0:
+	# 	# 	# 	self.ui.linkIndicator.setText(self.cts.mapID)
+	# 	# 	# 	self.updateFeatureList("Folder")
+	# 	# 	# self.optionsDialog.ui.folderComboBox.setHeader("Select a Folder...")
+	# 	# 	# if the session is good, process any deferred radio markers
+	# 	if self.parent.cts and self.parent.caltopoLink>0 and self.parent.cts.mapID:
+	# 		self.ui.caltopoConnectButton.setText('Click to Disconnect')
+	# 		self.parent.radioMarkerFID=self.parent.getOrCreateRadioMarkerFID()
+	# 		# add deferred markers (GPS calls that came in before CTS was created)
+	# 		self.parent.sendQueuedRadioMarkers()
+	# 	else:
+	# 		self.ui.caltopoConnectButton.setText('Click to Connect')
+	# 	self.ui.caltopoConnectButton.setEnabled(True)
 
 
 # find dialog/completer/popup structure:
