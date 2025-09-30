@@ -2798,6 +2798,15 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
 				try:
 					rprint('  addMarker:  label='+str(label)+'  folderId='+str(self.radioMarkerFID))
+					# radioMarkerFID will probably still be None if the Radios folder was created in the previous lines,
+					#  since that request is in a different thread and radioMarkerFID isn't set until its callback is triggered.
+					# options:
+					#  - wait to call addMarker until radioMarkerFID is not None
+					#      NOTE: to avoid main thread delay, this would require putting sendRadioMarker in a separate thread,
+					#       which would probably be a good idea anyway to ensure radiolog usage is not delayed by caltopo integration
+					#  - for any markers created woth fid=None, edit them later to set the fid
+					#  - add an argument to add<Class> calls in caltopo_python that would wait to build the request until a certain flag is set
+					#  - place the entire addMarker call in the callback of the addFolder call
 					r=self.cts.addMarker(lat,lon,label,latestTimeString+'   ['+deviceStr+']',
 							folderId=self.radioMarkerFID,
 							existingId=existingId,
@@ -6719,7 +6728,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	#  it's likely that the return value will be None the first time this method is called
 	def getOrCreateRadioMarkerFID(self):
 		fid=self.radioMarkerFID
-		if fid:
+		if fid: # create folder if this is the first call (or if it has been deleted)
 			return fid
 		else:
 			# rprint('t1')
@@ -6758,6 +6767,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.cts=CaltopoSession(domainAndPort='caltopo.com',
 								configpath=os.path.join(self.configDir,'cts.ini'),
 								account=self.caltopoAccountName,
+								deletedFeatureCallback=self.caltopoDeletedFeatureCallback,
 								disconnectedCallback=self.caltopoDisconnectedCallback,
 								reconnectedCallback=self.caltopoReconnectedCallback)
 		rprint('  back from CaltopoSession init')
@@ -6791,6 +6801,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint(' closeCTS t4')
 		self.caltopoUpdateLinkIndicator()
 		rprint(' closeCTS t5')
+
+	def caltopoDeletedFeatureCallback(self,id,c):
+		# rprint('deleted callback: id='+str(id)+'  c='+str(c))
+		if id==self.radioMarkerFID:
+			rprint("Caltopo 'Radios' folder was deleted; it will be recreated on the next radio marker call.")
+			self.radioMarkerFID=None # will force re-creation on the next marker call
 
 	def caltopoDisconnectedCallback(self):
 		# called from caltopo_python when unexpectedly disconnected
@@ -7149,6 +7165,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.formatField.clearFocus()
 		self.ui.timeoutField.clearFocus()
 		self.ui.secondWorkingDirCheckBox.clearFocus()
+		self.parent.caltopoUpdateLinkIndicator()
 		# self.caltopoEnabledCB()
 
 	def displayTimeout(self):
