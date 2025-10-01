@@ -6829,6 +6829,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				'folderId':0,
 				'folderName':'<Top Level>'}]}
 		self.caltopoMapListDicts=[noMatchDict]+self.cts.getAllMapLists()
+		# rprint('caltopoMapListDicts:')
+		# rprint(json.dumps(self.caltopoMapListDicts,indent=3))
 		self.caltopoLink=1
 		# self.accountDataChanged.emit()
 		# self.linkChanged.emit() # mapless
@@ -7189,6 +7191,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.parent=parent
 		self.ui=Ui_optionsDialog()
 		self.ui.setupUi(self)
+		self.caltopoMapNameItalicFont=QFont(self.ui.caltopoMapNameComboBox.font())
+		self.caltopoMapNameItalicFont.setItalic(True)
 		self.setStyleSheet(globalStyleSheet)
 		self.pauseCB=False
 		self.pauseAccountCB=False
@@ -7538,7 +7542,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		rprint('acct.end')
 
 	def caltopoFolderComboBoxChanged(self):
-		rprint('folder changed - rebuilding map name choices')
+		rprint('folder changed to "'+str(self.ui.caltopoFolderComboBox.currentText())+'" - rebuilding map name choices')
 		# time.sleep(2)
 		# if self.pauseCB:
 		# 	rprint(' paused')
@@ -7547,10 +7551,21 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		dicts=[d for d in self.parent.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
 		if dicts:
 			mapList=dicts[0]['mapList']
-			mapsNotBookmarks=[m for m in mapList if m['type']=='map' and m['folderName']==self.ui.caltopoFolderComboBox.currentText()]
-			if mapsNotBookmarks:
-				self.ui.caltopoMapNameComboBox.addItems([m['title'] for m in mapsNotBookmarks])
+			rprint(' fcbc mapList:')
+			rprint(json.dumps(mapList,indent=3))
+			relsInFolder=[m for m in mapList if m['folderName']==self.ui.caltopoFolderComboBox.currentText()]
+			# mapsNotBookmarks=[m for m in mapList if m['type']=='map' and m['folderName']==self.ui.caltopoFolderComboBox.currentText()]
+			# rprint(' fcbc: mapsNotBookmarks:')
+			# rprint(json.dumps(mapsNotBookmarks,indent=3))
+			if relsInFolder:
+				# self.ui.caltopoMapNameComboBox.addItems([m['title'] for m in mapsNotBookmarks])
+				self.ui.caltopoMapNameComboBox.addItems([r['title'] for r in relsInFolder])
 				self.ui.caltopoMapNameComboBox.setCurrentIndex(0)
+			# display bookmarks in italics
+			for n in range(len(relsInFolder)):
+				if relsInFolder[n]['type']=='bookmark':
+					self.ui.caltopoMapNameComboBox.setItemData(n,self.caltopoMapNameItalicFont,Qt.FontRole)
+
 				# latestMap=mapsNotBookmarks[0]
 				# rprint('latest map: title="'+str(latestMap['title']+'" ID='+str(latestMap['id'])))
 				# self.ui.caltopoMapNameField.setText(str(latestMap['title']))
