@@ -767,7 +767,7 @@ class CaltopoSession():
                         permission='write'
                     else:
                         permission='unknown'
-                    folderId=mp.get('folderId',None)
+                    folderId=bp.get('folderId',None)
                     folderName='<Top Level>'
                     if folderId:
                         folderName=folderDict[folderId]
