@@ -7413,37 +7413,110 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# force uppercase
 		txtU=txt.upper()
 		if txt!=txtU:
+			rprint(' mitc: uppercasing map ID field from '+str(txt)+' to '+str(txtU))
 			self.ui.caltopoMapIDField.setText(txtU)
 		dl=self.parent.caltopoMapListDicts
 		self.pauseCB=True
+		# deal with multiple matching mapIDs: there could be multiple bookmarks
+		#  in different accounts, but there will only be one map
+		# if there is a currently selected account, then any match in that account should
+		#  be first (so that it is selected in the GUI), even if it's a bookmark; if there
+		#  is no currently selected account, or if there is no match in the currently
+		#  selected account, then the map (not bookmark/s) should be selected in the GUI
+		allMatches=[]
 		for d in dl:
 			# rprint(' next d')
-			for map in d['mapList']:
-				# rprint('  next m')
-				if map['id']==txt:
-					# rprint('match:'+str(d['groupAccountTitle'])+'/'+str(map['folderName'])+'/'+str(map['title']))
-					rprint('  match: setting text on account combo box')
-					self.ui.caltopoAccountComboBox.setCurrentText(d['groupAccountTitle'])
-					rprint('  match: setting text on folder combo box')
-					self.ui.caltopoFolderComboBox.setCurrentText(map['folderName'])
-					rprint('  match: setting text on title combo box')
-					self.ui.caltopoMapNameComboBox.setCurrentText(map['title'])
-					self.pauseCB=False
-					rprint('  match processing complete; unpausing callbacks')
-					return
-		rprint('  no match: setting text on account combo box')
-		self.ui.caltopoAccountComboBox.setCurrentIndex(0)
-		rprint('  no match: setting text on folder combo box')
-		self.ui.caltopoFolderComboBox.setCurrentIndex(0)
-		rprint('  no match: setting text on title combo box')
-		self.ui.caltopoMapNameComboBox.setCurrentIndex(0)
-		self.pauseCB=False
-		rprint('  no match processing complete; unpausing callbacks')
+			matches=[dd for dd in d['mapList'] if dd['id'].upper()==txtU]
+			if matches:
+				gat=d.get('groupAccountTitle')
+				# rprint('  mitc all matches from mapList "'+str(gat)+'":')
+				for match in matches:
+					match['accountTitle']=gat # add account title to dict, to make sorting easier
+				# rprint(json.dumps(matches,indent=3))
+				allMatches+=matches
+		# rprint('allMatches:')
+		# rprint(json.dumps(allMatches,indent=3))
+
+		selectedAcctName=self.ui.caltopoAccountComboBox.currentText()
+		matchesInThisAcct=[match for match in allMatches if match['accountTitle']==selectedAcctName]
+		# rprint('matchesInThisAcct pre-sort:')
+		# rprint(json.dumps(matchesInThisAcct,indent=3))
+		# sort in descending alphabetical order of 'type', i.e. map(s) first then bookmarks
+		matchesInThisAcct.sort(key=lambda match: match.get('type'),reverse=True)
+		# rprint('matchesInThisAcct post-sort:')
+		# rprint(json.dumps(matchesInThisAcct,indent=3))
+		
+		matchesInOtherAccts=[match for match in allMatches if match['accountTitle']!=selectedAcctName]
+		# rprint('matchesInOtherAccts pre-sort:')
+		# rprint(json.dumps(matchesInOtherAccts,indent=3))
+		# sort in descending alphabetical order of 'type', i.e. map(s) first then bookmarks
+		matchesInOtherAccts.sort(key=lambda match: match.get('type'),reverse=True)
+		# rprint('matchesInOtherAccts post-sort:')
+		# rprint(json.dumps(matchesInOtherAccts,indent=3))
+		
+		theMatch={}
+		if matchesInThisAcct:
+			theMatch=matchesInThisAcct[0] # map/s then bookmark/s in the currently selected account
+		elif matchesInOtherAccts:
+			theMatch=matchesInOtherAccts[0] # map/s then bookmark/s in other accounts
+
+		if theMatch:
+			rprint('  mitc match:')
+			rprint(json.dumps(theMatch,indent=3))
+			# rprint('match:'+str(d['groupAccountTitle'])+'/'+str(map['folderName'])+'/'+str(map['title']))
+			rprint('  mitc match: setting text on account combo box to "'+str(theMatch['accountTitle'])+'"')
+			self.ui.caltopoAccountComboBox.setCurrentText(theMatch['accountTitle'])
+			rprint('  mitc match: setting text on folder combo box to "'+str(theMatch['folderName'])+'"')
+			self.ui.caltopoFolderComboBox.setCurrentText(theMatch['folderName'])
+			rprint('  mitc match: setting text on title combo box to "'+str(theMatch['title'])+'"')
+			self.ui.caltopoMapNameComboBox.setCurrentText(theMatch['title'])
+			self.pauseCB=False
+			rprint('  mitc match processing complete; unpausing callbacks')
+		else: # no match
+			rprint('  no match: setting account combo box index to 0')
+			self.ui.caltopoAccountComboBox.setCurrentIndex(0)
+			rprint('  no match: setting folder combo box index to 0')
+			self.ui.caltopoFolderComboBox.setCurrentIndex(0)
+			rprint('  no match: setting map name combo box index to 0')
+			self.ui.caltopoMapNameComboBox.setCurrentIndex(0)
+			self.pauseCB=False
+			rprint('  no match processing complete; unpausing callbacks')
+
+		# if selectedAcctName in matchDict.keys():
+		# 	theMatch=matchDict[selectedAcctName][0] # pick the first one in the selected account
+		# 	theMatch['accountName']=selectedAcctName
+		# else: # not in the selected account; find an account where it's a map rather than bookmark
+		# 	theMatch=
+
+		# for d in dl:
+		# 	for map in d['mapList']:
+		# 		# rprint('  next m')
+		# 		if map['id'].upper()==txtU:
+		# 			rprint('  mitc match:')
+		# 			rprint(json.dumps(map,indent=3))
+		# 			# rprint('match:'+str(d['groupAccountTitle'])+'/'+str(map['folderName'])+'/'+str(map['title']))
+		# 			rprint('  mitc match: setting text on account combo box to "'+str(d['groupAccountTitle'])+'"')
+		# 			self.ui.caltopoAccountComboBox.setCurrentText(d['groupAccountTitle'])
+		# 			rprint('  mitc match: setting text on folder combo box to "'+str(map['folderName'])+'"')
+		# 			self.ui.caltopoFolderComboBox.setCurrentText(map['folderName'])
+		# 			rprint('  mitc match: setting text on title combo box to "'+str(map['title'])+'"')
+		# 			self.ui.caltopoMapNameComboBox.setCurrentText(map['title'])
+		# 			self.pauseCB=False
+		# 			rprint('  mitc match processing complete; unpausing callbacks')
+		# 			return
+		# rprint('  no match: setting account combo box index to 0')
+		# self.ui.caltopoAccountComboBox.setCurrentIndex(0)
+		# rprint('  no match: setting folder combo box index to 0')
+		# self.ui.caltopoFolderComboBox.setCurrentIndex(0)
+		# rprint('  no match: setting map name combo box index to 0')
+		# self.ui.caltopoMapNameComboBox.setCurrentIndex(0)
+		# self.pauseCB=False
+		# rprint('  no match processing complete; unpausing callbacks')
 
 	def caltopoAccountComboBoxChanged(self):
-		rprint('acct')
+		rprint('acct combo box changed')
 		if self.pauseAccountCB:
-			rprint(' paused')
+			rprint(' acbc: paused; returning')
 			return
 		# time.sleep(2)
 		# groupAccountNames=[d.get('groupAccountTitle',None) for d in self.parent.caltopoMapListDicts]
@@ -7465,7 +7538,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		rprint('acct.end')
 
 	def caltopoFolderComboBoxChanged(self):
-		rprint('folder')
+		rprint('folder changed - rebuilding map name choices')
 		# time.sleep(2)
 		# if self.pauseCB:
 		# 	rprint(' paused')
@@ -7487,7 +7560,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			# 	self.ui.caltopoMapNameField.setText('Account has no maps')
 
 	def caltopoMapNameComboBoxChanged(self):
-		rprint('name')
+		rprint('name changed: calling updateMapIDFieldFromTitle')
 		# time.sleep(2)
 		# if self.pauseCB:
 		# 	rprint(' paused')
@@ -7495,10 +7568,10 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.caltopoUpdateMapIDFieldFromTitle(self.ui.caltopoMapNameComboBox.currentText())
 
 	def caltopoUpdateMapIDFieldFromTitle(self,title):
-		rprint('update ID from title')
+		rprint('update ID from title "'+str(title)+'"')
 		# time.sleep(2)
 		if self.pauseCB:
-			rprint(' paused')
+			rprint(' uift: paused; returning')
 			return
 		dicts=[d for d in self.parent.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
 		if dicts:
@@ -7506,11 +7579,13 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			matches=[m for m in mapList if m['title']==title]
 			if matches:
 				self.ui.caltopoMapIDField.setText(matches[0]['id'])
+				rprint(' uift: match='+str(matches[0]['id']))
 			else:
 				self.ui.caltopoMapIDField.setText('')
+				rprint(' uift: no match; clearing id field')
 
-	def caltopoPrintTimer(self):
-		rprint('caltopo timer')
+	# def caltopoPrintTimer(self):
+	# 	rprint('caltopo timer')
 
 	def caltopoConnectButtonClicked(self):
 		rprint('connect button clicked: caltopoLink='+str(self.parent.caltopoLink))
