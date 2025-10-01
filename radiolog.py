@@ -2838,7 +2838,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				newId=existingId # preserve caltopoID if already set
 				# label=self.getRadioMarkerLabelForCallsign(callsign)
 				r=False
-				if self.cts and self.caltopoLink>0:
+				if self.cts and self.caltopoLink in [-1,2]: # -1 = unexpected disconnect; 2 = connected to map
 					self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
 					# since this is in a separate thread, we can do a wait loop until the folder ID is not None
 					while self.radioMarkerFID==None:
@@ -2876,7 +2876,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					# if not existingId:
 					# 	newId=id # only set caltopoId if this is the first successful request
 				else:
-					rprint('  marker request failed')
+					rprint('  marker request failed: cts='+str(self.cts)+'  caltopoLink='+str(self.caltopoLink))
 			except Exception as e:
 				rprint('error: exception during radioMarkerWorker: '+str(e))
 
