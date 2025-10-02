@@ -415,6 +415,9 @@
               <pointsize>11</pointsize>
              </font>
             </property>
+            <property name="editable">
+             <bool>true</bool>
+            </property>
            </widget>
           </item>
           <item>
@@ -710,22 +713,6 @@
    </hints>
   </connection>
   <connection>
-   <sender>caltopoMapNameComboBox</sender>
-   <signal>currentTextChanged(QString)</signal>
-   <receiver>optionsDialog</receiver>
-   <slot>caltopoMapNameComboBoxChanged()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>119</x>
-     <y>361</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>4</x>
-     <y>368</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
    <sender>caltopoAccountComboBox</sender>
    <signal>currentTextChanged(QString)</signal>
    <receiver>optionsDialog</receiver>
@@ -757,6 +744,22 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>caltopoMapNameComboBox</sender>
+   <signal>highlighted(int)</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoMapNameComboBoxHighlightChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>72</x>
+     <y>356</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>4</x>
+     <y>334</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>secondWorkingDirCB()</slot>
@@ -769,6 +772,7 @@
   <slot>caltopoMapNameComboBoxChanged()</slot>
   <slot>caltopoAccountComboBoxChanged()</slot>
   <slot>caltopoMapIDTextChanged()</slot>
+  <slot>caltopoMapNameComboBoxHighlightChanged()</slot>
  </slots>
  <buttongroups>
   <buttongroup name="buttonGroup"/>

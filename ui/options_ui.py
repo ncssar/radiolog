@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'options.ui'
+# Form implementation generated from reading ui file 'C:\Users\caver\Documents\GitHub\radiolog\designer\options.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.11
 #
@@ -221,6 +221,7 @@ class Ui_optionsDialog(object):
         font = QtGui.QFont()
         font.setPointSize(11)
         self.caltopoMapNameComboBox.setFont(font)
+        self.caltopoMapNameComboBox.setEditable(True)
         self.caltopoMapNameComboBox.setObjectName("caltopoMapNameComboBox")
         self.horizontalLayout_2.addWidget(self.caltopoMapNameComboBox)
         self.caltopoMapIDField = QtWidgets.QLineEdit(self.caltopoGroupBox)
@@ -317,9 +318,9 @@ class Ui_optionsDialog(object):
         self.caltopoRadioMarkersCheckBox.stateChanged['int'].connect(optionsDialog.caltopoEnabledCB) # type: ignore
         self.caltopoConnectButton.clicked.connect(optionsDialog.caltopoConnectButtonClicked) # type: ignore
         self.caltopoFolderComboBox.currentTextChanged['QString'].connect(optionsDialog.caltopoFolderComboBoxChanged) # type: ignore
-        self.caltopoMapNameComboBox.currentTextChanged['QString'].connect(optionsDialog.caltopoMapNameComboBoxChanged) # type: ignore
         self.caltopoAccountComboBox.currentTextChanged['QString'].connect(optionsDialog.caltopoAccountComboBoxChanged) # type: ignore
         self.caltopoMapIDField.textChanged['QString'].connect(optionsDialog.caltopoMapIDTextChanged) # type: ignore
+        self.caltopoMapNameComboBox.highlighted['int'].connect(optionsDialog.caltopoMapNameComboBoxHighlightChanged) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(optionsDialog)
 
     def retranslateUi(self, optionsDialog):

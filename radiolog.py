@@ -1027,6 +1027,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.caltopoConnectButtonPrevText=''
 		self.caltopoGroupFieldsPrevEnabled=False
 		self.radioMarkerDict={}
+		self.caltopoMapListDicts=[]
 		self.radioMarkerFID=None
 
 		self.optionsDialog=optionsDialog(self)
@@ -7191,8 +7192,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.parent=parent
 		self.ui=Ui_optionsDialog()
 		self.ui.setupUi(self)
-		self.caltopoMapNameItalicFont=QFont(self.ui.caltopoMapNameComboBox.font())
-		self.caltopoMapNameItalicFont.setItalic(True)
+		self.caltopoItalicFont=QFont(self.ui.caltopoMapNameComboBox.font())
+		self.caltopoItalicFont.setItalic(True)
 		self.setStyleSheet(globalStyleSheet)
 		self.pauseCB=False
 		self.pauseIDCB=False
@@ -7207,8 +7208,11 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.setFixedSize(self.size())
 		self.secondWorkingDirCB()
 		self.newEntryWarningCB()
-		self.ui.caltopoMapNameComboBox.textHighlighted.connect(self.caltopoUpdateMapIDFieldFromTitle)
 		self.caltopoUpdateGUI()
+		self.qle=self.ui.caltopoMapNameComboBox.lineEdit()
+		self.qle.setReadOnly(True) # but still editable, as recommended
+		self.caltopoNormalFont=QFont(self.ui.caltopoMapNameComboBox.font())
+		self.caltopoMapNameComboBoxHighlightChanged(0)
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
@@ -7491,6 +7495,10 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.ui.caltopoFolderComboBox.setCurrentText(theMatch['folderName'])
 			rprint('  mitc match: setting text on title combo box to "'+str(theMatch['title'])+'"')
 			self.ui.caltopoMapNameComboBox.setCurrentText(theMatch['title'])
+			if theMatch['type']=='bookmark':
+				self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoItalicFont)
+			else:
+				self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoNormalFont)
 			rprint('  mitc match processing complete; unpausing callbacks')
 		else: # no match
 			# rprint('  no match: setting account combo box index to 0')
@@ -7584,7 +7592,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			for n in range(len(relsInFolder)):
 				if relsInFolder[n]['type']=='bookmark':
 					# offset by 1 to account for <Choose Map> being the first entry
-					self.ui.caltopoMapNameComboBox.setItemData(n+1,self.caltopoMapNameItalicFont,Qt.FontRole)
+					self.ui.caltopoMapNameComboBox.setItemData(n+1,self.caltopoItalicFont,Qt.FontRole)
 
 				# latestMap=mapsNotBookmarks[0]
 				# rprint('latest map: title="'+str(latestMap['title']+'" ID='+str(latestMap['id'])))
@@ -7596,6 +7604,14 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.pauseCB=False
 		self.caltopoMapNameComboBoxChanged() # call it once here to do a single update of mapID
 
+	# this gets called when the highlight (the hovered item) changes
+	def caltopoMapNameComboBoxHighlightChanged(self,i):
+		rprint('name hover changed to '+str(i)+':"'+str(self.ui.caltopoMapNameComboBox.currentText())+'" : calling updateMapIDFieldFromTitle')
+		self.qle.setText(self.ui.caltopoMapNameComboBox.itemText(i))
+		self.qle.setFont(self.ui.caltopoMapNameComboBox.itemData(i,Qt.FontRole) or self.caltopoNormalFont)
+		self.caltopoMapNameComboBoxChanged() # now call the same callback as when a different item is clicked
+
+	# this only gets called when a (different) item is clicked
 	def caltopoMapNameComboBoxChanged(self):
 		rprint('name changed to "'+str(self.ui.caltopoMapNameComboBox.currentText())+'" : calling updateMapIDFieldFromTitle')
 		# time.sleep(2)
