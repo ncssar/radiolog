@@ -7195,6 +7195,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.caltopoMapNameItalicFont.setItalic(True)
 		self.setStyleSheet(globalStyleSheet)
 		self.pauseCB=False
+		self.pauseIDCB=False
 		self.pauseAccountCB=False
 		self.ui.timeoutField.valueChanged.connect(self.displayTimeout)
 		self.displayTimeout()
@@ -7424,7 +7425,10 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	def caltopoMapIDTextChanged(self):
 		rprint('caltopoMapIDTextChanged to "'+str(self.ui.caltopoMapIDField.text())+'"')
 		if self.pauseCB:
-			rprint('mitc: paused; returning')
+			rprint('mitc: pausCB is set; returning')
+			return
+		if self.pauseIDCB:
+			rprint('mitc: pauseIDCB is set; returning')
 			return
 		txt=self.ui.caltopoMapIDField.text()
 		# force uppercase
@@ -7433,7 +7437,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			rprint(' mitc: uppercasing map ID field from '+str(txt)+' to '+str(txtU))
 			self.ui.caltopoMapIDField.setText(txtU)
 		dl=self.parent.caltopoMapListDicts
-		self.pauseCB=True
+		self.pauseIDCB=True # but allow other callbacks to proceed, to populate comboboxes when a match is found
 		# deal with multiple matching mapIDs: there could be multiple bookmarks
 		#  in different accounts, but there will only be one map
 		# if there is a currently selected account, then any match in that account should
@@ -7489,14 +7493,14 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.ui.caltopoMapNameComboBox.setCurrentText(theMatch['title'])
 			rprint('  mitc match processing complete; unpausing callbacks')
 		else: # no match
-			rprint('  no match: setting account combo box index to 0')
-			self.ui.caltopoAccountComboBox.setCurrentIndex(0)
+			# rprint('  no match: setting account combo box index to 0')
+			# self.ui.caltopoAccountComboBox.setCurrentIndex(0)
 			rprint('  no match: setting folder combo box index to 0')
 			self.ui.caltopoFolderComboBox.setCurrentIndex(0)
 			rprint('  no match: setting map name combo box index to 0')
 			self.ui.caltopoMapNameComboBox.setCurrentIndex(0)
 			rprint('  no match processing complete; unpausing callbacks')
-		self.pauseCB=False
+		self.pauseIDCB=False
 
 		# if selectedAcctName in matchDict.keys():
 		# 	theMatch=matchDict[selectedAcctName][0] # pick the first one in the selected account
@@ -7567,18 +7571,20 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			mapList=dicts[0]['mapList']
 			rprint(' fcbc mapList:')
 			rprint(json.dumps(mapList,indent=3))
-			relsInFolder=[m for m in mapList if m['folderName']==self.ui.caltopoFolderComboBox.currentText()]
+			relsInFolder=[m for m in mapList if m['folderName']==(self.ui.caltopoFolderComboBox.currentText() or '<Top Level>')]
 			# mapsNotBookmarks=[m for m in mapList if m['type']=='map' and m['folderName']==self.ui.caltopoFolderComboBox.currentText()]
 			# rprint(' fcbc: mapsNotBookmarks:')
 			# rprint(json.dumps(mapsNotBookmarks,indent=3))
 			if relsInFolder:
 				# self.ui.caltopoMapNameComboBox.addItems([m['title'] for m in mapsNotBookmarks])
-				self.ui.caltopoMapNameComboBox.addItems([r['title'] for r in relsInFolder])
+				self.ui.caltopoMapNameComboBox.addItems(['<Choose Map>']+[r['title'] for r in relsInFolder])
+				# self.ui.caltopoMapNameComboBox.addItems([r['title'] for r in relsInFolder])
 				self.ui.caltopoMapNameComboBox.setCurrentIndex(0)
 			# display bookmarks in italics
 			for n in range(len(relsInFolder)):
 				if relsInFolder[n]['type']=='bookmark':
-					self.ui.caltopoMapNameComboBox.setItemData(n,self.caltopoMapNameItalicFont,Qt.FontRole)
+					# offset by 1 to account for <Choose Map> being the first entry
+					self.ui.caltopoMapNameComboBox.setItemData(n+1,self.caltopoMapNameItalicFont,Qt.FontRole)
 
 				# latestMap=mapsNotBookmarks[0]
 				# rprint('latest map: title="'+str(latestMap['title']+'" ID='+str(latestMap['id'])))
@@ -7594,7 +7600,10 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		rprint('name changed to "'+str(self.ui.caltopoMapNameComboBox.currentText())+'" : calling updateMapIDFieldFromTitle')
 		# time.sleep(2)
 		if self.pauseCB:
-			rprint(' ncbc: paused; returning')
+			rprint(' ncbc: pauseCB set; returning')
+			return
+		if self.pauseIDCB:
+			rprint(' ncbc: pauseIDCB set; returning')
 			return
 		self.caltopoUpdateMapIDFieldFromTitle(self.ui.caltopoMapNameComboBox.currentText())
 
@@ -7602,7 +7611,12 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		rprint('update ID from title "'+str(title)+'"')
 		# time.sleep(2)
 		if self.pauseCB:
-			rprint(' uift: paused; returning')
+			rprint(' uift: pauseCB set; returning')
+			return
+		if title=='<Choose Map>' and not self.pauseIDCB:
+			self.pauseCB=True
+			self.ui.caltopoMapIDField.setText('')
+			self.pauseCB=False
 			return
 		dicts=[d for d in self.parent.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
 		if dicts:
