@@ -7247,6 +7247,14 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.raise_()
 			self.parent.fsSaveLog()
 
+	# caltopo GUI fields interaction
+	# there are four relevant fields: Account, Folder, and Title QComboBoxes, and ID QLineEdit; call them A,F,T,I
+	# Here's the intended sequence of field updates, after a given field is edited by the user in the GUI:
+	# A : populate F, set F index to 0 --> populate T, set T index to 0 --> set I
+	# F : populate T, set T index to 0 --> set I
+	# T : set I
+	# I : use the Search Tree to find a match; set A, F, and T, all without callbacks
+
 	def caltopoUpdateGUI(self):
 		# self.parent.caltopoLink states:
 		#  -1 = offline
@@ -7392,7 +7400,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# rprint(json.dumps(self.parent.caltopoWorker.caltopoMapListDicts,indent=3))
 		rprint('rad1')
 		rprint('map items a:'+str([self.ui.caltopoMapNameComboBox.itemText(i) for i in range(self.ui.caltopoMapNameComboBox.count())]))
-		self.pauseAccountCB=True
+		# self.pauseAccountCB=True
+		self.pauseCB=True
 		# clear out combo box choices now, even if they don't redisplay, to avoid conflict later during caltopoAccountComboBoxChanged
 		self.ui.caltopoAccountComboBox.clear()
 		self.ui.caltopoFolderComboBox.clear()
@@ -7405,14 +7414,18 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.caltopoAccountComboBox.addItems(accounts)
 		rprint('acct items:'+str([self.ui.caltopoAccountComboBox.itemText(i) for i in range(self.ui.caltopoAccountComboBox.count())]))
 		rprint('rad3')
-		self.pauseAccountCB=False
+		# self.pauseAccountCB=False
+		self.pauseCB=False
 		rprint('map items b:'+str([self.ui.caltopoMapNameComboBox.itemText(i) for i in range(self.ui.caltopoMapNameComboBox.count())]))
 		self.ui.caltopoAccountComboBox.setCurrentText(self.parent.caltopoDefaultTeamAccount)
 		rprint('map items c:'+str([self.ui.caltopoMapNameComboBox.itemText(i) for i in range(self.ui.caltopoMapNameComboBox.count())]))
 		rprint('rad4')
 
 	def caltopoMapIDTextChanged(self):
-		rprint('caltopoMapIDTextChanged; pausing callbacks')
+		rprint('caltopoMapIDTextChanged to "'+str(self.ui.caltopoMapIDField.text())+'"')
+		if self.pauseCB:
+			rprint('mitc: paused; returning')
+			return
 		txt=self.ui.caltopoMapIDField.text()
 		# force uppercase
 		txtU=txt.upper()
@@ -7474,7 +7487,6 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.ui.caltopoFolderComboBox.setCurrentText(theMatch['folderName'])
 			rprint('  mitc match: setting text on title combo box to "'+str(theMatch['title'])+'"')
 			self.ui.caltopoMapNameComboBox.setCurrentText(theMatch['title'])
-			self.pauseCB=False
 			rprint('  mitc match processing complete; unpausing callbacks')
 		else: # no match
 			rprint('  no match: setting account combo box index to 0')
@@ -7483,8 +7495,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.ui.caltopoFolderComboBox.setCurrentIndex(0)
 			rprint('  no match: setting map name combo box index to 0')
 			self.ui.caltopoMapNameComboBox.setCurrentIndex(0)
-			self.pauseCB=False
 			rprint('  no match processing complete; unpausing callbacks')
+		self.pauseCB=False
 
 		# if selectedAcctName in matchDict.keys():
 		# 	theMatch=matchDict[selectedAcctName][0] # pick the first one in the selected account
@@ -7518,8 +7530,9 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# rprint('  no match processing complete; unpausing callbacks')
 
 	def caltopoAccountComboBoxChanged(self):
-		rprint('acct combo box changed')
-		if self.pauseAccountCB:
+		rprint('acct combo box changed to "'+str(self.ui.caltopoAccountComboBox.currentText())+'"')
+		# if self.pauseAccountCB:
+		if self.pauseCB:
 			rprint(' acbc: paused; returning')
 			return
 		# time.sleep(2)
@@ -7544,9 +7557,10 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	def caltopoFolderComboBoxChanged(self):
 		rprint('folder changed to "'+str(self.ui.caltopoFolderComboBox.currentText())+'" - rebuilding map name choices')
 		# time.sleep(2)
-		# if self.pauseCB:
-		# 	rprint(' paused')
-		# 	return
+		if self.pauseCB:
+			rprint(' fcbc: paused; returning')
+			return
+		self.pauseCB=True
 		self.ui.caltopoMapNameComboBox.clear()
 		dicts=[d for d in self.parent.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
 		if dicts:
@@ -7573,13 +7587,15 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			# else:
 			# 	self.ui.caltopoMapIDField.setText('')
 			# 	self.ui.caltopoMapNameField.setText('Account has no maps')
+		self.pauseCB=False
+		self.caltopoMapNameComboBoxChanged() # call it once here to do a single update of mapID
 
 	def caltopoMapNameComboBoxChanged(self):
-		rprint('name changed: calling updateMapIDFieldFromTitle')
+		rprint('name changed to "'+str(self.ui.caltopoMapNameComboBox.currentText())+'" : calling updateMapIDFieldFromTitle')
 		# time.sleep(2)
-		# if self.pauseCB:
-		# 	rprint(' paused')
-		# 	return
+		if self.pauseCB:
+			rprint(' ncbc: paused; returning')
+			return
 		self.caltopoUpdateMapIDFieldFromTitle(self.ui.caltopoMapNameComboBox.currentText())
 
 	def caltopoUpdateMapIDFieldFromTitle(self,title):
