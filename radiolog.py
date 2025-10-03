@@ -7606,7 +7606,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 				# self.ui.caltopoMapNameComboBox.addItems([m['title'] for m in mapsNotBookmarks])
 				self.ui.caltopoMapNameComboBox.addItems(['<Choose Map>']+[r['title'] for r in relsInFolder])
 				# self.ui.caltopoMapNameComboBox.addItems([r['title'] for r in relsInFolder])
-				self.ui.caltopoMapNameComboBox.setCurrentIndex(0)
+				# select the most recent entry by default
+				self.ui.caltopoMapNameComboBox.setCurrentIndex(1) # this line only runs for non-empty relsInFolder; no need for another 'if'
 			# display bookmarks in italics
 			for n in range(len(relsInFolder)):
 				if relsInFolder[n]['type']=='bookmark':
