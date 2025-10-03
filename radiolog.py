@@ -7452,6 +7452,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 
 	def caltopoMapIDTextChanged(self):
 		rprint('caltopoMapIDTextChanged to "'+str(self.ui.caltopoMapIDField.text())+'"')
+		self.ui.caltopoConnectButton.setEnabled(bool(self.ui.caltopoMapIDField.text()))
 		if self.pauseCB:
 			rprint('mitc: pausCB is set; returning')
 			return
