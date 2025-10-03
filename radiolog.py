@@ -706,6 +706,25 @@ class CustomPlainTextEdit(QPlainTextEdit):
 		super(CustomPlainTextEdit,self).focusOutEvent(e)
 
 
+# custom QComboBox - click on the lineEdit opens the popup, like a non-editable QComboBox
+#  from google search AI overview
+class CustomComboBox(QComboBox):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setEditable(True)
+        self.lineEdit().setReadOnly(True)
+
+        # Install an event filter on the QLineEdit to capture mouse clicks
+        self.lineEdit().installEventFilter(self)
+
+    def eventFilter(self, obj, event):
+        # Filter for the specific QLineEdit and mouse press events
+        if obj == self.lineEdit() and event.type() == QtCore.QEvent.Type.MouseButtonPress:
+            self.showPopup()
+            return True  # Event is handled
+        return super().eventFilter(obj, event)
+	
+
 class CustomLineEdit(QLineEdit):
 	def __init__(self,parent,*args,**kwargs):
 		self.parent=parent

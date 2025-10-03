@@ -403,7 +403,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QComboBox" name="caltopoMapNameComboBox">
+           <widget class="CustomComboBox" name="caltopoMapNameComboBox">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
               <horstretch>0</horstretch>
@@ -566,6 +566,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CustomComboBox</class>
+   <extends>QComboBox</extends>
+   <header>radiolog.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections>
   <connection>

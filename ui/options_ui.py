@@ -212,7 +212,7 @@ class Ui_optionsDialog(object):
         self.caltopoMapLabel.setFont(font)
         self.caltopoMapLabel.setObjectName("caltopoMapLabel")
         self.horizontalLayout_2.addWidget(self.caltopoMapLabel)
-        self.caltopoMapNameComboBox = QtWidgets.QComboBox(self.caltopoGroupBox)
+        self.caltopoMapNameComboBox = CustomComboBox(self.caltopoGroupBox)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -349,3 +349,4 @@ class Ui_optionsDialog(object):
         self.caltopoConnectButton.setText(_translate("optionsDialog", "Click to Connect"))
         self.caltopoRadioMarkersCheckBox.setText(_translate("optionsDialog", "Add / update radio location markers"))
         self.fsSendButton.setText(_translate("optionsDialog", "FleetSync Send Console"))
+from radiolog import CustomComboBox
