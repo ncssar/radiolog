@@ -7632,7 +7632,10 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 
 	# this only gets called when a (different) item is clicked
 	def caltopoMapNameComboBoxChanged(self):
-		rprint('name changed to "'+str(self.ui.caltopoMapNameComboBox.currentText())+'" : calling updateMapIDFieldFromTitle')
+		curr=self.ui.caltopoMapNameComboBox.currentText()
+		rprint('name changed to "'+str(curr)+'" : calling updateMapIDFieldFromTitle')
+		if curr=='<Choose Map>': # force non-italic for placeholder selection
+			self.qle.setFont(self.caltopoNormalFont)
 		# time.sleep(2)
 		if self.pauseCB:
 			rprint(' ncbc: pauseCB set; returning')
