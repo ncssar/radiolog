@@ -7211,6 +7211,9 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.parent=parent
 		self.ui=Ui_optionsDialog()
 		self.ui.setupUi(self)
+		self.caltopoNormalFont=QFont(self.ui.caltopoMapNameComboBox.font())
+		self.caltopoNormalStrikeFont=QFont(self.caltopoNormalFont)
+		self.caltopoNormalStrikeFont.setStrikeOut(True)
 		self.caltopoItalicFont=QFont(self.ui.caltopoMapNameComboBox.font())
 		self.caltopoItalicFont.setItalic(True)
 		self.caltopoItalicStrikeFont=QFont(self.caltopoItalicFont)
@@ -7232,7 +7235,6 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.caltopoUpdateGUI()
 		self.qle=self.ui.caltopoMapNameComboBox.lineEdit()
 		self.qle.setReadOnly(True) # but still editable, as recommended
-		self.caltopoNormalFont=QFont(self.ui.caltopoMapNameComboBox.font())
 		self.caltopoMapNameComboBoxHighlightChanged(0)
 		self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoItalicStrikeFont)
 
@@ -7523,6 +7525,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 					self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoItalicStrikeFont)
 				else:
 					self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoItalicFont)
+			elif theMatch.get('locked'):
+				self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoNormalStrikeFont)
 			else:
 				self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoNormalFont)
 			i=self.ui.caltopoMapNameComboBox.currentIndex()
@@ -7626,6 +7630,9 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 						self.ui.caltopoMapNameComboBox.setItemData(n+1,self.caltopoItalicStrikeFont,Qt.FontRole)
 					else:
 						self.ui.caltopoMapNameComboBox.setItemData(n+1,self.caltopoItalicFont,Qt.FontRole)
+				elif relsInFolder[n].get('locked'):
+					rprint('strike:'+str(n+1))
+					self.ui.caltopoMapNameComboBox.setItemData(n+1,self.caltopoNormalStrikeFont,Qt.FontRole)
 
 				# latestMap=mapsNotBookmarks[0]
 				# rprint('latest map: title="'+str(latestMap['title']+'" ID='+str(latestMap['id'])))
@@ -7638,6 +7645,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.caltopoMapNameComboBoxChanged() # call it once here to do a single update of mapID
 
 	# this gets called when the highlight (the hovered item) changes
+	# set the lineEdit text here; lineEdit font is then set during caltopoMapIDTextChanged (via caltopoMapNameComboBoxChanged)
 	def caltopoMapNameComboBoxHighlightChanged(self,i):
 		rprint('name hover changed to '+str(i)+':"'+str(self.ui.caltopoMapNameComboBox.currentText())+'" : calling updateMapIDFieldFromTitle')
 		# italic=False

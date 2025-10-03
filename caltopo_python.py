@@ -747,6 +747,8 @@ class CaltopoSession():
 					'folderId':folderId,
 					'folderName':folderName
                 }
+                if 'locked' in mp.keys(): # does't exist for bookmarks, and doesn't exist for all maps
+                    md['locked']=mp['locked']
                 if md not in theList:
                     theList.append(md)
             if includeBookmarks:
