@@ -7213,6 +7213,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.setupUi(self)
 		self.caltopoItalicFont=QFont(self.ui.caltopoMapNameComboBox.font())
 		self.caltopoItalicFont.setItalic(True)
+		self.caltopoItalicStrikeFont=QFont(self.caltopoItalicFont)
+		self.caltopoItalicStrikeFont.setStrikeOut(True)
 		self.setStyleSheet(globalStyleSheet)
 		self.pauseCB=False
 		self.pauseIDCB=False
@@ -7232,6 +7234,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.qle.setReadOnly(True) # but still editable, as recommended
 		self.caltopoNormalFont=QFont(self.ui.caltopoMapNameComboBox.font())
 		self.caltopoMapNameComboBoxHighlightChanged(0)
+		self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoItalicStrikeFont)
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
@@ -7504,6 +7507,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		elif matchesInOtherAccts:
 			theMatch=matchesInOtherAccts[0] # map/s then bookmark/s in other accounts
 
+		# the following code runs after the ID text is changed, whether by typing the ID, or by selecting or hovering a different map name
 		if theMatch:
 			rprint('  mitc match:')
 			rprint(json.dumps(theMatch,indent=3))
@@ -7515,10 +7519,16 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			rprint('  mitc match: setting text on title combo box to "'+str(theMatch['title'])+'"')
 			self.ui.caltopoMapNameComboBox.setCurrentText(theMatch['title'])
 			if theMatch['type']=='bookmark':
-				self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoItalicFont)
+				if theMatch['permission']=='read':
+					self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoItalicStrikeFont)
+				else:
+					self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoItalicFont)
 			else:
 				self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoNormalFont)
-			rprint('  mitc match processing complete; unpausing callbacks')
+			i=self.ui.caltopoMapNameComboBox.currentIndex()
+			# itemFont=self.ui.caltopoMapNameComboBox.itemData(i,Qt.FontRole)
+			# self.ui.caltopoMapNameComboBox.lineEdit().setFont(itemFont or self.caltopoNormalFont)
+			rprint('  mitc match processing complete; unpausing callbacks; i='+str(i))
 		else: # no match
 			# rprint('  no match: setting account combo box index to 0')
 			# self.ui.caltopoAccountComboBox.setCurrentIndex(0)
@@ -7612,7 +7622,10 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			for n in range(len(relsInFolder)):
 				if relsInFolder[n]['type']=='bookmark':
 					# offset by 1 to account for <Choose Map> being the first entry
-					self.ui.caltopoMapNameComboBox.setItemData(n+1,self.caltopoItalicFont,Qt.FontRole)
+					if relsInFolder[n]['permission']=='read':
+						self.ui.caltopoMapNameComboBox.setItemData(n+1,self.caltopoItalicStrikeFont,Qt.FontRole)
+					else:
+						self.ui.caltopoMapNameComboBox.setItemData(n+1,self.caltopoItalicFont,Qt.FontRole)
 
 				# latestMap=mapsNotBookmarks[0]
 				# rprint('latest map: title="'+str(latestMap['title']+'" ID='+str(latestMap['id'])))
@@ -7627,8 +7640,20 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	# this gets called when the highlight (the hovered item) changes
 	def caltopoMapNameComboBoxHighlightChanged(self,i):
 		rprint('name hover changed to '+str(i)+':"'+str(self.ui.caltopoMapNameComboBox.currentText())+'" : calling updateMapIDFieldFromTitle')
+		# italic=False
+		# strikeOut=False
 		self.qle.setText(self.ui.caltopoMapNameComboBox.itemText(i))
-		self.qle.setFont(self.ui.caltopoMapNameComboBox.itemData(i,Qt.FontRole) or self.caltopoNormalFont)
+		# itemFont=self.ui.caltopoMapNameComboBox.itemData(i,Qt.FontRole)
+		# rprint('  itemFont='+str(itemFont))
+		# if itemFont:
+		# 	italic=itemFont.italic()
+		# 	strikeOut=itemFont.strikeOut()
+		# 	rprint('    itemFont is italic:'+str(itemFont.italic()))
+		# 	rprint('    itemFont is strikeout:'+str(itemFont.strikeOut()))
+		# self.qle.setFont(itemFont or self.caltopoNormalFont)
+		# self.qle.font().setItalic(italic)
+		# self.qle.font().setStrikeOut(strikeOut)
+		# self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoItalicFont)
 		self.caltopoMapNameComboBoxChanged() # now call the same callback as when a different item is clicked
 
 	# this only gets called when a (different) item is clicked
