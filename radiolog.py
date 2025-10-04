@@ -6848,7 +6848,15 @@ class MyWindow(QDialog,Ui_Dialog):
 				'type':'map',
 				'folderId':0,
 				'folderName':'<Top Level>'}]}
-		self.caltopoMapListDicts=[noMatchDict]+self.cts.getAllMapLists()
+		try:
+			aml=self.cts.getAllMapLists()
+		except Exception as e:
+			rprint('exception from getAllMapLists: '+str(e))
+			if 'Failed to resolve' in str(e):
+				rprint('  failed to resolve')
+				self.caltopoDisconnectedCallback()
+			return False
+		self.caltopoMapListDicts=[noMatchDict]+aml
 		# rprint('caltopoMapListDicts:')
 		# rprint(json.dumps(self.caltopoMapListDicts,indent=3))
 		self.caltopoLink=1
@@ -7351,7 +7359,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 				# self.ui.caltopoConnectButton.setText('Getting account data...')
 				# self.ui.caltopoConnectButton.setEnabled(False)
 				# QCoreApplication.processEvents()
-				self.parent.createCTS()
+				if not self.parent.createCTS(): # false return from createCTS indicates failure
+					return False
 				# rprint('createCTS completed')
 				# rprint('caltopoMapListDicts:')
 				# rprint(json.dumps(self.parent.caltopoMapListDicts,indent=3))
