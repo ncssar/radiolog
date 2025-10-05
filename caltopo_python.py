@@ -1544,6 +1544,7 @@ class CaltopoSession():
         # self.syncPause=True
         timeout=timeout or self.syncTimeout
         newMap='[NEW]' in apiUrlEnd  # specific mapID that indicates a new map should be created
+        ping='[PING]' in apiUrlEnd # just the server, e.g. to test the connection
         if self.apiVersion<0:
             logging.error("sendRequest: caltopo session is invalid or is not associated with a map; request aborted: method="+str(method)+" apiUrlEnd="+str(apiUrlEnd))
             return False
@@ -1588,6 +1589,9 @@ class CaltopoSession():
             if not self.key or not self.id:
                 logging.error("There was an attempt to send an internet request, but 'id' and/or 'key' was not specified for this session.  The request will not be sent.")
                 return False
+        if ping: # just the domain and port, e.g. 'caltopo.com'
+            mid=''
+            apiUrlEnd=''
         if newMap:
             mid='/api/v1/acct/'+accountId+'/CollaborativeMap'
             apiUrlEnd=''
@@ -1969,8 +1973,12 @@ class CaltopoSession():
         if r.status_code!=200:
             logging.info("response code = "+str(r.status_code))
 
-        logging.info('inside handleResponse; json:')
-        logging.info(json.dumps(r.json(),indent=3))
+        logging.info('inside handleResponse')
+        # logging.info('r:'+str(r))
+        try:
+            logging.info('response json:'+json.dumps(r.json(),indent=3))
+        except:
+            logging.info('response had no decodable json')
 
         # 'callbacks' argument structure: list of lists
         # each top-level element is a one-or-two-element list: callback method, with its arguments
@@ -1990,11 +1998,11 @@ class CaltopoSession():
         for cb in callbacks:
             logging.info('  processing callback: '+str(cb))
             args=[]
+            callbackArgs=[]
+            callbackKwArgs={}
             cbFunc=cb[0] # the Callable is always the first element
             if len(cb)>1: # more than one list element? the second element is the argument structure
                 args=cb[1]
-                callbackArgs=[]
-                callbackKwArgs={}
                 for arg in args:
                     if isinstance(arg,dict): # dict? it's the kwargs dict
                         logging.info('dict found; processing into kwargs')

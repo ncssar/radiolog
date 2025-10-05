@@ -801,6 +801,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	# inter-thread signals (GUI must only be modified by main-thread code to avoid crashes!)
 	_sig_caltopoDisconnected=pyqtSignal()
 	_sig_caltopoReconnected=pyqtSignal()
+	_sig_caltopoReconnectedFromCreateCTS=pyqtSignal()
 
 	def __init__(self,parent):
 		QDialog.__init__(self)
@@ -1457,6 +1458,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# connect inter-thread signals to main-thread slots
 		self._sig_caltopoDisconnected.connect(self.caltopoDisconnectedCallback_mainThread)
 		self._sig_caltopoReconnected.connect(self.caltopoReconnectedCallback_mainThread)
+		self._sig_caltopoReconnectedFromCreateCTS.connect(self.caltopoReconnectedFromCreateCTS_mainThread)
 
 		self.radioMarkerEvent=threading.Event()
 		self.radioMarkerThread=threading.Thread(target=self._radioMarkerWorker,args=(self.radioMarkerEvent,),daemon=True)
@@ -6832,7 +6834,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			# self.updateFeatureList("Folder")
 			# self.updateFeatureList("Marker")
 		rprint('  creating mapless online session for user '+self.caltopoAccountName)
-		self.cts=CaltopoSession(domainAndPort='caltopo.com',
+		domainAndPort='caltopo.com'
+		self.cts=CaltopoSession(domainAndPort=domainAndPort,
 								configpath=os.path.join(self.configDir,'cts.ini'),
 								account=self.caltopoAccountName,
 								deletedFeatureCallback=self.caltopoDeletedFeatureCallback,
@@ -6855,6 +6858,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			if 'Failed to resolve' in str(e):
 				rprint('  failed to resolve')
 				self.caltopoDisconnectedCallback()
+				self.cts._sendRequest('get','[PING]',j=None,callbacks=[[self.caltopoReconnectedFromCreateCTS]])
 			return False
 		self.caltopoMapListDicts=[noMatchDict]+aml
 		# rprint('caltopoMapListDicts:')
@@ -6866,6 +6870,22 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint('  end of createCTS')
 		return True
 	
+	def caltopoReconnectedFromCreateCTS(self):
+		# THREAD WARNING: this function is probably not running in the main thread;
+		#  don't do any GUI calls here
+		rprint('back to life from createCTS')
+		self.closeCTS()
+		self.caltopoLink=0
+		self._sig_caltopoReconnectedFromCreateCTS.emit()
+
+	def caltopoReconnectedFromCreateCTS_mainThread(self):
+		self.optionsDialog.show()
+		self.optionsDialog.raise_()
+		self.caltopoUpdateLinkIndicator()
+		self.optionsDialog.caltopoEnabledCB()
+		QCoreApplication.processEvents()
+		self.createCTS()
+
 	def closeCTS(self):
 		rprint('closeCTS called')
 		if self.cts:
