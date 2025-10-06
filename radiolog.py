@@ -1048,6 +1048,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.caltopoGroupFieldsPrevEnabled=False
 		self.radioMarkerDict={}
 		self.caltopoMapListDicts=[]
+		self.caltopoOpenMapIsWritable=False
 		self.radioMarkerFID=None
 
 		self.optionsDialog=optionsDialog(self)
@@ -2753,15 +2754,18 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def sendRadioMarker(self,fleet,dev,uid,callsign,lat=None,lon=None,timeStr=None,label=None):
 		rprint(f'sendRadioMarker called: fleet={fleet} dev={dev} uid={uid} callsign={callsign} lat={lat} lon={lon} timeStr={timeStr} label={label}')
-		with self.pendingRadioMarkerArgsLock:
-			self.pendingRadioMarkerArgs=(fleet,dev,uid,callsign)
-			self.pendingRadioMarkerKwArgs={
-					'lat':lat,
-					'lon':lon,
-					'timeStr':timeStr,
-					'label':label
-				}
-		self.radioMarkerEvent.set()
+		if self.caltopoOpenMapIsWritable:
+			with self.pendingRadioMarkerArgsLock:
+				self.pendingRadioMarkerArgs=(fleet,dev,uid,callsign)
+				self.pendingRadioMarkerKwArgs={
+						'lat':lat,
+						'lon':lon,
+						'timeStr':timeStr,
+						'label':label
+					}
+			self.radioMarkerEvent.set()
+		else:
+			rprint(' the current caltopo map is not writable; not sending marker request')
         # self.sendRadioMarkerThread=threading.Thread(
 		# 		target=self._sendRadioMarkerWorker,
 		# 		args=(fleet,dev,uid,callsign),
@@ -6973,16 +6977,19 @@ class MyWindow(QDialog,Ui_Dialog):
 		ss=''
 		t=''
 		if link==2: # connected to a map
-			ss='background-color:#00ff00;color:black;font-weight:normal' # bright green
+			if self.caltopoOpenMapIsWritable:
+				ss='background-color:#00dd00;color:black;font-weight:normal' # bright green
+			else:
+				ss='background-color:#ff9933;color:black;font-weight:normal;text-decoration:line-through' # orange
 			t=str(self.cts.mapID)
 		elif link==1: # connected to a mapless session
-			ss='background-color:#009900;color:white;font-weight:normal' # medium green
+			ss='background-color:#bbddbb;color:white;font-weight:normal' # faint green
 			t='NO MAP'
 		elif link==0: # not connected to any caltopo session
 			ss='background-color:#aaaaaa;color:white;font-weight:normal' # light gray
 			t=''
 		elif link==-1: # error condition
-			ss='background-color:#ff0000;color:white;font-weight:bold' # bright red
+			ss='background-color:#ee0000;color:white;font-weight:bold' # bright red
 			t='OFFLINE'
 		self.optionsDialog.ui.caltopoLinkIndicator.setStyleSheet(ss)
 		self.ui.caltopoLinkIndicator.setStyleSheet(ss)
@@ -7260,6 +7267,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.setFixedSize(self.size())
 		self.secondWorkingDirCB()
 		self.newEntryWarningCB()
+		self.caltopoSelectionIsReadOnly=False
 		self.caltopoUpdateGUI()
 		self.qle=self.ui.caltopoMapNameComboBox.lineEdit()
 		self.qle.setReadOnly(True) # but still editable, as recommended
@@ -7550,13 +7558,16 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.ui.caltopoFolderComboBox.setCurrentText(theMatch['folderName'])
 			rprint('  mitc match: setting text on title combo box to "'+str(theMatch['title'])+'"')
 			self.ui.caltopoMapNameComboBox.setCurrentText(theMatch['title'])
+			self.caltopoSelectionIsReadOnly=False
 			if theMatch['type']=='bookmark':
 				if theMatch['permission']=='read':
 					self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoItalicStrikeFont)
+					self.caltopoSelectionIsReadOnly=True
 				else:
 					self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoItalicFont)
 			elif theMatch.get('locked'):
 				self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoNormalStrikeFont)
+				self.caltopoSelectionIsReadOnly=True
 			else:
 				self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoNormalFont)
 			i=self.ui.caltopoMapNameComboBox.currentIndex()
@@ -7765,6 +7776,13 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# self.CaltopoWorker.moveToThread(self.CaltopoThread)
 		if self.parent.cts.openMap(self.ui.caltopoMapIDField.text()):
 			self.parent.caltopoLink=2 # connected to a map
+			self.parent.caltopoOpenMapIsWritable=not self.caltopoSelectionIsReadOnly
+			if not self.parent.caltopoOpenMapIsWritable:
+				box=QMessageBox(QMessageBox.Warning,"Read-only map","The map or bookmark you opened is not writable.\n\nRadiolog has opened the map or bookmark for reading, but no radio markers will be created.",
+					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				box.show()
+				box.raise_()
+				box.exec_()
 			self.parent.caltopoUpdateLinkIndicator()
 			self.caltopoUpdateGUI()
 			# self.ui.caltopoConnectButton.setText('Connected. Click to Disconnect.')
