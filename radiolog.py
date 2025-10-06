@@ -2863,7 +2863,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				if self.cts and self.caltopoLink in [-1,2]: # -1 = unexpected disconnect; 2 = connected to map
 					self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
 					# since this is in a separate thread, we can do a wait loop until the folder ID is not None
-					while self.radioMarkerFID==None:
+					while self.caltopoLink==2 and self.radioMarkerFID==None:
 						rprint('  waiting for radioMarkerFID...')
 						time.sleep(1)
 					try:
@@ -7771,7 +7771,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			# self.caltopoGroupFieldsSetEnabled(False) # disallow map field changes while connected
 			# self.ui.caltopoConnectButton.setEnabled(True)
 			# QCoreApplication.processEvents()
-			self.parent.getOrCreateRadioMarkerFID() # call it now so that hopefully the folder exists before the first radio marker
+			# self.parent.getOrCreateRadioMarkerFID() # call it now so that hopefully the folder exists before the first radio marker
 			self.parent.caltopoProcessLatestMarkers() # add markers for any calls that were made before the map was opened
 		else:
 			self.parent.caltopoLink=1
