@@ -168,6 +168,7 @@ class CaltopoSession():
             failedRequestCallback=None,
             disconnectedCallback=None,
             reconnectedCallback=None,
+            mapClosedCallback=None,
             syncCallback=None,
             useFiddlerProxy=False,
             caseSensitiveComparisons=False,  # case-insensitive comparisons by default, see _caseMatch()
@@ -242,6 +243,7 @@ class CaltopoSession():
         self.failedRequestCallback=failedRequestCallback
         self.disconnectedCallback=disconnectedCallback
         self.reconnectedCallback=reconnectedCallback
+        self.mapClosedCallback=mapClosedCallback
         self.syncCallback=syncCallback
         self.syncInterval=syncInterval
         self.syncCompletedCount=0
@@ -256,6 +258,8 @@ class CaltopoSession():
         self.accountData=None
         # self.holdRequests=False
         self.disconnectedFlag=False # used to make sure disconnectCallback is only fired once, until reconnected
+        self.latestResponseCode=0
+        self.badResponse=None
 
         # thread-safe queue to hold requests: process immediately when connected, but buffer until reconnect if needed
         self.requestQueue=queue.Queue()
@@ -415,6 +419,16 @@ class CaltopoSession():
             self._start()
 
         return True
+    
+    def closeMap(self):
+        logging.info('Closing map.')
+        self._stop() # sets sync=False
+        self.mapID=None
+        self.syncCompletedCount=0
+        self.dataQueue={}
+        self.mapData={'ids':{},'state':{'features':[]}}
+        self.lastSuccessfulSyncTimestamp=0 # the server's integer milliseconds 'sincce' request completion time
+        self.lastSuccessfulSyncTSLocal=0 # this object's integer milliseconds sync completion time
 
     def _setupSession(self) -> bool:
         """Called internally from __init__, regardless of whether this is a mapless session.  Reads account information from the config file and takes care of various other setup tasks.
@@ -1185,8 +1199,13 @@ class CaltopoSession():
                 # else:
                 #     logging.info('Main thread has ended; sync is stopping...')
 
+        elif self.latestResponseCode in [401]:
+            logging.error('Sync attempt returned '+str(self.latestResponseCode))
+            self.closeMap()
+            if self.mapClosedCallback:
+                self.mapClosedCallback(self.badResponse)
         else:
-            # logging.error('Sync returned invalid or no response; sync aborted:'+str(rj))
+            logging.error('Sync returned invalid or no response; sync aborted:'+str(rj))
             # self.sync=False
             # self.apiVersion=-1 # downstream tools may use apiVersion as indicator of link status
             # logging.error('Sync attempt failed; setting holdRequests')
@@ -1760,7 +1779,7 @@ class CaltopoSession():
         if skipQueue: # blocking request
             logging.info('_sendRequest: calling _handleResponse when skipQueue=True')
             rval=self._handleResponse(r,newMap,returnJson,callbacks=callbacks)
-            logging.info('_sendRequest: back from _handleResponse when skipQueue=True')
+            logging.info('_sendRequest: back from _handleResponse when skipQueue=True; rval='+str(rval))
             logging.info('f1: clearing syncPause')
             logging.info(' f1b: requestThread is alive: '+str(self.requestThread.is_alive()))
             self._syncPauseClear()
@@ -1970,7 +1989,10 @@ class CaltopoSession():
         # logging.info('  full response:'+json.dumps(r.json(),indent=3))
         logging.info('p4: setting syncPause')
         self._syncPauseSet()
+        self.latestResponseCode=r.status_code # for use by doSync, syncLoop, etc, since the response here will just be False if other than 200
+        self.badResponse=None
         if r.status_code!=200:
+            self.badResponse=r
             logging.info("response code = "+str(r.status_code))
 
         logging.info('inside handleResponse')

@@ -802,6 +802,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	_sig_caltopoDisconnected=pyqtSignal()
 	_sig_caltopoReconnected=pyqtSignal()
 	_sig_caltopoReconnectedFromCreateCTS=pyqtSignal()
+	_sig_caltopoMapClosed=pyqtSignal()
 
 	def __init__(self,parent):
 		QDialog.__init__(self)
@@ -1049,6 +1050,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.radioMarkerDict={}
 		self.caltopoMapListDicts=[]
 		self.caltopoOpenMapIsWritable=False
+		self.caltopoBadResponse=None
 		self.radioMarkerFID=None
 
 		self.optionsDialog=optionsDialog(self)
@@ -1460,6 +1462,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self._sig_caltopoDisconnected.connect(self.caltopoDisconnectedCallback_mainThread)
 		self._sig_caltopoReconnected.connect(self.caltopoReconnectedCallback_mainThread)
 		self._sig_caltopoReconnectedFromCreateCTS.connect(self.caltopoReconnectedFromCreateCTS_mainThread)
+		self._sig_caltopoMapClosed.connect(self.caltopoMapClosedCallback_mainThread)
 
 		self.radioMarkerEvent=threading.Event()
 		self.radioMarkerThread=threading.Thread(target=self._radioMarkerWorker,args=(self.radioMarkerEvent,),daemon=True)
@@ -6844,7 +6847,8 @@ class MyWindow(QDialog,Ui_Dialog):
 								account=self.caltopoAccountName,
 								deletedFeatureCallback=self.caltopoDeletedFeatureCallback,
 								disconnectedCallback=self.caltopoDisconnectedCallback,
-								reconnectedCallback=self.caltopoReconnectedCallback)
+								reconnectedCallback=self.caltopoReconnectedCallback,
+								mapClosedCallback=self.caltopoMapClosedCallback)
 		rprint('  back from CaltopoSession init')
 		noMatchDict={
 			'groupAccountTitle':'<Choose Acct>',
@@ -6941,6 +6945,21 @@ class MyWindow(QDialog,Ui_Dialog):
 		# self.optionsDialog.caltopoGroupFieldsSetEnabled(self.caltopoGroupFieldsPrevEnabled)
 		self.optionsDialog.caltopoUpdateGUI()
 		self.caltopoUpdateLinkIndicator()
+
+	def caltopoMapClosedCallback(self,response):
+		# THREAD WARNING - this is probably called from a different thread; don't try and GUI actions here
+		self.caltopoBadResponse=response
+		self._sig_caltopoMapClosed.emit()
+
+	def caltopoMapClosedCallback_mainThread(self):
+		box=QMessageBox(QMessageBox.Warning,"Map closed","The map or bookmark you opened has been closed due to a bad sync response:"+str(self.caltopoBadResponse),
+			QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		box.show()
+		box.raise_()
+		box.exec_()
+		self.optionsDialog.caltopoConnectButtonClicked()
+		self.optionsDialog.show()
+		self.optionsDialog.raise_()
 
 	def caltopoProcessLatestMarkers(self):
 		# this is only called after a map is opened;
