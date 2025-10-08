@@ -260,6 +260,7 @@ class CaltopoSession():
         self.disconnectedFlag=False # used to make sure disconnectCallback is only fired once, until reconnected
         self.latestResponseCode=0
         self.badResponse=None
+        self.internet=True
 
         # thread-safe queue to hold requests: process immediately when connected, but buffer until reconnect if needed
         self.requestQueue=queue.Queue()
@@ -439,7 +440,7 @@ class CaltopoSession():
         # set a flag: is this an internet session?
         #  if so, id and key are strictly required, and accountId is needed to print
         #  if not, all three are only needed in order to print
-        internet=self.domainAndPort and self.domainAndPort.lower() in ['sartopo.com','caltopo.com']
+        self.internet=self.domainAndPort and self.domainAndPort.lower() in ['sartopo.com','caltopo.com']
         id=None
         key=None
         accountId=None
@@ -469,7 +470,7 @@ class CaltopoSession():
                 key=section.get("key",None)
                 accountId=section.get("accountId",None)
                 accountIdInternet=section.get("accountIdInternet",None)
-                if internet:
+                if self.internet:
                     if id is None or key is None:
                         logging.error("account entry '"+self.account+"' in config file '"+self.configpath+"' is not complete:\n  it must specify 'id' and 'key'.")
                         return False
@@ -499,7 +500,7 @@ class CaltopoSession():
         self.accountId=accountId
         self.accountIdInternet=accountIdInternet
 
-        if internet:
+        if self.internet:
             if self.id is None:
                 logging.error("caltopo session is invalid: 'id' must be specified for online maps")
                 return False
@@ -626,11 +627,17 @@ class CaltopoSession():
                 if 'result' in self.accountData.keys():
                     self.accountData=self.accountData['result']
         else:
+            timeout=self.syncTimeout
             url='/api/v1/acct/'+self.accountId+'/since/0'
+            j=None
+            if not self.internet:
+                timeout=2*self.syncTimeout
+                url='/sideload/account/'+self.accountId+'.json'
+                j={'json':'%7B%22full%22%3Atrue%7D'}
             # logging.info('  sending GET request 2 to '+url)
             # if callbacks is [] then make it a blocking immediate request
             logging.info('getAccountData: about to call _sendRequest with skipQueue='+str(not(bool(callbacks))))
-            r=self._sendRequest('get',url,j=None,returnJson='ALL',callbacks=callbacks,skipQueue=not(bool(callbacks)))
+            r=self._sendRequest('get',url,j=j,returnJson='ALL',timeout=timeout,callbacks=callbacks,skipQueue=not(bool(callbacks)))
             logging.info('getAccountData: back from _sendRequest')
             if isinstance(r,dict):
                 self.accountData=r['result']
@@ -1568,6 +1575,8 @@ class CaltopoSession():
             logging.error("sendRequest: caltopo session is invalid or is not associated with a map; request aborted: method="+str(method)+" apiUrlEnd="+str(apiUrlEnd))
             return False
         mid=self.apiUrlMid
+        if not self.internet:
+            mid=''
         if 'api/' in apiUrlEnd.lower():
             if apiUrlEnd[0]=='/':
                 mid=''
@@ -1598,8 +1607,8 @@ class CaltopoSession():
         prefix='http://'
         # set a flag: is this an internet request?
         accountId=accountId or self.accountId
-        internet=domainAndPort.lower() in ['sartopo.com','caltopo.com']
-        if internet:
+        # internet=domainAndPort.lower() in ['sartopo.com','caltopo.com']
+        if self.internet:
             if self.accountIdInternet:
                 accountId=self.accountIdInternet
             # else:
@@ -1621,8 +1630,8 @@ class CaltopoSession():
         paramsPrint={}
 
         if method.upper() in ['POST','GET','DELETE']:
-            params=self._buildParams(method,mid+apiUrlEnd,j,internet)
-            if internet:
+            params=self._buildParams(method,mid+apiUrlEnd,j,self.internet)
+            if self.internet:
                 paramsPrint=copy.deepcopy(params)
                 paramsPrint['id']='.....'
                 paramsPrint['signature']='.....'
@@ -1658,14 +1667,14 @@ class CaltopoSession():
                 rest=''
             if skipQueue:
 
-                logging.info(f'-- SKIPQUEUE (sending now) {method} {urlEnd} {rest}')
+                logging.info(f'-- SKIPQUEUE (sending now) {method} {url} {rest}')
                 self._syncPauseSet() # setting this now, even if during sync, will prevent recursive sync attempt
                 if method=='POST':
                     r=self.s.post(url,data=params,timeout=timeout,proxies=self.proxyDict,allow_redirects=False)
                 elif method=='GET':
-                    logging.info('sending GET')
+                    logging.info('sending GET to '+str(url)+' with params '+str(params))
                     r=self.s.get(url,params=params,timeout=timeout,proxies=self.proxyDict,allow_redirects=False)
-                    logging.info('back from GET')
+                    logging.info('back from GET - sent GET to '+str(r.url))
                 elif method=='DELETE':
                     r=self.s.delete(url,params=params,timeout=timeout,proxies=self.proxyDict)   ## use params for query vs data for body data
             else:
@@ -1673,7 +1682,7 @@ class CaltopoSession():
                     'method':method,
                     'url':url,
                     'urlPart':mid+apiUrlEnd, # to make re-signing easier when pulled from queue
-                    'internet':internet, # to make re-signing easier when pulled from queue
+                    'internet':self.internet, # to make re-signing easier when pulled from queue
                     'params':params,
                     'timeout':timeout,
                     'proxies':self.proxyDict,
@@ -1799,6 +1808,8 @@ class CaltopoSession():
             params['id']=self.id
             params['expires']=expires
             params['signature']=self._getToken(data)
+        else:
+            params=j
         if method.upper()=='POST':
             params['json']=payload_string
         return params

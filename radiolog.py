@@ -6840,8 +6840,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			# self.link=-1
 			# self.updateFeatureList("Folder")
 			# self.updateFeatureList("Marker")
-		rprint('  creating mapless online session for user '+self.caltopoAccountName)
 		domainAndPort='caltopo.com'
+		if self.optionsDialog.ui.caltopoDesktopButton.isChecked():
+			domainAndPort=self.optionsDialog.ui.ctdServerComboBox.currentText()
+		rprint('  creating mapless online session for user '+self.caltopoAccountName+' on server '+domainAndPort)
 		self.cts=CaltopoSession(domainAndPort=domainAndPort,
 								configpath=os.path.join(self.configDir,'cts.ini'),
 								account=self.caltopoAccountName,
@@ -7356,8 +7358,9 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		e=en and rm
 		e2=e and link==1
 		rprint('e='+str(e)+'  e2='+str(e2))
-		self.ui.radioButton.setEnabled(e2)
-		self.ui.radioButton_2.setEnabled(e2)
+		self.ui.caltopoComButton.setEnabled(e2)
+		self.ui.caltopoDesktopButton.setEnabled(e2)
+		self.ui.ctdServerComboBox.setEnabled(e2 and self.ui.caltopoDesktopButton.isChecked())
 		self.ui.caltopoAccountAndFolderLabel.setEnabled(e2)
 		self.ui.caltopoAccountComboBox.setEnabled(e2)
 		self.ui.caltopoFolderComboBox.setEnabled(e2)
@@ -7394,6 +7397,18 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			
 		# processEvents, in case this is being called with other GUI actions
 		QCoreApplication.processEvents()
+
+	def caltopoServerChanged(self): # called when any of the server-related fields have been clicked
+		# if a map is already open, confirm with the user that changing the server will close the map
+		# box=QMessageBox(QMessageBox.Warning,"A map is open","Changing any of the server selections will close the currently open map.\n\nDo you still want to change the server selections?",
+		# 	QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		# box.show()
+		# box.raise_()
+		# box.exec_()
+		self.parent.closeCTS()
+		QApplication.processEvents()
+		self.caltopoEnabledCB()
+		self.caltopoUpdateGUI()
 
 	def caltopoEnabledCB(self): # called from stateChanged of group box AND of radio markers checkbox
 		en=self.ui.caltopoGroupBox.isChecked()

@@ -292,12 +292,12 @@
        <number>4</number>
       </property>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_4">
+       <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="2,2,3">
         <item>
-         <widget class="QRadioButton" name="radioButton">
+         <widget class="QRadioButton" name="caltopoComButton">
           <property name="font">
            <font>
-            <pointsize>11</pointsize>
+            <pointsize>10</pointsize>
            </font>
           </property>
           <property name="text">
@@ -312,21 +312,39 @@
          </widget>
         </item>
         <item>
-         <widget class="QRadioButton" name="radioButton_2">
+         <widget class="QRadioButton" name="caltopoDesktopButton">
           <property name="enabled">
            <bool>false</bool>
           </property>
           <property name="font">
            <font>
-            <pointsize>11</pointsize>
+            <pointsize>10</pointsize>
            </font>
           </property>
           <property name="text">
-           <string>CalTopo Desktop (localhost:8080)</string>
+           <string>CalTopo Desktop</string>
           </property>
           <attribute name="buttonGroup">
            <string notr="true">buttonGroup</string>
           </attribute>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="ctdServerComboBox">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>10</pointsize>
+           </font>
+          </property>
+          <property name="editable">
+           <bool>true</bool>
+          </property>
+          <property name="currentText">
+           <string>localhost:8080</string>
+          </property>
          </widget>
         </item>
        </layout>
@@ -742,8 +760,8 @@
    <slot>caltopoMapIDTextChanged()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>382</x>
-     <y>354</y>
+     <x>400</x>
+     <y>381</y>
     </hint>
     <hint type="destinationlabel">
      <x>450</x>
@@ -758,12 +776,28 @@
    <slot>caltopoMapNameComboBoxHighlightChanged()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>72</x>
-     <y>356</y>
+     <x>130</x>
+     <y>381</y>
     </hint>
     <hint type="destinationlabel">
      <x>4</x>
      <y>334</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>caltopoDesktopButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoServerChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>208</x>
+     <y>297</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>374</x>
+     <y>150</y>
     </hint>
    </hints>
   </connection>
@@ -780,6 +814,8 @@
   <slot>caltopoAccountComboBoxChanged()</slot>
   <slot>caltopoMapIDTextChanged()</slot>
   <slot>caltopoMapNameComboBoxHighlightChanged()</slot>
+  <slot>caltopoUpdateGUI()</slot>
+  <slot>caltopoServerChanged()</slot>
  </slots>
  <buttongroups>
   <buttongroup name="buttonGroup"/>
