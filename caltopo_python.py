@@ -1095,11 +1095,21 @@ class CaltopoSession():
                                     # if geometry.incremental exists and is true, append new coordinates to existing coordinates
                                     # otherwise, replace the entire geometry value
                                     fg=f['geometry']
+                                    logging.info(' new geometry:'+str(fg))
                                     mdsfg=self.mapData['state']['features'][i]['geometry']
+                                    logging.info('prev geometry:'+str(mdsfg))
                                     if fg.get('incremental',None):
                                         mdsfgc=mdsfg['coordinates']
-                                        latestExistingTS=mdsfgc[-1][3]
+                                        lastEntry=mdsfgc[-1]
+                                        if isinstance(lastEntry,list):
+                                            latestExistingTS=lastEntry[3]
+                                        elif isinstance(lastEntry,float):
+                                            latestExistingTS=mdsfgc[3]
+                                        else:
+                                            # raise exception, to be caught in _syncLoop
+                                            raise(ValueError('Unknown data type in latest cached coordinate: '+str(lastEntry)+' (entire cached coordinate set: '+str(mdsfgc)+')'))
                                         fgc=fg.get('coordinates',[])
+                                        # logging.info('fgc:'+str(fgc))
                                         # avoid duplicates without walking the entire existing list of points;
                                         #  assume that timestamps are strictly increasing in list item sequence
                                         # walk forward through new points:
