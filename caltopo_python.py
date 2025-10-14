@@ -1092,18 +1092,20 @@ class CaltopoSession():
                             if 'geometry' in f.keys():
                                 if self.mapData['state']['features'][i]['geometry']!=f['geometry']:
                                     logging.info('  Updating geometry for '+featureClass+':'+title)
-                                    # if geometry.incremental exists and is true, append new coordinates to existing coordinates
-                                    # otherwise, replace the entire geometry value
+                                    # if geometry.incremental exists and is true, for the new geom as well as the cache geom,
+                                    #  append new coordinates to existing coordinates;
+                                    #  otherwise, replace the entire geometry value;
+                                    #  this addresses the case where the first sync of a LiveTrack will be a Point rather than LineString
                                     fg=f['geometry']
                                     logging.info(' new geometry:'+str(fg))
                                     mdsfg=self.mapData['state']['features'][i]['geometry']
                                     logging.info('prev geometry:'+str(mdsfg))
-                                    if fg.get('incremental',None):
+                                    if fg.get('incremental',None) and mdsfg.get('incremental',None):
                                         mdsfgc=mdsfg['coordinates']
                                         lastEntry=mdsfgc[-1]
                                         if isinstance(lastEntry,list):
                                             latestExistingTS=lastEntry[3]
-                                        elif isinstance(lastEntry,float):
+                                        elif isinstance(lastEntry,(int,float)):
                                             latestExistingTS=mdsfgc[3]
                                         else:
                                             # raise exception, to be caught in _syncLoop
@@ -1677,7 +1679,6 @@ class CaltopoSession():
             except:
                 rest=''
             if skipQueue:
-
                 logging.info(f'-- SKIPQUEUE (sending now) {method} {url} {rest}')
                 self._syncPauseSet() # setting this now, even if during sync, will prevent recursive sync attempt
                 if method=='POST':
