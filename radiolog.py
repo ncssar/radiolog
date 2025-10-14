@@ -2781,6 +2781,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		# 		daemon=True)
 
 	def _radioMarkerWorker(self,event):
+		# using 'return' inside this function would actually end the thread;
+		#   instead, use 'continue' to go back to the 'while' line
 		while True:
 			logging.info('radioMarkerWorker: waiting for event...')
 			event.wait()
@@ -2788,8 +2790,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			event.clear()
 			try:
 				if not self.pendingRadioMarkerArgs:
-					rprint('ERROR: radioMarkerEvent received, but argument variables are empty; returning')
-					return
+					rprint('WARNING: radioMarkerEvent received, but argument variables are empty; continuing')
+					continue
 				(fleet,dev,uid,callsign)=self.pendingRadioMarkerArgs
 				lat=self.pendingRadioMarkerKwArgs['lat']
 				lon=self.pendingRadioMarkerKwArgs['lon']
@@ -2860,8 +2862,8 @@ class MyWindow(QDialog,Ui_Dialog):
 						#  therefore no radioMarkerDict entry was ever created during _handleResponse;
 						#  will need to determine existingId later, when the queued request is
 						#  pulled from the queue and processed.
-						rprint('  lat or lon not specified in current or previous request')
-						return False
+						rprint('  lat or lon not specified in current or previous request; continuing')
+						continue
 				rprint('existingId:'+str(existingId))
 				id='' # initialize here so that entry can be saved before cts exists
 				newId=existingId # preserve caltopoID if already set

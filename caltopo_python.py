@@ -631,9 +631,10 @@ class CaltopoSession():
             url='/api/v1/acct/'+self.accountId+'/since/0'
             j=None
             if not self.internet:
-                timeout=2*self.syncTimeout
+                timeout=150 # observed 104 seconds on localhost
                 url='/sideload/account/'+self.accountId+'.json'
-                j={'json':'%7B%22full%22%3Atrue%7D'}
+                # j={'json':'%7B%22full%22%3Atrue%7D'} # returns account details but not maps/bookmarks/folders
+                j={'json':'{"full":true}'} # %7B={ %22=" %3A=: %7D=}
             # logging.info('  sending GET request 2 to '+url)
             # if callbacks is [] then make it a blocking immediate request
             logging.info('getAccountData: about to call _sendRequest with skipQueue='+str(not(bool(callbacks))))
