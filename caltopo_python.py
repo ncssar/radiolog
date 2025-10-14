@@ -1090,7 +1090,7 @@ class CaltopoSession():
                             if title=='None':
                                 title=self.mapData['state']['features'][i]['properties']['title']
                             if 'geometry' in f.keys():
-                                if self.mapData['state']['features'][i]['geometry']!=f['geometry']:
+                                if self.mapData['state']['features'][i].get('geometry')!=f['geometry']:
                                     logging.info('  Updating geometry for '+featureClass+':'+title)
                                     # if geometry.incremental exists and is true, for the new geom as well as the cache geom,
                                     #  append new coordinates to existing coordinates;
@@ -1098,9 +1098,9 @@ class CaltopoSession():
                                     #  this addresses the case where the first sync of a LiveTrack will be a Point rather than LineString
                                     fg=f['geometry']
                                     logging.info(' new geometry:'+str(fg))
-                                    mdsfg=self.mapData['state']['features'][i]['geometry']
+                                    mdsfg=self.mapData['state']['features'][i].get('geometry')
                                     logging.info('prev geometry:'+str(mdsfg))
-                                    if fg.get('incremental',None) and mdsfg.get('incremental',None):
+                                    if fg and mdsfg and fg.get('incremental',None) and mdsfg.get('incremental',None):
                                         mdsfgc=mdsfg['coordinates']
                                         lastEntry=mdsfgc[-1]
                                         if isinstance(lastEntry,list):
@@ -1121,7 +1121,7 @@ class CaltopoSession():
                                                 mdsfgc+=fgc[n:]
                                                 break
                                         mdsfg['size']=len(mdsfgc)
-                                    else:
+                                    else: # copy entire geometry if cahce has no geomerty or was only a Point
                                         self.mapData['state']['features'][i]['geometry']=f['geometry']
                                     if self.geometryUpdateCallback:
                                         self.geometryUpdateCallback(f)
