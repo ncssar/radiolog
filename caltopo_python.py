@@ -1101,7 +1101,7 @@ class CaltopoSession():
                                             mdsfg=self.mapData['state']['features'][i].get('geometry')
                                             logging.info('prev geometry:'+str(mdsfg))
                                             if fg and mdsfg and fg.get('incremental',None) and mdsfg.get('incremental',None):
-                                                mdsfgc=mdsfg['coordinattes']
+                                                mdsfgc=mdsfg['coordinates']
                                                 lastEntry=mdsfgc[-1]
                                                 if isinstance(lastEntry,list):
                                                     latestExistingTS=lastEntry[3]
