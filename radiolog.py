@@ -7263,6 +7263,103 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 					twi.setBackground(QBrush(bgColor))
 
 
+class caltopoFolderPopup(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent=parent
+
+        # Create the TreeView for the dropdown popup
+        self.tree_view = QTreeView(self)
+        self.tree_view.setHeaderHidden(True)  # Hide the header to look like a simple tree
+        self.tree_view.setSelectionMode(QTreeView.SingleSelection)
+        self.tree_view.setEditTriggers(QTreeView.NoEditTriggers)
+        self.tree_view.setExpandsOnDoubleClick(False)
+        self.tree_view.setAnimated(True)
+
+        self.tree_view.setFixedHeight(300)
+
+        # Create a model for the tree view
+        self.model = QStandardItemModel()
+        self.tree_view.setModel(self.model)
+
+        self.tree_view.entered.connect(self.enteredCB)
+        self.tree_view.clicked.connect(self.clickedCB)
+        self.tree_view.expanded.connect(self.expandedCB)
+        self.tree_view.collapsed.connect(self.collapsedCB)
+
+        self.setWindowTitle("Popup Dialog")
+        self.setWindowFlags(Qt.Popup)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0,0,0,0)
+        layout.addWidget(self.tree_view)
+        self.setLayout(layout)
+        self.tree_view.setMouseTracking(True)
+
+    def enteredCB(self,i):
+        print('entered')
+        self.setFullLabel(i)
+
+    def expandedCB(self,i):
+        print('expanded')
+        self.collapseOthers(i)
+
+    def collapsedCB(self,i):
+        print('collapsed')
+
+    def clickedCB(self,i):
+        print('clicked')
+        self.setFullLabel(i)
+        self.close() # close the popup
+
+    def setFullLabel(self,i):
+        # Get the full hierarchy path for display
+        current_index = i
+        path_list = [self.model.data(i)]
+        while current_index.parent().isValid():
+            parent_index = current_index.parent()
+            parent_text = self.model.data(parent_index)
+            path_list.insert(0, parent_text)
+            current_index = parent_index
+        # Join path with a separator and set the text
+        self.parent.ui.caltopoFolderButton.setText(' > '.join(path_list))
+
+    def populate(self, data):
+        """Populates the tree model from a dictionary."""
+        self.model.clear()
+        for key, children in data.items():
+            parent_item = QStandardItem(key)
+            for child_text in children:
+                child_item = QStandardItem(child_text)
+                parent_item.appendRow(child_item)
+            self.model.appendRow(parent_item)
+        for r in range(self.model.rowCount()):
+            for c in range(self.model.columnCount()):
+                txt=self.model.item(r,c).text()
+                print(f'row {r} col {c} : {txt}')
+
+    def collapseOthers(self,expandedIndex):
+        QApplication.processEvents()
+        print('collapse_others called: expandedIndex='+str(expandedIndex))
+        def _collapse_recursive(parent_index: QModelIndex,sp='  '):
+            for row in range(self.model.rowCount(parent_index)):
+                index = self.model.index(row, 0, parent_index)
+                item=self.model.itemFromIndex(index)
+                txt=item.text()
+                print(sp+f'checking r={row} col=0 : {txt}')
+                if index.isValid() and index!=expandedIndex:
+                    print(sp+'  collapsing')
+                    self.tree_view.collapse(index)
+                    # self.tree_view.setExpanded(index,False)
+                    
+                    # Recursively process children
+                    if self.model.hasChildren(index):
+                        _collapse_recursive(index,sp+'  ')
+
+        # Start the recursion from the invisible root item
+        _collapse_recursive(QModelIndex())
+        QApplication.processEvents()
+
+
 class optionsDialog(QDialog,Ui_optionsDialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
@@ -7296,6 +7393,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.qle.setReadOnly(True) # but still editable, as recommended
 		self.caltopoMapNameComboBoxHighlightChanged(0)
 		self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoItalicStrikeFont)
+		self.ui.caltopoFolderButton.clicked.connect(self.caltopoFolderButtonClicked)
+		self.caltopoFolderPopup=caltopoFolderPopup(self)
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
@@ -7343,6 +7442,27 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	# T : set I
 	# I : use the Search Tree to find a match; set A, F, and T, all without callbacks
 
+	def caltopoFolderButtonClicked(self):
+		rprint('clicked')
+		# Get the global position of the button's top-left corner
+		button_pos = self.ui.caltopoFolderButton.mapToGlobal(QPoint(0, 0))
+
+		# Calculate the desired position for the popup
+		popup_x = button_pos.x()
+		popup_y = button_pos.y() + self.ui.caltopoFolderButton.height()
+
+		# Sample hierarchical data
+		data = {
+			"Fruits": ["Apple", "Banana", "Orange"],
+			"Vegetables": ["Carrot", "Broccoli", "Spinach"],
+			"Dairy": ["Milk", "Cheese", "Yogurt"]
+		}
+        
+		self.caltopoFolderPopup.populate(data)
+
+		self.caltopoFolderPopup.move(popup_x, popup_y)
+		self.caltopoFolderPopup.exec_() # Show as a modal dialog
+
 	def caltopoUpdateGUI(self):
 		# self.parent.caltopoLink states:
 		#  -1 = offline
@@ -7365,7 +7485,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.ctdServerComboBox.setEnabled(e2 and self.ui.caltopoDesktopButton.isChecked())
 		self.ui.caltopoAccountAndFolderLabel.setEnabled(e2)
 		self.ui.caltopoAccountComboBox.setEnabled(e2)
-		self.ui.caltopoFolderComboBox.setEnabled(e2)
+		self.ui.caltopoFolderLabel.setEnabled(e2)
+		self.ui.caltopoFolderButton.setEnabled(e2)
 		self.ui.caltopoMapLabel.setEnabled(e2)
 		self.ui.caltopoMapNameComboBox.setEnabled(e2)
 		self.ui.caltopoMapIDField.setEnabled(e2)
@@ -7506,7 +7627,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.pauseCB=True
 		# clear out combo box choices now, even if they don't redisplay, to avoid conflict later during caltopoAccountComboBoxChanged
 		self.ui.caltopoAccountComboBox.clear()
-		self.ui.caltopoFolderComboBox.clear()
+		self.ui.caltopoFolderButton.setText('')
 		self.ui.caltopoMapNameComboBox.clear()
 		self.ui.caltopoMapIDField.setText('')
 		rprint('rad2')
@@ -7591,7 +7712,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			rprint('  mitc match: setting text on account combo box to "'+str(theMatch['accountTitle'])+'"')
 			self.ui.caltopoAccountComboBox.setCurrentText(theMatch['accountTitle'])
 			rprint('  mitc match: setting text on folder combo box to "'+str(theMatch['folderName'])+'"')
-			self.ui.caltopoFolderComboBox.setCurrentText(theMatch['folderName'])
+			self.ui.caltopoFolderButton.setText(theMatch['folderName'])
 			rprint('  mitc match: setting text on title combo box to "'+str(theMatch['title'])+'"')
 			self.ui.caltopoMapNameComboBox.setCurrentText(theMatch['title'])
 			self.caltopoSelectionIsReadOnly=False
@@ -7613,8 +7734,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		else: # no match
 			# rprint('  no match: setting account combo box index to 0')
 			# self.ui.caltopoAccountComboBox.setCurrentIndex(0)
-			rprint('  no match: setting folder combo box index to 0')
-			self.ui.caltopoFolderComboBox.setCurrentIndex(0)
+			# rprint('  no match: setting folder combo box index to 0')
+			# self.ui.caltopoFolderComboBox.setCurrentIndex(0)
 			rprint('  no match: setting map name combo box index to 0')
 			self.ui.caltopoMapNameComboBox.setCurrentIndex(0)
 			rprint('  no match processing complete; unpausing callbacks')
@@ -7670,14 +7791,22 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			mapsNotBookmarks=[m for m in mapList if m['type']=='map']
 			rprint('mapsNotBookmarks:'+str(json.dumps(mapsNotBookmarks,indent=3)))
 			folderNames=list(set([m['folderName'] for m in mapsNotBookmarks]))
-			self.ui.caltopoFolderComboBox.clear()
-			if mapsNotBookmarks:
-				self.ui.caltopoFolderComboBox.addItems(sorted(folderNames))
-				self.ui.caltopoFolderComboBox.setCurrentIndex(0)
+			self.ui.caltopoFolderButton.setText('')
+			# if mapsNotBookmarks:
+			# 	self.ui.caltopoFolderComboBox.addItems(sorted(folderNames))
+			# 	self.ui.caltopoFolderComboBox.setCurrentIndex(0)
 		rprint('acct.end')
 
-	def caltopoFolderComboBoxChanged(self):
-		rprint('folder changed to "'+str(self.ui.caltopoFolderComboBox.currentText())+'" - rebuilding map name choices')
+	# def getFolderTree(self):
+	# 	rprint('get folder tree')
+	# 	acctDict=[d for d in self.parent.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()][0]
+	# 	if acctDict:
+	# 		folders=[f for f in acctDict['features'] if f['properties']['class']=='UserFolder'] # list of dicts
+	# 		for folder in in folders:
+	# 			if hasChildren:
+
+	def caltopoFolderButtonChanged(self):
+		rprint('folder changed to "'+str(self.ui.caltopoFolderButton.text())+'" - rebuilding map name choices')
 		# time.sleep(2)
 		if self.pauseCB:
 			rprint(' fcbc: paused; returning')
@@ -7689,7 +7818,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			mapList=dicts[0]['mapList']
 			rprint(' fcbc mapList:')
 			rprint(json.dumps(mapList,indent=3))
-			relsInFolder=[m for m in mapList if m['folderName']==(self.ui.caltopoFolderComboBox.currentText() or '<Top Level>')]
+			relsInFolder=[m for m in mapList if m['folderName']==(self.ui.caltopoFolderButton.text() or '<Top Level>')]
 			# mapsNotBookmarks=[m for m in mapList if m['type']=='map' and m['folderName']==self.ui.caltopoFolderComboBox.currentText()]
 			# rprint(' fcbc: mapsNotBookmarks:')
 			# rprint(json.dumps(mapsNotBookmarks,indent=3))
