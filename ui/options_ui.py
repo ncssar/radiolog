@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_optionsDialog(object):
     def setupUi(self, optionsDialog):
         optionsDialog.setObjectName("optionsDialog")
-        optionsDialog.resize(528, 516)
+        optionsDialog.resize(628, 517)
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
         font.setPointSize(16)

@@ -709,20 +709,20 @@ class CustomPlainTextEdit(QPlainTextEdit):
 # custom QComboBox - click on the lineEdit opens the popup, like a non-editable QComboBox
 #  from google search AI overview
 class CustomComboBox(QComboBox):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setEditable(True)
-        self.lineEdit().setReadOnly(True)
+	def __init__(self, parent=None):
+		super().__init__(parent)
+		self.setEditable(True)
+		self.lineEdit().setReadOnly(True)
 
-        # Install an event filter on the QLineEdit to capture mouse clicks
-        self.lineEdit().installEventFilter(self)
+		# Install an event filter on the QLineEdit to capture mouse clicks
+		self.lineEdit().installEventFilter(self)
 
-    def eventFilter(self, obj, event):
-        # Filter for the specific QLineEdit and mouse press events
-        if obj == self.lineEdit() and event.type() == QtCore.QEvent.Type.MouseButtonPress:
-            self.showPopup()
-            return True  # Event is handled
-        return super().eventFilter(obj, event)
+	def eventFilter(self, obj, event):
+		# Filter for the specific QLineEdit and mouse press events
+		if obj == self.lineEdit() and event.type() == QtCore.QEvent.Type.MouseButtonPress:
+			self.showPopup()
+			return True  # Event is handled
+		return super().eventFilter(obj, event)
 	
 
 class CustomLineEdit(QLineEdit):
@@ -790,10 +790,10 @@ globalStyleSheet="""
 #  (to avoid "TypeError: Object of type function is not JSON serializable")
 #  usage: json.dumps(callable_list, cls=CustomEncoder)
 class CustomEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if callable(obj):
-            return f"Callable: {obj.__name__ if hasattr(obj, '__name__') else str(obj)}"
-        return json.JSONEncoder.default(self, obj)
+	def default(self, obj):
+		if callable(obj):
+			return f"Callable: {obj.__name__ if hasattr(obj, '__name__') else str(obj)}"
+		return json.JSONEncoder.default(self, obj)
 	
 
 class MyWindow(QDialog,Ui_Dialog):
@@ -2769,7 +2769,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.radioMarkerEvent.set()
 		else:
 			rprint(' the current caltopo map is not writable; not sending marker request')
-        # self.sendRadioMarkerThread=threading.Thread(
+		# self.sendRadioMarkerThread=threading.Thread(
 		# 		target=self._sendRadioMarkerWorker,
 		# 		args=(fleet,dev,uid,callsign),
 		# 		kwargs={
@@ -3527,14 +3527,14 @@ class MyWindow(QDialog,Ui_Dialog):
 			t=Table(headerTable,colWidths=[x*inch for x in [0.8,4.2,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
 										  ('FONT',(2,0),(3,0),'Helvetica-Bold'),
-			                       ('FONTSIZE',(1,0),(1,1),18),
+								   ('FONTSIZE',(1,0),(1,1),18),
 										  ('SPAN',(0,0),(0,1)),
 										  ('SPAN',(1,0),(1,1)),
 										  ('LEADING',(1,0),(1,1),20),
 										  ('TOPADDING',(1,0),(1,0),0),
 										  ('BOTTOMPADDING',(1,1),(1,1),4),
-         	                    ('VALIGN',(0,0),(-1,-1),"MIDDLE"),
-            	                 ('ALIGN',(1,0),(1,-1),"CENTER"),
+		 						('VALIGN',(0,0),(-1,-1),"MIDDLE"),
+								 ('ALIGN',(1,0),(1,-1),"CENTER"),
 										  ('ALIGN',(0,0),(0,1),"CENTER"),
 										  ('BOX',(0,0),(-1,-1),2,colors.black),
 										  ('BOX',(2,0),(-1,-1),2,colors.black),
@@ -3545,13 +3545,13 @@ class MyWindow(QDialog,Ui_Dialog):
 					["","","Operational Period: ","Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
 			t=Table(headerTable,colWidths=[x*inch for x in [0.0,5,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
-			                       ('FONT',(2,0),(3,0),'Helvetica-Bold'),
-			                       ('FONTSIZE',(1,0),(1,1),18),
+								   ('FONT',(2,0),(3,0),'Helvetica-Bold'),
+								   ('FONTSIZE',(1,0),(1,1),18),
 										  ('SPAN',(0,0),(0,1)),
 										  ('SPAN',(1,0),(1,1)),
 										  ('LEADING',(1,0),(1,1),20),
-         	                    ('VALIGN',(1,0),(-1,-1),"MIDDLE"),
-            	                 ('ALIGN',(1,0),(1,-1),"CENTER"),
+		 						('VALIGN',(1,0),(-1,-1),"MIDDLE"),
+								 ('ALIGN',(1,0),(1,-1),"CENTER"),
 										  ('BOX',(0,0),(-1,-1),2,colors.black),
 										  ('BOX',(2,0),(-1,-1),2,colors.black),
 										  ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
@@ -3698,10 +3698,10 @@ class MyWindow(QDialog,Ui_Dialog):
 					colWidths=[x*inch for x in [0.5,0.6,1.25,5.5,1.25,0.9]]
 				t=Table(radioLogPrint,repeatRows=1,colWidths=colWidths)
 				t.setStyle(TableStyle([('FONT',(0,0),(-1,-1),'Helvetica'),
-					                    ('FONT',(0,0),(-1,1),'Helvetica-Bold'),
-					                    ('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
-			      	                 ('BOX', (0,0), (-1,-1), 2, colors.black),
-			         	              ('BOX', (0,0), (-1,0), 2, colors.black)]))
+										('FONT',(0,0),(-1,1),'Helvetica-Bold'),
+										('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
+				  					 ('BOX', (0,0), (-1,-1), 2, colors.black),
+					 				  ('BOX', (0,0), (-1,0), 2, colors.black)]))
 				elements.append(t)
 				if teams and team!=teamFilterList[-1]: # don't add a spacer after the last team - it could cause another page!
 					elements.append(Spacer(0,0.25*inch))
@@ -3731,14 +3731,14 @@ class MyWindow(QDialog,Ui_Dialog):
 					["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
 			t=Table(headerTable,colWidths=[x*inch for x in [0.8,4.2,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
-			                       ('FONTSIZE',(1,0),(1,1),18),
+								   ('FONTSIZE',(1,0),(1,1),18),
 										  ('SPAN',(0,0),(0,1)),
 										  ('SPAN',(1,0),(1,1)),
 										  ('LEADING',(1,0),(1,1),20),
 										  ('TOPADDING',(1,0),(1,0),0),
 										  ('BOTTOMPADDING',(1,1),(1,1),4),
-         	                    ('VALIGN',(0,0),(-1,-1),"MIDDLE"),
-            	                 ('ALIGN',(1,0),(1,-1),"CENTER"),
+		 						('VALIGN',(0,0),(-1,-1),"MIDDLE"),
+								 ('ALIGN',(1,0),(1,-1),"CENTER"),
 										  ('ALIGN',(0,0),(0,1),"CENTER"),
 										  ('BOX',(0,0),(-1,-1),2,colors.black),
 										  ('BOX',(2,0),(-1,-1),2,colors.black),
@@ -3749,12 +3749,12 @@ class MyWindow(QDialog,Ui_Dialog):
 					["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
 			t=Table(headerTable,colWidths=[x*inch for x in [0.0,5,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
-			                       ('FONTSIZE',(1,0),(1,1),18),
+								   ('FONTSIZE',(1,0),(1,1),18),
 										  ('SPAN',(0,0),(0,1)),
 										  ('SPAN',(1,0),(1,1)),
 										  ('LEADING',(1,0),(1,1),20),
-         	                    ('VALIGN',(1,0),(-1,-1),"MIDDLE"),
-            	                 ('ALIGN',(1,0),(1,-1),"CENTER"),
+		 						('VALIGN',(1,0),(-1,-1),"MIDDLE"),
+								 ('ALIGN',(1,0),(1,-1),"CENTER"),
 										  ('BOX',(0,0),(-1,-1),2,colors.black),
 										  ('BOX',(2,0),(-1,-1),2,colors.black),
 										  ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
@@ -5350,7 +5350,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			if extTeamName.lower()==existingExtTeamName.lower():
 				extTeamName=existingExtTeamName
 				break
-      # skip entries with no team like 'radio log begins', or multiple entries like 'all'
+	  # skip entries with no team like 'radio log begins', or multiple entries like 'all'
 		if niceTeamName!='' and not niceTeamName.lower()=="all" and not niceTeamName.lower().startswith("all "):
 			# if it's a team that doesn't already have a tab, make a new tab
 			if extTeamName not in self.extTeamNameList:
@@ -7264,100 +7264,151 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 
 
 class caltopoFolderPopup(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.parent=parent
+	def __init__(self, parent=None):
+		super().__init__(parent)
+		self.parent=parent
 
-        # Create the TreeView for the dropdown popup
-        self.tree_view = QTreeView(self)
-        self.tree_view.setHeaderHidden(True)  # Hide the header to look like a simple tree
-        self.tree_view.setSelectionMode(QTreeView.SingleSelection)
-        self.tree_view.setEditTriggers(QTreeView.NoEditTriggers)
-        self.tree_view.setExpandsOnDoubleClick(False)
-        self.tree_view.setAnimated(True)
+		# Create the TreeView for the dropdown popup
+		self.tree_view = QTreeView(self)
+		self.tree_view.setHeaderHidden(True)  # Hide the header to look like a simple tree
+		self.tree_view.setSelectionMode(QTreeView.SingleSelection)
+		self.tree_view.setEditTriggers(QTreeView.NoEditTriggers)
+		self.tree_view.setExpandsOnDoubleClick(False)
+		self.tree_view.setAnimated(True)
 
-        self.tree_view.setFixedHeight(300)
+		self.tree_view.setFixedHeight(300)
 
-        # Create a model for the tree view
-        self.model = QStandardItemModel()
-        self.tree_view.setModel(self.model)
+		# Create a model for the tree view
+		self.model = QStandardItemModel()
+		self.tree_view.setModel(self.model)
 
-        self.tree_view.entered.connect(self.enteredCB)
-        self.tree_view.clicked.connect(self.clickedCB)
-        self.tree_view.expanded.connect(self.expandedCB)
-        self.tree_view.collapsed.connect(self.collapsedCB)
+		self.tree_view.entered.connect(self.enteredCB)
+		self.tree_view.clicked.connect(self.clickedCB)
+		self.tree_view.expanded.connect(self.expandedCB)
+		self.tree_view.collapsed.connect(self.collapsedCB)
 
-        self.setWindowTitle("Popup Dialog")
-        self.setWindowFlags(Qt.Popup)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0,0,0,0)
-        layout.addWidget(self.tree_view)
-        self.setLayout(layout)
-        self.tree_view.setMouseTracking(True)
+		self.setWindowTitle("Popup Dialog")
+		self.setWindowFlags(Qt.Popup)
+		layout = QVBoxLayout(self)
+		layout.setContentsMargins(0,0,0,0)
+		layout.addWidget(self.tree_view)
+		self.setLayout(layout)
+		self.tree_view.setMouseTracking(True)
 
-    def enteredCB(self,i):
-        print('entered')
-        self.setFullLabel(i)
+	def enteredCB(self,i):
+		print('entered')
+		self.setFullLabel(i)
 
-    def expandedCB(self,i):
-        print('expanded')
-        self.collapseOthers(i)
+	def expandedCB(self,i):
+		print('expanded')
+		self.collapseOthers(i)
 
-    def collapsedCB(self,i):
-        print('collapsed')
+	def collapsedCB(self,i):
+		print('collapsed')
 
-    def clickedCB(self,i):
-        print('clicked')
-        self.setFullLabel(i)
-        self.close() # close the popup
+	def clickedCB(self,i):
+		print('clicked')
+		self.setFullLabel(i)
+		self.close() # close the popup
 
-    def setFullLabel(self,i):
-        # Get the full hierarchy path for display
-        current_index = i
-        path_list = [self.model.data(i)]
-        while current_index.parent().isValid():
-            parent_index = current_index.parent()
-            parent_text = self.model.data(parent_index)
-            path_list.insert(0, parent_text)
-            current_index = parent_index
-        # Join path with a separator and set the text
-        self.parent.ui.caltopoFolderButton.setText(' > '.join(path_list))
+	def setFullLabel(self,i):
+		# Get the full hierarchy path for display
+		current_index = i
+		path_list = [self.model.data(i)]
+		while current_index.parent().isValid():
+			parent_index = current_index.parent()
+			parent_text = self.model.data(parent_index)
+			path_list.insert(0, parent_text)
+			current_index = parent_index
+		# Join path with a separator and set the text
+		self.parent.ui.caltopoFolderButton.setText(' > '.join(path_list))
 
-    def populate(self, data):
-        """Populates the tree model from a dictionary."""
-        self.model.clear()
-        for key, children in data.items():
-            parent_item = QStandardItem(key)
-            for child_text in children:
-                child_item = QStandardItem(child_text)
-                parent_item.appendRow(child_item)
-            self.model.appendRow(parent_item)
-        for r in range(self.model.rowCount()):
-            for c in range(self.model.columnCount()):
-                txt=self.model.item(r,c).text()
-                print(f'row {r} col {c} : {txt}')
+	# recursive population code taken from https://stackoverflow.com/a/53747062/3577105
+	def fill_model_from_json(self,parent, d):
+		if isinstance(d, dict):
+			for k, v in d.items():
+				child = QStandardItem(str(k)) 
+				parent.appendRow(child)
+				self.fill_model_from_json(child, v)
+		elif isinstance(d, list):
+			for v in d:
+				self.fill_model_from_json(parent, v)
+		else:
+			parent.appendRow(QStandardItem(str(d)))
 
-    def collapseOthers(self,expandedIndex):
-        QApplication.processEvents()
-        print('collapse_others called: expandedIndex='+str(expandedIndex))
-        def _collapse_recursive(parent_index: QModelIndex,sp='  '):
-            for row in range(self.model.rowCount(parent_index)):
-                index = self.model.index(row, 0, parent_index)
-                item=self.model.itemFromIndex(index)
-                txt=item.text()
-                print(sp+f'checking r={row} col=0 : {txt}')
-                if index.isValid() and index!=expandedIndex:
-                    print(sp+'  collapsing')
-                    self.tree_view.collapse(index)
-                    # self.tree_view.setExpanded(index,False)
-                    
-                    # Recursively process children
-                    if self.model.hasChildren(index):
-                        _collapse_recursive(index,sp+'  ')
+	def fill_dict_from_model(self,parent_index, d):
+		v = {}
+		for i in range(self.model.rowCount(parent_index)):
+			ix = self.model.index(i, 0, parent_index)
+			self.fill_dict_from_model(ix, v)
+		d[parent_index.data()] = v
 
-        # Start the recursion from the invisible root item
-        _collapse_recursive(QModelIndex())
-        QApplication.processEvents()
+	def model_to_dict(self):
+		d = dict()
+		for i in range(self.model.rowCount()):
+			ix = self.model.index(i, 0)
+			self.fill_dict_from_model(ix, d)    
+		return d
+	
+	def populate(self, data):
+		"""Populates the tree model from a dictionary."""
+		self.model.clear()
+		self.fill_model_from_json(self.model.invisibleRootItem(),data)
+		# two levels at most
+		# for key, children in data.items():
+		#     parent_item = QStandardItem(key)
+		#     for child_text in children:
+		#         child_item = QStandardItem(child_text)
+		#         parent_item.appendRow(child_item)
+		#     self.model.appendRow(parent_item)
+
+		# recursive - any number of levels
+		# def populate_recurse(dict,parentItem=None):
+		# 	for key in dict.keys():
+		# 		print('processing '+str(key))
+		# 		if parentItem:
+		# 			parentItem.appendRow(QStandardItem(key))
+		# 		else:
+		# 			parentItem=QStandardItem(key)
+		# 		for child in dict[key]:
+		# 			populate_recurse(dict[key],parentItem)
+		# 	return parentItem
+		
+		# self.model.appendRow(populate_recurse(data))
+
+		# for key, children in data.items():
+		# 	parent_item = QStandardItem(key)
+		# 	for child_text in children:
+		# 		child_item = QStandardItem(child_text)
+		# 		parent_item.appendRow(child_item)
+		# 	self.model.appendRow(parent_item)
+		for r in range(self.model.rowCount()):
+			for c in range(self.model.columnCount()):
+				txt=self.model.item(r,c).text()
+				print(f'row {r} col {c} : {txt}')
+
+	# collapse all other indeces, except for ancestors of the index in question
+	def collapseOthers(self,expandedIndex):
+		QApplication.processEvents()
+		print('collapse_others called: expandedIndex='+str(expandedIndex))
+		def _collapse_recursive(parent_index: QModelIndex,sp='  '):
+			for row in range(self.model.rowCount(parent_index)):
+				index = self.model.index(row, 0, parent_index)
+				item=self.model.itemFromIndex(index)
+				txt=item.text()
+				print(sp+f'checking r={row} col=0 : {txt}')
+				if index.isValid() and index!=expandedIndex:
+					print(sp+'  collapsing')
+					self.tree_view.collapse(index)
+					# self.tree_view.setExpanded(index,False)
+					
+					# Recursively process children
+					if self.model.hasChildren(index):
+						_collapse_recursive(index,sp+'  ')
+
+		# Start the recursion from the invisible root item
+		_collapse_recursive(QModelIndex())
+		QApplication.processEvents()
 
 
 class optionsDialog(QDialog,Ui_optionsDialog):
@@ -7452,12 +7503,26 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		popup_y = button_pos.y() + self.ui.caltopoFolderButton.height()
 
 		# Sample hierarchical data
-		data = {
-			"Fruits": ["Apple", "Banana", "Orange"],
-			"Vegetables": ["Carrot", "Broccoli", "Spinach"],
-			"Dairy": ["Milk", "Cheese", "Yogurt"]
-		}
-        
+		# data = {
+		# 	"Fruits": ["Apple", "Banana", "Orange"],
+		# 	"Vegetables": ["Carrot", "Broccoli", "Spinach"],
+		# 	"Dairy": ["Milk", "Cheese", "Yogurt"]
+		# }
+
+		data={
+				"AAAAAAAA": {},
+				"V205THU7": {
+					"U3762091": {
+						"07QF60R8": {},
+						"HTVGVJHQ": {}
+					},
+					"ARB5MEGR": {
+						"21C7SNF0": {},
+						"5PGQL717": {}
+					}
+				}
+			}
+		
 		self.caltopoFolderPopup.populate(data)
 
 		self.caltopoFolderPopup.move(popup_x, popup_y)
@@ -7778,32 +7843,77 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		if self.pauseCB:
 			rprint(' acbc: paused; returning')
 			return
+		# rprint('accountData:')
+		# rprint(json.dumps(self.parent.cts.accountData,indent=3))
+		accountId=[a for a in self.parent.cts.accountData['accounts'] if a['properties']['title']==self.ui.caltopoAccountComboBox.currentText()][0]['id']
+		rprint('  accountId='+str(accountId))
 		# time.sleep(2)
 		# groupAccountNames=[d.get('groupAccountTitle',None) for d in self.parent.caltopoMapListDicts]
 		# rprint('groupAccountNames:'+str(groupAccountNames))
 		# rprint('currentText:'+str(self.ui.caltopoAccountComboBox.currentText()))
-		dicts=[d for d in self.parent.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
-		if dicts:
-			rprint('dicts with groupAccountTitle name = '+str(self.ui.caltopoAccountComboBox.currentText()))
-			rprint(json.dumps(dicts,indent=3))
-			mapList=dicts[0]['mapList']
-			# take the first non-bookmark entry, since the list is already sorted chronologically		
-			mapsNotBookmarks=[m for m in mapList if m['type']=='map']
-			rprint('mapsNotBookmarks:'+str(json.dumps(mapsNotBookmarks,indent=3)))
-			folderNames=list(set([m['folderName'] for m in mapsNotBookmarks]))
-			self.ui.caltopoFolderButton.setText('')
-			# if mapsNotBookmarks:
-			# 	self.ui.caltopoFolderComboBox.addItems(sorted(folderNames))
-			# 	self.ui.caltopoFolderComboBox.setCurrentIndex(0)
+
+		# dicts=[d for d in self.parent.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
+		# if dicts:
+		# 	rprint('dicts with groupAccountTitle name = '+str(self.ui.caltopoAccountComboBox.currentText()))
+		# 	rprint(json.dumps(dicts,indent=3))
+		# 	mapList=dicts[0]['mapList']
+		# 	# take the first non-bookmark entry, since the list is already sorted chronologically		
+		# 	mapsNotBookmarks=[m for m in mapList if m['type']=='map']
+		# 	rprint('mapsNotBookmarks:'+str(json.dumps(mapsNotBookmarks,indent=3)))
+		# 	folderNames=list(set([m['folderName'] for m in mapsNotBookmarks]))
+		# 	self.ui.caltopoFolderButton.setText('')
+		# 	# if mapsNotBookmarks:
+		# 	# 	self.ui.caltopoFolderComboBox.addItems(sorted(folderNames))
+		# 	# 	self.ui.caltopoFolderComboBox.setCurrentIndex(0)
+
+		self.getFolderTree(accountId)
 		rprint('acct.end')
 
-	# def getFolderTree(self):
-	# 	rprint('get folder tree')
-	# 	acctDict=[d for d in self.parent.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()][0]
-	# 	if acctDict:
-	# 		folders=[f for f in acctDict['features'] if f['properties']['class']=='UserFolder'] # list of dicts
-	# 		for folder in in folders:
-	# 			if hasChildren:
+	def getFolderTree(self,accountId):
+		rprint('get folder tree')
+		folderTree=[]
+		# acctDict=[d for d in self.parent.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()][0]
+		acctFolders=[f for f in self.parent.cts.accountData['features'] if f['properties']['accountId']==accountId and f['properties']['class']=='UserFolder']
+		rprint('acctFolders:')
+		rprint(json.dumps(acctFolders,indent=3))
+
+		# def getChildFolders(id):
+		# 	return [f for f in acctFolders if f['properties']['folderId']==id]
+		
+		# for folder in acctFolders:
+		# 	# parentId=folder['properties']['folderId']
+		# 	# this is expensive - it makes n^2 iterations where n is the total number of folders (at all levels) in the account
+		# 	#  but that's probably OK since it's not time-sensitive
+		# 	id=folder['id']
+		# 	children=[{
+		# 		'title':f['properties']['title'],
+		# 		'id':f['id']} for f in acctFolders if f['properties']['folderId']==id]
+		# 	folderTree.append({
+		# 		'title':folder['properties']['title'],
+		# 		'id':id,
+		# 		'children':children
+		# 	})
+			
+		for folder in acctFolders:
+			# parentId=folder['properties']['folderId']
+			# this is expensive - it makes n^2 iterations where n is the total number of folders (at all levels) in the account
+			#  but that's probably OK since it's not time-sensitive
+			id=folder['id']
+			children=[{
+				'title':f['properties']['title'],
+				'id':f['id']} for f in acctFolders if f['properties']['folderId']==id]
+			def buildFolderDict(f):
+				children=[{
+					'title':f['properties']['title'],
+					'id':f['id']} for f in acctFolders if f['properties']['folderId']==id]
+
+			d={
+				'title':folder['properties']['title'],
+				'id':id,
+				'children':children
+			}
+			
+		rprint(json.dumps(folderTree,indent=3))
 
 	def caltopoFolderButtonChanged(self):
 		rprint('folder changed to "'+str(self.ui.caltopoFolderButton.text())+'" - rebuilding map name choices')
