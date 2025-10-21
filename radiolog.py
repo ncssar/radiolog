@@ -7336,19 +7336,19 @@ class caltopoFolderPopup(QDialog):
 		else:
 			parent.appendRow(QStandardItem(str(d)))
 
-	def fill_dict_from_model(self,parent_index, d):
-		v = {}
-		for i in range(self.model.rowCount(parent_index)):
-			ix = self.model.index(i, 0, parent_index)
-			self.fill_dict_from_model(ix, v)
-		d[parent_index.data()] = v
+	# def fill_dict_from_model(self,parent_index, d):
+	# 	v = {}
+	# 	for i in range(self.model.rowCount(parent_index)):
+	# 		ix = self.model.index(i, 0, parent_index)
+	# 		self.fill_dict_from_model(ix, v)
+	# 	d[parent_index.data()] = v
 
-	def model_to_dict(self):
-		d = dict()
-		for i in range(self.model.rowCount()):
-			ix = self.model.index(i, 0)
-			self.fill_dict_from_model(ix, d)    
-		return d
+	# def model_to_dict(self):
+	# 	d = dict()
+	# 	for i in range(self.model.rowCount()):
+	# 		ix = self.model.index(i, 0)
+	# 		self.fill_dict_from_model(ix, d)    
+	# 	return d
 	
 	def populate(self, data):
 		"""Populates the tree model from a dictionary."""
@@ -7387,17 +7387,25 @@ class caltopoFolderPopup(QDialog):
 				txt=self.model.item(r,c).text()
 				print(f'row {r} col {c} : {txt}')
 
-	# collapse all other indeces, except for ancestors of the index in question
+	# collapse all other indeces, from all levels of nesting, except for ancestors of the index in question
 	def collapseOthers(self,expandedIndex):
 		QApplication.processEvents()
 		print('collapse_others called: expandedIndex='+str(expandedIndex))
+		ancesterIndices=[]
+		parent=expandedIndex.parent() # returns a new QModelIndex instance if there are no parents
+		print('building ancesterIndices: first parent='+str(parent))
+		while parent.isValid():
+			ancesterIndices.append(parent)
+			print('appending '+str(parent))
+			parent=parent.parent() # ascend and recurse while valid (new QModelIndex instance if there are no parents)
+		print('ancesterIndices='+str(ancesterIndices))
 		def _collapse_recursive(parent_index: QModelIndex,sp='  '):
 			for row in range(self.model.rowCount(parent_index)):
 				index = self.model.index(row, 0, parent_index)
 				item=self.model.itemFromIndex(index)
 				txt=item.text()
 				print(sp+f'checking r={row} col=0 : {txt}')
-				if index.isValid() and index!=expandedIndex:
+				if index.isValid() and index!=expandedIndex and index not in ancesterIndices:
 					print(sp+'  collapsing')
 					self.tree_view.collapse(index)
 					# self.tree_view.setExpanded(index,False)
@@ -7406,8 +7414,12 @@ class caltopoFolderPopup(QDialog):
 					if self.model.hasChildren(index):
 						_collapse_recursive(index,sp+'  ')
 
+		# start a fresh recursion for each top level index
+		for row in range(self.model.rowCount()):
+			for col in range(self.model.columnCount()):
+				_collapse_recursive(self.model.index(row,col))
 		# Start the recursion from the invisible root item
-		_collapse_recursive(QModelIndex())
+		# _collapse_recursive(QModelIndex())
 		QApplication.processEvents()
 
 
