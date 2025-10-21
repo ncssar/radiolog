@@ -7307,7 +7307,7 @@ class caltopoFolderPopup(QDialog):
 		print('collapsed')
 
 	def clickedCB(self,i):
-		print('clicked')
+		print('clicked:'+i.data()+':'+i.data(Qt.UserRole))
 		self.setFullLabel(i)
 		self.close() # close the popup
 
@@ -7327,7 +7327,9 @@ class caltopoFolderPopup(QDialog):
 	def fill_model_from_json(self,parent, d):
 		if isinstance(d, dict):
 			for k, v in d.items():
-				child = QStandardItem(str(k)) 
+				[id,title]=k.split('|')
+				child = QStandardItem(title)
+				child.setData(id,Qt.UserRole)
 				parent.appendRow(child)
 				self.fill_model_from_json(child, v)
 		elif isinstance(d, list):
@@ -7521,16 +7523,31 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# 	"Dairy": ["Milk", "Cheese", "Yogurt"]
 		# }
 
+		# this works, 10/21/25:
+		# data={
+		# 		"AAAAAAAA": {},
+		# 		"V205THU7": {
+		# 			"U3762091": {
+		# 				"07QF60R8": {},
+		# 				"HTVGVJHQ": {}
+		# 			},
+		# 			"ARB5MEGR": {
+		# 				"21C7SNF0": {},
+		# 				"5PGQL717": {}
+		# 			}
+		# 		}
+		# 	}
+		
 		data={
-				"AAAAAAAA": {},
-				"V205THU7": {
-					"U3762091": {
-						"07QF60R8": {},
-						"HTVGVJHQ": {}
+				"AAAAAAAA|Folder 1": {},
+				"V205THU7|Folder 2": {
+					"U3762091|Folder2A": {
+						"07QF60R8|2A1": {},
+						"HTVGVJHQ|2a2": {}
 					},
-					"ARB5MEGR": {
-						"21C7SNF0": {},
-						"5PGQL717": {}
+					"ARB5MEGR|2B": {
+						"21C7SNF0|2b1": {},
+						"5PGQL717|2b2": {}
 					}
 				}
 			}
