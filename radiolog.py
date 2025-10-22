@@ -7476,11 +7476,12 @@ class caltopoFolderPopup(QDialog):
 						_collapse_recursive(index,sp+'  ')
 
 		# start a fresh recursion for each top level index
-		for row in range(self.model.rowCount()):
-			for col in range(self.model.columnCount()):
-				_collapse_recursive(self.model.index(row,col))
+		# for row in range(self.model.rowCount()):
+		# 	for col in range(self.model.columnCount()):
+		# 		_collapse_recursive(self.model.index(row,col))
+		
 		# Start the recursion from the invisible root item
-		# _collapse_recursive(QModelIndex())
+		_collapse_recursive(QModelIndex())
 		QApplication.processEvents()
 
 
