@@ -7327,10 +7327,11 @@ class caltopoFolderPopup(QDialog):
 		self.parent.ui.caltopoFolderButton.setText(' > '.join(path_list))
 
 	# recursive population code taken from https://stackoverflow.com/a/53747062/3577105
+	#  add code to alphabetize within each branch
 	def fill_model_from_json(self,parent, d):
 		if isinstance(d, dict):
-			for k, v in d.items():
-				[id,title]=k.split('|')
+			for k, v in sorted(d.items(),key=lambda item: item[0].lower()): # case insensitive alphabetical sort by key
+				[title,id]=k.split('|')
 				child = QStandardItem(title)
 				child.setData(id,Qt.UserRole)
 				parent.appendRow(child)
@@ -7406,7 +7407,7 @@ class caltopoFolderPopup(QDialog):
 				parentTitle='Top'
 			else:
 				parentTitle=[pf['properties']['title'] for pf in acctFolders if pf['id']==parentId][0]
-			folderChildParentList.append((f'{id}|{title}',f'{parentId}|{parentTitle}'))
+			folderChildParentList.append((f'{title}|{id}',f'{parentTitle}|{parentId}'))
 		rprint('folderChildParentList:')
 		rprint(json.dumps(folderChildParentList,indent=3))
 		data=self.hierFromList(folderChildParentList)
