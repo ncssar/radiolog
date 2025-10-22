@@ -7392,6 +7392,10 @@ class caltopoFolderPopup(QDialog):
 	def populate(self,accountId):
 		"""Populates the tree model from a dictionary."""
 		self.model.clear()
+		# make sure <Top Level> is always the first (and possibly only) entry
+		topLevelItem=QStandardItem('<Top Level>')
+		topLevelItem.setData('0',Qt.UserRole) # UserRole is used to store folder ID; use a dummy value here
+		self.model.appendRow(topLevelItem)
 		acctFolders=[f for f in self.parent.parent.cts.accountData['features'] if f['properties']['accountId']==accountId and f['properties']['class']=='UserFolder']
 		if not acctFolders:
 			return
@@ -7960,6 +7964,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# 	# 	self.ui.caltopoFolderComboBox.setCurrentIndex(0)
 
 		self.caltopoFolderPopup.populate(accountId)
+		self.ui.caltopoFolderButton.setText(self.caltopoFolderPopup.model.index(0,0).data())
 		# self.getFolderTree(accountId)
 		rprint('acct.end')
 
