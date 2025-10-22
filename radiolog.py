@@ -7308,6 +7308,9 @@ class caltopoFolderPopup(QDialog):
 
 	def clickedCB(self,i):
 		print('clicked:'+i.data()+':'+i.data(Qt.UserRole))
+		parent=i.parent()
+		rprint(f'  model={i.model()} row={i.row()} col={i.column()}')
+		rprint(f'  parent model={parent.model()} row={parent.row()} col={parent.column()}')
 		self.setFullLabel(i)
 		self.close() # close the popup
 
@@ -7352,9 +7355,63 @@ class caltopoFolderPopup(QDialog):
 	# 		self.fill_dict_from_model(ix, d)    
 	# 	return d
 	
-	def populate(self, data):
+	# adapted from https://stackoverflow.com/a/45461474/3577105
+	# hierFromList: given a list of (child,parent) tuples, returns a nested dict of key=name, val=dict of children
+	def hierFromList(self,lst):
+		# lst = [('john','marry'), ('mike','john'), ('mike','hellen'), ('john','elisa')]
+		# lst is not directly comparable to folders; the folder list is (child,parent):
+		# lst=[('mike',None),('john','mike'),('elisa','john'),('marry','john'),('hellen','mike')]
+		# lst=[(f['id'],f['properties']['folderId'] or 'Top') for f in features]
+
+		# Build a directed graph and a list of all names that have no parent
+		graph = {name: set() for tup in lst for name in tup}
+		# print('graph initial:'+str(graph))
+		has_parent = {name: False for tup in lst for name in tup}
+		# print('has_parent initial:')
+		# print(json.dumps(has_parent,indent=3))
+		for child,parent in lst:
+			graph[parent].add(child)
+			has_parent[child] = True
+		# print('graph after:'+str(graph))
+		# print('has_parent after:')
+		# print(json.dumps(has_parent,indent=3))
+
+		# All names that have absolutely no parent:
+		roots = [name for name, parents in has_parent.items() if not parents]
+
+		# traversal of the graph (doesn't care about duplicates and cycles)
+		def traverse(hierarchy, graph, names):
+			for name in names:
+				hierarchy[name] = traverse({}, graph, graph[name])
+			return hierarchy
+
+		idHier=traverse({}, graph, roots)['Top|Top']
+		return idHier
+
+	def populate(self,accountId):
 		"""Populates the tree model from a dictionary."""
 		self.model.clear()
+		acctFolders=[f for f in self.parent.parent.cts.accountData['features'] if f['properties']['accountId']==accountId and f['properties']['class']=='UserFolder']
+		if not acctFolders:
+			return
+		rprint('acctFolders:')
+		rprint(json.dumps(acctFolders,indent=3))
+		folderChildParentList=[]
+		for f in acctFolders:
+			id=f['id']
+			title=f['properties']['title']
+			parentId=f['properties']['folderId'] or 'Top'
+			rprint(f'f:id={id} title="{title}" parentId={parentId}')
+			if parentId=='Top':
+				parentTitle='Top'
+			else:
+				parentTitle=[pf['properties']['title'] for pf in acctFolders if pf['id']==parentId][0]
+			folderChildParentList.append((f'{id}|{title}',f'{parentId}|{parentTitle}'))
+		rprint('folderChildParentList:')
+		rprint(json.dumps(folderChildParentList,indent=3))
+		data=self.hierFromList(folderChildParentList)
+		rprint('data:')
+		rprint(json.dumps(data,indent=3))
 		self.fill_model_from_json(self.model.invisibleRootItem(),data)
 		# two levels at most
 		# for key, children in data.items():
@@ -7384,10 +7441,11 @@ class caltopoFolderPopup(QDialog):
 		# 		child_item = QStandardItem(child_text)
 		# 		parent_item.appendRow(child_item)
 		# 	self.model.appendRow(parent_item)
-		for r in range(self.model.rowCount()):
-			for c in range(self.model.columnCount()):
-				txt=self.model.item(r,c).text()
-				print(f'row {r} col {c} : {txt}')
+
+		# for r in range(self.model.rowCount()):
+		# 	for c in range(self.model.columnCount()):
+		# 		txt=self.model.item(r,c).text()
+		# 		print(f'row {r} col {c} : {txt}')
 
 	# collapse all other indeces, from all levels of nesting, except for ancestors of the index in question
 	def collapseOthers(self,expandedIndex):
@@ -7396,6 +7454,7 @@ class caltopoFolderPopup(QDialog):
 		ancesterIndices=[]
 		parent=expandedIndex.parent() # returns a new QModelIndex instance if there are no parents
 		print('building ancesterIndices: first parent='+str(parent))
+		print(f'  model={parent.model()} row={parent.row()} col={parent.column()}')
 		while parent.isValid():
 			ancesterIndices.append(parent)
 			print('appending '+str(parent))
@@ -7538,21 +7597,21 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# 		}
 		# 	}
 		
-		data={
-				"AAAAAAAA|Folder 1": {},
-				"V205THU7|Folder 2": {
-					"U3762091|Folder2A": {
-						"07QF60R8|2A1": {},
-						"HTVGVJHQ|2a2": {}
-					},
-					"ARB5MEGR|2B": {
-						"21C7SNF0|2b1": {},
-						"5PGQL717|2b2": {}
-					}
-				}
-			}
+		# data={
+		# 		"AAAAAAAA|Folder 1": {},
+		# 		"V205THU7|Folder 2": {
+		# 			"U3762091|Folder2A": {
+		# 				"07QF60R8|2A1": {},
+		# 				"HTVGVJHQ|2a2": {}
+		# 			},
+		# 			"ARB5MEGR|2B": {
+		# 				"21C7SNF0|2b1": {},
+		# 				"5PGQL717|2b2": {}
+		# 			}
+		# 		}
+		# 	}
 		
-		self.caltopoFolderPopup.populate(data)
+		# self.caltopoFolderPopup.populate()
 
 		self.caltopoFolderPopup.move(popup_x, popup_y)
 		self.caltopoFolderPopup.exec_() # Show as a modal dialog
@@ -7867,14 +7926,17 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# rprint('  no match processing complete; unpausing callbacks')
 
 	def caltopoAccountComboBoxChanged(self):
-		rprint('acct combo box changed to "'+str(self.ui.caltopoAccountComboBox.currentText())+'"')
+		txt=self.ui.caltopoAccountComboBox.currentText()
+		rprint('acct combo box changed to "'+str(txt)+'"')
 		# if self.pauseAccountCB:
 		if self.pauseCB:
 			rprint(' acbc: paused; returning')
 			return
 		# rprint('accountData:')
 		# rprint(json.dumps(self.parent.cts.accountData,indent=3))
-		accountId=[a for a in self.parent.cts.accountData['accounts'] if a['properties']['title']==self.ui.caltopoAccountComboBox.currentText()][0]['id']
+		if txt=='<Choose Acct>':
+			return
+		accountId=[a for a in self.parent.cts.accountData['accounts'] if a['properties']['title']==txt][0]['id']
 		rprint('  accountId='+str(accountId))
 		# time.sleep(2)
 		# groupAccountNames=[d.get('groupAccountTitle',None) for d in self.parent.caltopoMapListDicts]
@@ -7895,54 +7957,56 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# 	# 	self.ui.caltopoFolderComboBox.addItems(sorted(folderNames))
 		# 	# 	self.ui.caltopoFolderComboBox.setCurrentIndex(0)
 
-		self.getFolderTree(accountId)
+		self.caltopoFolderPopup.populate(accountId)
+		# self.getFolderTree(accountId)
 		rprint('acct.end')
 
-	def getFolderTree(self,accountId):
-		rprint('get folder tree')
-		folderTree=[]
-		# acctDict=[d for d in self.parent.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()][0]
-		acctFolders=[f for f in self.parent.cts.accountData['features'] if f['properties']['accountId']==accountId and f['properties']['class']=='UserFolder']
-		rprint('acctFolders:')
-		rprint(json.dumps(acctFolders,indent=3))
+	# def getFolderTree(self,accountId):
+	# 	rprint('get folder tree')
+	# 	folderTree={}
+	# 	# acctDict=[d for d in self.parent.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()][0]
+	# 	acctFolders=[f for f in self.parent.cts.accountData['features'] if f['properties']['accountId']==accountId and f['properties']['class']=='UserFolder']
+	# 	rprint('acctFolders:')
+	# 	rprint(json.dumps(acctFolders,indent=3))
 
-		# def getChildFolders(id):
-		# 	return [f for f in acctFolders if f['properties']['folderId']==id]
+	# 	# def getChildFolders(id):
+	# 	# 	return [f for f in acctFolders if f['properties']['folderId']==id]
 		
-		# for folder in acctFolders:
-		# 	# parentId=folder['properties']['folderId']
-		# 	# this is expensive - it makes n^2 iterations where n is the total number of folders (at all levels) in the account
-		# 	#  but that's probably OK since it's not time-sensitive
-		# 	id=folder['id']
-		# 	children=[{
-		# 		'title':f['properties']['title'],
-		# 		'id':f['id']} for f in acctFolders if f['properties']['folderId']==id]
-		# 	folderTree.append({
-		# 		'title':folder['properties']['title'],
-		# 		'id':id,
-		# 		'children':children
-		# 	})
+	# 	# for folder in acctFolders:
+	# 	# 	# parentId=folder['properties']['folderId']
+	# 	# 	# this is expensive - it makes n^2 iterations where n is the total number of folders (at all levels) in the account
+	# 	# 	#  but that's probably OK since it's not time-sensitive
+	# 	# 	id=folder['id']
+	# 	# 	children=[{
+	# 	# 		'title':f['properties']['title'],
+	# 	# 		'id':f['id']} for f in acctFolders if f['properties']['folderId']==id]
+	# 	# 	folderTree.append({
+	# 	# 		'title':folder['properties']['title'],
+	# 	# 		'id':id,
+	# 	# 		'children':children
+	# 	# 	})
 			
-		for folder in acctFolders:
-			# parentId=folder['properties']['folderId']
-			# this is expensive - it makes n^2 iterations where n is the total number of folders (at all levels) in the account
-			#  but that's probably OK since it's not time-sensitive
-			id=folder['id']
-			children=[{
-				'title':f['properties']['title'],
-				'id':f['id']} for f in acctFolders if f['properties']['folderId']==id]
-			def buildFolderDict(f):
-				children=[{
-					'title':f['properties']['title'],
-					'id':f['id']} for f in acctFolders if f['properties']['folderId']==id]
+	# 	# for folder in acctFolders:
+	# 	# 	# parentId=folder['properties']['folderId']
+	# 	# 	# this is expensive - it makes n^2 iterations where n is the total number of folders (at all levels) in the account
+	# 	# 	#  but that's probably OK since it's not time-sensitive
+	# 	# 	id=folder['id']
+	# 	# 	children=[{
+	# 	# 		'title':f['properties']['title'],
+	# 	# 		'id':f['id']} for f in acctFolders if f['properties']['folderId']==id]
+	# 	# 	def buildFolderDict(f):
+	# 	# 		children=[{
+	# 	# 			'title':f['properties']['title'],
+	# 	# 			'id':f['id']} for f in acctFolders if f['properties']['folderId']==id]
 
-			d={
-				'title':folder['properties']['title'],
-				'id':id,
-				'children':children
-			}
-			
-		rprint(json.dumps(folderTree,indent=3))
+	# 	# 	d={
+	# 	# 		'title':folder['properties']['title'],
+	# 	# 		'id':id,
+	# 	# 		'children':children
+	# 	# 	}
+		
+
+	# 	rprint(json.dumps(folderTree,indent=3))
 
 	def caltopoFolderButtonChanged(self):
 		rprint('folder changed to "'+str(self.ui.caltopoFolderButton.text())+'" - rebuilding map name choices')
