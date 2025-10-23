@@ -346,6 +346,7 @@ class Ui_optionsDialog(object):
         self.caltopoMapIDField.textChanged['QString'].connect(optionsDialog.caltopoMapIDTextChanged) # type: ignore
         self.caltopoMapNameComboBox.highlighted['int'].connect(optionsDialog.caltopoMapNameComboBoxHighlightChanged) # type: ignore
         self.caltopoDesktopButton.toggled['bool'].connect(optionsDialog.caltopoServerChanged) # type: ignore
+        self.caltopoFolderButton.pressed.connect(optionsDialog.caltopoFolderButtonPressed) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(optionsDialog)
 
     def retranslateUi(self, optionsDialog):

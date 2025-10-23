@@ -758,8 +758,8 @@
    <slot>caltopoAccountComboBoxChanged()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>247</x>
-     <y>344</y>
+     <x>185</x>
+     <y>342</y>
     </hint>
     <hint type="destinationlabel">
      <x>449</x>
@@ -774,8 +774,8 @@
    <slot>caltopoMapIDTextChanged()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>463</x>
-     <y>377</y>
+     <x>541</x>
+     <y>375</y>
     </hint>
     <hint type="destinationlabel">
      <x>450</x>
@@ -791,7 +791,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>188</x>
-     <y>377</y>
+     <y>375</y>
     </hint>
     <hint type="destinationlabel">
      <x>4</x>
@@ -815,6 +815,22 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>caltopoFolderButton</sender>
+   <signal>pressed()</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoFolderButtonPressed()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>558</x>
+     <y>325</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>545</x>
+     <y>145</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>secondWorkingDirCB()</slot>
@@ -823,13 +839,13 @@
   <slot>caltopoEnabledCB()</slot>
   <slot>caltopoURLCB()</slot>
   <slot>caltopoConnectButtonClicked()</slot>
-  <slot>caltopoFolderComboBoxChanged()</slot>
   <slot>caltopoMapNameComboBoxChanged()</slot>
   <slot>caltopoAccountComboBoxChanged()</slot>
   <slot>caltopoMapIDTextChanged()</slot>
   <slot>caltopoMapNameComboBoxHighlightChanged()</slot>
   <slot>caltopoUpdateGUI()</slot>
   <slot>caltopoServerChanged()</slot>
+  <slot>caltopoFolderButtonPressed()</slot>
  </slots>
  <buttongroups>
   <buttongroup name="buttonGroup"/>

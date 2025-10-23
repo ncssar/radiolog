@@ -6857,7 +6857,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		noMatchDict={
 			'groupAccountTitle':'<Choose Acct>',
 			'mapList':[{
-				'id':'',
+				'id':'Top',
 				'title':'<Choose Map>',
 				'updated':0,
 				'type':'map',
@@ -7294,6 +7294,15 @@ class caltopoFolderPopup(QDialog):
 		layout.addWidget(self.tree_view)
 		self.setLayout(layout)
 		self.tree_view.setMouseTracking(True)
+		self.blockPopup=False
+
+	def closeEvent(self,e):
+		self.blockPopup=True
+		QTimer.singleShot(250,self.clearBlock)
+		rprint('popup closed')
+
+	def clearBlock(self):
+		self.blockPopup=False
 
 	def enteredCB(self,i):
 		print('entered')
@@ -7308,10 +7317,11 @@ class caltopoFolderPopup(QDialog):
 
 	def clickedCB(self,i):
 		print('clicked:'+i.data()+':'+i.data(Qt.UserRole))
-		parent=i.parent()
-		rprint(f'  model={i.model()} row={i.row()} col={i.column()}')
-		rprint(f'  parent model={parent.model()} row={parent.row()} col={parent.column()}')
+		# parent=i.parent()
+		# rprint(f'  model={i.model()} row={i.row()} col={i.column()}')
+		# rprint(f'  parent model={parent.model()} row={parent.row()} col={parent.column()}')
 		self.setFullLabel(i)
+		self.parent.caltopoFolderChanged(i.data(Qt.UserRole))
 		self.close() # close the popup
 
 	def setFullLabel(self,i):
@@ -7522,8 +7532,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.qle=self.ui.caltopoMapNameComboBox.lineEdit()
 		self.qle.setReadOnly(True) # but still editable, as recommended
 		self.caltopoMapNameComboBoxHighlightChanged(0)
-		self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoItalicStrikeFont)
-		self.ui.caltopoFolderButton.clicked.connect(self.caltopoFolderButtonClicked)
+		# self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoItalicStrikeFont)
 		self.caltopoFolderPopup=caltopoFolderPopup(self)
 
 	def showEvent(self,event):
@@ -7572,8 +7581,11 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	# T : set I
 	# I : use the Search Tree to find a match; set A, F, and T, all without callbacks
 
-	def caltopoFolderButtonClicked(self):
-		rprint('clicked')
+	def caltopoFolderButtonPressed(self):
+		rprint('folder button pressed')
+		if self.caltopoFolderPopup.blockPopup:
+			rprint('  blockPopup is True (popup was recently closed); popup not shown; returning')
+			return
 		# Get the global position of the button's top-left corner
 		button_pos = self.ui.caltopoFolderButton.mapToGlobal(QPoint(0, 0))
 
@@ -7964,7 +7976,11 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# 	# 	self.ui.caltopoFolderComboBox.setCurrentIndex(0)
 
 		self.caltopoFolderPopup.populate(accountId)
-		self.ui.caltopoFolderButton.setText(self.caltopoFolderPopup.model.index(0,0).data())
+		self.caltopoFolderPopup.setFullLabel(self.caltopoFolderPopup.model.index(0,0))
+		# self.ui.caltopoFolderButton.setText(self.caltopoFolderPopup.model.index(0,0).data())
+		# self.pauseIDCB=True
+		self.caltopoFolderChanged(self.caltopoFolderPopup.model.index(0,0).data(Qt.UserRole)) # folder ID stored in UserRole
+		# self.pauseIDCB=False
 		# self.getFolderTree(accountId)
 		rprint('acct.end')
 
@@ -8015,8 +8031,10 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 
 	# 	rprint(json.dumps(folderTree,indent=3))
 
-	def caltopoFolderButtonChanged(self):
-		rprint('folder changed to "'+str(self.ui.caltopoFolderButton.text())+'" - rebuilding map name choices')
+	def caltopoFolderChanged(self,folderId):
+		if str(folderId)=='0':
+			folderId=None
+		rprint('folder changed to "'+str(self.ui.caltopoFolderButton.text())+'":'+str(folderId)+' - rebuilding map name choices')
 		# time.sleep(2)
 		if self.pauseCB:
 			rprint(' fcbc: paused; returning')
@@ -8026,9 +8044,12 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		dicts=[d for d in self.parent.caltopoMapListDicts if d['groupAccountTitle']==self.ui.caltopoAccountComboBox.currentText()]
 		if dicts:
 			mapList=dicts[0]['mapList']
-			rprint(' fcbc mapList:')
-			rprint(json.dumps(mapList,indent=3))
-			relsInFolder=[m for m in mapList if m['folderName']==(self.ui.caltopoFolderButton.text() or '<Top Level>')]
+			# rprint(' fcbc mapList:')
+			# rprint(json.dumps(mapList,indent=3))
+			# relsInFolder=[m for m in mapList if m['folderName']==(self.ui.caltopoFolderButton.text() or '<Top Level>')]
+			relsInFolder=[m for m in mapList if m['folderId']==folderId]
+			rprint('relsInFolder:')
+			rprint(json.dumps(relsInFolder,indent=3))
 			# mapsNotBookmarks=[m for m in mapList if m['type']=='map' and m['folderName']==self.ui.caltopoFolderComboBox.currentText()]
 			# rprint(' fcbc: mapsNotBookmarks:')
 			# rprint(json.dumps(mapsNotBookmarks,indent=3))
@@ -8049,6 +8070,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 				elif relsInFolder[n].get('locked'):
 					rprint('strike:'+str(n+1))
 					self.ui.caltopoMapNameComboBox.setItemData(n+1,self.caltopoNormalStrikeFont,Qt.FontRole)
+				# else:
+				# 	self.ui.caltopoMapNameComboBox.setItemData(n+1,self.caltopoNormalFont,Qt.FontRole)
 
 				# latestMap=mapsNotBookmarks[0]
 				# rprint('latest map: title="'+str(latestMap['title']+'" ID='+str(latestMap['id'])))
