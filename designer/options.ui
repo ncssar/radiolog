@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>628</width>
+    <width>595</width>
     <height>517</height>
    </rect>
   </property>
@@ -352,7 +352,7 @@
       <item>
        <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0,0,0,0,0">
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0,2,0,3">
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
           <property name="leftMargin">
            <number>0</number>
           </property>
@@ -360,7 +360,7 @@
            <widget class="QLabel" name="caltopoAccountAndFolderLabel">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>0</horstretch>
+              <horstretch>1</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
@@ -381,7 +381,7 @@
            <widget class="QComboBox" name="caltopoAccountComboBox">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-              <horstretch>0</horstretch>
+              <horstretch>3</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
@@ -397,6 +397,12 @@
           </item>
           <item>
            <widget class="QLabel" name="caltopoFolderLabel">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>1</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="font">
              <font>
               <pointsize>11</pointsize>
@@ -416,8 +422,8 @@
              <bool>true</bool>
             </property>
             <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-              <horstretch>0</horstretch>
+             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+              <horstretch>5</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
@@ -774,7 +780,7 @@
    <slot>caltopoMapIDTextChanged()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>541</x>
+     <x>483</x>
      <y>375</y>
     </hint>
     <hint type="destinationlabel">
@@ -822,7 +828,7 @@
    <slot>caltopoFolderButtonPressed()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>558</x>
+     <x>519</x>
      <y>325</y>
     </hint>
     <hint type="destinationlabel">

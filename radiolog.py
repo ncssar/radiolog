@@ -7295,6 +7295,7 @@ class caltopoFolderPopup(QDialog):
 		self.setLayout(layout)
 		self.tree_view.setMouseTracking(True)
 		self.blockPopup=False
+		self.padding=10
 
 	def closeEvent(self,e):
 		self.blockPopup=True
@@ -7321,6 +7322,15 @@ class caltopoFolderPopup(QDialog):
 		# rprint(f'  model={i.model()} row={i.row()} col={i.column()}')
 		# rprint(f'  parent model={parent.model()} row={parent.row()} col={parent.column()}')
 		self.setFullLabel(i)
+		# Get the full hierarchy path for display
+		# current_index = i
+		# path_list = [self.model.data(i)]
+		# while current_index.parent().isValid():
+		# 	parent_index = current_index.parent()
+		# 	parent_text = self.model.data(parent_index)
+		# 	path_list.insert(0, parent_text)
+		# 	current_index = parent_index
+		# self.parent.caltopoFolderUpdateButtonText(' > '.join(path_list))
 		self.parent.caltopoFolderChanged(i.data(Qt.UserRole))
 		self.close() # close the popup
 
@@ -7334,7 +7344,61 @@ class caltopoFolderPopup(QDialog):
 			path_list.insert(0, parent_text)
 			current_index = parent_index
 		# Join path with a separator and set the text
-		self.parent.ui.caltopoFolderButton.setText(' > '.join(path_list))
+		# self.parent.ui.caltopoFolderButton.setText(' > '.join(path_list))
+		self.parent.caltopoFolderButtonUpdateText(' > '.join(path_list))
+
+		# txt=' > '.join(path_list)
+		# textWidth=self.parent.fm.size(0,txt).width()
+		# buttonWidth=self.parent.ui.caltopoFolderButton.width()
+		# # horizontalAdvance=self.parent.fm.horizontalAdvance(txt)
+		# # boundingWidth=self.parent.fm.boundingRect(txt).width()
+		# # print('new text width = '+str(textWidth)+'   horizontal advance = '+str(horizontalAdvance)+'   boundingRect width = '+str(boundingWidth)+'   button width = '+str(buttonWidth))
+		# txtForButton=txt
+		# self.parent.ui.caltopoFolderButton.setToolTip('') # only show tooltip if button text is elided
+		# # original:   "L1longdirname > L2longdirname > L3longdirname"
+		# # first try:  "L1lo... > L2lo... > L3longdirname"
+		# # second try: "L1lo..> L2lo..> L3longdirname"
+		# # third try:  "L1..>L2..>L3longdirname"
+		# # after that, just start a standard right-elide until it fits: "L1..>L2..>L3lon..."
+		# # in all cases, the tooltop text should be the full original path
+		# if (textWidth+self.padding)>buttonWidth:
+		# 	# print('  too wide! elide!  full text = '+txt)
+		# 	names=txt.split(' > ')
+		# 	a1Names=[]
+		# 	a2Names=[]
+		# 	a3Names=[]
+		# 	for name in names[:-1]: # don't shorten the leaf name
+		# 		a1Name=name
+		# 		a2Name=name
+		# 		a3Name=name
+		# 		if len(name)>6:
+		# 			a1Name=name[0:4]+'...'
+		# 		if len(name)>5:
+		# 			a2Name=name[0:4]+'..'
+		# 		if len(name)>4:
+		# 			a3Name=name[0:2]+'..'
+		# 		a1Names.append(a1Name)
+		# 		a2Names.append(a2Name)
+		# 		a3Names.append(a3Name)
+		# 	a1Names.append(names[-1])
+		# 	a2Names.append(names[-1])
+		# 	a3Names.append(names[-1])
+		# 	attempt1=' > '.join(a1Names)
+		# 	attempt2='> '.join(a2Names)
+		# 	attempt3='>'.join(a3Names)
+		# 	attempt4=f'...>{names[-1]}'
+		# 	# print(f'attempt1: {attempt1}\nattempt2: {attempt2}\nattempt3: {attempt3}\nattempt4: {attempt4}')
+		# 	if self.parent.fm.horizontalAdvance(attempt1)+self.padding<buttonWidth:
+		# 		txtForButton=attempt1
+		# 	elif self.parent.fm.horizontalAdvance(attempt2)+self.padding<buttonWidth:
+		# 		txtForButton=attempt2
+		# 	elif self.parent.fm.horizontalAdvance(attempt3)+self.padding<buttonWidth:
+		# 		txtForButton=attempt3
+		# 	else:
+		# 		txtForButton=attempt4
+		# 	self.parent.ui.caltopoFolderButton.setToolTip(txt)
+
+		# self.parent.ui.caltopoFolderButton.setText(txtForButton)
 
 	# recursive population code taken from https://stackoverflow.com/a/53747062/3577105
 	#  add code to alphabetize within each branch
@@ -7534,6 +7598,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.caltopoMapNameComboBoxHighlightChanged(0)
 		# self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoItalicStrikeFont)
 		self.caltopoFolderPopup=caltopoFolderPopup(self)
+		self.fm=QFontMetrics(self.ui.caltopoFolderButton.font())
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
@@ -8030,6 +8095,59 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		
 
 	# 	rprint(json.dumps(folderTree,indent=3))
+
+	def caltopoFolderButtonUpdateText(self,txt):
+		padding=10
+		textWidth=self.fm.size(0,txt).width()
+		buttonWidth=self.ui.caltopoFolderButton.width()
+		# horizontalAdvance=self.parent.fm.horizontalAdvance(txt)
+		# boundingWidth=self.parent.fm.boundingRect(txt).width()
+		# print('new text width = '+str(textWidth)+'   horizontal advance = '+str(horizontalAdvance)+'   boundingRect width = '+str(boundingWidth)+'   button width = '+str(buttonWidth))
+		txtForButton=txt
+		self.ui.caltopoFolderButton.setToolTip('') # only show tooltip if button text is elided
+		# original:   "L1longdirname > L2longdirname > L3longdirname"
+		# first try:  "L1lo... > L2lo... > L3longdirname"
+		# second try: "L1lo..> L2lo..> L3longdirname"
+		# third try:  "L1..>L2..>L3longdirname"
+		# after that, just start a standard right-elide until it fits: "L1..>L2..>L3lon..."
+		# in all cases, the tooltop text should be the full original path
+		if (textWidth+padding)>buttonWidth:
+			# print('  too wide! elide!  full text = '+txt)
+			names=txt.split(' > ')
+			a1Names=[]
+			a2Names=[]
+			a3Names=[]
+			for name in names[:-1]: # don't shorten the leaf name
+				a1Name=name
+				a2Name=name
+				a3Name=name
+				if len(name)>6:
+					a1Name=name[0:4]+'...'
+				if len(name)>5:
+					a2Name=name[0:4]+'..'
+				if len(name)>4:
+					a3Name=name[0:2]+'..'
+				a1Names.append(a1Name)
+				a2Names.append(a2Name)
+				a3Names.append(a3Name)
+			a1Names.append(names[-1])
+			a2Names.append(names[-1])
+			a3Names.append(names[-1])
+			attempt1=' > '.join(a1Names)
+			attempt2='> '.join(a2Names)
+			attempt3='>'.join(a3Names)
+			attempt4=f'...>{names[-1]}'
+			# print(f'attempt1: {attempt1}\nattempt2: {attempt2}\nattempt3: {attempt3}\nattempt4: {attempt4}')
+			if self.fm.horizontalAdvance(attempt1)+padding<buttonWidth:
+				txtForButton=attempt1
+			elif self.fm.horizontalAdvance(attempt2)+padding<buttonWidth:
+				txtForButton=attempt2
+			elif self.fm.horizontalAdvance(attempt3)+padding<buttonWidth:
+				txtForButton=attempt3
+			else:
+				txtForButton=attempt4
+			self.ui.caltopoFolderButton.setToolTip(txt)
+		self.ui.caltopoFolderButton.setText(txtForButton)
 
 	def caltopoFolderChanged(self,folderId):
 		if str(folderId)=='0':
@@ -11944,6 +12062,13 @@ class CustomMessageBox(QMessageBox):
 
 
 def main():
+	# better resolution handling on multiple screens
+	# from https://stackoverflow.com/a/56140241/3577105
+	# Handle high resolution displays:
+	if hasattr(Qt, 'AA_EnableHighDpiScaling'):
+		QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+	if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
+		QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 	app = QApplication(sys.argv)
 	eFilter=customEventFilter()
 	global w # so that eFilter can call methods of the top level widget
