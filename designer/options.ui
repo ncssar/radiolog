@@ -10,6 +10,12 @@
     <height>517</height>
    </rect>
   </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
   <property name="font">
    <font>
     <family>Segoe UI</family>
@@ -20,9 +26,6 @@
    <string>Options</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
-   <property name="sizeConstraint">
-    <enum>QLayout::SetFixedSize</enum>
-   </property>
    <item>
     <layout class="QFormLayout" name="formLayout">
      <property name="labelAlignment">
@@ -293,6 +296,9 @@
       </property>
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="2,2,3">
+        <property name="spacing">
+         <number>6</number>
+        </property>
         <item>
          <widget class="QRadioButton" name="caltopoComButton">
           <property name="font">
@@ -352,7 +358,10 @@
       <item>
        <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0,0,0,0,0">
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_3">
+         <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0,4,0,7">
+          <property name="spacing">
+           <number>3</number>
+          </property>
           <property name="leftMargin">
            <number>0</number>
           </property>
@@ -360,7 +369,7 @@
            <widget class="QLabel" name="caltopoAccountAndFolderLabel">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>1</horstretch>
+              <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
@@ -381,7 +390,7 @@
            <widget class="QComboBox" name="caltopoAccountComboBox">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-              <horstretch>3</horstretch>
+              <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
@@ -399,7 +408,7 @@
            <widget class="QLabel" name="caltopoFolderLabel">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>1</horstretch>
+              <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
@@ -409,7 +418,7 @@
              </font>
             </property>
             <property name="text">
-             <string>   Folder</string>
+             <string>  Folder</string>
             </property>
             <property name="alignment">
              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -423,7 +432,7 @@
             </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-              <horstretch>5</horstretch>
+              <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
