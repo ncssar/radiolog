@@ -7321,7 +7321,6 @@ class caltopoFolderPopup(QDialog):
 		# parent=i.parent()
 		# rprint(f'  model={i.model()} row={i.row()} col={i.column()}')
 		# rprint(f'  parent model={parent.model()} row={parent.row()} col={parent.column()}')
-		self.setFullLabel(i)
 		# Get the full hierarchy path for display
 		# current_index = i
 		# path_list = [self.model.data(i)]
@@ -7332,6 +7331,7 @@ class caltopoFolderPopup(QDialog):
 		# 	current_index = parent_index
 		# self.parent.caltopoFolderUpdateButtonText(' > '.join(path_list))
 		self.parent.caltopoFolderChanged(i.data(Qt.UserRole))
+		self.setFullLabel(i)
 		self.close() # close the popup
 
 	def setFullLabel(self,i):
