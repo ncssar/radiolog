@@ -7306,7 +7306,7 @@ class caltopoFolderPopup(QDialog):
 		self.blockPopup=False
 
 	def enteredCB(self,i):
-		print('entered')
+		# print('entered')
 		self.setFullLabel(i)
 
 	def expandedCB(self,i):
@@ -7536,17 +7536,17 @@ class caltopoFolderPopup(QDialog):
 		print(f'  model={parent.model()} row={parent.row()} col={parent.column()}')
 		while parent.isValid():
 			ancesterIndices.append(parent)
-			print('appending '+str(parent))
+			# print('appending '+str(parent))
 			parent=parent.parent() # ascend and recurse while valid (new QModelIndex instance if there are no parents)
-		print('ancesterIndices='+str(ancesterIndices))
+		# print('ancesterIndices='+str(ancesterIndices))
 		def _collapse_recursive(parent_index: QModelIndex,sp='  '):
 			for row in range(self.model.rowCount(parent_index)):
 				index = self.model.index(row, 0, parent_index)
 				item=self.model.itemFromIndex(index)
 				txt=item.text()
-				print(sp+f'checking r={row} col=0 : {txt}')
+				# print(sp+f'checking r={row} col=0 : {txt}')
 				if index.isValid() and index!=expandedIndex and index not in ancesterIndices:
-					print(sp+'  collapsing')
+					# print(sp+'  collapsing')
 					self.tree_view.collapse(index)
 					# self.tree_view.setExpanded(index,False)
 					
@@ -7947,8 +7947,9 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			# rprint('match:'+str(d['groupAccountTitle'])+'/'+str(map['folderName'])+'/'+str(map['title']))
 			rprint('  mitc match: setting text on account combo box to "'+str(theMatch['accountTitle'])+'"')
 			self.ui.caltopoAccountComboBox.setCurrentText(theMatch['accountTitle'])
-			rprint('  mitc match: setting text on folder combo box to "'+str(theMatch['folderName'])+'"')
-			self.ui.caltopoFolderButton.setText(theMatch['folderName'])
+			rprint('  mitc match: setting text on folder button to "'+str(theMatch['folderName'])+'"')
+			# self.ui.caltopoFolderButton.setText(theMatch['folderName'])
+			self.caltopoFolderButtonUpdateText(theMatch['folderName'])
 			rprint('  mitc match: setting text on title combo box to "'+str(theMatch['title'])+'"')
 			self.ui.caltopoMapNameComboBox.setCurrentText(theMatch['title'])
 			self.caltopoSelectionIsReadOnly=False
@@ -8109,6 +8110,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# first try:  "L1lo... > L2lo... > L3longdirname"
 		# second try: "L1lo..> L2lo..> L3longdirname"
 		# third try:  "L1..>L2..>L3longdirname"
+		# fourth try: "...>L3longdirname" (omit the leading ...> if not nested)
 		# after that, just start a standard right-elide until it fits: "L1..>L2..>L3lon..."
 		# in all cases, the tooltop text should be the full original path
 		if (textWidth+padding)>buttonWidth:
@@ -8136,7 +8138,9 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			attempt1=' > '.join(a1Names)
 			attempt2='> '.join(a2Names)
 			attempt3='>'.join(a3Names)
-			attempt4=f'...>{names[-1]}'
+			attempt4=names[-1]
+			if len(names)>1:
+				attempt4='...>'+attempt4
 			# print(f'attempt1: {attempt1}\nattempt2: {attempt2}\nattempt3: {attempt3}\nattempt4: {attempt4}')
 			if self.fm.horizontalAdvance(attempt1)+padding<buttonWidth:
 				txtForButton=attempt1
@@ -8146,6 +8150,10 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 				txtForButton=attempt3
 			else:
 				txtForButton=attempt4
+				textWidth=self.fm.size(0,txtForButton).width()
+				while (textWidth+padding)>buttonWidth and len(txtForButton)>5:
+					txtForButton=txtForButton[0:-3]+'..'
+					textWidth=self.fm.size(0,txtForButton).width()
 			self.ui.caltopoFolderButton.setToolTip(txt)
 		self.ui.caltopoFolderButton.setText(txtForButton)
 
