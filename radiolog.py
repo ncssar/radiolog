@@ -7275,6 +7275,7 @@ class caltopoFolderPopup(QDialog):
 		self.tree_view.setEditTriggers(QTreeView.NoEditTriggers)
 		self.tree_view.setExpandsOnDoubleClick(False)
 		self.tree_view.setAnimated(True)
+		self.tree_view.setFont(self.parent.ui.caltopoFolderButton.font())
 
 		self.tree_view.setFixedHeight(300)
 
@@ -7655,8 +7656,12 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		button_pos = self.ui.caltopoFolderButton.mapToGlobal(QPoint(0, 0))
 
 		# Calculate the desired position for the popup
-		popup_x = button_pos.x()
-		popup_y = button_pos.y() + self.ui.caltopoFolderButton.height()
+		popup_x = button_pos.x()+2
+		popup_y = button_pos.y() + self.ui.caltopoFolderButton.height()-2
+		popup_h=self.caltopoFolderPopup.height()
+		screen_bottom_y=self.ui.caltopoFolderButton.screen().geometry().height()
+		if popup_y+popup_h>screen_bottom_y:
+			popup_y=button_pos.y()-popup_h+2
 
 		# Sample hierarchical data
 		# data = {
@@ -7697,6 +7702,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# self.caltopoFolderPopup.populate()
 
 		self.caltopoFolderPopup.move(popup_x, popup_y)
+		self.caltopoFolderPopup.setFixedWidth(self.ui.caltopoFolderButton.width()-2)
 		self.caltopoFolderPopup.exec_() # Show as a modal dialog
 
 	def caltopoUpdateGUI(self):
