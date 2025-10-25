@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_optionsDialog(object):
     def setupUi(self, optionsDialog):
         optionsDialog.setObjectName("optionsDialog")
-        optionsDialog.resize(595, 517)
+        optionsDialog.resize(595, 518)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)

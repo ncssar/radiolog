@@ -7334,6 +7334,7 @@ class caltopoFolderPopup(QDialog):
 		self.parent.caltopoFolderChanged(i.data(Qt.UserRole))
 		self.setFullLabel(i)
 		self.close() # close the popup
+		self.parent.ui.caltopoFolderButton.clearFocus() # do this AFTER self.close to prevent the button from staying blue
 
 	def setFullLabel(self,i):
 		# Get the full hierarchy path for display
