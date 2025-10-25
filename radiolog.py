@@ -8279,6 +8279,14 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	def caltopoConnectButtonClicked(self):
 		rprint('connect button clicked: caltopoLink='+str(self.parent.caltopoLink))
 		if self.parent.caltopoLink==1: # mapless session
+			if self.caltopoSelectionIsReadOnly:
+				box=QMessageBox(QMessageBox.Warning,"Read-only map","The map or bookmark you selected is not writable.\n\nRadiolog can still open the map, but won't be able to write any data to it.\n\nOpen the map anyway?",
+					QMessageBox.Yes|QMessageBox.Cancel,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				box.show()
+				box.raise_()
+				if box.exec_()==QMessageBox.Cancel:
+					box.close()
+					return
 			self.ui.caltopoConnectButton.setText('Connecting...')
 			self.parent.caltopoLink=3 # in transition
 			self.caltopoUpdateGUI()
@@ -8308,12 +8316,6 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		if self.parent.cts.openMap(self.ui.caltopoMapIDField.text()):
 			self.parent.caltopoLink=2 # connected to a map
 			self.parent.caltopoOpenMapIsWritable=not self.caltopoSelectionIsReadOnly
-			if not self.parent.caltopoOpenMapIsWritable:
-				box=QMessageBox(QMessageBox.Warning,"Read-only map","The map or bookmark you opened is not writable.\n\nRadiolog has opened the map or bookmark for reading, but no radio markers will be created.",
-					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-				box.show()
-				box.raise_()
-				box.exec_()
 			self.parent.caltopoUpdateLinkIndicator()
 			self.caltopoUpdateGUI()
 			# self.ui.caltopoConnectButton.setText('Connected. Click to Disconnect.')
