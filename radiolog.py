@@ -7724,7 +7724,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		e2=e and link==1
 		rprint('e='+str(e)+'  e2='+str(e2))
 		self.ui.caltopoComButton.setEnabled(e2)
-		self.ui.caltopoDesktopButton.setEnabled(e2)
+		# self.ui.caltopoDesktopButton.setEnabled(e2) # leave it disabled for now, pending CTD-slow-GET-while-online issue
 		self.ui.ctdServerComboBox.setEnabled(e2 and self.ui.caltopoDesktopButton.isChecked())
 		self.ui.caltopoAccountAndFolderLabel.setEnabled(e2)
 		self.ui.caltopoAccountComboBox.setEnabled(e2)
