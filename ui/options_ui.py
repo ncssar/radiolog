@@ -288,20 +288,20 @@ class Ui_optionsDialog(object):
         self.horizontalLayout_2.setStretch(1, 7)
         self.horizontalLayout_2.setStretch(2, 2)
         self.verticalLayout_4.addLayout(self.horizontalLayout_2)
-        self.caltopoConnectButton = QtWidgets.QPushButton(self.caltopoGroupBox)
-        self.caltopoConnectButton.setEnabled(False)
+        self.caltopoOpenMapButton = QtWidgets.QPushButton(self.caltopoGroupBox)
+        self.caltopoOpenMapButton.setEnabled(False)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.caltopoConnectButton.sizePolicy().hasHeightForWidth())
-        self.caltopoConnectButton.setSizePolicy(sizePolicy)
+        sizePolicy.setHeightForWidth(self.caltopoOpenMapButton.sizePolicy().hasHeightForWidth())
+        self.caltopoOpenMapButton.setSizePolicy(sizePolicy)
         font = QtGui.QFont()
         font.setPointSize(14)
         font.setBold(True)
         font.setWeight(75)
-        self.caltopoConnectButton.setFont(font)
-        self.caltopoConnectButton.setObjectName("caltopoConnectButton")
-        self.verticalLayout_4.addWidget(self.caltopoConnectButton)
+        self.caltopoOpenMapButton.setFont(font)
+        self.caltopoOpenMapButton.setObjectName("caltopoOpenMapButton")
+        self.verticalLayout_4.addWidget(self.caltopoOpenMapButton)
         self.line_3 = QtWidgets.QFrame(self.caltopoGroupBox)
         font = QtGui.QFont()
         font.setPointSize(12)
@@ -352,12 +352,12 @@ class Ui_optionsDialog(object):
         self.newEntryWarningCheckBox.stateChanged['int'].connect(optionsDialog.newEntryWarningCB) # type: ignore
         self.caltopoGroupBox.toggled['bool'].connect(optionsDialog.caltopoEnabledCB) # type: ignore
         self.caltopoRadioMarkersCheckBox.stateChanged['int'].connect(optionsDialog.caltopoEnabledCB) # type: ignore
-        self.caltopoConnectButton.clicked.connect(optionsDialog.caltopoConnectButtonClicked) # type: ignore
         self.caltopoAccountComboBox.currentTextChanged['QString'].connect(optionsDialog.caltopoAccountComboBoxChanged) # type: ignore
         self.caltopoMapIDField.textChanged['QString'].connect(optionsDialog.caltopoMapIDTextChanged) # type: ignore
         self.caltopoMapNameComboBox.highlighted['int'].connect(optionsDialog.caltopoMapNameComboBoxHighlightChanged) # type: ignore
         self.caltopoDesktopButton.toggled['bool'].connect(optionsDialog.caltopoServerChanged) # type: ignore
         self.caltopoFolderButton.pressed.connect(optionsDialog.caltopoFolderButtonPressed) # type: ignore
+        self.caltopoOpenMapButton.clicked.connect(optionsDialog.caltopoOpenMapButtonClicked) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(optionsDialog)
 
     def retranslateUi(self, optionsDialog):
@@ -385,7 +385,7 @@ class Ui_optionsDialog(object):
         self.caltopoFolderLabel.setText(_translate("optionsDialog", "  Folder"))
         self.caltopoMapLabel.setText(_translate("optionsDialog", "Map"))
         self.caltopoMapIDField.setPlaceholderText(_translate("optionsDialog", "ABCDEFG"))
-        self.caltopoConnectButton.setText(_translate("optionsDialog", "Click to Connect"))
+        self.caltopoOpenMapButton.setText(_translate("optionsDialog", "Click to Open Selected Map"))
         self.caltopoRadioMarkersCheckBox.setText(_translate("optionsDialog", "Add / update radio location markers"))
         self.fsSendButton.setText(_translate("optionsDialog", "FleetSync Send Console"))
 from radiolog import CustomComboBox

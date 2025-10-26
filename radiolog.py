@@ -1045,7 +1045,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.caltopoURL=''
 		self.caltopoLink=0
 		self.caltopoLinkPrev=0
-		self.caltopoConnectButtonPrevText=''
+		self.caltopoOpenMapButtonPrevText=''
 		self.caltopoGroupFieldsPrevEnabled=False
 		self.radioMarkerDict={}
 		self.caltopoMapListDicts=[]
@@ -2869,7 +2869,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				newId=existingId # preserve caltopoID if already set
 				# label=self.getRadioMarkerLabelForCallsign(callsign)
 				r=False
-				if self.cts and self.caltopoLink in [-1,2]: # -1 = unexpected disconnect; 2 = connected to map
+				if self.cts and self.caltopoLink in [-1,2]: # -1 = unexpected disconnect; 2 = connected to open map
 					self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
 					# since this is in a separate thread, we can do a wait loop until the folder ID is not None
 					while self.caltopoLink==2 and self.radioMarkerFID==None:
@@ -6931,9 +6931,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		self._sig_caltopoDisconnected.emit()
 		
 	def caltopoDisconnectedCallback_mainThread(self):
-		# self.caltopoConnectButtonPrevText=self.optionsDialog.ui.caltopoConnectButton.text()
-		# self.optionsDialog.ui.caltopoConnectButton.setText('Offline; attempting to reconnect...')
-		# self.caltopoGroupFieldsPrevEnabled=self.optionsDialog.ui.caltopoConnectButton.isEnabled()
+		# self.caltopoOpenMapButtonPrevText=self.optionsDialog.ui.caltopoOpenMapButton.text()
+		# self.optionsDialog.ui.caltopoOpenMapButton.setText('Offline; attempting to reconnect...')
+		# self.caltopoGroupFieldsPrevEnabled=self.optionsDialog.ui.caltopoOpenMapButton.isEnabled()
 		self.optionsDialog.caltopoUpdateGUI()
 		self.caltopoUpdateLinkIndicator()
 
@@ -6947,7 +6947,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self._sig_caltopoReconnected.emit()
 
 	def caltopoReconnectedCallback_mainThread(self):
-		# self.optionsDialog.ui.caltopoConnectButton.setText(self.caltopoConnectButtonPrevText)
+		# self.optionsDialog.ui.caltopoOpenMapButton.setText(self.caltopoOpenMapButtonPrevText)
 		# self.optionsDialog.caltopoGroupFieldsSetEnabled(self.caltopoGroupFieldsPrevEnabled)
 		self.optionsDialog.caltopoUpdateGUI()
 		self.caltopoUpdateLinkIndicator()
@@ -6963,7 +6963,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		box.show()
 		box.raise_()
 		box.exec_()
-		self.optionsDialog.caltopoConnectButtonClicked()
+		self.optionsDialog.caltopoOpenMapButtonClicked()
 		self.optionsDialog.show()
 		self.optionsDialog.raise_()
 
@@ -6996,12 +6996,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		# -1 = unexpectedly disconnected
 		# 0 = not connected
 		# 1 = connected, mapless session
-		# 2 = connected to a map
+		# 2 = map opened and connected
 		link=self.caltopoLink
 		rprint('caltopoUpdateLinkIndicator called: caltopoLink='+str(link))
 		ss=''
 		t=''
-		if link==2: # connected to a map
+		if link==2: # map opened and connected
 			if self.caltopoOpenMapIsWritable:
 				ss='background-color:#00dd00;color:black;font-weight:normal' # bright green
 			else:
@@ -7713,7 +7713,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		#  -1 = offline
 		#   0 = not connected to server
 		#   1 = connected to mapless caltopo session
-		#   2 = connected to a map
+		#   2 = map opened and connected
 		#   3 = in transition (connecting or disconnecting)
 		link=self.parent.caltopoLink
 		en=self.ui.caltopoGroupBox.isChecked()
@@ -7736,32 +7736,32 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.caltopoMapNameComboBox.setEnabled(e2)
 		self.ui.caltopoMapIDField.setEnabled(e2)
 		self.ui.caltopoLinkIndicator.setEnabled(e2)
-		self.ui.caltopoConnectButton.setEnabled(e and link in [1,2])
+		self.ui.caltopoOpenMapButton.setEnabled(e and link in [1,2])
 		
-		# set the connect button text
-		txt=self.ui.caltopoConnectButton.text()
+		# set the Open Map button text
+		txt=self.ui.caltopoOpenMapButton.text()
 		if e:
 			if link==0: # not yet connected to a mapless session, but checkboxes enabled
-				txt='Getting account data...'
+				txt='Getting Account Data...'
 			elif link==1:
-				txt='Click to connect.'
+				txt='Click to Open Selected Map'
 			elif link==2:
-				txt='Connected. Click to disconnect.'
+				txt='Map Opened - Click to Close'
 			elif link==-1:
-				txt='Offline. Attempting to reconnect...'
+				txt='Offline - Attempting to Reconnect...'
 			elif link!=3: # leave as-is if in transition
 				txt='-----'
 		else:
-			txt='Caltopo Integration Disabled.'
-		self.ui.caltopoConnectButton.setText(txt)
+			txt='Caltopo Integration Disabled'
+		self.ui.caltopoOpenMapButton.setText(txt)
 
 		# set the connect button tooltip
 		if e:
-			self.ui.caltopoConnectButton.setToolTip('')
+			self.ui.caltopoOpenMapButton.setToolTip('')
 		elif self.parent.caltopoLink>=0:
-			self.ui.caltopoConnectButton.setToolTip("To enable this button:\nEnable 'Caltopo Integration'\nAND\nat least one Caltopo integration feature.")
+			self.ui.caltopoOpenMapButton.setToolTip("To enable this button:\nEnable 'Caltopo Integration'\nAND\nat least one Caltopo integration feature.")
 		else:
-			self.ui.caltopoConnectButton.setToolTip('Attempting to reconnect...')
+			self.ui.caltopoOpenMapButton.setToolTip('Attempting to reconnect...')
 			
 		# processEvents, in case this is being called with other GUI actions
 		QCoreApplication.processEvents()
@@ -7786,8 +7786,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		if e:
 			if self.parent.caltopoLink==0: # checkboxes enabled but not yet connected to a mapless session
 				# rprint('calling createCTS')
-				# self.ui.caltopoConnectButton.setText('Getting account data...')
-				# self.ui.caltopoConnectButton.setEnabled(False)
+				# self.ui.caltopoOpenMapButton.setText('Getting account data...')
+				# self.ui.caltopoOpenMapButton.setEnabled(False)
 				# QCoreApplication.processEvents()
 				if not self.parent.createCTS(): # false return from createCTS indicates failure
 					return False
@@ -7796,8 +7796,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 				# rprint(json.dumps(self.parent.caltopoMapListDicts,indent=3))
 				self.caltopoRedrawAccountData()
 				self.caltopoUpdateGUI()
-				# self.ui.caltopoConnectButton.setText('Click to Connect')
-				# self.ui.caltopoConnectButton.setEnabled(True)
+				# self.ui.caltopoOpenMapButton.setText('Click to Open Selected Map')
+				# self.ui.caltopoOpenMapButton.setEnabled(True)
 		else:
 			self.parent.closeCTS()
 			self.caltopoUpdateGUI()
@@ -7822,19 +7822,19 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	# 		# self.caltopoURLCB() # try to reconnect if mapURL is not blank
 	# 		if self.parent.cts is None:
 	# 			rprint('calling createCTS')
-	# 			self.ui.caltopoConnectButton.setText('Getting account data...')
-	# 			self.ui.caltopoConnectButton.setEnabled(False)
+	# 			self.ui.caltopoOpenMapButton.setText('Getting account data...')
+	# 			self.ui.caltopoOpenMapButton.setEnabled(False)
 	# 			QCoreApplication.processEvents()
 	# 			self.parent.createCTS()
 	# 			rprint('createCTS completed')
 	# 			rprint('caltopoMapListDicts:')
 	# 			rprint(json.dumps(self.parent.caltopoMapListDicts,indent=3))
 	# 			self.caltopoRedrawAccountData()
-	# 			self.ui.caltopoConnectButton.setText('Click to Connect')
-	# 			self.ui.caltopoConnectButton.setEnabled(True)
+	# 			self.ui.caltopoOpenMapButton.setText('Click to Open Selected Map')
+	# 			self.ui.caltopoOpenMapButton.setEnabled(True)
 	# 			QCoreApplication.processEvents()
 	# 	else:
-	# 		self.ui.caltopoConnectButton.setText('Caltopo Integration Disabled.')
+	# 		self.ui.caltopoOpenMapButton.setText('Caltopo Integration Disabled.')
 	# 		self.parent.closeCTS()
 	# 		rprint('closeCTS completed')
 	# 	self.caltopoGroupFieldsSetEnabled(enableMapFields)
@@ -7855,13 +7855,13 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	# 	self.ui.caltopoMapNameComboBox.setEnabled(e)
 	# 	self.ui.caltopoMapIDField.setEnabled(e)
 	# 	self.ui.caltopoLinkIndicator.setEnabled(e)
-	# 	self.ui.caltopoConnectButton.setEnabled(e)
+	# 	self.ui.caltopoOpenMapButton.setEnabled(e)
 	# 	if e:
-	# 		self.ui.caltopoConnectButton.setToolTip('')
+	# 		self.ui.caltopoOpenMapButton.setToolTip('')
 	# 	elif self.parent.caltopoLink>=0:
-	# 		self.ui.caltopoConnectButton.setToolTip("To enable this button:\nEnable 'Caltopo Integration'\nAND\nat least one Caltopo integration feature.")
+	# 		self.ui.caltopoOpenMapButton.setToolTip("To enable this button:\nEnable 'Caltopo Integration'\nAND\nat least one Caltopo integration feature.")
 	# 	else:
-	# 		self.ui.caltopoConnectButton.setToolTip('Attempting to reconnect...')
+	# 		self.ui.caltopoOpenMapButton.setToolTip('Attempting to reconnect...')
 
 	def caltopoRedrawAccountData(self): # called from worker
 		# rprint('caltopoMapListict:')
@@ -7891,7 +7891,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 
 	def caltopoMapIDTextChanged(self):
 		rprint('caltopoMapIDTextChanged to "'+str(self.ui.caltopoMapIDField.text())+'"')
-		self.ui.caltopoConnectButton.setEnabled(bool(self.ui.caltopoMapIDField.text()))
+		self.ui.caltopoOpenMapButton.setEnabled(bool(self.ui.caltopoMapIDField.text()))
 		if self.pauseCB:
 			rprint('mitc: pausCB is set; returning')
 			return
@@ -8278,8 +8278,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	# def caltopoPrintTimer(self):
 	# 	rprint('caltopo timer')
 
-	def caltopoConnectButtonClicked(self):
-		rprint('connect button clicked: caltopoLink='+str(self.parent.caltopoLink))
+	def caltopoOpenMapButtonClicked(self):
+		rprint('Open Map button clicked: caltopoLink='+str(self.parent.caltopoLink))
 		if self.parent.caltopoLink==1: # mapless session
 			if self.caltopoSelectionIsReadOnly:
 				box=QMessageBox(QMessageBox.Warning,"Read-only map","The map or bookmark you selected is not writable.\n\nRadiolog can still open the map, but won't be able to write any data to it.\n\nOpen the map anyway?",
@@ -8289,12 +8289,12 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 				if box.exec_()==QMessageBox.Cancel:
 					box.close()
 					return
-			self.ui.caltopoConnectButton.setText('Connecting...')
+			self.ui.caltopoOpenMapButton.setText('Opening...')
 			self.parent.caltopoLink=3 # in transition
 			self.caltopoUpdateGUI()
 			# QCoreApplication.processEvents()
-		else: # 2 = connected to a map
-			self.ui.caltopoConnectButton.setText('Disconnecting...')
+		else: # 2 = map opened and connected
+			self.ui.caltopoOpenMapButton.setText('Closing...')
 			self.parent.caltopoLink=3 # in transition
 			self.caltopoUpdateGUI()
 			# QCoreApplication.processEvents()
@@ -8303,39 +8303,39 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.caltopoEnabledCB() # mimic turning both checkboxes on, which gets account data etc.
 			return
 		# self.caltopoUpdateGUI()
-		# self.ui.caltopoConnectButton.setEnabled(False)
+		# self.ui.caltopoOpenMapButton.setEnabled(False)
 		# QCoreApplication.processEvents()
 		# # threading.Thread(target=self.wrapper).start()
 		# self.caltopoConnectThread=QThread()
 		# self.worker=CaltopoConnectWorker()
 		# self.worker.moveToThread(self.caltopoConnectThread)
-		# self.caltopoConnectThread.started.connect(self.worker._caltopoConnectButtonClickedThread)
-		# self.worker.task_finished.connect(self._caltopoConnectButtonComplete)
+		# self.caltopoConnectThread.started.connect(self.worker._caltopoOpenMapButtonClickedThread)
+		# self.worker.task_finished.connect(self._caltopoOpenMapButtonComplete)
 		# self.caltopoConnectThread.start()
 		# self.parent.fastTimer.timeout.connect(self.caltopoPrintTimer)
 
 		# self.CaltopoWorker.moveToThread(self.CaltopoThread)
 		if self.parent.cts.openMap(self.ui.caltopoMapIDField.text()):
-			self.parent.caltopoLink=2 # connected to a map
+			self.parent.caltopoLink=2 # map opened and connected
 			self.parent.caltopoOpenMapIsWritable=not self.caltopoSelectionIsReadOnly
 			self.parent.caltopoUpdateLinkIndicator()
 			self.caltopoUpdateGUI()
-			# self.ui.caltopoConnectButton.setText('Connected. Click to Disconnect.')
+			# self.ui.caltopoOpenMapButton.setText('Map Opened - Click to Close')
 			# self.caltopoGroupFieldsSetEnabled(False) # disallow map field changes while connected
-			# self.ui.caltopoConnectButton.setEnabled(True)
+			# self.ui.caltopoOpenMapButton.setEnabled(True)
 			# QCoreApplication.processEvents()
 			# self.parent.getOrCreateRadioMarkerFID() # call it now so that hopefully the folder exists before the first radio marker
 			self.parent.caltopoProcessLatestMarkers() # add markers for any calls that were made before the map was opened
 		else:
 			self.parent.caltopoLink=1
 			self.caltopoUpdateGUI()
-			rprint('ERROR: could not connect to map '+str(self.ui.caltopoMapIDField.text()))
+			rprint('ERROR: could not open map '+str(self.ui.caltopoMapIDField.text()))
 
 	# def wrapper(self):
-	# 	self._caltopoConnectButtonClickedThread()
-	# 	self._caltopoConnectButtonClickedComplete()
+	# 	self._caltopoOpenMapButtonClickedThread()
+	# 	self._caltopoOpenMapButtonClickedComplete()
 
-	# def _caltopoConnectButtonClickedThread(self):
+	# def _caltopoOpenMapButtonClickedThread(self):
 	# 	rprint('connect thread started')
 	# 	u=self.ui.caltopoMapIDField.text()
 	# 	if self.parent.caltopoLink!=0 and self.parent.cts and self.parent.cts.mapID:
@@ -8345,14 +8345,14 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	# 		rprint('  opening new mapless session')
 	# 		self.parent.createCTS()
 	# 		rprint('  new mapless session opened')
-	# 		# self.ui.caltopoConnectButton.setText('Click to Connect')
-	# 		# self.ui.caltopoConnectButton.setEnabled(True)
-	# 		# self._caltopoConnectButtonClickedCB()
+	# 		# self.ui.caltopoOpenMapButton.setText('Click to Connect')
+	# 		# self.ui.caltopoOpenMapButton.setEnabled(True)
+	# 		# self._caltopoOpenMapButtonClickedCB()
 	# 		return
 	# 	# time.sleep(5) # test sleep to check responsiveness in main thread
 	# 	if ':' in u and self.parent.caltopoAccountName=='NONE':
 	# 		rprint('ERROR: caltopoAccountName was not specified in config file')
-	# 		# self._caltopoConnectButtonClickedCB()
+	# 		# self._caltopoOpenMapButtonClickedCB()
 	# 		return
 	# 	# if u==self.parent.caltopoURL and self.parent.cts: # url has not changed; keep the existing link and folder list
 	# 	# 	return
@@ -8378,9 +8378,9 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	# 	# 		self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID)
 	# 	# 		# self.cts=CaltopoSession(domainAndPort=domainAndPort,mapID=mapID,sync=False,syncTimeout=0.001)
 	# 	self.parent.cts.openMap(mapID)
-	# 	# self._caltopoConnectButtonClickedCB()
+	# 	# self._caltopoOpenMapButtonClickedCB()
 
-	# def _caltopoConnectButtonClickedComplete(self):
+	# def _caltopoOpenMapButtonClickedComplete(self):
 	# 	self.parent.caltopoLink=self.parent.cts.apiVersion
 	# 	self.parent.fastTimer.timeout.disconnect(self.caltopoPrintTimer)
 	# 	rprint('connect thread complete; link status:'+str(self.parent.caltopoLink)+'; cts.mapID='+str(self.parent.cts.mapID))
@@ -8392,13 +8392,13 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	# 	# 	# self.optionsDialog.ui.folderComboBox.setHeader("Select a Folder...")
 	# 	# 	# if the session is good, process any deferred radio markers
 	# 	if self.parent.cts and self.parent.caltopoLink>0 and self.parent.cts.mapID:
-	# 		self.ui.caltopoConnectButton.setText('Click to Disconnect')
+	# 		self.ui.caltopoOpenMapButton.setText('Click to Disconnect')
 	# 		self.parent.radioMarkerFID=self.parent.getOrCreateRadioMarkerFID()
 	# 		# add deferred markers (GPS calls that came in before CTS was created)
 	# 		self.parent.sendQueuedRadioMarkers()
 	# 	else:
-	# 		self.ui.caltopoConnectButton.setText('Click to Connect')
-	# 	self.ui.caltopoConnectButton.setEnabled(True)
+	# 		self.ui.caltopoOpenMapButton.setText('Click to Connect')
+	# 	self.ui.caltopoOpenMapButton.setEnabled(True)
 
 
 # find dialog/completer/popup structure:

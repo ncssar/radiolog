@@ -534,7 +534,7 @@
          </layout>
         </item>
         <item>
-         <widget class="QPushButton" name="caltopoConnectButton">
+         <widget class="QPushButton" name="caltopoOpenMapButton">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -552,7 +552,7 @@
            </font>
           </property>
           <property name="text">
-           <string>Click to Connect</string>
+           <string>Click to Open Selected Map</string>
           </property>
          </widget>
         </item>
@@ -751,22 +751,6 @@
    </hints>
   </connection>
   <connection>
-   <sender>caltopoConnectButton</sender>
-   <signal>clicked()</signal>
-   <receiver>optionsDialog</receiver>
-   <slot>caltopoConnectButtonClicked()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>364</x>
-     <y>393</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>453</x>
-     <y>368</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
    <sender>caltopoAccountComboBox</sender>
    <signal>currentTextChanged(QString)</signal>
    <receiver>optionsDialog</receiver>
@@ -846,6 +830,22 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>caltopoOpenMapButton</sender>
+   <signal>clicked()</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoOpenMapButtonClicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>142</x>
+     <y>402</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>34</x>
+     <y>151</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>secondWorkingDirCB()</slot>
@@ -853,7 +853,6 @@
   <slot>newEntryWarningCB()</slot>
   <slot>caltopoEnabledCB()</slot>
   <slot>caltopoURLCB()</slot>
-  <slot>caltopoConnectButtonClicked()</slot>
   <slot>caltopoMapNameComboBoxChanged()</slot>
   <slot>caltopoAccountComboBoxChanged()</slot>
   <slot>caltopoMapIDTextChanged()</slot>
@@ -861,6 +860,7 @@
   <slot>caltopoUpdateGUI()</slot>
   <slot>caltopoServerChanged()</slot>
   <slot>caltopoFolderButtonPressed()</slot>
+  <slot>caltopoOpenMapButtonClicked()</slot>
  </slots>
  <buttongroups>
   <buttongroup name="buttonGroup"/>
