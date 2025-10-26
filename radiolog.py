@@ -6901,11 +6901,13 @@ class MyWindow(QDialog,Ui_Dialog):
 	def closeCTS(self):
 		rprint('closeCTS called')
 		if self.cts:
-			rprint(' closeCTS t1')
-			self.cts._stop() # end sync before deleting the object
-			rprint(' closeCTS t2')
+			self.cts.closeMap()
+			# rprint(' closeCTS t1')
+			# self.cts._stop() # end sync before deleting the object
+			# rprint(' closeCTS t2')
+			# self.cts.mapData.clear() # remove all cache elements to free memory
 			del self.cts
-			rprint(' closeCTS t3')
+			# rprint(' closeCTS t3')
 			self.cts=None
 		self.caltopoLink=0
 		rprint(' closeCTS t4')
