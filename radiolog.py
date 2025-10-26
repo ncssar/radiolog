@@ -2710,32 +2710,32 @@ class MyWindow(QDialog,Ui_Dialog):
 
 
 	def sendPendingGet(self,suffix=""):
-		rprint('sendPendingGet called')
-		# NOTE that requests.get can cause a blocking delay; so, do it AFTER spawning the newEntryDialog
-		# if sarsoft is not running to handle this get request, Windows will complain with nested exceptions:
-		# ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
-		# During handling of the above exception, another exception occurred:
-		# requests.packages.urllib3.exceptions.ProtocolError: ('Connection aborted.', ConnectionRefusedError(10061, 'No connection could be made because the target machine actively refused it', None, 10061, None))
-		# but we don't care about these; pass them silently
+		rprint('sendPendingGet called; locator-style requests disabled for this version; maintained for any future use of LiveTracks')
+		# # NOTE that requests.get can cause a blocking delay; so, do it AFTER spawning the newEntryDialog
+		# # if sarsoft is not running to handle this get request, Windows will complain with nested exceptions:
+		# # ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+		# # During handling of the above exception, another exception occurred:
+		# # requests.packages.urllib3.exceptions.ProtocolError: ('Connection aborted.', ConnectionRefusedError(10061, 'No connection could be made because the target machine actively refused it', None, 10061, None))
+		# # but we don't care about these; pass them silently
 
-		# also, if it ends in hyphen, defer sending until accept of change callsign dialog, or closeEvent of newEntryDialog
-		#  (see getString construction comments above)
-		if not self.noSend:
-			if self.getString!='': # to avoid sending a GET string that is nothing but the callsign
-				self.getString=self.getString+suffix
-			if self.getString!='' and not self.getString.endswith("-"):
-				rprint("calling processEvents before sending GET request...")
-				QCoreApplication.processEvents()
-				try:
-					rprint("Sending GET request:")
-					rprint(self.getString)
-					# fire-and-forget: completely ignore the response, but, return immediately
-					r=requests.get(self.getString,timeout=0.0001)
-					rprint("  request sent")
-					rprint("  response: "+str(r))
-				except Exception as e:
-					rprint("  exception during sending of GET request: "+str(e))
-				self.getString=''
+		# # also, if it ends in hyphen, defer sending until accept of change callsign dialog, or closeEvent of newEntryDialog
+		# #  (see getString construction comments above)
+		# if not self.noSend:
+		# 	if self.getString!='': # to avoid sending a GET string that is nothing but the callsign
+		# 		self.getString=self.getString+suffix
+		# 	if self.getString!='' and not self.getString.endswith("-"):
+		# 		rprint("calling processEvents before sending GET request...")
+		# 		QCoreApplication.processEvents()
+		# 		try:
+		# 			rprint("Sending GET request:")
+		# 			rprint(self.getString)
+		# 			# fire-and-forget: completely ignore the response, but, return immediately
+		# 			r=requests.get(self.getString,timeout=0.0001)
+		# 			rprint("  request sent")
+		# 			rprint("  response: "+str(r))
+		# 		except Exception as e:
+		# 			rprint("  exception during sending of GET request: "+str(e))
+		# 		self.getString=''
 				
 	def getRadioMarkerLabelForCallsign(self,callsign):
 		return callsign.replace('Team ','T')
