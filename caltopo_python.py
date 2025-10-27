@@ -2304,6 +2304,17 @@ class CaltopoSession():
         j={}
         jp={}
         jg={}
+        # if existingId is specified, use properties from that feature INSTEAD of argument values
+        if existingId is not None:
+            ef=self.getFeature(id=existingId)
+            if not ef:
+                logging.error('existingId specified to addMarker does not return any valid feature: '+str(existingId))
+                return
+            ep=ef['properties']
+            color=ep['marker-color']
+            symbol=ep['marker-symbol']
+            size=ep['marker-size']
+            rotation=ep['marker-rotation']
         jp['class']='Marker'
         jp['updated']=update
         jp['marker-color']=color
