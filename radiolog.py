@@ -324,6 +324,7 @@ import math
 import textwrap
 import json
 import threading
+import webbrowser
 from reportlab.lib import colors,utils
 from reportlab.lib.pagesizes import letter,landscape,portrait
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
@@ -8293,6 +8294,11 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.parent.caltopoLink=3 # in transition
 			self.caltopoUpdateGUI()
 			# QCoreApplication.processEvents()
+			try:
+				rprint('Opening map in web browser...')
+				webbrowser.open('https://caltopo.com/m/'+self.ui.caltopoMapIDField.text())
+			except Exception as e:
+				rprint('Failed to open map in web browser: '+str(e))
 		else: # 2 = map opened and connected
 			self.ui.caltopoOpenMapButton.setText('Closing...')
 			self.parent.caltopoLink=3 # in transition
