@@ -7085,6 +7085,11 @@ class helpWindow(QDialog,Ui_Help):
 		self.setWindowFlags(Qt.WindowStaysOnTopHint)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setFixedSize(self.size())
+		self.ui.caltopoDisabledLabel.setStyleSheet('QLabel { background-color: '+caltopoColors['disabled']+'; }')
+		self.ui.caltopoMaplessLabel.setStyleSheet('QLabel { background-color: '+caltopoColors['mapless']+'; }')
+		self.ui.caltopoOpenedWritableLabel.setStyleSheet('QLabel { background-color: '+caltopoColors['openedWritable']+'; }')
+		self.ui.caltopoOpenedReadOnlyLabel.setStyleSheet('QLabel { background-color: '+caltopoColors['openedReadOnly']+'; }')
+		self.ui.caltopoDisconnectedLabel.setStyleSheet('QLabel { background-color: '+caltopoColors['disconnected']+'; }')
 
 	def toggleShow(self):
 		if self.isVisible():
