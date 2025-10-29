@@ -786,6 +786,59 @@ globalStyleSheet="""
 			}
 		"""
 
+caltopoColors={
+	'openedWritable':'#00dd00',
+	'openedReadOnly':'#ff9933',
+	'mapless':'#bbddbb',
+	'disabled':'#aaaaaa',
+	'disconnected':'#ee0000'
+}
+
+caltopoIndicatorToolTip="""
+	<style>
+		table {
+			border-collapse: collapse;
+			width: 100%;
+		}
+		th, td {
+			border: 1px solid black;
+			padding: 5px;
+			text-align: left;
+		}
+		th {
+			background-color: #f2f2f2;
+		}
+	</style>
+	<table>
+		<thead>
+			<tr>
+				<th>Color</th>
+				<th>CalTopo Link Indicator Meaning</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td style="background-color: """+caltopoColors['disabled']+""";">&nbsp;&nbsp;&nbsp;</td>
+				<td>Disabled</td>
+			</tr>
+			<tr>
+				<td style="background-color: """+caltopoColors['mapless']+""";">&nbsp;&nbsp;&nbsp;</td>
+				<td>Connected to caltopo server, no open map</td>
+			</tr>
+			<tr>
+				<td style="background-color: """+caltopoColors['openedWritable']+""";">&nbsp;&nbsp;&nbsp;</td>
+				<td>Connected to a writable map or bookmark</td>
+			</tr>
+			<tr>
+				<td style="background-color: """+caltopoColors['openedReadOnly']+""";">&nbsp;&nbsp;&nbsp;</td>
+				<td>Connected to a read-only map or bookmark</td>
+			</tr>
+			<tr>
+				<td style="background-color: """+caltopoColors['disconnected']+""";">&nbsp;&nbsp;&nbsp;</td>
+				<td>Unexpected disconnect (will automatically reconnect)</td>
+			</tr>
+		</tbody>
+	</table>"""
 
 # CustomEncoder enables json.dumps for dicts with lists of callables
 #  (to avoid "TypeError: Object of type function is not JSON serializable")
@@ -1472,6 +1525,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		
 		self.cts=None
 		# self.setupCaltopo()
+		self.ui.caltopoLinkIndicator.setToolTip(caltopoIndicatorToolTip)
 
 	def clearSelectionAllTables(self):
 		self.ui.tableView.setCurrentIndex(QModelIndex())
@@ -7004,18 +7058,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		t=''
 		if link==2: # map opened and connected
 			if self.caltopoOpenMapIsWritable:
-				ss='background-color:#00dd00;color:black;font-weight:normal' # bright green
+				ss='background-color:'+caltopoColors['openedWritable']+';color:black;font-weight:normal' # bright green
 			else:
-				ss='background-color:#ff9933;color:black;font-weight:normal;text-decoration:line-through' # orange
+				ss='background-color:'+caltopoColors['openedReadOnly']+';color:black;font-weight:normal;text-decoration:line-through' # orange
 			t=str(self.cts.mapID)
 		elif link==1: # connected to a mapless session
-			ss='background-color:#bbddbb;color:white;font-weight:normal' # faint green
+			ss='background-color:'+caltopoColors['mapless']+';font-weight:normal' # faint green
 			t='NO MAP'
 		elif link==0: # not connected to any caltopo session
-			ss='background-color:#aaaaaa;color:white;font-weight:normal' # light gray
+			ss='background-color:'+caltopoColors['disabled']+';font-weight:normal' # light gray
 			t=''
 		elif link==-1: # error condition
-			ss='background-color:#ee0000;color:white;font-weight:bold' # bright red
+			ss='background-color:'+caltopoColors['disconnected']+';font-weight:bold' # bright red
 			t='OFFLINE'
 		self.optionsDialog.ui.caltopoLinkIndicator.setStyleSheet(ss)
 		self.ui.caltopoLinkIndicator.setStyleSheet(ss)
@@ -7604,6 +7658,50 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# self.ui.caltopoMapNameComboBox.lineEdit().setFont(self.caltopoItalicStrikeFont)
 		self.caltopoFolderPopup=caltopoFolderPopup(self)
 		self.fm=QFontMetrics(self.ui.caltopoFolderButton.font())
+		self.mapToolTip="""
+			<style>
+				table {
+					border-collapse: collapse;
+					width: 100%;
+				}
+				th, td {
+					border: 1px solid black;
+					padding: 5px;
+					text-align: left;
+				}
+				th {
+					background-color: #f2f2f2;
+				}
+			</style>
+			<table>
+			<thead>
+				<tr>
+					<th>Map Font</th>
+					<th>Meaning</th>
+				</tr>
+			</thead>
+				<tbody>
+					<tr>
+						<td>MapName</td>
+						<td>Wrtiable Map</td>
+					</tr>
+					<tr>
+						<td><i>MapName</i></td>
+						<td>Writable Bookmark</td>
+					</tr>
+					<tr>
+						<td><s>MapName</s></td>
+						<td>Read-only Map</td>
+					</tr>
+					<tr>
+						<td><s><i>MapName<i></s></td>
+						<td>Read-only Bookmark</td>
+					</tr>
+				</tbody>
+			</table>"""
+		self.ui.caltopoMapNameComboBox.setToolTip(self.mapToolTip)
+		# self.ui.caltopoMapNameComboBox.view().setToolTip(self.mapToolTip) # too intrusive
+		self.ui.caltopoLinkIndicator.setToolTip(caltopoIndicatorToolTip)
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
