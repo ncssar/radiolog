@@ -172,7 +172,8 @@ class CaltopoSession():
             syncCallback=None,
             useFiddlerProxy=False,
             caseSensitiveComparisons=False,  # case-insensitive comparisons by default, see _caseMatch()
-            validatePoints='modify'):
+            validatePoints='modify',
+            blockingByDefault=True): # process add/edit/delte requests in the old always-blocking manner, by default
         """The core session object.
 
         :param domainAndPort: Domain-and-port portion of the URL; defaults to 'localhost:8080'; common values are 'caltopo.com' for the web interface, and 'localhost:8080' (or different hostname or port as needed) for CalTopo Desktop
@@ -261,6 +262,7 @@ class CaltopoSession():
         self.latestResponseCode=0
         self.badResponse=None
         self.internet=True
+        self.blockingByDefault=blockingByDefault
 
         # thread-safe queue to hold requests: process immediately when connected, but buffer until reconnect if needed
         self.requestQueue=queue.Queue()
@@ -1687,16 +1689,24 @@ class CaltopoSession():
             except:
                 rest=''
             if skipQueue:
-                logging.info(f'-- SKIPQUEUE (sending now) {method} {url} {rest}')
+                logging.info(f'-- SKIPQUEUE (sending now, timeout={timeout}) {method} {url} {rest}')
                 self._syncPauseSet() # setting this now, even if during sync, will prevent recursive sync attempt
-                if method=='POST':
-                    r=self.s.post(url,data=params,timeout=timeout,proxies=self.proxyDict,allow_redirects=False)
-                elif method=='GET':
-                    logging.info('sending GET to '+str(url)+' with params '+str(params))
-                    r=self.s.get(url,params=params,timeout=timeout,proxies=self.proxyDict,allow_redirects=False)
-                    logging.info('back from GET - sent GET to '+str(r.url))
-                elif method=='DELETE':
-                    r=self.s.delete(url,params=params,timeout=timeout,proxies=self.proxyDict)   ## use params for query vs data for body data
+                # note that DNS lookup (NameResolutionError / Failed to resolve / getaddrinfo failed) happens immediately,
+                #  regardless of timeout value, since DNS lookup happens before connection attempt; timeout only
+                #  applies to connection attempt, and to response after request is sent
+                try:
+                    if method=='POST':
+                        r=self.s.post(url,data=params,timeout=timeout,proxies=self.proxyDict,allow_redirects=False)
+                    elif method=='GET':
+                        logging.info('sending GET to '+str(url)+' with params '+str(params))
+                        r=self.s.get(url,params=params,timeout=timeout,proxies=self.proxyDict,allow_redirects=False)
+                        logging.info('back from GET - sent GET to '+str(r.url))
+                    elif method=='DELETE':
+                        r=self.s.delete(url,params=params,timeout=timeout,proxies=self.proxyDict)   ## use params for query vs data for body data
+                except Exception as e:
+                    self._syncPauseClear()
+                    logging.error('Exception while sending a blocking request: '+str(e))
+                    return False
             else:
                 requestQueueEntry={
                     'method':method,
@@ -2034,10 +2044,11 @@ class CaltopoSession():
             logging.info('response had no decodable json')
 
         # 'callbacks' argument structure: list of lists
-        # each top-level element is a one-or-two-element list: callback method, with its arguments
+        # each top-level element is a one-or-two-or-three-element list: [callable[,[positional_args][,{kwargs_dict}]]]
         # [
-        #   [cb1,[cb1_positional_args,{cb1_kwargs}]],
-        #   [cb2,[cb2_positional_args,{cb2_kwargs}]],
+        #   [cb1Callable],
+        #   [cb2Callable,[cb2_positional_args]],
+        #   [cb3Callable,[cb3_positional_args],{cb3_kwargs}],
         #   ....
         # ]
         # any argument value that starts with period will be treated as (nested) keys into <response>.json()
@@ -2054,20 +2065,23 @@ class CaltopoSession():
             callbackArgs=[]
             callbackKwArgs={}
             cbFunc=cb[0] # the Callable is always the first element
-            if len(cb)>1: # more than one list element? the second element is the argument structure
+            if len(cb)>1: # more than one list element? the second element is a list of positional arguments
                 args=cb[1]
+                if not isinstance(args,list):
+                    logging.error('callback arguments parsing violation: second element of each callback specification must be a list of positional argument values:'+str(cb))
+                    continue
                 for arg in args:
-                    if isinstance(arg,dict): # dict? it's the kwargs dict
-                        logging.info('dict found; processing into kwargs')
-                        if callbackKwArgs:
-                            logging.error('callback arguments parsing violation: callback arguments structure has more than one dictionary')
-                            return False
-                        callbackKwArgs=arg
-                    else: # not a dict? it's a positional arg
-                        if isinstance(arg,str) and arg.startswith('.'): # nested r.json() dict keys
-                            argText="r.json()['"+arg[1:].replace(".","']['")+"']" # .a.b.c --> r.json()['a']['b']['c']
-                            arg=eval(argText)
-                        callbackArgs.append(arg)
+                    if isinstance(arg,str) and arg.startswith('.'): # nested r.json() dict keys
+                        argText="r.json()['"+arg[1:].replace(".","']['")+"']" # .a.b.c --> r.json()['a']['b']['c']
+                        arg=eval(argText)
+                    callbackArgs.append(arg)
+                if len(cb)>2:
+                    if len(cb)==3 and isinstance(cb[2],dict): # third element must be kwargs dict
+                        logging.info('callback kwargs dict found')
+                        callbackKwArgs=cb[2]
+                    else:
+                        logging.error('callback arguments parsing violation: each callback must have no more than three elements, and the third must be the kwargs dict:'+str(cb))
+                        continue
                 for key in callbackKwArgs.keys():
                     logging.info('processing key '+str(key))
                     if isinstance(callbackKwArgs[key],str) and callbackKwArgs[key].startswith('.'):
@@ -2195,6 +2209,15 @@ class CaltopoSession():
                         return rj
         # self.syncPause=False
         for cb in callbacks: # call any callbacks in sequence
+            if not isinstance(cb,list):
+                logging.error('Incorrect callback specification: each callback must be a list of [callable,[args][,{kwargs}]]; specified callback: '+str(cb))
+                continue
+            if len(cb)>1 and not isinstance(cb[1],list):
+                logging.error('Incorrect callback specification: each callback must be a list of [callable,[args][,{kwargs}]]; specified callback: '+str(cb))
+                continue
+            if len(cb)>2 and not isinstance(cb[2],dict):
+                logging.error('Incorrect callback specification: each callback must be a list of [callable,[args][,{kwargs}]]; specified callback: '+str(cb))
+                continue
             # first element is the callable
             # second element is the list of positional arguments
             # third element is the dict of kwargs
@@ -2204,13 +2227,63 @@ class CaltopoSession():
         logging.info('f17: clearing syncPause')
         self._syncPauseClear()
 
+    def _addFeature(self,
+            className,
+            j,
+            existingId='',
+            returnJson='ALL',
+            callbacks=[],
+            timeout=0,
+            dataQueue=False,
+            blocking=None):
+        # if blocking is specified as True or False, use it;
+        # blocking=True combined with callbacks is an error condition;
+        # if blocking is not specified here:
+        #  bool(callbacks)  |  blockingByDefault  |  this call should be blocking
+        # ------------------+---------------------+------------------------------
+        #        False      |      False          |      False
+        #        False      |      True           |      True
+        #        True       |      False          |      False
+        #        True       |      True           |      False
+        if blocking is True and bool(callbacks):
+            logging.error('blocking=True and callbacks cannot both be specified in the same call; aborting this request')
+            return False
+        if blocking is None: # neither True nor False
+            blocking=self.blockingByDefault and not bool(callbacks)
+        if dataQueue:
+            self.dataQueue.setdefault(className,[]).append(j)
+            return 0
+        else:
+            # return self._sendRequest('post','marker',j,id=existingId,returnJson='ID')
+            # add to .mapData immediately
+            # rj=self._sendRequest('post','marker',j,id=existingId,returnJson='ALL',timeout=timeout,callback=callback,callbackArgs=callbackArgs)
+            logging.info('adding '+str(className)+': callbacks before prepend:'+str(callbacks))
+            callbacks=[[self._addFeatureCallback,['.result']]]+callbacks # add to .mapData immediately for use by any downstream-specified callbacks
+            logging.info('adding '+str(className)+' blocking='+str(blocking)+': callbacks after prepend:'+str(callbacks))
+            r=self._sendRequest('post',className,j,id=existingId,returnJson=returnJson,timeout=timeout,callbacks=callbacks,skipQueue=blocking)
+            logging.info('r while adding '+str(className)+':'+str(r))
+            if isinstance(r,dict): # blocking request, returning response.json()
+                return self._addFeatureCallback(r['result']) # normally returns the id
+            else:
+                return r # could be False if error, or True if non-blocking request submitted to the queue
+    
+    def _addFeatureCallback(self,rjr):
+        logging.info('addFeatureCallback called:')
+        logging.info(json.dumps(rjr,indent=3))
+        objClass=rjr['properties']['class']
+        id=rjr['id']
+        self.mapData['ids'].setdefault(objClass,[]).append(id)
+        self.mapData['state']['features'].append(rjr)
+        return id
+    
     def addFolder(self,
             label="New Folder",
             visible=True,
             labelVisible=True,
             timeout=0,
             dataQueue=False,
-            callbacks=[]):
+            callbacks=[],
+            blocking=None): # use self.blockingByDefault as the default, resolved in _addFeature
         """Add a folder to the current map.
 
         :param label: Name of the folder; defaults to "New Folder"
@@ -2233,22 +2306,23 @@ class CaltopoSession():
         j['properties']['title']=label
         j['properties']['visible']=visible
         j['properties']['labelVisible']=labelVisible
-        if dataQueue:
-            self.dataQueue.setdefault('folder',[]).append(j)
-            return 0
-        else:
-            # return self._sendRequest('post','marker',j,id=existingId,returnJson='ID')
-            # add to .mapData immediately
-            # rj=self._sendRequest('post','marker',j,id=existingId,returnJson='ALL',timeout=timeout,callback=callback,callbackArgs=callbackArgs)
-            logging.info('addFolder: callbacks before prepend:'+str(callbacks))
-            callbacks=[[self._addCallback,['.result']]]+callbacks # add to .mapData immediately for use by any downstream-specified callbacks
-            logging.info('addFolder: callbacks after prepend:'+str(callbacks))
-            r=self._sendRequest('post','folder',j,returnJson='ALL',timeout=timeout,callbacks=callbacks)
-            logging.info('r in addFolder:'+str(r))
-            if isinstance(r,dict): # blocking request, returning response.json()
-                return self._addCallback(r['result']) # normally returns the id
-            else:
-                return r # could be False if error, or True if non-blocking request submitted to the queue
+        return self._addFeature('Folder',j,existingId='',callbacks=callbacks,returnJson='ID',timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        # if dataQueue:
+        #     self.dataQueue.setdefault('folder',[]).append(j)
+        #     return 0
+        # else:
+        #     # return self._sendRequest('post','marker',j,id=existingId,returnJson='ID')
+        #     # add to .mapData immediately
+        #     # rj=self._sendRequest('post','marker',j,id=existingId,returnJson='ALL',timeout=timeout,callback=callback,callbackArgs=callbackArgs)
+        #     logging.info('addFolder: callbacks before prepend:'+str(callbacks))
+        #     callbacks=[[self._addCallback,['.result']]]+callbacks # add to .mapData immediately for use by any downstream-specified callbacks
+        #     logging.info('addFolder: callbacks after prepend:'+str(callbacks))
+        #     r=self._sendRequest('post','folder',j,returnJson='ALL',timeout=timeout,callbacks=callbacks)
+        #     logging.info('r in addFolder:'+str(r))
+        #     if isinstance(r,dict): # blocking request, returning response.json()
+        #         return self._addCallback(r['result']) # normally returns the id
+        #     else:
+        #         return r # could be False if error, or True if non-blocking request submitted to the queue
     
     def addMarker(self,
             lat: float,
@@ -2260,11 +2334,12 @@ class CaltopoSession():
             rotation=None,
             folderId=None,
             existingId=None,
-            update=0,
+            # update=0,
             size=1,
             timeout=0,
             dataQueue=False,
-            callbacks=[]):
+            callbacks=[],
+            blocking=None): # use self.blockingByDefault as the default, resolved in _addFeature
         """Add a marker to the current map.
 
         :param lat: Latitude of the marker, in decimal degrees; positive values indicate the northern hemisphere
@@ -2315,8 +2390,9 @@ class CaltopoSession():
             symbol=ep['marker-symbol']
             size=ep['marker-size']
             rotation=ep['marker-rotation']
+            description=ep['description']
         jp['class']='Marker'
-        jp['updated']=update
+        # jp['updated']=update
         jp['marker-color']=color
         jp['marker-symbol']=symbol
         jp['marker-size']=size
@@ -2334,31 +2410,23 @@ class CaltopoSession():
         if existingId is not None:
             j['id']=existingId
         # logging.info("sending json: "+json.dumps(j,indent=3))
-        if dataQueue:
-            self.dataQueue.setdefault('Marker',[]).append(j)
-            return 0
-        else:
-            # return self._sendRequest('post','marker',j,id=existingId,returnJson='ID')
-            # add to .mapData immediately
-            # rj=self._sendRequest('post','marker',j,id=existingId,returnJson='ALL',timeout=timeout,callback=callback,callbackArgs=callbackArgs)
-            logging.info('addMarker: callbacks before prepend:'+str(callbacks))
-            callbacks=[[self._addCallback,['.result']]]+callbacks # add to .mapData immediately for use by any downstream-specified callbacks
-            logging.info('addMarker: callbacks after prepend:'+str(callbacks))
-            r=self._sendRequest('post','marker',j,id=existingId,returnJson='ALL',timeout=timeout,callbacks=callbacks)
-            logging.info('r in addMarker:'+str(r))
-            if isinstance(r,dict): # blocking request, returning response.json()
-                return self._addCallback(r['result']) # normally returns the id
-            else:
-                return r # could be False if error, or True if non-blocking request submitted to the queue
-
-    def _addCallback(self,rjr):
-        logging.info('addCallback called:')
-        logging.info(json.dumps(rjr,indent=3))
-        objClass=rjr['properties']['class']
-        id=rjr['id']
-        self.mapData['ids'].setdefault(objClass,[]).append(id)
-        self.mapData['state']['features'].append(rjr)
-        return id
+        return self._addFeature('Marker',j,existingId=existingId,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        # if dataQueue:
+        #     self.dataQueue.setdefault('Marker',[]).append(j)
+        #     return 0
+        # else:
+        #     # return self._sendRequest('post','marker',j,id=existingId,returnJson='ID')
+        #     # add to .mapData immediately
+        #     # rj=self._sendRequest('post','marker',j,id=existingId,returnJson='ALL',timeout=timeout,callback=callback,callbackArgs=callbackArgs)
+        #     logging.info('addMarker: callbacks before prepend:'+str(callbacks))
+        #     callbacks=[[self._addCallback,['.result']]]+callbacks # add to .mapData immediately for use by any downstream-specified callbacks
+        #     logging.info('addMarker: callbacks after prepend:'+str(callbacks))
+        #     r=self._sendRequest('post','marker',j,id=existingId,returnJson='ALL',timeout=timeout,callbacks=callbacks)
+        #     logging.info('r in addMarker:'+str(r))
+        #     if isinstance(r,dict): # blocking request, returning response.json()
+        #         return self._addCallback(r['result']) # normally returns the id
+        #     else:
+        #         return r # could be False if error, or True if non-blocking request submitted to the queue
 
     def addLine(self,
             points: list,
@@ -2372,7 +2440,8 @@ class CaltopoSession():
             existingId=None,
             timeout=0,
             dataQueue=False,
-            callbacks=[]):
+            callbacks=[],
+            blocking=None): # use self.blockingByDefault as the default, resolved in _addFeature
         """Add a line to the current map.\n
         (See .addLineAssignment to add an assignment feature instead.)
 
@@ -2405,6 +2474,18 @@ class CaltopoSession():
         j={}
         jp={}
         jg={}
+        # if existingId is specified, use properties from that feature INSTEAD of argument values
+        if existingId is not None:
+            ef=self.getFeature(id=existingId)
+            if not ef:
+                logging.error('existingId specified to addLine does not return any valid feature: '+str(existingId))
+                return
+            ep=ef['properties']
+            width=ep['stroke-width']
+            opacity=ep['stroke-opacity']
+            color=ep['stroke']
+            pattern=ep['pattern']
+            description=ep['description']
         jp['title']=title
         if folderId is not None:
             jp['folderId']=folderId
@@ -2420,21 +2501,23 @@ class CaltopoSession():
         if existingId is not None:
             j['id']=existingId
         # logging.info("sending json: "+json.dumps(j,indent=3))
-        if dataQueue:
-            self.dataQueue.setdefault('Shape',[]).append(j)
-            return 0
-        else:
-            # return self._sendRequest("post","Shape",j,id=existingId,returnJson="ID",timeout=timeout)
-            # add to .mapData immediately
-            rj=self._sendRequest('post','Shape',j,id=existingId,returnJson='ALL',timeout=timeout,callbacks=callbacks)
-            if rj:
-                rjr=rj['result']
-                id=rjr['id']
-                self.mapData['ids'].setdefault('Shape',[]).append(id)
-                self.mapData['state']['features'].append(rjr)
-                return id
-            else:
-                return False
+        return self._addFeature('Shape',j,existingId=existingId,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        # if dataQueue:
+        #     self.dataQueue.setdefault('Shape',[]).append(j)
+        #     return 0
+        # else:
+        #     # return self._sendRequest("post","Shape",j,id=existingId,returnJson="ID",timeout=timeout)
+        #     # add to .mapData immediately
+        #     # rj=self._sendRequest('post','Shape',j,id=existingId,returnJson='ALL',timeout=timeout,callbacks=callbacks)
+        #     logging.info('addLine: callbacks before prepend:'+str(callbacks))
+        #     callbacks=[[self._addCallback,['.result']]]+callbacks # add to .mapData immediately for use by any downstream-specified callbacks
+        #     logging.info('addLine: callbacks after prepend:'+str(callbacks))
+        #     r=self._sendRequest('post','Shape',j,id=existingId,returnJson='ALL',timeout=timeout,callbacks=callbacks)
+        #     logging.info('r in addLine:'+str(r))
+        #     if isinstance(r,dict): # blocking request, returning response.json()
+        #         return self._addCallback(r['result']) # normally returns the id
+        #     else:
+        #         return r # could be False if error, or True if non-blocking request submitted to the queue
 
     def addPolygon(self,
             points: list,
@@ -2449,7 +2532,8 @@ class CaltopoSession():
             existingId=None,
             timeout=0,
             dataQueue=False,
-            callbacks=[]):
+            callbacks=[],
+            blocking=None): # use self.blockingByDefault as the default, resolved in _addFeature
         """Add a polygon to the current map.\n
         (See .addAreaAssignment to add an assignment feature instead.)
 
@@ -2500,21 +2584,22 @@ class CaltopoSession():
         if existingId is not None:
             j['id']=existingId
         # logging.info("sending json: "+json.dumps(j,indent=3))
-        if dataQueue:
-            self.dataQueue.setdefault('Shape',[]).append(j)
-            return 0
-        else:
-            # return self._sendRequest('post','Shape',j,id=existingId,returnJson='ID')
-            # add to .mapData immediately
-            rj=self._sendRequest('post','Shape',j,id=existingId,returnJson='ALL',timeout=timeout,callbacks=callbacks)
-            if rj:
-                rjr=rj['result']
-                id=rjr['id']
-                self.mapData['ids'].setdefault('Shape',[]).append(id)
-                self.mapData['state']['features'].append(rjr)
-                return id
-            else:
-                return False
+        return self._addFeature('Shape',j,existingId=existingId,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        # if dataQueue:
+        #     self.dataQueue.setdefault('Shape',[]).append(j)
+        #     return 0
+        # else:
+        #     # return self._sendRequest('post','Shape',j,id=existingId,returnJson='ID')
+        #     # add to .mapData immediately
+        #     rj=self._sendRequest('post','Shape',j,id=existingId,returnJson='ALL',timeout=timeout,callbacks=callbacks)
+        #     if rj:
+        #         rjr=rj['result']
+        #         id=rjr['id']
+        #         self.mapData['ids'].setdefault('Shape',[]).append(id)
+        #         self.mapData['state']['features'].append(rjr)
+        #         return id
+        #     else:
+        #         return False
 
     def addOperationalPeriod(self,
             title='New OP',
@@ -2523,9 +2608,10 @@ class CaltopoSession():
             strokeWidth=2,
             fillOpacity=0.1,
             existingId=None,
-            timeout=None,
+            timeout=0,
             dataQueue=False,
-            callbacks=[]):
+            callbacks=[],
+            blocking=None): # use self.blockingByDefault as the default, resolved in _addFeature
         """Add an Operational Period to the current map.\n
         (This is a SAR-specific feature and has no meaning in 'Recreation' mode.)
 
@@ -2563,21 +2649,22 @@ class CaltopoSession():
         #     j['id']=existingId
         j['id']=existingId
         # logging.info("sending json: "+json.dumps(j,indent=3))
-        if dataQueue:
-            self.dataQueue.setdefault('OperationalPeriod',[]).append(j)
-            return 0
-        else:
-            # return self.sendRequest('post','marker',j,id=existingId,returnJson='ID')
-            # add to .mapData immediately
-            rj=self._sendRequest('post','OperationalPeriod',j,id=existingId,returnJson='ALL',timeout=timeout,callbacks=callbacks)
-            if rj:
-                rjr=rj['result']
-                id=rjr['id']
-                self.mapData['ids'].setdefault('OperationalPeriod',[]).append(id)
-                self.mapData['state']['features'].append(rjr)
-                return id
-            else:
-                return False
+        return self._addFeature('OperationalPeriod',j,returnJson='ID',existingId=existingId,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        # if dataQueue:
+        #     self.dataQueue.setdefault('OperationalPeriod',[]).append(j)
+        #     return 0
+        # else:
+        #     # return self.sendRequest('post','marker',j,id=existingId,returnJson='ID')
+        #     # add to .mapData immediately
+        #     rj=self._sendRequest('post','OperationalPeriod',j,id=existingId,returnJson='ALL',timeout=timeout,callbacks=callbacks)
+        #     if rj:
+        #         rjr=rj['result']
+        #         id=rjr['id']
+        #         self.mapData['ids'].setdefault('OperationalPeriod',[]).append(id)
+        #         self.mapData['state']['features'].append(rjr)
+        #         return id
+        #     else:
+        #         return False
 
     def addLineAssignment(self,
             points: list,
@@ -2602,7 +2689,8 @@ class CaltopoSession():
             existingId=None,
             timeout=0,
             dataQueue=False,
-            callbacks=[]):
+            callbacks=[],
+            blocking=None): # use self.blockingByDefault as the default, resolved in _addFeature
         """Add a Line Assignment to the current map.\n
         (This is a SAR-specific feature and has no meaning in 'Recreation' mode.)
 
@@ -2687,11 +2775,12 @@ class CaltopoSession():
         if existingId is not None:
             j['id']=existingId
         # logging.info("sending json: "+json.dumps(j,indent=3))
-        if dataQueue:
-            self.dataQueue.setdefault('Assignment',[]).append(j)
-            return 0
-        else:
-            return self._sendRequest('post','Assignment',j,id=existingId,returnJson='ID',timeout=timeout,callbacks=callbacks)
+        return self._addFeature('Assignment',j,existingId=existingId,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        # if dataQueue:
+        #     self.dataQueue.setdefault('Assignment',[]).append(j)
+        #     return 0
+        # else:
+        #     return self._sendRequest('post','Assignment',j,id=existingId,returnJson='ID',timeout=timeout,callbacks=callbacks)
 
     # buffers: in the web interface, adding a buffer results in two requests:
     #   1. api/v0/geodata/buffer - payload = drawn centerline, response = polygon points
@@ -2737,7 +2826,8 @@ class CaltopoSession():
             existingId=None,
             timeout=0,
             dataQueue=False,
-            callbacks=[]):
+            callbacks=[],
+            blocking=None): # use self.blockingByDefault as the default, resolved in _addFeature
         """Add an Area Assignment to the current map.\n
         (This is a SAR-specific feature and has no meaning in 'Recreation' mode.)
 
@@ -2823,11 +2913,12 @@ class CaltopoSession():
         if existingId is not None:
             j['id']=existingId
         # logging.info("sending json: "+json.dumps(j,indent=3))
-        if dataQueue:
-            self.dataQueue.setdefault('Assignment',[]).append(j)
-            return 0
-        else:
-            return self._sendRequest('post','Assignment',j,id=existingId,returnJson='ID',timeout=timeout,callbacks=callbacks)
+        return self._addFeature('Assignment',j,existingId=existingId,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        # if dataQueue:
+        #     self.dataQueue.setdefault('Assignment',[]).append(j)
+        #     return 0
+        # else:
+        #     return self._sendRequest('post','Assignment',j,id=existingId,returnJson='ID',timeout=timeout,callbacks=callbacks)
 
     def flush(self,timeout=20):
         """Saves any dataQueued (deferred) request data to the hosted map.\n
@@ -2842,79 +2933,79 @@ class CaltopoSession():
     # def center(self,lat,lon,z):
     #     .
 
-    def addAppTrack(self,
-            points: list,
-            title='New AppTrack',
-            description='',
-            # cnt=None,
-            # startTrack=True,
-            # since=0,
-            folderId=None,
-            existingId='',
-            timeout=0,
-            callbacks=[]):
-        """Add an AppTrack to the current map.\n
-        Normally, AppTracks are only added from the CalTopo app.
+    # def addAppTrack(self,
+    #         points: list,
+    #         title='New AppTrack',
+    #         description='',
+    #         # cnt=None,
+    #         # startTrack=True,
+    #         # since=0,
+    #         folderId=None,
+    #         existingId='',
+    #         timeout=0,
+    #         callbacks=[]):
+    #     """Add an AppTrack to the current map.\n
+    #     Normally, AppTracks are only added from the CalTopo app.
 
-        :param points: List of points; each point is a list: [lon,lat]
-        :type points: list
-        :param title: AppTrack title; defaults to 'New AppTrack'
-        :type title: str, optional
-        :param description: AppTrack description; defaults to ''
-        :type description: str, optional
-        :param folderId: Folder ID of the folder this AppTrack should be created in, if any; defaults to None
-        :type folderId: str, optional
-        :param existingId: ID of an existing AppTrack to edit using this method; defaults to ''
-        :type existingId: str, optional
-        :param timeout: Request timeout in seconds; if specified as 0 here, uses the value of .syncTimeout; defaults to 0
-        :type timeout: int, optional
-        :return: Entire JSON response from the AppTrack creation request, or False if there was a failure prior to the request
-        """                        
+    #     :param points: List of points; each point is a list: [lon,lat]
+    #     :type points: list
+    #     :param title: AppTrack title; defaults to 'New AppTrack'
+    #     :type title: str, optional
+    #     :param description: AppTrack description; defaults to ''
+    #     :type description: str, optional
+    #     :param folderId: Folder ID of the folder this AppTrack should be created in, if any; defaults to None
+    #     :type folderId: str, optional
+    #     :param existingId: ID of an existing AppTrack to edit using this method; defaults to ''
+    #     :type existingId: str, optional
+    #     :param timeout: Request timeout in seconds; if specified as 0 here, uses the value of .syncTimeout; defaults to 0
+    #     :type timeout: int, optional
+    #     :return: Entire JSON response from the AppTrack creation request, or False if there was a failure prior to the request
+    #     """                        
         
-        # :param cnt: _description_, defaults to None
-        # :type cnt: _type_, optional
-        # :param startTrack: _description_, defaults to True
-        # :type startTrack: bool, optional
-        # :param since: _description_, defaults to 0
-        # :type since: int, optional
+    #     # :param cnt: _description_, defaults to None
+    #     # :type cnt: _type_, optional
+    #     # :param startTrack: _description_, defaults to True
+    #     # :type startTrack: bool, optional
+    #     # :param since: _description_, defaults to 0
+    #     # :type since: int, optional
 
-        if not self.mapID or self.apiVersion<0:
-            logging.error('addAppTrack request invalid: this caltopo session is not associated with a map.')
-            return False
-        j={}
-        jp={}
-        jg={}
-        jp['class']='AppTrack'
-        jp['updated']=int(time.time()*1000)
-        jp['title']=title
-        ##########################jp['nop']=True
-        if folderId:
-            jp['folderId']=folderId
-        jp['description']=description
-        jg['type']='LineString'
-        jg['coordinates']=points
-        jg['incremental']=True
-        # if cnt is None:
-        #     cnt=len(points)
-        # jg['size']=cnt       # cnt includes number of coord in this call
-        jg['size']=len(points)
-        j['properties']=jp
-        j['geometry']=jg
-        j['type']='Feature'
-        # if 0 == 1:      ## set for no existing ID
-        ###if existingId:
-            # j['id']=existingId   # get ID from first call - using Shape
-        # else:
-        existingId = ""
-        #logging.info("sending json: "+json.dumps(j,indent=3))
-        #logging.info("ID:"+str(existingId))
-        # if 1 == 1:
-        ##if startTrack == 1:
-        logging.info("At request first time track"+str(existingId)+":"+str(j))
-        return self._sendRequest("post","Shape",j,id=str(existingId),returnJson="ID",timeout=timeout,callbacks=callbacks)
-        # else:
-        #     logging.info("At request adding points to track:"+str(existingId)+":"+str(since)+":"+str(j))
-        #     return self._sendRequest("post","since/"+str(since),j,id=str(existingId),returnJson="ID")
+    #     if not self.mapID or self.apiVersion<0:
+    #         logging.error('addAppTrack request invalid: this caltopo session is not associated with a map.')
+    #         return False
+    #     j={}
+    #     jp={}
+    #     jg={}
+    #     jp['class']='AppTrack'
+    #     jp['updated']=int(time.time()*1000)
+    #     jp['title']=title
+    #     ##########################jp['nop']=True
+    #     if folderId:
+    #         jp['folderId']=folderId
+    #     jp['description']=description
+    #     jg['type']='LineString'
+    #     jg['coordinates']=points
+    #     jg['incremental']=True
+    #     # if cnt is None:
+    #     #     cnt=len(points)
+    #     # jg['size']=cnt       # cnt includes number of coord in this call
+    #     jg['size']=len(points)
+    #     j['properties']=jp
+    #     j['geometry']=jg
+    #     j['type']='Feature'
+    #     # if 0 == 1:      ## set for no existing ID
+    #     ###if existingId:
+    #         # j['id']=existingId   # get ID from first call - using Shape
+    #     # else:
+    #     existingId = ""
+    #     #logging.info("sending json: "+json.dumps(j,indent=3))
+    #     #logging.info("ID:"+str(existingId))
+    #     # if 1 == 1:
+    #     ##if startTrack == 1:
+    #     logging.info("At request first time track"+str(existingId)+":"+str(j))
+    #     return self._sendRequest("post","Shape",j,id=str(existingId),returnJson="ID",timeout=timeout,callbacks=callbacks)
+    #     # else:
+    #     #     logging.info("At request adding points to track:"+str(existingId)+":"+str(since)+":"+str(j))
+    #     #     return self._sendRequest("post","since/"+str(since),j,id=str(existingId),returnJson="ID")
 
     def delMarker(self,
             markerOrId='',

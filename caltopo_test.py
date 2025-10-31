@@ -1,55 +1,122 @@
 from caltopo_python import CaltopoSession
 import time
 import json
+import logging
+import sys
+import os
+
+def getFileNameBase(root):
+	return root+"_"+time.strftime("%Y_%m_%d_%H%M%S")
+
+###### LOGGING CODE BEGIN ######
+
+# do not pass ERRORs to stdout - they already show up on the screen from stderr
+class LoggingFilter(logging.Filter):
+	def filter(self,record):
+		return record.levelno < logging.ERROR
+	
+# only print module name if it is other than radiolog
+class LoggingFormatter(logging.Formatter):
+	def format(self,record):
+		s=super().format(record)
+		if record.module=='caltopo_test':
+			s=s.replace('[caltopo_test:','[')
+		return s
+
+logFileLeafName=getFileNameBase('caltopo_test')+'.txt'
+
+def setLogHandlers(dir=None):
+	sh=logging.StreamHandler(sys.stdout)
+	sh.setLevel(logging.INFO)
+	# sh.addFilter(LoggingFilter())
+	sh.setFormatter(LoggingFormatter('%(asctime)s [%(module)s:%(lineno)d:%(levelname)s] %(message)s','%H%M%S'))
+	handlers=[sh]
+	# add a filehandler if dir is specified
+	if dir:
+		logFileName=os.path.join(dir,logFileLeafName)
+		fh=logging.FileHandler(logFileName)
+		fh.setLevel(logging.INFO)
+		# fh.addFilter(LoggingFilter())
+		fh.setFormatter(LoggingFormatter('%(asctime)s [%(module)s:%(lineno)d:%(levelname)s] %(message)s','%H%M%S'))
+		handlers=[sh,fh]
+	# redo logging.basicConfig here, to overwrite setup from any imported modules
+	logging.basicConfig(
+		level=logging.INFO,
+		datefmt='%H%M%S',
+		format='%(asctime)s [%(module)s:%(lineno)d:%(levelname)s] %(message)s',
+		handlers=handlers,
+		force=True
+	)
+
+setLogHandlers(dir='../tests')
+
+# redirect stderr to stdout here by overriding excepthook
+# from https://stackoverflow.com/a/16993115/3577105
+# and https://www.programcreek.com/python/example/1013/sys.excepthook
+def handle_exception(exc_type, exc_value, exc_traceback):
+	if not issubclass(exc_type, KeyboardInterrupt):
+		logging.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+	sys.__excepthook__(exc_type, exc_value, exc_traceback)
+	# interesting that the program no longer exits after uncaught exceptions
+	#  if this function replaces __excepthook__.  Probably a good thing but
+	#  it would be nice to undertstand why.
+	return
+# note: 'sys.excepthook = handle_exception' must be done inside main()
+
+def rprint(text):
+	logging.info(text)
+
+###### LOGGING CODE END ######
 
 def pucb(*args):
-    print("pucb called with args "+str(args))
+	print("pucb called with args "+str(args))
 
 def gucb(*args):
-    print("gucb called with args "+str(args))
+	print("gucb called with args "+str(args))
 
 def nfcb(*args):
-    print("nfcb called with args "+str(args))
+	print("nfcb called with args "+str(args))
 
 def dfcb(*args):
-    print("dfcb called with args "+str(args))
+	print("dfcb called with args "+str(args))
 
 def rqccb(q):
-    print('request queue changed... length='+str(q.qsize()))
+	print('request queue changed... length='+str(q.qsize()))
 
 def frcb(request,response):
-    print('failed request callback called: request='+str(request)+' response='+str(response))
+	print('failed request callback called: request='+str(request)+' response='+str(response))
 
 def dccb():
-    print('disconnected callback called')
+	print('disconnected callback called')
 
 def rccb():
-    print('reconnected callback called')
+	print('reconnected callback called')
 
 # open a session
 cts=CaltopoSession('caltopo.com',
 # cts=CaltopoSession('localhost:8080',
-        # configpath='../cts.ini',
-        # configpath='../cts_service.ini',
-        configpath='../cts_all.ini',
-        # mapID='[NEW]',
-        # mapID='[NEW]new4240',
-        # mapID='[NEW]SAR:new4240',
-        # mapID='[NEW]test:new4240',
-        # mapID='QDJKMQQ',
-        # mapID='CA4L4',
-        # mapID='DEKFJ',
-        # syncInterval=1,
-        # syncDumpFile='syncDump',
-        sync=True,
-        # propertyUpdateCallback=pucb,
-        # geometryUpdateCallback=gucb,
-        # newFeatureCallback=nfcb,
-        # deletedFeatureCallback=dfcb,
-        requestQueueChangedCallback=rqccb,
-        failedRequestCallback=frcb,
-        disconnectedCallback=dccb,
-        reconnectedCallback=rccb,
+		# configpath='../cts.ini',
+		# configpath='../cts_service.ini',
+		configpath='../cts_all.ini',
+		# mapID='[NEW]',
+		# mapID='[NEW]new4240',
+		# mapID='[NEW]SAR:new4240',
+		# mapID='[NEW]test:new4240',
+		# mapID='QDJKMQQ',
+		# mapID='CA4L4',
+		# mapID='DEKFJ',
+		# syncInterval=1,
+		# syncDumpFile='syncDump',
+		sync=False,
+		# propertyUpdateCallback=pucb,
+		# geometryUpdateCallback=gucb,
+		# newFeatureCallback=nfcb,
+		# deletedFeatureCallback=dfcb,
+		requestQueueChangedCallback=rqccb,
+		failedRequestCallback=frcb,
+		disconnectedCallback=dccb,
+		reconnectedCallback=rccb,
+		blockingByDefault=False,
 account='caver456@gmail.com')
 # account='ncssaradm@gmail.com')
 # account='ncssar-service')
@@ -57,8 +124,126 @@ account='caver456@gmail.com')
 cts.openMap('9GGGBQV') # geomTest20250610
 # cts.openMap('KA1KCHS') # caltopo_python_test
 
-cts.delMarker(cts.getFeature('Marker','tmg'))
+# 1. test all online, blocking, ignoring response, to make sure all arguments affecting json are processed correctly
+# 2. test online, non-blocking
+#  --> as expected: final request is never sent, since requestThread is a daemon (does not prevent main thread from ending)
+#  --> as expected: assignments are never put in the op, and polygon is never put in the folder, due to different return values
+# 3. test offline, blocking - each call should fail gracefully - either with timeout, or, immediately due to getaddrinfo failure
+# 4. test offline, non-blocking - each call should return immediately, then all should be added on disconnect (during sleep after calls)
+
+# to specify non-blocking, test all methods - so we have 2a/b/c and 4a/b/c
+# a) blockingByDefault=False; omit blocking argument in calls
+# b) blockingByDefault=True; specify a callback for each call but omit blocking argument in calls
+# c) blockingByDefault=True; specify blocking=False for each call but omit callbacks
+
+# to specify blocking, test all methods
+# a) blockingByDefault=True; omit blocking arguments and callbacks in calls
+# b) blockingByDefault=False; specify blocking=True but omit callbacks for each call
+#  (blocking=True along with callbacks is caught as an error condition)
+
+# 1a - pass
+# 1b - pass
+# 2a - pass
+# 2b - pass
+# 2c - pass
+# 3a - pass
+# 3b - pass
+# 4a - pass
+# 4b - pass
+# 4c - pass
+
+# also test proper handling of response values when non-blocking, since the above tests don't do so
+
+# logging.info('sleeping for 20 seconds... disconnect now...')
+# time.sleep(20)
+logging.info('t1')
+# fid1=cts.addFolder('f1',visible=False,labelVisible=False)
+# fid1=cts.addFolder('f1',visible=False,labelVisible=False,blocking=False)
+fid1=cts.addFolder('f1',visible=False,labelVisible=False,blocking=True)
+# fid1=cts.addFolder('f2',visible=False,labelVisible=False,callbacks=[[logging.info,['cb1']]])
+logging.info(f't2: fid1={fid1}')
 time.sleep(5)
+logging.info('t3')
+# cts.addMarker(39,-120,'tmg','markerDesc','#00F','a:0',45,size=2)
+# cts.addMarker(39,-120,'tmg','markerDesc','#00F','a:0',45,size=2,blocking=False)
+cts.addMarker(39,-120,'tmg','markerDesc','#00F','a:0',45,size=2,blocking=True)
+# cts.addMarker(39,-120,'tmg','markerDesc','#00F','a:0',45,size=2,callbacks=[[logging.info,['cb2']]])
+logging.info('t4')
+time.sleep(5)
+logging.info('t5')
+# cts.addLine([[39,-120,1,2],[39.1,-120,1,2]],'b','lineDesc',8,0.6,'#0F0','M5 5M-5 -5M3 0A3 3 0 1 0 -3 0 A3 3 0 1 0 3 0,,15,F')
+# cts.addLine([[39,-120,1,2],[39.1,-120,1,2]],'b','lineDesc',8,0.6,'#0F0','M5 5M-5 -5M3 0A3 3 0 1 0 -3 0 A3 3 0 1 0 3 0,,15,F',blocking=False)
+cts.addLine([[39,-120,1,2],[39.1,-120,1,2]],'b','lineDesc',8,0.6,'#0F0','M5 5M-5 -5M3 0A3 3 0 1 0 -3 0 A3 3 0 1 0 3 0,,15,F',blocking=True)
+# cts.addLine([[39,-120,1,2],[39.1,-120,1,2]],'b','lineDesc',8,0.6,'#0F0','M5 5M-5 -5M3 0A3 3 0 1 0 -3 0 A3 3 0 1 0 3 0,,15,F',callbacks=[[logging.info,['cb3']]])
+logging.info('t6')
+time.sleep(5)
+logging.info('t7')
+# cts.addPolygon([[-120.2,39],[-120.3,39.1],[-120.2,39.1]],'c',description='polyDesc',strokeOpacity=0.4,strokeWidth=1,fillOpacity=0.8,stroke='#FF00FF',fill='#00FF00',folderId=fid1)
+# cts.addPolygon([[-120.2,39],[-120.3,39.1],[-120.2,39.1]],'c',description='polyDesc',strokeOpacity=0.4,strokeWidth=1,fillOpacity=0.8,stroke='#FF00FF',fill='#00FF00',folderId=fid1,blocking=False)
+cts.addPolygon([[-120.2,39],[-120.3,39.1],[-120.2,39.1]],'c',description='polyDesc',strokeOpacity=0.4,strokeWidth=1,fillOpacity=0.8,stroke='#FF00FF',fill='#00FF00',folderId=fid1,blocking=True)
+# cts.addPolygon([[-120.2,39],[-120.3,39.1],[-120.2,39.1]],'c',description='polyDesc',strokeOpacity=0.4,strokeWidth=1,fillOpacity=0.8,stroke='#FF00FF',fill='#00FF00',folderId=fid1,callbacks=[[logging.info,['cb4']]])
+logging.info('t8')
+# op1id=cts.addOperationalPeriod('1','#F0F',0.5,8,0.9)
+# op1id=cts.addOperationalPeriod('1','#F0F',0.5,8,0.9,blocking=False)
+op1id=cts.addOperationalPeriod('1','#F0F',0.5,8,0.9,blocking=True)
+# op1id=cts.addOperationalPeriod('1','#F0F',0.5,8,0.9,callbacks=[[logging.info,['cb5']]])
+logging.info('t9')
+time.sleep(5)
+logging.info('t10')
+cts.addLineAssignment([[-120,39.2],[-120.1,39.3],[-120,39.3]],
+        number='101',
+        letter='AA',
+        opId=op1id,
+        resourceType='GROUND_1',
+        teamSize=5,
+        priority='HIGH',
+        responsivePOD='MEDIUM',
+        unresponsivePOD='HIGH',
+        cluePOD='LOW',
+        description='assignmentAA',
+        previousEfforts='None',
+        transportation='self',
+        timeAllocated='6hrs',
+        primaryFrequency='BANNER',
+        secondaryFrequency='TAC1',
+        preparedBy='SAR35',
+		# callbacks=[[logging.info,['cb6']]],
+		# blocking=False,
+		blocking=True,
+        status='PREPARED')
+logging.info('t11')
+time.sleep(5)
+logging.info('t12')
+cts.addAreaAssignment([[-120,39.4],[-120.1,39.5],[-120,39.5]],
+        letter='AB',
+        opId=op1id,
+        resourceType='GROUND_3',
+        teamSize=5,
+        priority='MEDIUM',
+        responsivePOD='MEDIUM',
+        unresponsivePOD='HIGH',
+        cluePOD='LOW',
+        description='assignmentAB',
+        previousEfforts='None2',
+        transportation='self2',
+        timeAllocated='8hrs',
+        primaryFrequency='BANNER2',
+        secondaryFrequency='TAC12',
+        preparedBy='SAR352',
+		# callbacks=[[logging.info,['cb7']]],
+		# blocking=False,
+		blocking=True,
+        status='PREPARED')
+logging.info('t13')
+# logging.info('sleeping for 30 seconds... reconnect now')
+# time.sleep(30)
+
+# print mapData to show that the cache gets built by callbacks, even if sync is False
+# logging.info('mapData:')
+# logging.info(json.dumps(cts.mapData,indent=3))
+
+# cts.delMarker(cts.getFeature('Marker','tmg'))
+# time.sleep(5)
 # cts.addLine([[39,-120],[39.1,-120]],'a')
 # cts.addLine([[39,-120,1,2],[39.1,-120,1,2]],'b')
 
@@ -116,7 +301,7 @@ time.sleep(5)
 # fid10=cts.addFolder('testFolder10',labelVisible=False)
 # fid11=cts.addFolder('testFolder11')
 
-# no properties: 'buggy' - folder checked and expanded, with new object checked; but not visible on map, and no left bar edit/trash icons; all good after toggling folder cisibility checkbox
+# no properties: 'buggy' - folder checked and expanded, with new object checked; but not visible on map, and no left bar edit/trash icons; all good after toggling folder visibility checkbox
 # folder-visiblity: old property, has no effect; behaves as above if this is the only property
 # visible=True: objects initally visible; folder stays checked and expanded as new objects are added to it
 # visible=False: objects not initially visible; folder stays unchecked and collapsed in left bar and in app as new objects are added to it
@@ -396,7 +581,7 @@ time.sleep(5)
 #         cacheDumpFile=mapID+'_cache.txt',
 #         caseSensitiveComparisons=True,
 #         sync=False)
-        # syncDumpFile='../../HB0U.txt')
+		# syncDumpFile='../../HB0U.txt')
 
 
 
@@ -494,17 +679,17 @@ time.sleep(5)
 # with open('test.txt','w') as testLog:
 #     testLog.write('current map title: '+str(cts.getMapTitle()))
 #     testLog.write('\n\n'+json.dumps(cts.mapData,indent=3))
-    # testLog.write('Name of PVTGT:'+cts.getMapTitle('PVTGT'))
-    # testLog.write('\n***\nGroup memberships:\n'+str(cts.getGroupAccountTitles()))
-    # testLog.write('\n***\nAll group map lists:\n'+json.dumps(cts.getAllMapLists(),indent=3))
-    # testLog.write('\n***\nAll map lists including personal:\n'+json.dumps(cts.getAllMapLists(includePersonal=True),indent=3))
-    # # cts.getAccountData(fromFileName='acct_since_0-mai.json')
-    # testLog.write('\n***\naccountData:\n'+json.dumps(cts.accountData,indent=3))
-    # testLog.write('\n***\nSAR Training maps:\n'+json.dumps(cts.getMapList('SAR Training'),indent=3))
-    # testLog.write('\n***\nNCSSAR maps:\n'+json.dumps(cts.getMapList('NCSSAR'),indent=3))
-    # testLog.write('\n***\nSAR Training maps:\n'+json.dumps(cts.getMapList('SAR Training',titlesOnly=True),indent=3))
-    # testLog.write('\n***\ngroupAccounts:\n'+json.dumps(cts.groupAccounts,indent=3))
-    # testLog.write('\n***\npersonalAccounts:\n'+json.dumps(cts.personalAccounts,indent=3))
+	# testLog.write('Name of PVTGT:'+cts.getMapTitle('PVTGT'))
+	# testLog.write('\n***\nGroup memberships:\n'+str(cts.getGroupAccountTitles()))
+	# testLog.write('\n***\nAll group map lists:\n'+json.dumps(cts.getAllMapLists(),indent=3))
+	# testLog.write('\n***\nAll map lists including personal:\n'+json.dumps(cts.getAllMapLists(includePersonal=True),indent=3))
+	# # cts.getAccountData(fromFileName='acct_since_0-mai.json')
+	# testLog.write('\n***\naccountData:\n'+json.dumps(cts.accountData,indent=3))
+	# testLog.write('\n***\nSAR Training maps:\n'+json.dumps(cts.getMapList('SAR Training'),indent=3))
+	# testLog.write('\n***\nNCSSAR maps:\n'+json.dumps(cts.getMapList('NCSSAR'),indent=3))
+	# testLog.write('\n***\nSAR Training maps:\n'+json.dumps(cts.getMapList('SAR Training',titlesOnly=True),indent=3))
+	# testLog.write('\n***\ngroupAccounts:\n'+json.dumps(cts.groupAccounts,indent=3))
+	# testLog.write('\n***\npersonalAccounts:\n'+json.dumps(cts.personalAccounts,indent=3))
 # print('\nTest MAI Incident maps:\n'+json.dumps(cts.getMapList('Test MAI Incident'),indent=3))
 
 

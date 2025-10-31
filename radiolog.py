@@ -2945,7 +2945,7 @@ class MyWindow(QDialog,Ui_Dialog):
 								folderId=self.radioMarkerFID,
 								existingId=existingId,
 								# deferredHook=self.radioMarkerDeferredHook,
-								callbacks=[[self.handleRadioMarkerResponse,[{
+								callbacks=[[self.handleRadioMarkerResponse,[],{
 									'deviceStr':deviceStr,
 									'lat':lat,
 									'lon':lon,
@@ -2953,7 +2953,7 @@ class MyWindow(QDialog,Ui_Dialog):
 									'latestTimeString':latestTimeString,
 									'id':'.result.id', # will be equal to existingId on subsequent updates
 									'existingId':existingId # will be None on first call from a device
-								}]]])
+								}]])
 					except Exception as e:
 						rprint('Exception during addMarker:'+str(e))
 				# add or update the dict entry here, with enough detail for createSTS to add any deferred markers
