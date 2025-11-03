@@ -3028,7 +3028,8 @@ class CaltopoSession():
     def delMarker(self,
             markerOrId='',
             timeout=0,
-            callbacks=[]):
+            callbacks=[],
+            blocking=None):
         """Delete a marker on the current map.\n
         The marker to delete can be specified by ID, or by passing the entire marker data object.\n
         This convenience function calls .delFeature.
@@ -3041,7 +3042,7 @@ class CaltopoSession():
         if not self.mapID or self.apiVersion<0:
             logging.error('delFeature request invalid: this caltopo session is not associated with a map.')
             return False
-        self.delFeature(markerOrId,fClass="marker",timeout=timeout,callbacks=callbacks)
+        self.delFeature(markerOrId,fClass="marker",timeout=timeout,callbacks=callbacks,blocking=blocking)
 
     # delMarkers - calls asynchronous non-blocking delFeatures
     def delMarkers(self,
@@ -3077,7 +3078,8 @@ class CaltopoSession():
             featureOrId='',
             fClass='',
             timeout=0,
-            callbacks=[]):
+            callbacks=[],
+            blocking=None):
         """Delete the specified feature from the current map.
         The feature to delete can be specified by ID, or by passing the entire marker data object.
 
@@ -3092,6 +3094,13 @@ class CaltopoSession():
         if not self.mapID or self.apiVersion<0:
             logging.error('delFeature request invalid: this caltopo session is not associated with a map.')
             return False
+        
+        # we need to run _addFeatureCallback to add to .mapData immediately, but, we don't want its presence to force it to be a non-blocking call;
+        #  if non-blocking, run _addFeatureCallback as a real callback after the response is eventually received;
+        #  if blocking, run it on return from the _sendRequest call
+        if blocking is None: # neither True nor False
+            blocking=self.blockingByDefault and not bool(callbacks)
+
         if type(featureOrId)==str and featureOrId!='':
             id=featureOrId
             if not fClass:
@@ -3111,7 +3120,28 @@ class CaltopoSession():
         else:
             logging.error('invalid argument in call to delFeature: '+str(featureOrId))
             return False
-        return self._sendRequest("delete",fClass,None,id=str(id),returnJson="ALL",timeout=timeout,callbacks=callbacks)
+
+        # only prepend _deleteFeatureCallback if this will be a non-blocking call, since
+        #  _addFeatureCallback alone should not be enough to force this to be a non-blocking
+        #  call; see the blocking logic at the start of _sendRequest, basically duplicated here at this level
+        if not blocking:
+            callbacks=[[self._delFeatureCallback,[id,fClass]]]+callbacks # add to .mapData immediately for use by any downstream-specified callbacks
+
+        r=self._sendRequest("delete",fClass,None,id=str(id),returnJson="ALL",timeout=timeout,callbacks=callbacks,blocking=blocking)
+        if isinstance(r,dict): # blocking request, returning response.json()
+            return self._delFeatureCallback(id,fClass) # normally returns the id
+        else:
+            return r # could be False if error, or True if non-blocking request submitted to the queue
+
+    def _delFeatureCallback(self,id,className):
+        logging.info(f'_delFeatureCallback called: removing {id} of class {className} from cache')
+        logging.info('mapData before:')
+        logging.info(json.dumps(self.mapData,indent=3))
+        self.mapData['state']['features'][:]=(f for f in self.mapData['state']['features'] if not(f['id']==id))
+        if className in self.mapData['ids'].keys():
+            self.mapData['ids'][className][:]=(f for f in self.mapData['ids'][className] if not f==id)
+        logging.info('mapData after:')
+        logging.info(json.dumps(self.mapData,indent=3))
 
     # delFeatures - asynchronously send a batch of non-blocking delFeature requests
     #  featuresOrIdAndClassList - a list of dicts - entire features, or, two items per dict: 'id' and 'class'

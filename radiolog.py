@@ -2985,7 +2985,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		rprint(json.dumps(kwargs,indent=3))
 
 		# delete any earlier marker with the same deviceStr due to duplication during disconnect;
-		#  this would be the case if the ddeviceStr already has an entry in radioMarkerDict
+		#  this would be the case if the deviceStr already has an entry in radioMarkerDict
 		#  but with a different id;
 		#  as long as this cleanup is performed after every new marker addition, multiple stale
 		#  markers should all be cleaned up because there will only be one after any given addition
@@ -2995,7 +2995,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			oldId=self.radioMarkerDict[deviceStr]['caltopoId']
 			if oldId and oldId!=kwargs['id']:
 				rprint(' cleaning up stale radio marker for '+str(deviceStr)+'  id='+str(oldId))
-				self.cts.delMarker(oldId)
+				self.cts.delMarker(oldId,blocking=False)
 			prevHistory=self.radioMarkerDict[deviceStr].get('history',[])
 
 		newId=kwargs['existingId'] # preserve the id if this is not the first call from the device
