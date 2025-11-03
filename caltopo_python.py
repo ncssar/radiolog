@@ -3439,8 +3439,8 @@ class CaltopoSession():
         #  actually, it's not accurate to modify mapData before the request is sent; so we need to dereference the mapData references
         #  to prevent the early modifications, then do the modifications as a callback if non-blocking, or immediately if blocking
         logging.info('editFeature called: id='+str(id))
-        logging.info('editFeature: mapData at start:')
-        logging.info(json.dumps(self.mapData,indent=3))
+        # logging.info('editFeature: mapData at start:')
+        # logging.info(json.dumps(self.mapData,indent=3))
         # logging.info('editFeature called:'+str(properties))
         if not self.mapID or self.apiVersion<0:
             logging.error('editFeature request invalid: this caltopo session is not associated with a map.')
@@ -3553,8 +3553,8 @@ class CaltopoSession():
         if not blocking:
             callbacks=[[self._editFeatureCallback,['.result']]]+callbacks # add to .mapData immediately for use by any downstream-specified callbacks
 
-        logging.info('editFeature: mapData before sendRequest:')
-        logging.info(json.dumps(self.mapData,indent=3))
+        # logging.info('editFeature: mapData before sendRequest:')
+        # logging.info(json.dumps(self.mapData,indent=3))
         r=self._sendRequest('post',className,j,id=feature['id'],returnJson='ALL',timeout=timeout,callbacks=callbacks,blocking=blocking)
         if isinstance(r,dict): # blocking request, returning response.json()
             return self._editFeatureCallback(r['result']) # normally returns the id
@@ -3567,8 +3567,10 @@ class CaltopoSession():
         features=[f for f in self.mapData['state']['features'] if f['id']==rjr['id']]
         # logging.info(json.dumps(self.mapData,indent=3))
         if len(features)==1:
-            features[0]['geometry']=rjr['geometry']
-            features[0]['properties']=rjr['properties']
+            if 'geometry' in rjr.keys():
+                features[0]['geometry']=rjr['geometry']
+            if 'properties' in rjr.keys():
+                features[0]['properties']=rjr['properties']
             return True
         else:
             logging.info('  no match!')

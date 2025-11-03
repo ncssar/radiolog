@@ -1106,6 +1106,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.caltopoOpenMapIsWritable=False
 		self.caltopoBadResponse=None
 		self.radioMarkerFID=None
+		self.radioMarkerFolderHasBeenRequested=False
 
 		self.optionsDialog=optionsDialog(self)
 		self.optionsDialog.accepted.connect(self.optionsAccepted)
@@ -2948,7 +2949,8 @@ class MyWindow(QDialog,Ui_Dialog):
 							'label':label,
 							'latestTimeString':latestTimeString,
 							'id':'.result.id', # will be equal to existingId on subsequent updates
-							'existingId':existingId # will be None on first call from a device
+							'existingId':existingId, # will be None on first call from a device
+							'radioMarkerFID':self.radioMarkerFID # record radioMarkerFID at enqueue-time
 						}]]
 						description=latestTimeString+'   ['+deviceStr+']'
 						if existingId: # update an existing marker
@@ -3006,8 +3008,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			'label': kwargs['label'],
 			'latestTimeString': kwargs['latestTimeString'],
 			'lat': kwargs['lat'],
-			'lon': kwargs['lon']
+			'lon': kwargs['lon'],
+			'radioMarkerFID': kwargs['radioMarkerFID']
 		}
+
 		# update the history, in case it's ever needed to audit or show on caltopo
 		# if 'history' not in self.radioMarkerDict[deviceStr].keys():
 		# 	self.radioMarkerDict[deviceStr]['history']=[]
@@ -3018,6 +3022,20 @@ class MyWindow(QDialog,Ui_Dialog):
 				kwargs['lon']]]
 		rprint('updated radioMarkerDict at end of handleRadioMarkerResponse:')
 		rprint(json.dumps(self.radioMarkerDict,indent=3))
+
+		# if the marker didn't have any folder ID, which would be the case if there was no radios folder before disconnect,
+		#  then move it to the radios folder now, which would already exist in the cache by this time
+		if kwargs['radioMarkerFID'] is None:
+			rprint(f'  radio marker for {deviceStr} had no folder ID: Radios folder did not exist when marker was enqueued; moving marker to Radios folder now')
+			self.cts.editFeature(id=kwargs['id'],properties={'folderId':self.radioMarkerFID},callbacks=[[self.moveRadioMarkerToFolderCB,[deviceStr]]])
+	
+	def moveRadioMarkerToFolderCB(self,deviceStr):
+		rprint(f'updating radioMarkerFID for {deviceStr}')
+		rprint('before:')
+		rprint(json.dumps(self.radioMarkerDict[deviceStr],indent=3))
+		self.radioMarkerDict[deviceStr]['radioMarkerFID']=self.radioMarkerFID
+		rprint('after:')
+		rprint(json.dumps(self.radioMarkerDict[deviceStr],indent=3))
 
 	# for fsLog, a dictionary would probably be easier, but we have to use an array
 	#  since we will be displaying in a QTableView
@@ -6884,8 +6902,12 @@ class MyWindow(QDialog,Ui_Dialog):
 				rprint('Radios folder already exists: '+str(fid))
 				self.radioMarkerFID=fid
 				return fid
-		rprint('No existing Radios folder found; creating one now...')
-		self.cts.addFolder('Radios',visible=False,callbacks=[[self.setRadioMarkerFID,['.result.id']]])
+		if self.radioMarkerFolderHasBeenRequested:
+			rprint('No existing Radios folder found, but, one has already been requested, and should exist after reconnect; not requesting another one')
+		else:
+			rprint('No existing Radios folder found, and none has yet been requested in this session; requesting one now...')
+			self.cts.addFolder('Radios',visible=False,callbacks=[[self.setRadioMarkerFID,['.result.id']]])
+			self.radioMarkerFolderHasBeenRequested=True
 		return None
 
 	def setRadioMarkerFID(self,fid):
