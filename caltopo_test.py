@@ -116,7 +116,7 @@ cts=CaltopoSession('caltopo.com',
 		failedRequestCallback=frcb,
 		disconnectedCallback=dccb,
 		reconnectedCallback=rccb,
-		blockingByDefault=False,
+		# blockingByDefault=False,
 account='caver456@gmail.com')
 # account='ncssaradm@gmail.com')
 # account='ncssar-service')
@@ -154,93 +154,114 @@ cts.openMap('9GGGBQV') # geomTest20250610
 
 # also test proper handling of response values when non-blocking, since the above tests don't do so
 
+# def putInFolder(result,folderName):
+# 	cts.editFeature(id=result['id'],properties={'folderId':cts.getFeature('Folder',folderName)['id']})
+	
+def putInFolder(id,folderName):
+	cts.editFeature(id=id,properties={'folderId':cts.getFeature('Folder',folderName)['id']})
+
 # logging.info('sleeping for 20 seconds... disconnect now...')
 # time.sleep(20)
-logging.info('t1')
-# fid1=cts.addFolder('f1',visible=False,labelVisible=False)
-# fid1=cts.addFolder('f1',visible=False,labelVisible=False,blocking=False)
-fid1=cts.addFolder('f1',visible=False,labelVisible=False,blocking=True)
-# fid1=cts.addFolder('f2',visible=False,labelVisible=False,callbacks=[[logging.info,['cb1']]])
-logging.info(f't2: fid1={fid1}')
-time.sleep(5)
-logging.info('t3')
-# cts.addMarker(39,-120,'tmg','markerDesc','#00F','a:0',45,size=2)
-# cts.addMarker(39,-120,'tmg','markerDesc','#00F','a:0',45,size=2,blocking=False)
-cts.addMarker(39,-120,'tmg','markerDesc','#00F','a:0',45,size=2,blocking=True)
-# cts.addMarker(39,-120,'tmg','markerDesc','#00F','a:0',45,size=2,callbacks=[[logging.info,['cb2']]])
-logging.info('t4')
-time.sleep(5)
-logging.info('t5')
-# cts.addLine([[39,-120,1,2],[39.1,-120,1,2]],'b','lineDesc',8,0.6,'#0F0','M5 5M-5 -5M3 0A3 3 0 1 0 -3 0 A3 3 0 1 0 3 0,,15,F')
-# cts.addLine([[39,-120,1,2],[39.1,-120,1,2]],'b','lineDesc',8,0.6,'#0F0','M5 5M-5 -5M3 0A3 3 0 1 0 -3 0 A3 3 0 1 0 3 0,,15,F',blocking=False)
-cts.addLine([[39,-120,1,2],[39.1,-120,1,2]],'b','lineDesc',8,0.6,'#0F0','M5 5M-5 -5M3 0A3 3 0 1 0 -3 0 A3 3 0 1 0 3 0,,15,F',blocking=True)
-# cts.addLine([[39,-120,1,2],[39.1,-120,1,2]],'b','lineDesc',8,0.6,'#0F0','M5 5M-5 -5M3 0A3 3 0 1 0 -3 0 A3 3 0 1 0 3 0,,15,F',callbacks=[[logging.info,['cb3']]])
-logging.info('t6')
-time.sleep(5)
-logging.info('t7')
-# cts.addPolygon([[-120.2,39],[-120.3,39.1],[-120.2,39.1]],'c',description='polyDesc',strokeOpacity=0.4,strokeWidth=1,fillOpacity=0.8,stroke='#FF00FF',fill='#00FF00',folderId=fid1)
-# cts.addPolygon([[-120.2,39],[-120.3,39.1],[-120.2,39.1]],'c',description='polyDesc',strokeOpacity=0.4,strokeWidth=1,fillOpacity=0.8,stroke='#FF00FF',fill='#00FF00',folderId=fid1,blocking=False)
-cts.addPolygon([[-120.2,39],[-120.3,39.1],[-120.2,39.1]],'c',description='polyDesc',strokeOpacity=0.4,strokeWidth=1,fillOpacity=0.8,stroke='#FF00FF',fill='#00FF00',folderId=fid1,blocking=True)
-# cts.addPolygon([[-120.2,39],[-120.3,39.1],[-120.2,39.1]],'c',description='polyDesc',strokeOpacity=0.4,strokeWidth=1,fillOpacity=0.8,stroke='#FF00FF',fill='#00FF00',folderId=fid1,callbacks=[[logging.info,['cb4']]])
-logging.info('t8')
-# op1id=cts.addOperationalPeriod('1','#F0F',0.5,8,0.9)
-# op1id=cts.addOperationalPeriod('1','#F0F',0.5,8,0.9,blocking=False)
-op1id=cts.addOperationalPeriod('1','#F0F',0.5,8,0.9,blocking=True)
-# op1id=cts.addOperationalPeriod('1','#F0F',0.5,8,0.9,callbacks=[[logging.info,['cb5']]])
-logging.info('t9')
-time.sleep(5)
-logging.info('t10')
-cts.addLineAssignment([[-120,39.2],[-120.1,39.3],[-120,39.3]],
-        number='101',
-        letter='AA',
-        opId=op1id,
-        resourceType='GROUND_1',
-        teamSize=5,
-        priority='HIGH',
-        responsivePOD='MEDIUM',
-        unresponsivePOD='HIGH',
-        cluePOD='LOW',
-        description='assignmentAA',
-        previousEfforts='None',
-        transportation='self',
-        timeAllocated='6hrs',
-        primaryFrequency='BANNER',
-        secondaryFrequency='TAC1',
-        preparedBy='SAR35',
-		# callbacks=[[logging.info,['cb6']]],
-		# blocking=False,
-		blocking=True,
-        status='PREPARED')
-logging.info('t11')
-time.sleep(5)
-logging.info('t12')
-cts.addAreaAssignment([[-120,39.4],[-120.1,39.5],[-120,39.5]],
-        letter='AB',
-        opId=op1id,
-        resourceType='GROUND_3',
-        teamSize=5,
-        priority='MEDIUM',
-        responsivePOD='MEDIUM',
-        unresponsivePOD='HIGH',
-        cluePOD='LOW',
-        description='assignmentAB',
-        previousEfforts='None2',
-        transportation='self2',
-        timeAllocated='8hrs',
-        primaryFrequency='BANNER2',
-        secondaryFrequency='TAC12',
-        preparedBy='SAR352',
-		# callbacks=[[logging.info,['cb7']]],
-		# blocking=False,
-		blocking=True,
-        status='PREPARED')
-logging.info('t13')
+# # logging.info('t1')
+# # # fid1=cts.addFolder('f1',visible=False,labelVisible=False)
+# # # fid1=cts.addFolder('f1',visible=False,labelVisible=False,blocking=False)
+# # fid1=cts.addFolder('f1',visible=False,labelVisible=False,blocking=True)
+# # # fid1=cts.addFolder('f2',visible=False,labelVisible=False,callbacks=[[logging.info,['cb1']]])
+# # logging.info(f't2: fid1={fid1}')
+# # time.sleep(5)
+# # logging.info('t3')
+# # # cts.addMarker(39,-120,'tmg','markerDesc','#00F','a:0',45,size=2)
+# # # cts.addMarker(39,-120,'tmg','markerDesc','#00F','a:0',45,size=2,blocking=False)
+# # cts.addMarker(39,-120,'tmg','markerDesc','#00F','a:0',45,size=2,blocking=True)
+# # # cts.addMarker(39,-120,'tmg','markerDesc','#00F','a:0',45,size=2,callbacks=[[logging.info,['cb2']]])
+# # logging.info('t4')
+# # time.sleep(5)
+# # logging.info('t5')
+# # # cts.addLine([[39,-120,1,2],[39.1,-120,1,2]],'b','lineDesc',8,0.6,'#0F0','M5 5M-5 -5M3 0A3 3 0 1 0 -3 0 A3 3 0 1 0 3 0,,15,F')
+# # # cts.addLine([[39,-120,1,2],[39.1,-120,1,2]],'b','lineDesc',8,0.6,'#0F0','M5 5M-5 -5M3 0A3 3 0 1 0 -3 0 A3 3 0 1 0 3 0,,15,F',blocking=False)
+# # cts.addLine([[39,-120,1,2],[39.1,-120,1,2]],'b','lineDesc',8,0.6,'#0F0','M5 5M-5 -5M3 0A3 3 0 1 0 -3 0 A3 3 0 1 0 3 0,,15,F',blocking=True)
+# # # cts.addLine([[39,-120,1,2],[39.1,-120,1,2]],'b','lineDesc',8,0.6,'#0F0','M5 5M-5 -5M3 0A3 3 0 1 0 -3 0 A3 3 0 1 0 3 0,,15,F',callbacks=[[logging.info,['cb3']]])
+# # logging.info('t6')
+# # time.sleep(5)
+# # logging.info('t7')
+# # # cts.addPolygon([[-120.2,39],[-120.3,39.1],[-120.2,39.1]],'c',description='polyDesc',strokeOpacity=0.4,strokeWidth=1,fillOpacity=0.8,stroke='#FF00FF',fill='#00FF00',folderId=fid1)
+# # # cts.addPolygon([[-120.2,39],[-120.3,39.1],[-120.2,39.1]],'c',description='polyDesc',strokeOpacity=0.4,strokeWidth=1,fillOpacity=0.8,stroke='#FF00FF',fill='#00FF00',folderId=fid1,blocking=False)
+# # cts.addPolygon([[-120.2,39],[-120.3,39.1],[-120.2,39.1]],'c',description='polyDesc',strokeOpacity=0.4,strokeWidth=1,fillOpacity=0.8,stroke='#FF00FF',fill='#00FF00',folderId=fid1,blocking=True)
+# # # cts.addPolygon([[-120.2,39],[-120.3,39.1],[-120.2,39.1]],'c',description='polyDesc',strokeOpacity=0.4,strokeWidth=1,fillOpacity=0.8,stroke='#FF00FF',fill='#00FF00',folderId=fid1,callbacks=[[logging.info,['cb4']]])
+# # logging.info('t8')
+# # # op1id=cts.addOperationalPeriod('1','#F0F',0.5,8,0.9)
+# # # op1id=cts.addOperationalPeriod('1','#F0F',0.5,8,0.9,blocking=False)
+# # op1id=cts.addOperationalPeriod('1','#F0F',0.5,8,0.9,blocking=True)
+# # # op1id=cts.addOperationalPeriod('1','#F0F',0.5,8,0.9,callbacks=[[logging.info,['cb5']]])
+# # logging.info('t9')
+# # time.sleep(5)
+# # logging.info('t10')
+# # cts.addLineAssignment([[-120,39.2],[-120.1,39.3],[-120,39.3]],
+# #         number='101',
+# #         letter='AA',
+# #         opId=op1id,
+# #         resourceType='GROUND_1',
+# #         teamSize=5,
+# #         priority='HIGH',
+# #         responsivePOD='MEDIUM',
+# #         unresponsivePOD='HIGH',
+# #         cluePOD='LOW',
+# #         description='assignmentAA',
+# #         previousEfforts='None',
+# #         transportation='self',
+# #         timeAllocated='6hrs',
+# #         primaryFrequency='BANNER',
+# #         secondaryFrequency='TAC1',
+# #         preparedBy='SAR35',
+# # 		# callbacks=[[logging.info,['cb6']]],
+# # 		# blocking=False,
+# # 		blocking=True,
+# #         status='PREPARED')
+# # logging.info('t11')
+# # time.sleep(5)
+# # logging.info('t12')
+# # cts.addAreaAssignment([[-120,39.4],[-120.1,39.5],[-120,39.5]],
+# #         letter='AB',
+# #         opId=op1id,
+# #         resourceType='GROUND_3',
+# #         teamSize=5,
+# #         priority='MEDIUM',
+# #         responsivePOD='MEDIUM',
+# #         unresponsivePOD='HIGH',
+# #         cluePOD='LOW',
+# #         description='assignmentAB',
+# #         previousEfforts='None2',
+# #         transportation='self2',
+# #         timeAllocated='8hrs',
+# #         primaryFrequency='BANNER2',
+# #         secondaryFrequency='TAC12',
+# #         preparedBy='SAR352',
+# # 		# callbacks=[[logging.info,['cb7']]],
+# # 		# blocking=False,
+# # 		blocking=True,
+# #         status='PREPARED')
+# # logging.info('t13')
+# cts.addFolder('f3')
+# # cts.addMarker(39,-120,'m3',callbacks=[[putInFolder,['.result','f3']]])
+# cts.addMarker(39,-120,'m3',callbacks=[[putInFolder,['.result.id','f3']]])
+# time.sleep(5) # allow main thread to keep running long enough to finish the callback
 # logging.info('sleeping for 30 seconds... reconnect now')
 # time.sleep(30)
 
+def editCB():
+	logging.info('editCB called:')
+	logging.info(json.dumps(cts.mapData,indent=3))
+
+markerId=cts.addMarker(39,-120,'testMarker')
+logging.info(f'markerId:{markerId}')
+logging.info('marker added; sleeping for 10 seconds')
+time.sleep(10)
+# cts.editFeature(id=markerId,title='testMarkerTitleChanged',geometry={'coordinates':[-120.1,39.1,0,0]})
+cts.editFeature(id=markerId,title='testMarkerTitleChanged',geometry={'coordinates':[-120.1,39.1,0,0]},callbacks=[[editCB]])
 # print mapData to show that the cache gets built by callbacks, even if sync is False
-# logging.info('mapData:')
+# logging.info('mapData after blocking editFeature:')
 # logging.info(json.dumps(cts.mapData,indent=3))
+time.sleep(10)
 
 # cts.delMarker(cts.getFeature('Marker','tmg'))
 # time.sleep(5)

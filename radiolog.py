@@ -2927,7 +2927,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				if self.cts and self.caltopoLink in [-1,2]: # -1 = unexpected disconnect; 2 = connected to open map
 					self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
 					# since this is in a separate thread, we can do a wait loop until the folder ID is not None
-					while self.caltopoLink==2 and self.radioMarkerFID==None:
+					while self.caltopoLink==2 and self.radioMarkerFID is None:
 						rprint('  waiting for radioMarkerFID...')
 						time.sleep(1)
 					try:
@@ -2941,19 +2941,30 @@ class MyWindow(QDialog,Ui_Dialog):
 						#  - for any markers created woth fid=None, edit them later to set the fid
 						#  - add an argument to add<Class> calls in caltopo_python that would wait to build the request until a certain flag is set
 						#  - place the entire addMarker call in the callback of the addFolder call
-						r=self.cts.addMarker(lat,lon,label,latestTimeString+'   ['+deviceStr+']',
-								folderId=self.radioMarkerFID,
-								existingId=existingId,
-								# deferredHook=self.radioMarkerDeferredHook,
-								callbacks=[[self.handleRadioMarkerResponse,[],{
-									'deviceStr':deviceStr,
-									'lat':lat,
-									'lon':lon,
-									'label':label,
-									'latestTimeString':latestTimeString,
-									'id':'.result.id', # will be equal to existingId on subsequent updates
-									'existingId':existingId # will be None on first call from a device
-								}]])
+						callbacks=[[self.handleRadioMarkerResponse,[],{
+							'deviceStr':deviceStr,
+							'lat':lat,
+							'lon':lon,
+							'label':label,
+							'latestTimeString':latestTimeString,
+							'id':'.result.id', # will be equal to existingId on subsequent updates
+							'existingId':existingId # will be None on first call from a device
+						}]]
+						description=latestTimeString+'   ['+deviceStr+']'
+						if existingId: # update an existing marker
+							r=self.cts.editFeature(
+									id=existingId,
+									title=label,
+									# className='Marker',
+									geometry={'coordinates':[lon,lat,0,0]},
+									properties={'description':description},
+									callbacks=callbacks)
+						else: # create a new marker
+							r=self.cts.addMarker(lat,lon,label,description,
+									folderId=self.radioMarkerFID,
+									# existingId=existingId,
+									# deferredHook=self.radioMarkerDeferredHook,
+									callbacks=callbacks)
 					except Exception as e:
 						rprint('Exception during addMarker:'+str(e))
 				# add or update the dict entry here, with enough detail for createSTS to add any deferred markers

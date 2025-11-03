@@ -639,8 +639,8 @@ class CaltopoSession():
                 j={'json':'{"full":true}'} # %7B={ %22=" %3A=: %7D=}
             # logging.info('  sending GET request 2 to '+url)
             # if callbacks is [] then make it a blocking immediate request
-            logging.info('getAccountData: about to call _sendRequest with skipQueue='+str(not(bool(callbacks))))
-            r=self._sendRequest('get',url,j=j,returnJson='ALL',timeout=timeout,callbacks=callbacks,skipQueue=not(bool(callbacks)))
+            logging.info('getAccountData: about to call _sendRequest with blocking='+str(not(bool(callbacks))))
+            r=self._sendRequest('get',url,j=j,returnJson='ALL',timeout=timeout,callbacks=callbacks,blocking=not(bool(callbacks)))
             logging.info('getAccountData: back from _sendRequest')
             if isinstance(r,dict):
                 self.accountData=r['result']
@@ -1029,7 +1029,7 @@ class CaltopoSession():
             #     the same id
 
             # logging.info('Sending caltopo "since" request...')
-            rj=self._sendRequest('get','since/'+str(max(0,self.lastSuccessfulSyncTimestamp-500)),None,returnJson='ALL',timeout=self.syncTimeout,skipQueue=True)
+            rj=self._sendRequest('get','since/'+str(max(0,self.lastSuccessfulSyncTimestamp-500)),None,returnJson='ALL',timeout=self.syncTimeout,blocking=True)
             if rj and rj['status']=='ok':
                 if self.disconnectedFlag:
                     self._disconnectedFlagClear()
@@ -1548,7 +1548,7 @@ class CaltopoSession():
             timeout: int=0,
             domainAndPort: str='',
             accountId: str='',
-            skipQueue: bool=False,
+            blocking=None,
             callbacks=[]): # see 'callbacks' structure notes
         """Send HTTP request to the server.
 
@@ -1579,7 +1579,22 @@ class CaltopoSession():
            - Entire response json structure (dict) if returnJson is 'ALL'
            - ID only, if returnJson is 'ID'
            - map ID of newly created map, if apiUrlEnd contains '[NEW]'
-        """        
+        """
+        # if blocking is specified as True or False, use it;
+        # blocking=True combined with callbacks is an error condition;
+        # if blocking is not specified here:
+        #  bool(callbacks)  |  blockingByDefault  |  this call should be blocking
+        # ------------------+---------------------+------------------------------
+        #        False      |      False          |      False
+        #        False      |      True           |      True
+        #        True       |      False          |      False
+        #        True       |      True           |      False
+        if blocking is True and bool(callbacks):
+            logging.error('blocking=True and callbacks cannot both be specified in the same call; aborting this request')
+            return False
+        if blocking is None: # neither True nor False
+            blocking=self.blockingByDefault and not bool(callbacks)
+
         # objgraph.show_growth()
         # logging.info('RAM:'+str(process.memory_info().rss/1024**2)+'MB')
         method=method.upper()
@@ -1688,8 +1703,8 @@ class CaltopoSession():
                 rest=callbacks[1][1][0]['deviceStr']+' '+j['properties']['title']
             except:
                 rest=''
-            if skipQueue:
-                logging.info(f'-- SKIPQUEUE (sending now, timeout={timeout}) {method} {url} {rest}')
+            if blocking:
+                logging.info(f'-- BLOCKING (sending now, timeout={timeout}) {method} {url} {rest}')
                 self._syncPauseSet() # setting this now, even if during sync, will prevent recursive sync attempt
                 # note that DNS lookup (NameResolutionError / Failed to resolve / getaddrinfo failed) happens immediately,
                 #  regardless of timeout value, since DNS lookup happens before connection attempt; timeout only
@@ -1746,7 +1761,7 @@ class CaltopoSession():
         #         #   which is needed by signed GET requests such as api/v1/acct/....../since/0
         #         #   and for all requests to maps with 'secret' permission; so, might as well just
         #         #   sign all GET requests to the internet, rather than try to determine permission
-        #     if skipQueue:
+        #     if blocking:
         #         self.syncPause=True
         #         r=self.s.get(url,params=params,timeout=timeout,proxies=self.proxyDict,allow_redirects=False)
         #     else:
@@ -1788,7 +1803,7 @@ class CaltopoSession():
         #     # logging.info("SENDING DELETE to '"+url+"'")
         #     # logging.info(json.dumps(paramsPrint,indent=3))
         #     # logging.info("Key:"+str(self.key))
-        #     if skipQueue:
+        #     if blocking:
         #         self.syncPause=True
         #         r=self.s.delete(url,params=params,timeout=timeout,proxies=self.proxyDict)   ## use params for query vs data for body data
         #     else:
@@ -1815,10 +1830,10 @@ class CaltopoSession():
             logging.error("sendRequest: Unrecognized request method:"+str(method))
             # self.syncPause=False
             return False
-        if skipQueue: # blocking request
-            logging.info('_sendRequest: calling _handleResponse when skipQueue=True')
+        if blocking: # blocking request
+            logging.info('_sendRequest: calling _handleResponse when blocking=True')
             rval=self._handleResponse(r,newMap,returnJson,callbacks=callbacks)
-            logging.info('_sendRequest: back from _handleResponse when skipQueue=True; rval='+str(rval))
+            logging.info('_sendRequest: back from _handleResponse when blocking=True; rval='+str(rval))
             logging.info('f1: clearing syncPause')
             logging.info(' f1b: requestThread is alive: '+str(self.requestThread.is_alive()))
             self._syncPauseClear()
@@ -2222,7 +2237,7 @@ class CaltopoSession():
             # second element is the list of positional arguments
             # third element is the dict of kwargs
             logging.info('handleResponse: calling callback '+str(cb[0])+' with args='+str(cb[1])+' and kwargs='+str(cb[2]))
-            cb[0](*cb[1],**cb[2])
+            cb[0](*cb[1],**cb[2]) # run the callback
         logging.info('handleResponse: done calling all callbacks')
         logging.info('f17: clearing syncPause')
         self._syncPauseClear()
@@ -2236,20 +2251,6 @@ class CaltopoSession():
             timeout=0,
             dataQueue=False,
             blocking=None):
-        # if blocking is specified as True or False, use it;
-        # blocking=True combined with callbacks is an error condition;
-        # if blocking is not specified here:
-        #  bool(callbacks)  |  blockingByDefault  |  this call should be blocking
-        # ------------------+---------------------+------------------------------
-        #        False      |      False          |      False
-        #        False      |      True           |      True
-        #        True       |      False          |      False
-        #        True       |      True           |      False
-        if blocking is True and bool(callbacks):
-            logging.error('blocking=True and callbacks cannot both be specified in the same call; aborting this request')
-            return False
-        if blocking is None: # neither True nor False
-            blocking=self.blockingByDefault and not bool(callbacks)
         if dataQueue:
             self.dataQueue.setdefault(className,[]).append(j)
             return 0
@@ -2257,10 +2258,19 @@ class CaltopoSession():
             # return self._sendRequest('post','marker',j,id=existingId,returnJson='ID')
             # add to .mapData immediately
             # rj=self._sendRequest('post','marker',j,id=existingId,returnJson='ALL',timeout=timeout,callback=callback,callbackArgs=callbackArgs)
+            # we need to run _addFeatureCallback to add to .mapData immediately, but, we don't want its presence to force it to be a non-blocking call;
+            #  if non-blocking, run _addFeatureCallback as a real callback after the response is eventually received;
+            #  if blocking, run it on return from the _sendRequest call
+            if blocking is None: # neither True nor False
+                blocking=self.blockingByDefault and not bool(callbacks)
             logging.info('adding '+str(className)+': callbacks before prepend:'+str(callbacks))
-            callbacks=[[self._addFeatureCallback,['.result']]]+callbacks # add to .mapData immediately for use by any downstream-specified callbacks
+            # only prepend _addFeatureCallback if this will be a non-blocking call, since
+            #  _addFeatureCallback alone should not be enough to force this to be a non-blocking
+            #  call; see the blocking logic at the start of _sendRequest, basically duplicated here at this level
+            if not blocking:
+                callbacks=[[self._addFeatureCallback,['.result']]]+callbacks # add to .mapData immediately for use by any downstream-specified callbacks
             logging.info('adding '+str(className)+' blocking='+str(blocking)+': callbacks after prepend:'+str(callbacks))
-            r=self._sendRequest('post',className,j,id=existingId,returnJson=returnJson,timeout=timeout,callbacks=callbacks,skipQueue=blocking)
+            r=self._sendRequest('post',className,j,id=existingId,returnJson=returnJson,timeout=timeout,callbacks=callbacks,blocking=blocking)
             logging.info('r while adding '+str(className)+':'+str(r))
             if isinstance(r,dict): # blocking request, returning response.json()
                 return self._addFeatureCallback(r['result']) # normally returns the id
@@ -3381,10 +3391,11 @@ class CaltopoSession():
             className=None,
             title=None,
             letter=None,
-            properties=None,
-            geometry=None,
+            properties={},
+            geometry={},
             timeout=0,
-            callbacks=[]):
+            callbacks=[],
+            blocking=None):
         """Edit properties and/or geometry of a specified feature.\n
         The feature to edit can be specified in various methods:\n
             - exact ID
@@ -3392,8 +3403,6 @@ class CaltopoSession():
         Only the specific properties or geometries to be edited need to be included in the
         properties and geometry arguments; they will be merged with existing properties and geometries.
         However, when editing geometry, it probably makes more sense to overwrite the entire geometry dictionary.
-
-        This is a convenience method that calls the appropriate .add... method with existingId specified.
 
         :param id: ID of the feature to edit; defaults to None
         :type id: str, optional
@@ -3412,8 +3421,18 @@ class CaltopoSession():
         :type timeout: int, optional
         :return: ID of the edited feature (should be the same as the 'id' argument), or False if there was a failure prior to the edit request
         """            
+        # we need to run _addFeatureCallback to add to .mapData immediately, but, we don't want its presence to force it to be a non-blocking call;
+        #  if non-blocking, run _addFeatureCallback as a real callback after the response is eventually received;
+        #  if blocking, run it on return from the _sendRequest call
+        if blocking is None: # neither True nor False
+            blocking=self.blockingByDefault and not bool(callbacks)
 
+        # dictionary assigments in this method will directly modify mapData since they are references;
+        #  actually, it's not accurate to modify mapData before the request is sent; so we need to dereference the mapData references
+        #  to prevent the early modifications, then do the modifications as a callback if non-blocking, or immediately if blocking
         logging.info('editFeature called: id='+str(id))
+        logging.info('editFeature: mapData at start:')
+        logging.info(json.dumps(self.mapData,indent=3))
         # logging.info('editFeature called:'+str(properties))
         if not self.mapID or self.apiVersion<0:
             logging.error('editFeature request invalid: this caltopo session is not associated with a map.')
@@ -3486,8 +3505,17 @@ class CaltopoSession():
 
         #56 - include all properties in the edit request, even if no properties are being edited
         # propToWrite=None
-        propToWrite=feature['properties']
-        if properties is not None:
+        propToWrite=copy.deepcopy(feature['properties']) # don't actually modify feature['properties'] until after the request response
+        # if ID and title were both specified, overwrite the old title with the specified title (even if no other properties are specified)
+        logging.info(f'  determining properties to write: id={id}  title={title}')
+        if id is not None and title is not None:
+            oldTitle=propToWrite['title']
+            if oldTitle!=title:
+                logging.info(f'ID and title both specified; old title "{oldTitle}" will be overwritten with new title "{title}"')
+                properties['title']=str(title)
+            else:
+                logging.info('ID and title both specified, but new title matches old title so will not be changed')
+        if properties and isinstance(properties,dict):
             keys=properties.keys()
             # propToWrite=feature['properties']
             for key in keys:
@@ -3497,11 +3525,11 @@ class CaltopoSession():
                 propToWrite['title']=(propToWrite['letter']+' '+propToWrite['number']).strip()
 
         geomToWrite=None
-        if geometry is not None:
-            if isinstance(geometry,dict) and 'coordinates' in geometry.keys():
+        if geometry and isinstance(geometry,dict):
+            if 'coordinates' in geometry.keys():
                 geometry['size']=len(geometry['coordinates'])
             # logging.info('geometry specified (size was recalculated if needed):\n'+json.dumps(geometry))
-            geomToWrite=feature['geometry']
+            geomToWrite=copy.deepcopy(feature['geometry']) # don't actually modify feature['geometry'] until after the request response
             for key in geometry.keys():
                 geomToWrite[key]=geometry[key]
         
@@ -3511,7 +3539,32 @@ class CaltopoSession():
         if geomToWrite is not None:
             j['geometry']=geomToWrite
 
-        return self._sendRequest('post',className,j,id=feature['id'],returnJson='ID',timeout=timeout,callbacks=callbacks)
+        # only prepend _addFeatureCallback if this will be a non-blocking call, since
+        #  _addFeatureCallback alone should not be enough to force this to be a non-blocking
+        #  call; see the blocking logic at the start of _sendRequest, basically duplicated here at this level
+        if not blocking:
+            callbacks=[[self._editFeatureCallback,['.result']]]+callbacks # add to .mapData immediately for use by any downstream-specified callbacks
+
+        logging.info('editFeature: mapData before sendRequest:')
+        logging.info(json.dumps(self.mapData,indent=3))
+        r=self._sendRequest('post',className,j,id=feature['id'],returnJson='ALL',timeout=timeout,callbacks=callbacks,blocking=blocking)
+        if isinstance(r,dict): # blocking request, returning response.json()
+            return self._editFeatureCallback(r['result']) # normally returns the id
+        else:
+            return r # could be False if error, or True if non-blocking request submitted to the queue
+
+    def _editFeatureCallback(self,rjr):
+        logging.info('editFeatureCallback called:')
+        logging.info(json.dumps(rjr,indent=3))
+        features=[f for f in self.mapData['state']['features'] if f['id']==rjr['id']]
+        # logging.info(json.dumps(self.mapData,indent=3))
+        if len(features)==1:
+            features[0]['geometry']=rjr['geometry']
+            features[0]['properties']=rjr['properties']
+            return True
+        else:
+            logging.info('  no match!')
+            return False
 
     # moveMarker - convenience function - calls editFeature
     #   specify either id or title
