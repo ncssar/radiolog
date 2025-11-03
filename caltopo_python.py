@@ -2245,7 +2245,7 @@ class CaltopoSession():
     def _addFeature(self,
             className,
             j,
-            existingId='',
+            # existingId='',
             returnJson='ALL',
             callbacks=[],
             timeout=0,
@@ -2270,7 +2270,8 @@ class CaltopoSession():
             if not blocking:
                 callbacks=[[self._addFeatureCallback,['.result']]]+callbacks # add to .mapData immediately for use by any downstream-specified callbacks
             logging.info('adding '+str(className)+' blocking='+str(blocking)+': callbacks after prepend:'+str(callbacks))
-            r=self._sendRequest('post',className,j,id=existingId,returnJson=returnJson,timeout=timeout,callbacks=callbacks,blocking=blocking)
+            # r=self._sendRequest('post',className,j,id=existingId,returnJson=returnJson,timeout=timeout,callbacks=callbacks,blocking=blocking)
+            r=self._sendRequest('post',className,j,returnJson=returnJson,timeout=timeout,callbacks=callbacks,blocking=blocking)
             logging.info('r while adding '+str(className)+':'+str(r))
             if isinstance(r,dict): # blocking request, returning response.json()
                 return self._addFeatureCallback(r['result']) # normally returns the id
@@ -2316,7 +2317,8 @@ class CaltopoSession():
         j['properties']['title']=label
         j['properties']['visible']=visible
         j['properties']['labelVisible']=labelVisible
-        return self._addFeature('Folder',j,existingId='',callbacks=callbacks,returnJson='ID',timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        # return self._addFeature('Folder',j,existingId='',callbacks=callbacks,returnJson='ID',timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        return self._addFeature('Folder',j,callbacks=callbacks,returnJson='ID',timeout=timeout,dataQueue=dataQueue,blocking=blocking)
         # if dataQueue:
         #     self.dataQueue.setdefault('folder',[]).append(j)
         #     return 0
@@ -2343,7 +2345,7 @@ class CaltopoSession():
             symbol='point',
             rotation=None,
             folderId=None,
-            existingId=None,
+            # existingId=None,
             # update=0,
             size=1,
             timeout=0,
@@ -2389,18 +2391,18 @@ class CaltopoSession():
         j={}
         jp={}
         jg={}
-        # if existingId is specified, use properties from that feature INSTEAD of argument values
-        if existingId is not None:
-            ef=self.getFeature(id=existingId)
-            if not ef:
-                logging.error('existingId specified to addMarker does not return any valid feature: '+str(existingId))
-                return
-            ep=ef['properties']
-            color=ep['marker-color']
-            symbol=ep['marker-symbol']
-            size=ep['marker-size']
-            rotation=ep['marker-rotation']
-            description=ep['description']
+        # # if existingId is specified, use properties from that feature INSTEAD of argument values
+        # if existingId is not None:
+        #     ef=self.getFeature(id=existingId)
+        #     if not ef:
+        #         logging.error('existingId specified to addMarker does not return any valid feature: '+str(existingId))
+        #         return
+        #     ep=ef['properties']
+        #     color=ep['marker-color']
+        #     symbol=ep['marker-symbol']
+        #     size=ep['marker-size']
+        #     rotation=ep['marker-rotation']
+        #     description=ep['description']
         jp['class']='Marker'
         # jp['updated']=update
         jp['marker-color']=color
@@ -2417,10 +2419,11 @@ class CaltopoSession():
         j['properties']=jp
         j['geometry']=jg
         j['type']='Feature'
-        if existingId is not None:
-            j['id']=existingId
+        # if existingId is not None:
+        #     j['id']=existingId
         # logging.info("sending json: "+json.dumps(j,indent=3))
-        return self._addFeature('Marker',j,existingId=existingId,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        # return self._addFeature('Marker',j,existingId=existingId,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        return self._addFeature('Marker',j,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
         # if dataQueue:
         #     self.dataQueue.setdefault('Marker',[]).append(j)
         #     return 0
@@ -2447,7 +2450,7 @@ class CaltopoSession():
             color='#FF0000',
             pattern='solid',
             folderId=None,
-            existingId=None,
+            # existingId=None,
             timeout=0,
             dataQueue=False,
             callbacks=[],
@@ -2484,18 +2487,18 @@ class CaltopoSession():
         j={}
         jp={}
         jg={}
-        # if existingId is specified, use properties from that feature INSTEAD of argument values
-        if existingId is not None:
-            ef=self.getFeature(id=existingId)
-            if not ef:
-                logging.error('existingId specified to addLine does not return any valid feature: '+str(existingId))
-                return
-            ep=ef['properties']
-            width=ep['stroke-width']
-            opacity=ep['stroke-opacity']
-            color=ep['stroke']
-            pattern=ep['pattern']
-            description=ep['description']
+        # # if existingId is specified, use properties from that feature INSTEAD of argument values
+        # if existingId is not None:
+        #     ef=self.getFeature(id=existingId)
+        #     if not ef:
+        #         logging.error('existingId specified to addLine does not return any valid feature: '+str(existingId))
+        #         return
+        #     ep=ef['properties']
+        #     width=ep['stroke-width']
+        #     opacity=ep['stroke-opacity']
+        #     color=ep['stroke']
+        #     pattern=ep['pattern']
+        #     description=ep['description']
         jp['title']=title
         if folderId is not None:
             jp['folderId']=folderId
@@ -2508,10 +2511,11 @@ class CaltopoSession():
         jg['coordinates']=points
         j['properties']=jp
         j['geometry']=jg
-        if existingId is not None:
-            j['id']=existingId
+        # if existingId is not None:
+        #     j['id']=existingId
         # logging.info("sending json: "+json.dumps(j,indent=3))
-        return self._addFeature('Shape',j,existingId=existingId,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        # return self._addFeature('Shape',j,existingId=existingId,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        return self._addFeature('Shape',j,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
         # if dataQueue:
         #     self.dataQueue.setdefault('Shape',[]).append(j)
         #     return 0
@@ -2539,7 +2543,7 @@ class CaltopoSession():
             fillOpacity=0.1,
             stroke='#FF0000',
             fill='#FF0000',
-            existingId=None,
+            # existingId=None,
             timeout=0,
             dataQueue=False,
             callbacks=[],
@@ -2591,10 +2595,11 @@ class CaltopoSession():
         jg['coordinates']=[points]
         j['properties']=jp
         j['geometry']=jg
-        if existingId is not None:
-            j['id']=existingId
+        # if existingId is not None:
+        #     j['id']=existingId
         # logging.info("sending json: "+json.dumps(j,indent=3))
-        return self._addFeature('Shape',j,existingId=existingId,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        # return self._addFeature('Shape',j,existingId=existingId,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        return self._addFeature('Shape',j,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
         # if dataQueue:
         #     self.dataQueue.setdefault('Shape',[]).append(j)
         #     return 0
@@ -2617,7 +2622,7 @@ class CaltopoSession():
             strokeOpacity=1,
             strokeWidth=2,
             fillOpacity=0.1,
-            existingId=None,
+            # existingId=None,
             timeout=0,
             dataQueue=False,
             callbacks=[],
@@ -2657,9 +2662,10 @@ class CaltopoSession():
         j['properties']=jp
         # if existingId is not None:
         #     j['id']=existingId
-        j['id']=existingId
+        # j['id']=existingId
         # logging.info("sending json: "+json.dumps(j,indent=3))
-        return self._addFeature('OperationalPeriod',j,returnJson='ID',existingId=existingId,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        # return self._addFeature('OperationalPeriod',j,returnJson='ID',existingId=existingId,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        return self._addFeature('OperationalPeriod',j,returnJson='ID',callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
         # if dataQueue:
         #     self.dataQueue.setdefault('OperationalPeriod',[]).append(j)
         #     return 0
@@ -2696,7 +2702,7 @@ class CaltopoSession():
             secondaryFrequency='',
             preparedBy='',
             status='DRAFT',
-            existingId=None,
+            # existingId=None,
             timeout=0,
             dataQueue=False,
             callbacks=[],
@@ -2782,10 +2788,11 @@ class CaltopoSession():
         jg['coordinates']=points
         j['properties']=jp
         j['geometry']=jg
-        if existingId is not None:
-            j['id']=existingId
+        # if existingId is not None:
+        #     j['id']=existingId
         # logging.info("sending json: "+json.dumps(j,indent=3))
-        return self._addFeature('Assignment',j,existingId=existingId,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        # return self._addFeature('Assignment',j,existingId=existingId,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        return self._addFeature('Assignment',j,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
         # if dataQueue:
         #     self.dataQueue.setdefault('Assignment',[]).append(j)
         #     return 0
@@ -2833,7 +2840,7 @@ class CaltopoSession():
             secondaryFrequency='',
             preparedBy='',
             status='DRAFT',
-            existingId=None,
+            # existingId=None,
             timeout=0,
             dataQueue=False,
             callbacks=[],
@@ -2920,10 +2927,11 @@ class CaltopoSession():
         jg['coordinates']=[points]
         j['properties']=jp
         j['geometry']=jg
-        if existingId is not None:
-            j['id']=existingId
+        # if existingId is not None:
+        #     j['id']=existingId
         # logging.info("sending json: "+json.dumps(j,indent=3))
-        return self._addFeature('Assignment',j,existingId=existingId,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        # return self._addFeature('Assignment',j,existingId=existingId,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
+        return self._addFeature('Assignment',j,callbacks=callbacks,timeout=timeout,dataQueue=dataQueue,blocking=blocking)
         # if dataQueue:
         #     self.dataQueue.setdefault('Assignment',[]).append(j)
         #     return 0
