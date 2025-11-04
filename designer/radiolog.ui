@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1277</width>
+    <width>1327</width>
     <height>352</height>
    </rect>
   </property>
@@ -402,7 +402,7 @@ FORMAT</string>
       </widget>
      </item>
      <item>
-      <layout class="QVBoxLayout" name="caltopoLayout" stretch="0,1">
+      <layout class="QVBoxLayout" name="caltopoLayout">
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
@@ -449,8 +449,35 @@ FORMAT</string>
          <property name="enabled">
           <bool>false</bool>
          </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>70</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <family>Segoe UI</family>
+           <pointsize>9</pointsize>
+          </font>
+         </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
+         </property>
+         <property name="readOnly">
+          <bool>true</bool>
          </property>
         </widget>
        </item>

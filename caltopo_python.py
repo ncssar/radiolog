@@ -650,12 +650,13 @@ class CaltopoSession():
         #         if 'properties' in x.keys() and 'team' in x['properties'].get('subscriptionType')]
         self.groupAccounts=[]
         self.personalAccounts=[]
-        for account in self.accountData.get('accounts',[]):
-            if 'properties' in account.keys():
-                if 'team' in account['properties'].get('subscriptionType',''):
-                    self.groupAccounts.append(account)
-                else:
-                    self.personalAccounts.append(account)
+        if isinstance(self.accountData,dict): # self.accountData may be False if sendRequest failed
+            for account in self.accountData.get('accounts',[]):
+                if 'properties' in account.keys():
+                    if 'team' in account['properties'].get('subscriptionType',''):
+                        self.groupAccounts.append(account)
+                    else:
+                        self.personalAccounts.append(account)
         # logging.info('The signed-in user is a member of these group accounts: '+str([x['properties']['title'] for x in self.groupAccounts]))
         return self.accountData
 

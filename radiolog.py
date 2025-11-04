@@ -6951,14 +6951,20 @@ class MyWindow(QDialog,Ui_Dialog):
 				'type':'map',
 				'folderId':0,
 				'folderName':'<Top Level>'}]}
-		try:
-			aml=self.cts.getAllMapLists()
-		except Exception as e:
-			rprint('exception from getAllMapLists: '+str(e))
-			if 'Failed to resolve' in str(e):
-				rprint('  failed to resolve')
-				self.caltopoDisconnectedCallback()
-				self.cts._sendRequest('get','[PING]',j=None,callbacks=[[self.caltopoReconnectedFromCreateCTS]])
+		# try:
+		# 	aml=self.cts.getAllMapLists()
+		# except Exception as e:
+		# 	rprint('exception from getAllMapLists: '+str(e))
+		# 	if 'Failed to resolve' in str(e):
+		# 		rprint('  failed to resolve')
+		# 		self.caltopoDisconnectedCallback()
+		# 		self.cts._sendRequest('get','[PING]',j=None,callbacks=[[self.caltopoReconnectedFromCreateCTS]])
+		# 	return False
+		aml=self.cts.getAllMapLists()
+		if not aml or not self.cts.accountData:
+			rprint('Account data is empty; disconnected')
+			self.caltopoDisconnectedCallback()
+			self.cts._sendRequest('get','[PING]',j=None,callbacks=[[self.caltopoReconnectedFromCreateCTS]])
 			return False
 		self.caltopoMapListDicts=[noMatchDict]+aml
 		# rprint('caltopoMapListDicts:')
@@ -7096,13 +7102,13 @@ class MyWindow(QDialog,Ui_Dialog):
 				ss='background-color:'+caltopoColors['openedReadOnly']+';color:black;font-weight:normal;text-decoration:line-through' # orange
 			t=str(self.cts.mapID)
 		elif link==1: # connected to a mapless session
-			ss='background-color:'+caltopoColors['mapless']+';font-weight:normal' # faint green
+			ss='background-color:'+caltopoColors['mapless']+';color:#333333;font-weight:normal' # faint green
 			t='NO MAP'
 		elif link==0: # not connected to any caltopo session
 			ss='background-color:'+caltopoColors['disabled']+';font-weight:normal' # light gray
 			t=''
 		elif link==-1: # error condition
-			ss='background-color:'+caltopoColors['disconnected']+';font-weight:bold' # bright red
+			ss='background-color:'+caltopoColors['disconnected']+';color:white;font-weight:bold' # bright red
 			t='OFFLINE'
 		self.optionsDialog.ui.caltopoLinkIndicator.setStyleSheet(ss)
 		self.ui.caltopoLinkIndicator.setStyleSheet(ss)
@@ -7855,11 +7861,13 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		link=self.parent.caltopoLink
 		en=self.ui.caltopoGroupBox.isChecked()
 		rm=self.ui.caltopoRadioMarkersCheckBox.isChecked()
+		wb=self.ui.caltopoWebBrowserCheckBox.isChecked()
 		# dc=self.parent.disconnectedFlag
 
 		# set enabled/disabled for caltopo group fields
 		self.ui.caltopoRadioMarkersCheckBox.setEnabled(en)
-		e=en and rm
+		self.ui.caltopoWebBrowserCheckBox.setEnabled(en)
+		e=en and (rm or wb)
 		e2=e and link==1
 		rprint('e='+str(e)+'  e2='+str(e2))
 		self.ui.caltopoComButton.setEnabled(e2)
@@ -8430,11 +8438,12 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.parent.caltopoLink=3 # in transition
 			self.caltopoUpdateGUI()
 			# QCoreApplication.processEvents()
-			try:
-				rprint('Opening map in web browser...')
-				webbrowser.open('https://caltopo.com/m/'+self.ui.caltopoMapIDField.text())
-			except Exception as e:
-				rprint('Failed to open map in web browser: '+str(e))
+			if self.ui.caltopoWebBrowserCheckBox.isChecked():
+				try:
+					rprint('Opening map in web browser...')
+					webbrowser.open('https://caltopo.com/m/'+self.ui.caltopoMapIDField.text())
+				except Exception as e:
+					rprint('Failed to open map in web browser: '+str(e))
 		else: # 2 = map opened and connected
 			self.ui.caltopoOpenMapButton.setText('Closing...')
 			self.parent.caltopoLink=3 # in transition
