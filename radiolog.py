@@ -6979,18 +6979,34 @@ class MyWindow(QDialog,Ui_Dialog):
 	def caltopoReconnectedFromCreateCTS(self):
 		# THREAD WARNING: this function is probably not running in the main thread;
 		#  don't do any GUI calls here
-		rprint('back to life from createCTS')
-		self.closeCTS()
-		self.caltopoLink=0
+		# rprint('back to life from createCTS')
 		self._sig_caltopoReconnectedFromCreateCTS.emit()
+		# rprint('btl c0')
 
 	def caltopoReconnectedFromCreateCTS_mainThread(self):
-		self.optionsDialog.show()
-		self.optionsDialog.raise_()
-		self.caltopoUpdateLinkIndicator()
-		self.optionsDialog.caltopoEnabledCB()
-		QCoreApplication.processEvents()
-		self.createCTS()
+		# rprint('btl c1')
+		self.closeCTS()
+		# if Caltopo Integration is still checked (even if the dialog has been closed),
+		#  we know the user wants to use Caltopo Integration.  So, don't ask, just open the dialog and a mapless session.
+		if self.optionsDialog.ui.caltopoGroupBox.isChecked():
+			# rprint('btl c2')
+			self.optionsDialog.show()
+			self.optionsDialog.raise_()
+			self.caltopoUpdateLinkIndicator()
+			self.optionsDialog.caltopoEnabledCB()
+			QCoreApplication.processEvents()
+			self.createCTS()
+		# if Caltopo Integration has been unckecked (regardless of whether the dialog is still open),
+		#  we aren't sure if the user wants to use it - so ask them.  If yes, then do as above.
+		else:
+			# rprint('btl c3')
+			box=QMessageBox(QMessageBox.Question,"Reconnected","Connection to CalTopo server is re-established.\n\nDo you still want to use CalTopo Integration?",
+				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.show()
+			box.raise_()
+			if box.exec_()==QMessageBox.Yes:
+				self.optionsDialog.ui.caltopoGroupBox.setChecked(True)
+				self.caltopoReconnectedFromCreateCTS_mainThread()
 
 	def closeCTS(self):
 		rprint('closeCTS called')
