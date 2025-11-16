@@ -10465,6 +10465,13 @@ class CustomMessageBox(QMessageBox):
 
 
 def main():
+	# better resolution handling on multiple screens
+	# from https://stackoverflow.com/a/56140241/3577105
+	# Handle high resolution displays:
+	if hasattr(Qt, 'AA_EnableHighDpiScaling'):
+		QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+	if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
+		QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 	app = QApplication(sys.argv)
 	eFilter=customEventFilter()
 	global w # so that eFilter can call methods of the top level widget
