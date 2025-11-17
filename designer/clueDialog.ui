@@ -901,9 +901,26 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>clueNumberField</sender>
+   <signal>editingFinished()</signal>
+   <receiver>clueDialog</receiver>
+   <slot>clueNumberChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>716</x>
+     <y>35</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>732</x>
+     <y>75</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>clueQuickTextAction()</slot>
   <slot>clueQuickTextUndo()</slot>
+  <slot>clueNumberChanged()</slot>
  </slots>
 </ui>
