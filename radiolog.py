@@ -6381,7 +6381,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.sidebar.resizeEvent()
 
 	def addNonRadioClue(self):
-		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
+		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),self.getNewClueName())
 		self.newNonRadioClueDialog.show()
 
 	def showInterviewPopup(self,parent):
@@ -6494,31 +6494,37 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def getNewClueName(self):
 		# the operator could choose to type a suffix, but, the default (generated here) should only ever be a number
-		# get the first contiguous numeric portion of lastClueNumber; normally this is the entire lastClueNumber, with any suffix letters removed
-		numericParts=re.findall(r'\d+',lastClueNumber)
+		# get the first contiguous numeric portion of lastClueNumber; normally this is the entire lastClueNumber, with any suffix letters removed;
+		#  then just keep incrementing until we get to an unused number
+		numericParts=re.findall(r'\d+',str(lastClueNumber))
 		if numericParts:
-			number=numericParts[0]
-			newClueName=str(numericParts[0]+1)
-		# now confirm that it's unique
-		root=newClueName
-		suffix='a'
-		while newClueName in usedClueNames:
-			rprint(f'candidate new clue name "{newClueName}" is already in the list of used clue names;')
-			newClueName=root+suffix
-			rprint(f'  trying "{newClueName}"')
-			if suffix=='z':
-				box=QMessageBox(QMessageBox.Critical,'Clue Name Suffixes Exhausted',f'"{self.ui.clueNumberField.text()}" is already used.  Enter a different clue number.',
-					QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-				box.open()
-				box.raise_()
-				box.exec_()
-				return ''
-				# root+='a'
-				# suffix='a'
-			else:
-				suffix=chr(ord(suffix)+1)
-		rprint(f'New clue name will be "{newClueName}"')
-		return newClueName
+			number=int(numericParts[0])
+			used=True
+			while used and number<10000: # arbitrarily large number tp prevent endless loop
+				number+=1
+				used=str(number) in usedClueNames
+		return str(number)
+
+		# # now confirm that it's unique
+		# root=newClueName
+		# suffix='a'
+		# while newClueName in usedClueNames:
+		# 	rprint(f'candidate new clue name "{newClueName}" is already in the list of used clue names;')
+		# 	newClueName=root+suffix
+		# 	rprint(f'  trying "{newClueName}"')
+		# 	if suffix=='z':
+		# 		box=QMessageBox(QMessageBox.Critical,'Clue Name Suffixes Exhausted',f'"{self.ui.clueNumberField.text()}" is already used.  Enter a different clue number.',
+		# 			QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		# 		box.open()
+		# 		box.raise_()
+		# 		box.exec_()
+		# 		return ''
+		# 		# root+='a'
+		# 		# suffix='a'
+		# 	else:
+		# 		suffix=chr(ord(suffix)+1)
+		# rprint(f'New clue name will be "{newClueName}"')
+		# return newClueName
 
 class helpWindow(QDialog,Ui_Help):
 	def __init__(self, *args):
@@ -7738,7 +7744,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 	def quickTextClueAction(self): # do not push clues on the quick text stack, to make sure they can't be undone
 		rprint(str(self.clueDialogOpen))
 		if not self.clueDialogOpen: # only allow one open clue diolog at a time per radio log entry; see init and clueDialog init and closeEvent
-			self.newClueDialog=clueDialog(self,self.ui.timeField.text(),self.ui.teamField.text(),self.ui.radioLocField.toPlainText(),self.parent.getNewClueNumber())
+			self.newClueDialog=clueDialog(self,self.ui.timeField.text(),self.ui.teamField.text(),self.ui.radioLocField.toPlainText(),self.parent.getNewClueName())
 			self.newClueDialog.show()
 
 	def quickTextSubjectLocatedAction(self,prefixText='',automatic=False):
@@ -8598,7 +8604,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		return [time,to_from,team,message,locString,status,self.sec,self.fleet,self.dev,self.origLocString]
 
 
-usedClueNames=['1','2','3']
+# usedClueNames=['1','2','3']
+usedClueNames=[]
 		
 
 class clueDialog(QDialog,Ui_clueDialog):
@@ -8675,6 +8682,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.raise_()
 		self.palette=QPalette()
 		self.throb()
+		rprint(f'end of clueDialog init: usedClueNames={usedClueNames}  lastClueNumber={lastClueNumber}')
 
 	def changeEvent(self,event):
 		if event.type()==QEvent.ActivationChange:
@@ -8835,11 +8843,20 @@ class clueDialog(QDialog,Ui_clueDialog):
 			if really.exec_()==QMessageBox.No:
 				event.ignore()
 				return
-			# if no other clue dialogs are open / if this is the highest clue number, then it's safe to release this clue number;
-			#  but if any other dialogs are open, which might have claimed higher clue numbers, this one needs to be 'voided'
-			if clueDialog.openDialogCount==1:
+			currentClueName=self.ui.clueNumberField.text()
+			# if current clue name is strictly numberic (i.e. not '23A') and is the highest clue number so far, then it's safe to release it;
+			#  but if any higher clue numbers have been claimed (e.g. by other currently opened clue dialogs), this one needs to be 'voided';
+			#  if current clue name is not numeric (e.g. 23A), then never release it; the automated messages are a good audit trail anyway
+			# if clueDialog.openDialogCount==1:
+			if currentClueName.isnumeric() and int(currentClueName)>=max()
 				global lastClueNumber
-				lastClueNumber=lastClueNumber-1 # only release the clue# if no other clue forms are open
+				global usedClueNames
+				if currentClueName in usedClueNames:
+					usedClueNames.remove(currentClueName)
+				if usedClueNames:
+					lastClueNumber=usedClueNames[-1]
+				else:
+					lastClueNumber=0
 			self.values=self.parent.getValues()
 			amendText=''
 			if self.parent.amendFlag:
@@ -8847,7 +8864,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 			description=self.ui.descriptionField.toPlainText()
 			location=self.ui.locationField.text()
 			instructions=self.ui.instructionsField.text()
-			canceledMessage='CLUE REPORT OPENED BUT CANCELED BY THE OPERATOR'+amendText+'.'
+			canceledMessage='CLUE REPORT #'+currentClueName+' OPENED BUT CANCELED BY THE OPERATOR'+amendText+'.'
 			canceledMessagePart2=''
 			if description or location or instructions:
 				canceledMessage+='  CLUE REPORT DATA BEFORE CANCELATION: '
@@ -8877,6 +8894,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		event.accept()
 		if accepted:
 			self.parent.accept()
+		rprint(f'end of closeEvent: usedClueNames={usedClueNames}  lastClueNumber={lastClueNumber}')
 ##		newEntryWidget.instances.remove(self)
 
 	def clueQuickTextAction(self):
@@ -8924,6 +8942,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 			usedClueNames.remove(str(lastClueNumber))
 			# then update lastClueNumber
 			lastClueNumber=self.ui.clueNumberField.text()
+			usedClueNames.append(str(lastClueNumber))
 
 
 class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
