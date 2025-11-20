@@ -6526,6 +6526,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		# rprint(f'New clue name will be "{newClueName}"')
 		# return newClueName
 
+	def getUsedClueNumbers(self):
+		# get just the numeric parts of usedClueNames
+		rval=[]
+		for name in usedClueNames:
+			numericParts=re.findall(r'\d+',name)
+			if numericParts:
+				number=int(numericParts[0])
+				if number not in rval:
+					rval.append(number)
+		rprint(f'used clue numbers: {rval}')
+		return rval
+
 class helpWindow(QDialog,Ui_Help):
 	def __init__(self, *args):
 		QDialog.__init__(self)
@@ -8848,7 +8860,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 			#  but if any higher clue numbers have been claimed (e.g. by other currently opened clue dialogs), this one needs to be 'voided';
 			#  if current clue name is not numeric (e.g. 23A), then never release it; the automated messages are a good audit trail anyway
 			# if clueDialog.openDialogCount==1:
-			if currentClueName.isnumeric() and int(currentClueName)>=max()
+			if currentClueName.isnumeric() and int(currentClueName)>=max(self.parent.parent.getUsedClueNumbers()):
 				global lastClueNumber
 				global usedClueNames
 				if currentClueName in usedClueNames:
