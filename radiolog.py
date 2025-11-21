@@ -1436,6 +1436,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		rval=[]
 		now=time.time()
 		for f in sortedCsvFiles:
+			rprint(f'processing file {f}...')
 			mtime=os.path.getmtime(f)
 			age=now-mtime
 			ageStr=''
@@ -1463,6 +1464,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					rprint('  not listing empty csv '+f)
 					continue
 				for line in lines:
+					# rprint(f' processing line {line}')
 					if not incidentName and '## Incident Name:' in line:
 						incidentName=': '.join(line.split(': ')[1:]).rstrip() # provide for spaces and ': ' in incident name
 					# last clue# could be determined by an actual clue in the previous OP, but
@@ -1471,7 +1473,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					if 'Radio Log Begins - Continued incident' in line and '(Last clue number:' in line:
 						lastClue=re.findall('(Last clue number: [0-9]+)',line)[-1].split()[3]
 					if 'CLUE#' in line and 'LOCATION:' in line and 'INSTRUCTIONS:' in line:
-						lastClue=re.findall('CLUE#[0-9]+:',line)[-1].split('#')[1][:-1]
+						# account for non-numeric clue nammes: use anything between # and : as lastClue (strings are OK)
+						lastClue=re.findall('CLUE#.*?:',line)[-1].split('#')[1][:-1]
 					if 'Operational Period ' in line:
 						lastOP=re.findall('Operational Period [0-9]+ Begins:',line)[-1].split()[2]
 			rval.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase,mtime])
