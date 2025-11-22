@@ -6439,10 +6439,14 @@ class MyWindow(QDialog,Ui_Dialog):
 	def newEntryWindowHiddenPopupClicked(self,event):
 		self.newEntryWindowHiddenPopup.close()
 		self.newEntryWindow.raiseWindowAndChildren()
-		if self.nonRadioClueDialogIsOpen:
-			self.newNonRadioClueDialog.raise_()
-			self.newNonRadioClueDialog.activateWindow()
-			self.newNonRadioClueDialog.throb()
+		# if self.nonRadioClueDialogIsOpen:
+			# self.newNonRadioClueDialog.raise_()
+			# self.newNonRadioClueDialog.activateWindow()
+			# self.newNonRadioClueDialog.throb()
+		for win in nonRadioClueDialog.instances:
+			win.raise_()
+			win.activateWindow()
+			win.throb()
 
 	def activationChange(self):
 		if self.useNewEntryWindowHiddenPopup:
@@ -8971,6 +8975,8 @@ class clueDialog(QDialog,Ui_clueDialog):
 
 
 class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
+	openDialogCount=0
+	instances=[]
 	def __init__(self,parent,t,newClueNumber):
 		QDialog.__init__(self)
 		self.ui=Ui_nonRadioClueDialog()
@@ -8999,6 +9005,8 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		self.palette=QPalette()
 		self.throb()
 		self.parent.nonRadioClueDialogIsOpen=True
+		nonRadioClueDialog.openDialogCount+=1
+		nonRadioClueDialog.instances.append(self)
 		# save the clue number at init time, so that any new clueDialog opened before this one
 		#  is saved will have an incremented clue number.  May need to get fancier in terms
 		#  of releasing clue numbers on reject, but, don't worry about it for now - that's why
@@ -9147,8 +9155,12 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 			# self.values[6]=time.time()
 			# self.parent.newEntry(self.values)
 			
-		self.parent.nonRadioClueDialogIsOpen=False
-		rprint(f'end of NRC closeEvent: lastClueNumber={lastClueNumber}; usedClueNames={usedClueNames}')
+		# self.parent.nonRadioClueDialogIsOpen=False
+		nonRadioClueDialog.openDialogCount-=1
+		if nonRadioClueDialog.openDialogCount<1:
+			self.parent.nonRadioClueDialogIsOpen=False
+		nonRadioClueDialog.instances.remove(self)
+		rprint(f'end of NRC closeEvent: lastClueNumber={lastClueNumber}; usedClueNames={usedClueNames}; nonRadioClueDialogIsOpen={self.parent.nonRadioClueDialogIsOpen}')
 # 	def reject(self):
 # ##		self.parent.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 # 		rprint("rejected - calling close")
