@@ -8682,11 +8682,12 @@ class clueDialog(QDialog,Ui_clueDialog):
 		clueDialog.openDialogCount+=1
 		self.values=self.parent.getValues()
 		amendText=''
-		amendText2=''
+		# amendText2=''
 		if self.parent.amendFlag:
 			amendText=' during amendment of previous message'
-			amendText2=', which will appear with that amended message when completed'
-		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' form opened"+amendText+"; radio operator is gathering details"+amendText2
+			# amendText2=', which will appear with that amended message when completed'
+		# self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' form opened"+amendText+"; radio operator is gathering details"+amendText2
+		self.values[3]="RADIO LOG SOFTWARE: CLUE FORM OPENED FOR CLUE#"+str(newClueNumber)+amendText
 ##		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' button pressed for '"+self.values[2]+"'; radio operator is gathering details"
 ##		self.values[2]='' # this message is not actually from a team
 		self.parent.parent.newEntry(self.values)
@@ -8881,7 +8882,8 @@ class clueDialog(QDialog,Ui_clueDialog):
 			description=self.ui.descriptionField.toPlainText()
 			location=self.ui.locationField.text()
 			instructions=self.ui.instructionsField.text()
-			canceledMessage='CLUE REPORT #'+currentClueName+' OPENED BUT CANCELED BY THE OPERATOR'+amendText+'.'
+			# canceledMessage='CLUE REPORT #'+currentClueName+' OPENED BUT CANCELED BY THE OPERATOR'+amendText+'.'
+			canceledMessage='CLUE FORM CANCELED FOR CLUE#'+currentClueName+amendText+';'
 			canceledMessagePart2=''
 			if description or location or instructions:
 				canceledMessage+='  CLUE REPORT DATA BEFORE CANCELATION: '
@@ -8893,7 +8895,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 				canceledMessagePart2+='INSTRUCTIONS="'+instructions+'" '
 			self.values[3]='RADIO LOG SOFTWARE: '+canceledMessage+canceledMessagePart2
 			if not canceledMessagePart2:
-				self.values[3]+='  (No data had been entered to the clue report before cancelation.)'
+				self.values[3]+='  No clue data had been entered before cancelation.'
 			self.parent.parent.newEntry(self.values)
 			#577 but also general good practice: copy any entered clue data back to the parent NED
 			msg=self.parent.ui.messageField.text()
@@ -8957,6 +8959,12 @@ class clueDialog(QDialog,Ui_clueDialog):
 		else: # new value is unique
 			# remove lastClueNumber from usedClueNames, which was set at init and is the previous value of this field
 			usedClueNames.remove(str(lastClueNumber))
+			# add an automated entry
+			self.values=["" for n in range(10)]
+			self.values[0]=time.strftime("%H%M")
+			self.values[3]="RADIO LOG SOFTWARE: CLUE NUMBER CHANGED FROM "+str(lastClueNumber)+" to "+self.ui.clueNumberField.text()
+			self.values[6]=time.time()
+			self.parent.newEntry(self.values)
 			# then update lastClueNumber
 			lastClueNumber=self.ui.clueNumberField.text()
 			usedClueNames.append(str(lastClueNumber))
@@ -8979,8 +8987,8 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		# values format for adding a new entry:
 		#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
 		self.values=["" for n in range(10)]
-		self.values[0]=t
-		self.values[3]="RADIO LOG SOFTWARE: 'ADD NON-RADIO CLUE' button pressed; radio operator is gathering details"
+		self.values[0]=time.strftime("%H%M")
+		self.values[3]="RADIO LOG SOFTWARE: NON-RADIO CLUE FORM OPENED FOR CLUE#"+str(newClueNumber)
 		self.values[6]=time.time()
 		self.parent.newEntry(self.values)
 		self.setFixedSize(self.size())
@@ -9101,11 +9109,41 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 					lastClueNumber=usedClueNames[-1]
 				else:
 					lastClueNumber=0
+
 			self.values=["" for n in range(10)]
-			self.values[0]=self.ui.timeField.text()
-			self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'NON-RADIO CLUE' form"
+			self.values[0]=time.strftime("%H%M")
 			self.values[6]=time.time()
+			# amendText=''
+			# if self.parent.amendFlag:
+			# 	amendText=' during amendment of previous message'
+			description=self.ui.descriptionField.toPlainText()
+			location=self.ui.locationField.text()
+			instructions=self.ui.instructionsField.text()
+			# canceledMessage='CLUE REPORT #'+currentClueName+' OPENED BUT CANCELED BY THE OPERATOR'+amendText+'.'
+			# canceledMessage='NON-RADIO CLUE FORM CANCELED FOR CLUE#'+currentClueName+amendText+';'
+			canceledMessage='NON-RADIO CLUE FORM CANCELED FOR CLUE#'+currentClueName+';'
+			canceledMessagePart2=''
+			if description or location or instructions:
+				canceledMessage+='  CLUE REPORT DATA BEFORE CANCELATION: '
+			if description:
+				canceledMessagePart2+='DESCRIPTION="'+description+'" '
+			if location:
+				canceledMessagePart2+='LOCATION="'+location+'" '
+			if instructions:
+				canceledMessagePart2+='INSTRUCTIONS="'+instructions+'" '
+			self.values[3]='RADIO LOG SOFTWARE: '+canceledMessage+canceledMessagePart2
+			if not canceledMessagePart2:
+				self.values[3]+='  No clue data had been entered before cancelation.'
 			self.parent.newEntry(self.values)
+
+
+
+			# self.values=["" for n in range(10)]
+			# self.values[0]=self.ui.timeField.text()
+			# self.values[3]="RADIO LOG SOFTWARE: NON-RADIO CLUE FORM CANCELED FOR CLUE#"+currentClueName
+			# self.values[6]=time.time()
+			# self.parent.newEntry(self.values)
+			
 		self.parent.nonRadioClueDialogIsOpen=False
 		rprint(f'end of NRC closeEvent: lastClueNumber={lastClueNumber}; usedClueNames={usedClueNames}')
 # 	def reject(self):
@@ -9114,6 +9152,30 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 # 		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().reject()
 # 		self.closeEvent(None)
 # 		super(nonRadioClueDialog,self).reject()
+
+	def clueNumberChanged(self):
+		global usedClueNames
+		global lastClueNumber
+		if self.ui.clueNumberField.text() in usedClueNames:
+			box=QMessageBox(QMessageBox.Critical,'Clue Number Already Used',f'"{self.ui.clueNumberField.text()}" is already used.  Enter a different clue number.',
+				QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.open()
+			box.raise_()
+			box.exec_()
+			self.ui.clueNumberField.setText('')
+			self.ui.clueNumberField.setFocus()
+		else: # new value is unique
+			# remove lastClueNumber from usedClueNames, which was set at init and is the previous value of this field
+			usedClueNames.remove(str(lastClueNumber))
+			# add an automated entry
+			self.values=["" for n in range(10)]
+			self.values[0]=time.strftime("%H%M")
+			self.values[3]="RADIO LOG SOFTWARE: NON-RADIO CLUE NUMBER CHANGED FROM "+str(lastClueNumber)+" to "+self.ui.clueNumberField.text()
+			self.values[6]=time.time()
+			self.parent.newEntry(self.values)
+			# then update lastClueNumber
+			lastClueNumber=self.ui.clueNumberField.text()
+			usedClueNames.append(str(lastClueNumber))
 
 
 class clueLogDialog(QDialog,Ui_clueLogDialog):
