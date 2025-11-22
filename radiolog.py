@@ -8968,7 +8968,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 			self.values[0]=time.strftime("%H%M")
 			self.values[3]="RADIO LOG SOFTWARE: CLUE NUMBER CHANGED FROM "+str(lastClueNumber)+" to "+self.ui.clueNumberField.text()
 			self.values[6]=time.time()
-			self.parent.newEntry(self.values)
+			self.parent.parent.newEntry(self.values)
 			# then update lastClueNumber
 			lastClueNumber=self.ui.clueNumberField.text()
 			usedClueNames.append(str(lastClueNumber))
@@ -10298,10 +10298,10 @@ class clueTableModel(QAbstractTableModel):
 			return QVariant()
 		try:
 			rval=QVariant(self.arraydata[index.row()][index.column()])
-		except:
+		except Exception as e:
 			row=index.row()
 			col=index.column()
-			rprint("Row="+str(row)+" Col="+str(col))
+			rprint(f'Exception in clueTableModel.data for row={row} col={col}:{e}')
 			rprint("arraydata:")
 			rprint(self.arraydata)
 		else:
@@ -10343,10 +10343,10 @@ class MyTableModel(QAbstractTableModel):
 			return QVariant()
 		try:
 			rval=QVariant(self.arraydata[index.row()][index.column()])
-		except:
+		except Exception as e:
 			row=index.row()
 			col=index.column()
-			rprint("Row="+str(row)+" Col="+str(col))
+			rprint(f'Exception in fsTableModel.data for row={row} col={col}:{e}')
 			rprint("arraydata:")
 			rprint(self.arraydata)
 		else:
@@ -10528,10 +10528,10 @@ class fsTableModel(QAbstractTableModel):
 			return QVariant()
 		try:
 			rval=QVariant(self.arraydata[index.row()][index.column()])
-		except:
+		except Exception as e:
 			row=index.row()
 			col=index.column()
-			rprint("Row="+str(row)+" Col="+str(col))
+			rprint(f'Exception in fsTableModel.data for row={row} col={col}:{e}')
 			rprint("arraydata:")
 			rprint(self.arraydata)
 		else:
