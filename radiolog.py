@@ -1483,7 +1483,9 @@ class MyWindow(QDialog,Ui_Dialog):
 	# Build a nested list of radiolog session data from any sessions in the last n days;
 	#  each list element is [incident_name,last_op#,last_clue#,filename_base]
 	#  then let the user choose from these, or choose to start a new incident
-	# - only show the most recent OP of each incident, i.e. don't show both OP2 and OP1
+	# - only show the most recent OP of each incident, i.e. don't show both OP2 and OP1;
+	#    but do show multiple sessions of the same OP# if it's the greatest OP#
+	#    which might have happened due to operator error
 	# - add a note that the user can change OP and next clue# afterwards from the GUI
 	def checkForContinuedIncident(self):
 		continuedIncidentWindowDays=self.continuedIncidentWindowDays
@@ -1495,7 +1497,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			[incidentName,lastOP,lastClue,ageStr,filenameBase,mtime]=session
 			rprint('session:'+str(session))
 			if now-mtime<continuedIncidentWindowSec:
-				if type(lastOP)==str and lastOP.isdigit() and int(lastOP)>int(opd.get(incidentName,0)):
+				if type(lastOP)==str and lastOP.isdigit() and int(lastOP)>=int(opd.get(incidentName,0)):
 					choices.append(session)
 					opd[incidentName]=lastOP
 				else:
@@ -8989,6 +8991,15 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		self.palette=QPalette()
 		self.throb()
 		self.parent.nonRadioClueDialogIsOpen=True
+		# save the clue number at init time, so that any new clueDialog opened before this one
+		#  is saved will have an incremented clue number.  May need to get fancier in terms
+		#  of releasing clue numbers on reject, but, don't worry about it for now - that's why
+		#  the clue number field is editable.
+		global lastClueNumber
+		lastClueNumber=newClueNumber
+		global usedClueNames
+		usedClueNames.append(str(newClueNumber))
+		rprint(f'end of NRC init: lastClueNumber={lastClueNumber}; usedClueNames={usedClueNames}')
 
 	def changeEvent(self,event):
 		if event.type()==QEvent.ActivationChange:
@@ -9038,8 +9049,10 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		clueTime=self.ui.timeField.text()
 		radioLoc=''
 		textToAdd=''
-		global lastClueNumber
-		lastClueNumber=int(self.ui.clueNumberField.text())
+		# previously, lastClueNumber was saved here - on accept; we need to save it on init instead, so that
+		#  multiple concurrent clueDialogs will not have the same clue number!
+		# global lastClueNumber
+		# lastClueNumber=int(self.ui.clueNumberField.text())
 		# header_labels=['CLUE#','DESCRIPTION','TEAM','TIME','DATE','OP','LOCATION','INSTRUCTIONS','RADIO LOC.']
 		clueData=[number,description,team,clueTime,clueDate,self.parent.opPeriod,location,instructions,radioLoc]
 		self.parent.clueLog.append(clueData)
@@ -9074,12 +9087,27 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 			if really.exec_()==QMessageBox.No:
 				event.ignore()
 				return
+			currentClueName=self.ui.clueNumberField.text()
+			# if current clue name is strictly numberic (i.e. not '23A') and is the highest clue number so far, then it's safe to release it;
+			#  but if any higher clue numbers have been claimed (e.g. by other currently opened clue dialogs), this one needs to be 'voided';
+			#  if current clue name is not numeric (e.g. 23A), then never release it; the automated messages are a good audit trail anyway
+			# if clueDialog.openDialogCount==1:
+			if currentClueName.isnumeric() and int(currentClueName)>=max(self.parent.getUsedClueNumbers()):
+				global lastClueNumber
+				global usedClueNames
+				if currentClueName in usedClueNames:
+					usedClueNames.remove(currentClueName)
+				if usedClueNames:
+					lastClueNumber=usedClueNames[-1]
+				else:
+					lastClueNumber=0
 			self.values=["" for n in range(10)]
 			self.values[0]=self.ui.timeField.text()
 			self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'NON-RADIO CLUE' form"
 			self.values[6]=time.time()
 			self.parent.newEntry(self.values)
 		self.parent.nonRadioClueDialogIsOpen=False
+		rprint(f'end of NRC closeEvent: lastClueNumber={lastClueNumber}; usedClueNames={usedClueNames}')
 # 	def reject(self):
 # ##		self.parent.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 # 		rprint("rejected - calling close")
