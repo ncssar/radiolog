@@ -9116,6 +9116,7 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 			# amendText=''
 			# if self.parent.amendFlag:
 			# 	amendText=' during amendment of previous message'
+			reportedBy=self.ui.callsignField.text()
 			description=self.ui.descriptionField.toPlainText()
 			location=self.ui.locationField.text()
 			instructions=self.ui.instructionsField.text()
@@ -9123,8 +9124,10 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 			# canceledMessage='NON-RADIO CLUE FORM CANCELED FOR CLUE#'+currentClueName+amendText+';'
 			canceledMessage='NON-RADIO CLUE FORM CANCELED FOR CLUE#'+currentClueName+';'
 			canceledMessagePart2=''
-			if description or location or instructions:
+			if reportedBy or description or location or instructions:
 				canceledMessage+='  CLUE REPORT DATA BEFORE CANCELATION: '
+			if reportedBy:
+				canceledMessagePart2+='REPORTED BY="'+reportedBy+'" '
 			if description:
 				canceledMessagePart2+='DESCRIPTION="'+description+'" '
 			if location:
