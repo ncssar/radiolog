@@ -1058,8 +1058,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			rlInitText='Radio Log Begins: '
 		rlInitText+=self.incidentStartDate
+		rprint(f'during init - lastClueNumber={lastClueNumber}')
 		if lastClueNumber>0:
 			rlInitText+=' (Last clue number: '+str(lastClueNumber)+')'
+			rprint(f'used clues from previous session: {usedClueNames}')
 		self.radioLog=[[time.strftime("%H%M"),'','',rlInitText,'','',time.time(),'','','',''],
 			['','','','','','',1e10,'','','','']] # 1e10 epoch seconds will keep the blank row at the bottom when sorted
 		rprint('Initial entry: '+rlInitText)
@@ -1471,12 +1473,18 @@ class MyWindow(QDialog,Ui_Dialog):
 					#  should carry forward the last clue number from an earlier OP if no clues
 					#  were found in the most recent OP
 					if 'Radio Log Begins - Continued incident' in line and '(Last clue number:' in line:
-						lastClue=re.findall('(Last clue number: [0-9]+)',line)[-1].split()[3]
+						# a=re.findall('Last clue number: .*?\\)',line)
+						# b=a[-1].rstrip(')')
+						# c=b.split()
+						# d=c[-1]
+						# rprint(f'a={a} b={b} c={c} d={d}')
+						lastClue=re.findall('Last clue number: .*?\\)',line)[-1].rstrip(')').split()[-1]
 					if 'CLUE#' in line and 'LOCATION:' in line and 'INSTRUCTIONS:' in line:
 						# account for non-numeric clue nammes: use anything between # and : as lastClue (strings are OK)
 						lastClue=re.findall('CLUE#.*?:',line)[-1].split('#')[1][:-1]
 					if 'Operational Period ' in line:
 						lastOP=re.findall('Operational Period [0-9]+ Begins:',line)[-1].split()[2]
+			rprint(f'  last clue: {lastClue}')
 			rval.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase,mtime])
 		return rval
 
@@ -4686,18 +4694,29 @@ class MyWindow(QDialog,Ui_Dialog):
 			# now load the clue log (same filename appended by .clueLog) if it exists
 			clueLogFileName=fileName.replace(".csv","_clueLog.csv")
 			global lastClueNumber
+			global usedClueNames
 			if os.path.isfile(clueLogFileName):
 				with open(clueLogFileName,'r') as csvFile:
 					csvReader=csv.reader(csvFile)
 	##				self.clueLog=[] # uncomment this line to overwrite instead of combine
 					for row in csvReader:
+						rprint(f'row:{row}')
 						if not row[0].startswith('#'): # prune comment lines
 							self.clueLog.append(row)
+							clueName=''
 							if row[0]!="":
-								lastClueNumber=int(row[0])
+								clueName=row[0]
 							elif '(Last clue number: ' in row[1]:
-								lastClueNumber=int(row[1].split('(Last clue number: ')[1].replace(')',''))
+								clueName=row[1].split('(Last clue number: ')[1].replace(')','')
+							# deal with non-strictly-numeric clues (e.g. 23A): use the leading numeric part as lastClueNumber
+							numericParts=re.findall(r'\d+',str(clueName))
+							if numericParts:
+								lastClueNumber=int(numericParts[0])
+							# also put it in usedClueNames which won't be removed, even if the first new clue is canceled
+							if str(lastClueNumber) not in usedClueNames:
+								usedClueNames.append(str(lastClueNumber))
 					csvFile.close()
+			rprint(f'end of load clueLog: usedCluesNames={usedClueNames}  lastClueNumber={lastClueNumber}')
 
 			i=i+1
 			progressBox.setValue(i)
@@ -9587,6 +9606,10 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 		self.parent.optionsDialog.ui.incidentField.setText(self.parent.incidentName)
 		global lastClueNumber
 		lastClueNumber=self.lastClueCandidate
+		# also put it in usedClueNames which won't be removed, even if the first new clue is canceled
+		global usedClueNames
+		if str(lastClueNumber) not in usedClueNames:
+			usedClueNames.append(str(lastClueNumber))
 		self.parent.opPeriod=self.lastOPCandidate+1
 		self.parent.ui.opPeriodButton.setText("OP "+str(self.parent.opPeriod))
 		# radiolog entry and clue log entry are made by init code based on values set here
@@ -9613,8 +9636,10 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 			else:
 				self.lastOPCandidate=1
 			self.lastClueCandidate=self.ui.theTable.item(row,2).text()
-			if self.lastClueCandidate.isnumeric():
-				self.lastClueCandidate=int(self.lastClueCandidate)
+			# deal with non-strictly-numeric clues (e.g. 23A): use the leading numeric part as lastClueNumber
+			numericParts=re.findall(r'\d+',str(self.lastClueCandidate))
+			if numericParts:
+				self.lastClueCandidate=int(numericParts[0])
 			else:
 				self.lastClueCandidate=0
 			self.ui.yesButton.setText('YES: Start a new OP of "'+self.incidentNameCandidate+'"\n(OP = '+str(self.lastOPCandidate+1)+'; next clue# = '+str(self.lastClueCandidate+1)+')')
