@@ -1459,6 +1459,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			incidentName=None
 			lastOP='1' # if no entries indicate change in OP#, then initial OP is 1 by default
 			lastClue='--'
+			highestClueNumber=0
 			with open(f,'r') as radioLog:
 				lines=radioLog.readlines()
 				# don't show files that have less than two entries
@@ -1467,6 +1468,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					continue
 				for line in lines:
 					# rprint(f' processing line {line}')
+					clueName=''
 					if not incidentName and '## Incident Name:' in line:
 						incidentName=': '.join(line.split(': ')[1:]).rstrip() # provide for spaces and ': ' in incident name
 					# last clue# could be determined by an actual clue in the previous OP, but
@@ -1478,13 +1480,21 @@ class MyWindow(QDialog,Ui_Dialog):
 						# c=b.split()
 						# d=c[-1]
 						# rprint(f'a={a} b={b} c={c} d={d}')
-						lastClue=re.findall('Last clue number: .*?\\)',line)[-1].rstrip(')').split()[-1]
+						clueName=re.findall('Last clue number: .*?\\)',line)[-1].rstrip(')').split()[-1]
 					if 'CLUE#' in line and 'LOCATION:' in line and 'INSTRUCTIONS:' in line:
 						# account for non-numeric clue nammes: use anything between # and : as lastClue (strings are OK)
-						lastClue=re.findall('CLUE#.*?:',line)[-1].split('#')[1][:-1]
+						clueName=re.findall('CLUE#.*?:',line)[-1].split('#')[1][:-1]
 					if 'Operational Period ' in line:
 						lastOP=re.findall('Operational Period [0-9]+ Begins:',line)[-1].split()[2]
-			rprint(f'  last clue: {lastClue}')
+					if clueName:
+						# deal with non-strictly-numeric clues (e.g. 23A): use the leading numeric part as lastClueNumber
+						numericParts=re.findall(r'\d+',str(clueName))
+						if numericParts:
+							clueNumber=int(numericParts[0])
+							if clueNumber>highestClueNumber:
+								highestClueNumber=clueNumber
+								lastClue=clueName
+			rprint(f'  highestClueNumber={highestClueNumber}  lastClue={lastClue}')
 			rval.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase,mtime])
 		return rval
 
