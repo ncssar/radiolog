@@ -1458,6 +1458,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				filenameBase=f[:-9]
 			incidentName=None
 			lastOP='1' # if no entries indicate change in OP#, then initial OP is 1 by default
+			clueNames=[]
 			lastClue='--'
 			highestClueNumber=0
 			with open(f,'r') as radioLog:
@@ -1487,6 +1488,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					if 'Operational Period ' in line:
 						lastOP=re.findall('Operational Period [0-9]+ Begins:',line)[-1].split()[2]
 					if clueName:
+						if clueName not in clueNames:
+							clueNames.append(clueName)
 						# deal with non-strictly-numeric clues (e.g. 23A): use the leading numeric part as lastClueNumber
 						numericParts=re.findall(r'\d+',str(clueName))
 						if numericParts:
@@ -1494,8 +1497,8 @@ class MyWindow(QDialog,Ui_Dialog):
 							if clueNumber>highestClueNumber:
 								highestClueNumber=clueNumber
 								lastClue=clueName
-			rprint(f'  highestClueNumber={highestClueNumber}  lastClue={lastClue}')
-			rval.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase,mtime])
+			rprint(f'  highestClueNumber={highestClueNumber}  lastClue={lastClue}  clueNames={clueNames}')
+			rval.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase,mtime,clueNames])
 		return rval
 
 	# Build a nested list of radiolog session data from any sessions in the last n days;
@@ -1512,7 +1515,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		opd={} # dictionary of most recent OP#'s per incident name
 		choices=[]
 		for session in self.getSessions(reverse=True):
-			[incidentName,lastOP,lastClue,ageStr,filenameBase,mtime]=session
+			[incidentName,lastOP,lastClue,ageStr,filenameBase,mtime,clueNames]=session
 			rprint('session:'+str(session))
 			if now-mtime<continuedIncidentWindowSec:
 				if type(lastOP)==str and lastOP.isdigit() and int(lastOP)>=int(opd.get(incidentName,0)):
@@ -1539,6 +1542,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				# q1.setToolTip(choice[4])
 				# q2.setToolTip(choice[4])
 				q3.setToolTip(choice[4])
+				# store the full list of used clue names in the UserRole of the lastClue cell
+				q2.setData(Qt.UserRole,choice[6])
 				cd.ui.theTable.setItem(row,0,q0)
 				cd.ui.theTable.setItem(row,1,q1)
 				cd.ui.theTable.setItem(row,2,q2)
@@ -4557,7 +4562,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			ld=loadDialog(self)
 			ld.ui.theTable.setRowCount(len(sessions))
 			row=0
-			for [incidentName,lastOP,lastClue,ageStr,filenameBase,mtime] in sessions:
+			for [incidentName,lastOP,lastClue,ageStr,filenameBase,mtime,clueNames] in sessions:
 				q0=QTableWidgetItem(incidentName)
 				q1=QTableWidgetItem(lastOP)
 				q2=QTableWidgetItem(lastClue)
@@ -4566,6 +4571,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				q1.setToolTip(filenameBase)
 				q2.setToolTip(filenameBase)
 				q3.setToolTip(filenameBase)
+				q2.setData(Qt.UserRole,clueNames)
 				ld.ui.theTable.setItem(row,0,q0)
 				ld.ui.theTable.setItem(row,1,q1)
 				ld.ui.theTable.setItem(row,2,q2)
@@ -9588,6 +9594,7 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 		self.incidentNameCandidate=''
 		self.lastOPCandidate=0
 		self.lastClueCandidate=0
+		self.usedClueNamesCandidate=[]
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		ciwd=self.parent.continuedIncidentWindowDays
@@ -9616,10 +9623,14 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 		self.parent.optionsDialog.ui.incidentField.setText(self.parent.incidentName)
 		global lastClueNumber
 		lastClueNumber=self.lastClueCandidate
-		# also put it in usedClueNames which won't be removed, even if the first new clue is canceled
+		# # also put it in usedClueNames which won't be removed, even if the first new clue is canceled
+		# global usedClueNames
+		# if str(lastClueNumber) not in usedClueNames:
+		# 	usedClueNames.append(str(lastClueNumber))
+		# preserve entire list of used clue names from selected session
 		global usedClueNames
-		if str(lastClueNumber) not in usedClueNames:
-			usedClueNames.append(str(lastClueNumber))
+		usedClueNames=self.usedClueNamesCandidate
+		rprint(f'previously used clue names: {usedClueNames}')
 		self.parent.opPeriod=self.lastOPCandidate+1
 		self.parent.ui.opPeriodButton.setText("OP "+str(self.parent.opPeriod))
 		# radiolog entry and clue log entry are made by init code based on values set here
@@ -9652,6 +9663,8 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 				self.lastClueCandidate=int(numericParts[0])
 			else:
 				self.lastClueCandidate=0
+			# preserve entire list of used clue names from selected session
+			self.usedClueNamesCandidate=self.ui.theTable.item(row,2).data(Qt.UserRole)
 			self.ui.yesButton.setText('YES: Start a new OP of "'+self.incidentNameCandidate+'"\n(OP = '+str(self.lastOPCandidate+1)+'; next clue# = '+str(self.lastClueCandidate+1)+')')
 			self.ui.yesButton.setDefault(True)
 			self.changed=False
