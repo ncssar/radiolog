@@ -1461,44 +1461,90 @@ class MyWindow(QDialog,Ui_Dialog):
 			clueNames=[]
 			lastClue='--'
 			highestClueNumber=0
-			with open(f,'r') as radioLog:
-				lines=radioLog.readlines()
-				# don't show files that have less than two entries
-				if len(lines)<6:
-					rprint('  not listing empty csv '+f)
-					continue
-				for line in lines:
-					# rprint(f' processing line {line}')
-					clueName=''
-					if not incidentName and '## Incident Name:' in line:
-						incidentName=': '.join(line.split(': ')[1:]).rstrip() # provide for spaces and ': ' in incident name
-					# last clue# could be determined by an actual clue in the previous OP, but
-					#  should carry forward the last clue number from an earlier OP if no clues
-					#  were found in the most recent OP
-					if 'Radio Log Begins - Continued incident' in line and '(Last clue number:' in line:
-						# a=re.findall('Last clue number: .*?\\)',line)
-						# b=a[-1].rstrip(')')
-						# c=b.split()
-						# d=c[-1]
-						# rprint(f'a={a} b={b} c={c} d={d}')
-						clueName=re.findall('Last clue number: .*?\\)',line)[-1].rstrip(')').split()[-1]
-					if 'CLUE#' in line and 'LOCATION:' in line and 'INSTRUCTIONS:' in line:
-						# account for non-numeric clue nammes: use anything between # and : as lastClue (strings are OK)
-						clueName=re.findall('CLUE#.*?:',line)[-1].split('#')[1][:-1]
-					if 'Operational Period ' in line:
-						lastOP=re.findall('Operational Period [0-9]+ Begins:',line)[-1].split()[2]
-					if clueName:
-						if clueName not in clueNames:
-							clueNames.append(clueName)
-						# deal with non-strictly-numeric clues (e.g. 23A): use the leading numeric part as lastClueNumber
+			# with open(f,'r') as radioLog:
+			# 	lines=radioLog.readlines()
+			# 	# don't show files that have less than two entries
+			# 	if len(lines)<6:
+			# 		rprint('  not listing empty csv '+f)
+			# 		continue
+			# 	for line in lines:
+			# 		# rprint(f' processing line {line}')
+			# 		clueName=''
+			# 		if not incidentName and '## Incident Name:' in line:
+			# 			incidentName=': '.join(line.split(': ')[1:]).rstrip() # provide for spaces and ': ' in incident name
+			# 		# last clue# could be determined by an actual clue in the previous OP, but
+			# 		#  should carry forward the last clue number from an earlier OP if no clues
+			# 		#  were found in the most recent OP
+			# 		if 'Radio Log Begins - Continued incident' in line and '(Last clue number:' in line:
+			# 			# a=re.findall('Last clue number: .*?\\)',line)
+			# 			# b=a[-1].rstrip(')')
+			# 			# c=b.split()
+			# 			# d=c[-1]
+			# 			# rprint(f'a={a} b={b} c={c} d={d}')
+			# 			clueName=re.findall('Last clue number: .*?\\)',line)[-1].rstrip(')').split()[-1]
+			# 		if 'CLUE#' in line and 'LOCATION:' in line and 'INSTRUCTIONS:' in line:
+			# 			# account for non-numeric clue nammes: use anything between # and : as lastClue (strings are OK)
+			# 			clueName=re.findall('CLUE#.*?:',line)[-1].split('#')[1][:-1]
+			# 		if 'Operational Period ' in line:
+			# 			lastOP=re.findall('Operational Period [0-9]+ Begins:',line)[-1].split()[2]
+			# 		if clueName:
+			# 			if clueName not in clueNames:
+			# 				clueNames.append(clueName)
+			# 			# deal with non-strictly-numeric clues (e.g. 23A): use the leading numeric part as lastClueNumber
+			# 			numericParts=re.findall(r'\d+',str(clueName))
+			# 			if numericParts:
+			# 				clueNumber=int(numericParts[0])
+			# 				if clueNumber>highestClueNumber:
+			# 					highestClueNumber=clueNumber
+			# 					lastClue=clueName
+			# rprint(f'  highestClueNumber={highestClueNumber}  lastClue={lastClue}  clueNames={clueNames}')
+			clueLogFileName=f.replace('.csv','_clueLog.csv')
+			if os.path.isfile(clueLogFileName):
+				with open(clueLogFileName,'r') as csvFile:
+					csvReader=csv.reader(csvFile)
+	##				self.clueLog=[] # uncomment this line to overwrite instead of combine
+					for row in csvReader:
+						rprint(f'row:{row}')
+						if not incidentName and '## Incident Name:' in row[0]:
+							incidentName=': '.join(row[0].split(': ')[1:]).rstrip() # provide for spaces and ': ' in incident name
+						if not row[0].startswith('#'): # ignore comment lines
+							# self.clueLog.append(row)
+							clueName=''
+							if row[0]!="":
+								clueName=row[0]
+							elif '(Last clue number: ' in row[1]:
+								clueName=row[1].split('(Last clue number: ')[1].replace(')','')
+							elif '(Incident clues from all previous OP(s): ' in row[1]:
+								clueNames=row[1].split(':')[1].split(',')
+								rprint(f'clueNames from "Incident clues from all previous OP(s)": {clueNames}')
+							elif 'Operational Period ' in row[1]:
+								lastOP=re.findall('Operational Period [0-9]+ Begins:',row[1])[-1].split()[2]
+							if clueName:
+								clueNames.append(clueName)
+					csvFile.close()
+					clueNames=list(dict.fromkeys(clueNames)) # quickest way to remove duplicates while preserving order
+					# now that we have the full unique list of used clue names,
+					#  find the highest used number (or numeric part) of any clue name:
+					#  that will be used as the base for incrementing the next clue number
+					# deal with non-strictly-numeric clues (e.g. 23A): use the leading numeric part as lastClueNumber
+					for clueName in clueNames:
 						numericParts=re.findall(r'\d+',str(clueName))
 						if numericParts:
 							clueNumber=int(numericParts[0])
-							if clueNumber>highestClueNumber:
-								highestClueNumber=clueNumber
-								lastClue=clueName
-			rprint(f'  highestClueNumber={highestClueNumber}  lastClue={lastClue}  clueNames={clueNames}')
-			rval.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase,mtime,clueNames])
+							highestClueNumber=max(highestClueNumber,clueNumber)
+			else:
+				rprint(f'clue log file {clueLogFileName} not found or could not be opened')
+			sessionDict=({
+				'incidentName':incidentName,
+				'lastOP':lastOP,
+				'usedClueNames':clueNames,
+				'highestClueNumber':highestClueNumber,
+				'ageStr':ageStr,
+				'filenameBase':filenameBase,
+				'mtime':mtime})
+			# rprint('session:'+json.dumps(sessionDict,indent=3))
+			rval.append(sessionDict)
+			# rval.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase,mtime,clueNames])
 		return rval
 
 	# Build a nested list of radiolog session data from any sessions in the last n days;
@@ -1515,9 +1561,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		opd={} # dictionary of most recent OP#'s per incident name
 		choices=[]
 		for session in self.getSessions(reverse=True):
-			[incidentName,lastOP,lastClue,ageStr,filenameBase,mtime,clueNames]=session
-			rprint('session:'+str(session))
-			if now-mtime<continuedIncidentWindowSec:
+			# [incidentName,lastOP,lastClue,ageStr,filenameBase,mtime,clueNames]=session
+			rprint('session:'+json.dumps(session,indent=3))
+			incidentName=session['incidentName']
+			filenameBase=session['filenameBase']
+			if now-session['mtime']<continuedIncidentWindowSec:
+				lastOP=session['lastOP']
 				if type(lastOP)==str and lastOP.isdigit() and int(lastOP)>=int(opd.get(incidentName,0)):
 					choices.append(session)
 					opd[incidentName]=lastOP
@@ -1529,21 +1578,25 @@ class MyWindow(QDialog,Ui_Dialog):
 			rprint('radiolog sessions from the last '+str(continuedIncidentWindowDays)+' days:')
 			rprint(' (hiding empty sessions; only showing the most recent session of continued incidents)')
 			for choice in choices:
-				rprint(choice[4])
+				rprint(choice['filenameBase'])
 			cd=continuedIncidentDialog(self)
 			cd.ui.theTable.setRowCount(len(choices))
 			row=0
 			for choice in choices:
-				q0=QTableWidgetItem(choice[0])
-				q1=QTableWidgetItem(choice[1])
-				q2=QTableWidgetItem(choice[2])
-				q3=QTableWidgetItem(choice[3])
+				highestClueNumStr=str(choice['highestClueNumber'])
+				if highestClueNumStr=='0':
+					highestClueNumStr='--'
+				q0=QTableWidgetItem(choice['incidentName'])
+				q1=QTableWidgetItem(choice['lastOP'])
+				q2=QTableWidgetItem(highestClueNumStr)
+				q3=QTableWidgetItem(choice['ageStr'])
+				q0.setData(Qt.UserRole,choice) # store the entire dictionary in UserRole of col 0
 				# q0.setToolTip(choice[4])
 				# q1.setToolTip(choice[4])
 				# q2.setToolTip(choice[4])
-				q3.setToolTip(choice[4])
+				q3.setToolTip(choice['filenameBase'])
 				# store the full list of used clue names in the UserRole of the lastClue cell
-				q2.setData(Qt.UserRole,choice[6])
+				# q2.setData(Qt.UserRole,choice['usedClueNames'])
 				cd.ui.theTable.setItem(row,0,q0)
 				cd.ui.theTable.setItem(row,1,q1)
 				cd.ui.theTable.setItem(row,2,q2)
@@ -6421,7 +6474,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.sidebar.resizeEvent()
 
 	def addNonRadioClue(self):
-		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),self.getNewClueName())
+		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),str(lastClueNumber+1))
 		self.newNonRadioClueDialog.show()
 
 	def showInterviewPopup(self,parent):
@@ -6536,18 +6589,23 @@ class MyWindow(QDialog,Ui_Dialog):
 			new=current+1
 		target.newEntryWindow.ui.tabWidget.setCurrentIndex(new)
 
-	def getNewClueName(self):
-		# the operator could choose to type a suffix, but, the default (generated here) should only ever be a number
-		# get the first contiguous numeric portion of lastClueNumber; normally this is the entire lastClueNumber, with any suffix letters removed;
-		#  then just keep incrementing until we get to an unused number
-		numericParts=re.findall(r'\d+',str(lastClueNumber))
-		if numericParts:
-			number=int(numericParts[0])
-			used=True
-			while used and number<10000: # arbitrarily large number tp prevent endless loop
-				number+=1
-				used=str(number) in usedClueNames
-		return str(number)
+	# def getNewClueName(self):
+	# 	# the operator could choose to type a suffix, but, the default (generated here) should only ever be a number
+	# 	# get the first contiguous numeric portion of lastClueNumber; normally this is the entire lastClueNumber, with any suffix letters removed;
+	# 	#  then just keep incrementing until we get to an unused number
+	# 	# numericParts=re.findall(r'\d+',str(lastClueNumber))
+	# 	# if numericParts:
+	# 	# 	number=int(numericParts[0])
+	# 	# 	used=True
+	# 	# 	while used and number<10000: # arbitrarily large number tp prevent endless loop
+	# 	# 		number+=1
+	# 	# 		used=str(number) in usedClueNames
+	# 	# return str(number)
+	# 	num=lastClueNumber
+	# 	while str(num) in usedClueNames and num<1000:
+	# 		num+=1
+	# 		# rval=str(num)
+	# 	return str(num)
 
 		# # now confirm that it's unique
 		# root=newClueName
@@ -6570,17 +6628,70 @@ class MyWindow(QDialog,Ui_Dialog):
 		# rprint(f'New clue name will be "{newClueName}"')
 		# return newClueName
 
-	def getUsedClueNumbers(self):
-		# get just the numeric parts of usedClueNames
-		rval=[]
-		for name in usedClueNames:
-			numericParts=re.findall(r'\d+',name)
-			if numericParts:
-				number=int(numericParts[0])
-				if number not in rval:
-					rval.append(number)
-		rprint(f'used clue numbers: {rval}')
-		return rval
+	# def getUsedClueNumbers(self):
+	# 	# get just the numeric parts of usedClueNames
+	# 	rval=[]
+	# 	for name in usedClueNames:
+	# 		numericParts=re.findall(r'\d+',name)
+	# 		if numericParts:
+	# 			number=int(numericParts[0])
+	# 			if number not in rval:
+	# 				rval.append(number)
+	# 	rprint(f'used clue numbers: {rval}')
+	# 	return rval
+
+# 	def getClueDataFromClueLog(self,clueLogFileName):
+# 		# get the full list of used clue names;
+# 		#  also return the highest clue number used so far, which is the base for incrementing for the next clue
+# 		# global lastClueNumber
+# 		# global usedClueNames
+# 		incidentName=''
+# 		clueNames=[]
+# 		highestClueNumber=0
+# 		lastOP='1'
+# 		if os.path.isfile(clueLogFileName):
+# 			with open(clueLogFileName,'r') as csvFile:
+# 				csvReader=csv.reader(csvFile)
+# ##				self.clueLog=[] # uncomment this line to overwrite instead of combine
+# 				for row in csvReader:
+# 					rprint(f'row:{row}')
+# 					if not incidentName and '## Incident Name:' in row[0]:
+# 						incidentName=': '.join(row[0].split(': ')[1:]).rstrip() # provide for spaces and ': ' in incident name
+# 					if not row[0].startswith('#'): # ignore comment lines
+# 						# self.clueLog.append(row)
+# 						clueName=''
+# 						if row[0]!="":
+# 							clueName=row[0]
+# 						elif '(Last clue number: ' in row[1]:
+# 							clueName=row[1].split('(Last clue number: ')[1].replace(')','')
+# 						elif '(Incident clues from all previous OP(s): ' in row[1]:
+# 							clueNames=row[1].split(':')[1].split(',')
+# 							rprint(f'clueNames from "Incident clues from all previous OP(s)": {clueNames}')
+# 						elif 'Operational Period ' in row[1]:
+# 							lastOP=re.findall('Operational Period [0-9]+ Begins:',row[1])[-1].split()[2]
+# 						if clueName:
+# 							clueNames.append(clueName)
+# 				csvFile.close()
+# 				clueNames=list(dict.fromkeys(clueNames)) # quickest way to remove duplicates while preserving order
+# 				# now that we have the full unique list of used clue names,
+# 				#  find the highest used number (or numeric part) of any clue name:
+# 				#  that will be used as the base for incrementing the next clue number
+# 				# deal with non-strictly-numeric clues (e.g. 23A): use the leading numeric part as lastClueNumber
+# 				for clueName in clueNames:
+# 					numericParts=re.findall(r'\d+',str(clueName))
+# 					if numericParts:
+# 						clueNumber=int(numericParts[0])
+# 						highestClueNumber=max(highestClueNumber,clueNumber)
+# 		rprint(f'end of getClueDataFromClueLog: cluesNames={clueNames}  highestClueNumber={highestClueNumber}  lastOP={lastOP}')
+# 		return({
+# 			'incidentName':incidentName,
+# 			'lastOP':lastOP,
+# 			'usedClueNames':clueNames,
+# 			'highestClueNumber':highestClueNumber,
+# 			'ageStr':ageStr,
+# 			'filenameBase':filenameBase,
+# 			'mtime':mtime})
+
 
 class helpWindow(QDialog,Ui_Help):
 	def __init__(self, *args):
@@ -7800,7 +7911,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 	def quickTextClueAction(self): # do not push clues on the quick text stack, to make sure they can't be undone
 		rprint(str(self.clueDialogOpen))
 		if not self.clueDialogOpen: # only allow one open clue diolog at a time per radio log entry; see init and clueDialog init and closeEvent
-			self.newClueDialog=clueDialog(self,self.ui.timeField.text(),self.ui.teamField.text(),self.ui.radioLocField.toPlainText(),self.parent.getNewClueName())
+			self.newClueDialog=clueDialog(self,self.ui.timeField.text(),self.ui.teamField.text(),self.ui.radioLocField.toPlainText(),str(lastClueNumber+1))
 			self.newClueDialog.show()
 
 	def quickTextSubjectLocatedAction(self,prefixText='',automatic=False):
@@ -8714,7 +8825,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		#  of releasing clue numbers on reject, but, don't worry about it for now - that's why
 		#  the clue number field is editable.
 		global lastClueNumber
-		lastClueNumber=newClueNumber
+		lastClueNumber=int(newClueNumber)
 		global usedClueNames
 		usedClueNames.append(str(newClueNumber))
 		self.parent.clueDialogOpen=True
@@ -8901,6 +9012,8 @@ class clueDialog(QDialog,Ui_clueDialog):
 				event.ignore()
 				return
 			currentClueName=self.ui.clueNumberField.text()
+
+			# release the clue name if appropriate (so it can be used again)
 			# if current clue name is strictly numberic (i.e. not '23A') and is the highest clue number so far, then it's safe to release it;
 			#  but if any higher clue numbers have been claimed (e.g. by other currently opened clue dialogs), this one needs to be 'voided';
 			#  if current clue name is not numeric (e.g. 23A), then never release it; the automated messages are a good audit trail anyway
@@ -8914,6 +9027,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 					lastClueNumber=usedClueNames[-1]
 				else:
 					lastClueNumber=0
+
 			self.values=self.parent.getValues()
 			amendText=''
 			if self.parent.amendFlag:
@@ -9618,20 +9732,20 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 
 	def accept(self): # YES is clicked
 		self.parent.isContinuedIncident=True
-		self.parent.incidentName=self.incidentNameCandidate
+		self.parent.incidentName=self.sessionCandidate['incidentName']
 		self.parent.ui.incidentNameLabel.setText(self.parent.incidentName)
 		self.parent.optionsDialog.ui.incidentField.setText(self.parent.incidentName)
 		global lastClueNumber
-		lastClueNumber=self.lastClueCandidate
+		lastClueNumber=self.sessionCandidate['highestClueNumber']
 		# # also put it in usedClueNames which won't be removed, even if the first new clue is canceled
 		# global usedClueNames
 		# if str(lastClueNumber) not in usedClueNames:
 		# 	usedClueNames.append(str(lastClueNumber))
 		# preserve entire list of used clue names from selected session
 		global usedClueNames
-		usedClueNames=self.usedClueNamesCandidate
+		usedClueNames=self.sessionCandidate['usedClues']
 		rprint(f'previously used clue names: {usedClueNames}')
-		self.parent.opPeriod=self.lastOPCandidate+1
+		self.parent.opPeriod=self.sessionCandidate['lastOP']+1
 		self.parent.ui.opPeriodButton.setText("OP "+str(self.parent.opPeriod))
 		# radiolog entry and clue log entry are made by init code based on values set here
 		self.parent.printDialog.ui.opPeriodComboBox.setItemText(0,str(self.parent.opPeriod))
@@ -9650,24 +9764,27 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 		# rprint('  selected row:'+str(self.ui.theTable.selectedIndexes()[0].row()))
 		if self.changed:
 			self.ui.yesButton.setEnabled(True)
-			self.incidentNameCandidate=self.ui.theTable.item(row,0).text()
-			self.lastOPCandidate=self.ui.theTable.item(row,1).text()
-			if self.lastOPCandidate.isnumeric():
-				self.lastOPCandidate=int(self.lastOPCandidate)
-			else:
-				self.lastOPCandidate=1
-			self.lastClueCandidate=self.ui.theTable.item(row,2).text()
-			# deal with non-strictly-numeric clues (e.g. 23A): use the leading numeric part as lastClueNumber
-			numericParts=re.findall(r'\d+',str(self.lastClueCandidate))
-			if numericParts:
-				self.lastClueCandidate=int(numericParts[0])
-			else:
-				self.lastClueCandidate=0
-			# preserve entire list of used clue names from selected session
-			self.usedClueNamesCandidate=self.ui.theTable.item(row,2).data(Qt.UserRole)
-			self.ui.yesButton.setText('YES: Start a new OP of "'+self.incidentNameCandidate+'"\n(OP = '+str(self.lastOPCandidate+1)+'; next clue# = '+str(self.lastClueCandidate+1)+')')
+			# self.incidentNameCandidate=self.ui.theTable.item(row,0).text()
+			# self.lastOPCandidate=self.ui.theTable.item(row,1).text()
+			# if self.lastOPCandidate.isnumeric():
+			# 	self.lastOPCandidate=int(self.lastOPCandidate)
+			# else:
+			# 	self.lastOPCandidate=1
+			# self.lastClueCandidate=self.ui.theTable.item(row,2).text()
+			# # deal with non-strictly-numeric clues (e.g. 23A): use the leading numeric part as lastClueNumber
+			# numericParts=re.findall(r'\d+',str(self.lastClueCandidate))
+			# if numericParts:
+			# 	self.lastClueCandidate=int(numericParts[0])
+			# else:
+			# 	self.lastClueCandidate=0
+			# # preserve entire list of used clue names from selected session
+			# self.usedClueNamesCandidate=self.ui.theTable.item(row,2).data(Qt.UserRole)
+			session=self.ui.theTable.item(row,0).data(Qt.UserRole)
+			rprint('selected session:'+json.dumps(session,indent=3))
+			self.ui.yesButton.setText('YES: Start a new OP of "'+session['incidentName']+'"\n(OP = '+str(int(session['lastOP'])+1)+'; next clue# = '+str(session['highestClueNumber']+1)+')')
 			self.ui.yesButton.setDefault(True)
 			self.changed=False
+			self.sessionCandidate=session
 		else:
 			self.ui.theTable.clearSelection()
 			self.ui.noButton.setDefault(True)
