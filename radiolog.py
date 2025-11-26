@@ -450,7 +450,7 @@ comLog=False
 ##newEntryDialog_dx=30
 ##newEntryDialog_dy=30
 
-lastClueNumber=0
+# lastClueNumber=0
 
 ##quickTextList=[
 ##	["DEPARTING IC",Qt.Key_F1],
@@ -1058,6 +1058,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			rlInitText='Radio Log Begins: '
 		rlInitText+=self.incidentStartDate
+		lastClueNumber=self.getLastClueNumber()
 		rprint(f'during init - lastClueNumber={lastClueNumber}')
 		if lastClueNumber>0:
 			rlInitText+=' (Last clue number: '+str(lastClueNumber)+')'
@@ -4762,7 +4763,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 			# now load the clue log (same filename appended by .clueLog) if it exists
 			clueLogFileName=fileName.replace(".csv","_clueLog.csv")
-			global lastClueNumber
+			# global lastClueNumber
 			global usedClueNames
 			if os.path.isfile(clueLogFileName):
 				with open(clueLogFileName,'r') as csvFile:
@@ -4778,14 +4779,15 @@ class MyWindow(QDialog,Ui_Dialog):
 							elif '(Last clue number: ' in row[1]:
 								clueName=row[1].split('(Last clue number: ')[1].replace(')','')
 							# deal with non-strictly-numeric clues (e.g. 23A): use the leading numeric part as lastClueNumber
-							numericParts=re.findall(r'\d+',str(clueName))
-							if numericParts:
-								lastClueNumber=int(numericParts[0])
-							# also put it in usedClueNames which won't be removed, even if the first new clue is canceled
-							if str(lastClueNumber) not in usedClueNames:
-								usedClueNames.append(str(lastClueNumber))
+							# numericParts=re.findall(r'\d+',str(clueName))
+							# if numericParts:
+							# 	lastClueNumber=int(numericParts[0])
+							# # also put it in usedClueNames which won't be removed, even if the first new clue is canceled
+							# if str(lastClueNumber) not in usedClueNames:
+							# 	usedClueNames.append(str(lastClueNumber))
+							usedClueNames.append(clueName)
 					csvFile.close()
-			rprint(f'end of load clueLog: usedCluesNames={usedClueNames}  lastClueNumber={lastClueNumber}')
+			rprint(f'end of load clueLog: usedCluesNames={usedClueNames}  last clue number={self.getLastClueNumber()}')
 
 			i=i+1
 			progressBox.setValue(i)
@@ -6474,7 +6476,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.sidebar.resizeEvent()
 
 	def addNonRadioClue(self):
-		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),str(lastClueNumber+1))
+		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),str(self.getLastClueNumber()+1))
 		self.newNonRadioClueDialog.show()
 
 	def showInterviewPopup(self,parent):
@@ -6628,17 +6630,21 @@ class MyWindow(QDialog,Ui_Dialog):
 		# rprint(f'New clue name will be "{newClueName}"')
 		# return newClueName
 
-	# def getUsedClueNumbers(self):
-	# 	# get just the numeric parts of usedClueNames
-	# 	rval=[]
-	# 	for name in usedClueNames:
-	# 		numericParts=re.findall(r'\d+',name)
-	# 		if numericParts:
-	# 			number=int(numericParts[0])
-	# 			if number not in rval:
-	# 				rval.append(number)
-	# 	rprint(f'used clue numbers: {rval}')
-	# 	return rval
+	def getLastClueNumber(self):
+		# get just the numeric parts of usedClueNames
+		numbers=[]
+		for name in usedClueNames:
+			numericParts=re.findall(r'\d+',name)
+			if numericParts:
+				number=int(numericParts[0])
+				numbers.append(number)
+		numbers=list(dict.fromkeys(numbers)) # quickest way to remove duplicates while preserving sequence
+		if numbers:
+			m=max(numbers)
+		else:
+			m=0
+		rprint(f'used clue numbers: {numbers}  max:{m}')
+		return m
 
 # 	def getClueDataFromClueLog(self,clueLogFileName):
 # 		# get the full list of used clue names;
@@ -7911,7 +7917,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 	def quickTextClueAction(self): # do not push clues on the quick text stack, to make sure they can't be undone
 		rprint(str(self.clueDialogOpen))
 		if not self.clueDialogOpen: # only allow one open clue diolog at a time per radio log entry; see init and clueDialog init and closeEvent
-			self.newClueDialog=clueDialog(self,self.ui.timeField.text(),self.ui.teamField.text(),self.ui.radioLocField.toPlainText(),str(lastClueNumber+1))
+			self.newClueDialog=clueDialog(self,self.ui.timeField.text(),self.ui.teamField.text(),self.ui.radioLocField.toPlainText(),str(self.parent.getLastClueNumber()+1))
 			self.newClueDialog.show()
 
 	def quickTextSubjectLocatedAction(self,prefixText='',automatic=False):
@@ -8824,10 +8830,11 @@ class clueDialog(QDialog,Ui_clueDialog):
 		#  is saved will have an incremented clue number.  May need to get fancier in terms
 		#  of releasing clue numbers on reject, but, don't worry about it for now - that's why
 		#  the clue number field is editable.
-		global lastClueNumber
-		lastClueNumber=int(newClueNumber)
+		# global lastClueNumber
+		# lastClueNumber=int(newClueNumber)
+		self.clueName=str(newClueNumber) # initialize instance variable here, so that any changed clue name message will have access to the prior value
 		global usedClueNames
-		usedClueNames.append(str(newClueNumber))
+		usedClueNames.append(self.clueName)
 		self.parent.clueDialogOpen=True
 		clueDialog.openDialogCount+=1
 		self.values=self.parent.getValues()
@@ -8850,7 +8857,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.raise_()
 		self.palette=QPalette()
 		self.throb()
-		rprint(f'end of clueDialog init: usedClueNames={usedClueNames}  lastClueNumber={lastClueNumber}')
+		rprint(f'end of clueDialog init: usedClueNames={usedClueNames}  last clue number={self.parent.parent.getLastClueNumber()}')
 
 	def changeEvent(self,event):
 		if event.type()==QEvent.ActivationChange:
@@ -9018,15 +9025,15 @@ class clueDialog(QDialog,Ui_clueDialog):
 			#  but if any higher clue numbers have been claimed (e.g. by other currently opened clue dialogs), this one needs to be 'voided';
 			#  if current clue name is not numeric (e.g. 23A), then never release it; the automated messages are a good audit trail anyway
 			# if clueDialog.openDialogCount==1:
-			if currentClueName.isnumeric() and int(currentClueName)>=max(self.parent.parent.getUsedClueNumbers()):
-				global lastClueNumber
+			if currentClueName.isnumeric() and int(currentClueName)>=self.parent.parent.getLastClueNumber():
+				# global lastClueNumber
 				global usedClueNames
 				if currentClueName in usedClueNames:
 					usedClueNames.remove(currentClueName)
-				if usedClueNames:
-					lastClueNumber=usedClueNames[-1]
-				else:
-					lastClueNumber=0
+				# if usedClueNames:
+				# 	lastClueNumber=usedClueNames[-1]
+				# else:
+				# 	lastClueNumber=0
 
 			self.values=self.parent.getValues()
 			amendText=''
@@ -9066,7 +9073,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		event.accept()
 		if accepted:
 			self.parent.accept()
-		rprint(f'end of closeEvent: usedClueNames={usedClueNames}  lastClueNumber={lastClueNumber}')
+		rprint(f'end of closeEvent: usedClueNames={usedClueNames}  last clue number={self.parent.parent.getLastClueNumber()}')
 ##		newEntryWidget.instances.remove(self)
 
 	def clueQuickTextAction(self):
@@ -9100,7 +9107,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 
 	def clueNumberChanged(self):
 		global usedClueNames
-		global lastClueNumber
+		# global lastClueNumber
 		if self.ui.clueNumberField.text() in usedClueNames:
 			box=QMessageBox(QMessageBox.Critical,'Clue Number Already Used',f'"{self.ui.clueNumberField.text()}" is already used.  Enter a different clue number.',
 				QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
@@ -9110,17 +9117,17 @@ class clueDialog(QDialog,Ui_clueDialog):
 			self.ui.clueNumberField.setText('')
 			self.ui.clueNumberField.setFocus()
 		else: # new value is unique
-			# remove lastClueNumber from usedClueNames, which was set at init and is the previous value of this field
-			usedClueNames.remove(str(lastClueNumber))
+			# remove self.clueName from usedClueNames, which was set at init and is the previous value of this field
+			usedClueNames.remove(self.clueName)
 			# add an automated entry
 			self.values=["" for n in range(10)]
 			self.values[0]=time.strftime("%H%M")
-			self.values[3]="RADIO LOG SOFTWARE: CLUE NUMBER CHANGED FROM "+str(lastClueNumber)+" to "+self.ui.clueNumberField.text()
+			self.values[3]="RADIO LOG SOFTWARE: CLUE NUMBER CHANGED FROM "+self.clueName+" to "+self.ui.clueNumberField.text()
 			self.values[6]=time.time()
 			self.parent.parent.newEntry(self.values)
-			# then update lastClueNumber
-			lastClueNumber=self.ui.clueNumberField.text()
-			usedClueNames.append(str(lastClueNumber))
+			# then update self.clueName and usedClueNames
+			self.clueName=self.ui.clueNumberField.text()
+			usedClueNames.append(self.clueName)
 
 
 class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
@@ -9160,11 +9167,12 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		#  is saved will have an incremented clue number.  May need to get fancier in terms
 		#  of releasing clue numbers on reject, but, don't worry about it for now - that's why
 		#  the clue number field is editable.
-		global lastClueNumber
-		lastClueNumber=newClueNumber
+		# global lastClueNumber
+		# lastClueNumber=newClueNumber
+		self.clueName=str(newClueNumber)
 		global usedClueNames
-		usedClueNames.append(str(newClueNumber))
-		rprint(f'end of NRC init: lastClueNumber={lastClueNumber}; usedClueNames={usedClueNames}')
+		usedClueNames.append(self.clueName)
+		rprint(f'end of NRC init: last clue number={self.parent.getLastClueNumber()}; usedClueNames={usedClueNames}')
 
 	def changeEvent(self,event):
 		if event.type()==QEvent.ActivationChange:
@@ -9257,15 +9265,15 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 			#  but if any higher clue numbers have been claimed (e.g. by other currently opened clue dialogs), this one needs to be 'voided';
 			#  if current clue name is not numeric (e.g. 23A), then never release it; the automated messages are a good audit trail anyway
 			# if clueDialog.openDialogCount==1:
-			if currentClueName.isnumeric() and int(currentClueName)>=max(self.parent.getUsedClueNumbers()):
-				global lastClueNumber
+			if currentClueName.isnumeric() and int(currentClueName)>=self.parent.getLastClueNumber():
+				# global lastClueNumber
 				global usedClueNames
 				if currentClueName in usedClueNames:
 					usedClueNames.remove(currentClueName)
-				if usedClueNames:
-					lastClueNumber=usedClueNames[-1]
-				else:
-					lastClueNumber=0
+				# if usedClueNames:
+				# 	lastClueNumber=usedClueNames[-1]
+				# else:
+				# 	lastClueNumber=0
 
 			self.values=["" for n in range(10)]
 			self.values[0]=time.strftime("%H%M")
@@ -9309,7 +9317,7 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		if nonRadioClueDialog.openDialogCount<1:
 			self.parent.nonRadioClueDialogIsOpen=False
 		nonRadioClueDialog.instances.remove(self)
-		rprint(f'end of NRC closeEvent: lastClueNumber={lastClueNumber}; usedClueNames={usedClueNames}; nonRadioClueDialogIsOpen={self.parent.nonRadioClueDialogIsOpen}')
+		rprint(f'end of NRC closeEvent: last clue number={self.parent.getLastClueNumber()}; usedClueNames={usedClueNames}; nonRadioClueDialogIsOpen={self.parent.nonRadioClueDialogIsOpen}')
 # 	def reject(self):
 # ##		self.parent.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 # 		rprint("rejected - calling close")
@@ -9319,7 +9327,7 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 
 	def clueNumberChanged(self):
 		global usedClueNames
-		global lastClueNumber
+		# global lastClueNumber
 		if self.ui.clueNumberField.text() in usedClueNames:
 			box=QMessageBox(QMessageBox.Critical,'Clue Number Already Used',f'"{self.ui.clueNumberField.text()}" is already used.  Enter a different clue number.',
 				QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
@@ -9329,17 +9337,17 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 			self.ui.clueNumberField.setText('')
 			self.ui.clueNumberField.setFocus()
 		else: # new value is unique
-			# remove lastClueNumber from usedClueNames, which was set at init and is the previous value of this field
-			usedClueNames.remove(str(lastClueNumber))
+			# remove self.clueName from usedClueNames, which was set at init and is the previous value of this field
+			usedClueNames.remove(self.clueName)
 			# add an automated entry
 			self.values=["" for n in range(10)]
 			self.values[0]=time.strftime("%H%M")
-			self.values[3]="RADIO LOG SOFTWARE: NON-RADIO CLUE NUMBER CHANGED FROM "+str(lastClueNumber)+" to "+self.ui.clueNumberField.text()
+			self.values[3]="RADIO LOG SOFTWARE: NON-RADIO CLUE NUMBER CHANGED FROM "+self.clueName+" to "+self.ui.clueNumberField.text()
 			self.values[6]=time.time()
 			self.parent.newEntry(self.values)
-			# then update lastClueNumber
-			lastClueNumber=self.ui.clueNumberField.text()
-			usedClueNames.append(str(lastClueNumber))
+			# then update self.clueName and usedClueNames
+			self.clueName=self.ui.clueNumberField.text()
+			usedClueNames.append(self.clueName)
 
 
 class clueLogDialog(QDialog,Ui_clueLogDialog):
@@ -9735,8 +9743,8 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 		self.parent.incidentName=self.sessionCandidate['incidentName']
 		self.parent.ui.incidentNameLabel.setText(self.parent.incidentName)
 		self.parent.optionsDialog.ui.incidentField.setText(self.parent.incidentName)
-		global lastClueNumber
-		lastClueNumber=self.sessionCandidate['highestClueNumber']
+		# global lastClueNumber
+		# lastClueNumber=self.sessionCandidate['highestClueNumber']
 		# # also put it in usedClueNames which won't be removed, even if the first new clue is canceled
 		# global usedClueNames
 		# if str(lastClueNumber) not in usedClueNames:
