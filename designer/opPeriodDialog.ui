@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>437</width>
-    <height>307</height>
+    <height>230</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,7 +19,7 @@
      <property name="font">
       <font>
        <family>Segoe UI</family>
-       <pointsize>12</pointsize>
+       <pointsize>14</pointsize>
        <weight>75</weight>
        <bold>true</bold>
       </font>
@@ -48,25 +48,12 @@ period, and to perform the checked actions:</string>
    </item>
    <item>
     <layout class="QGridLayout" name="gridLayout">
-     <item row="1" column="2">
-      <widget class="QLineEdit" name="newOpPeriodField">
-       <property name="enabled">
-        <bool>true</bool>
-       </property>
-       <property name="font">
-        <font>
-         <family>Segoe UI</family>
-         <pointsize>12</pointsize>
-        </font>
-       </property>
-      </widget>
-     </item>
      <item row="0" column="1">
       <widget class="QLabel" name="label_2">
        <property name="font">
         <font>
          <family>Segoe UI</family>
-         <pointsize>12</pointsize>
+         <pointsize>14</pointsize>
         </font>
        </property>
        <property name="text">
@@ -95,7 +82,7 @@ period, and to perform the checked actions:</string>
        <property name="font">
         <font>
          <family>Segoe UI</family>
-         <pointsize>12</pointsize>
+         <pointsize>14</pointsize>
         </font>
        </property>
        <property name="text">
@@ -114,7 +101,7 @@ period, and to perform the checked actions:</string>
        <property name="font">
         <font>
          <family>Segoe UI</family>
-         <pointsize>12</pointsize>
+         <pointsize>14</pointsize>
         </font>
        </property>
       </widget>
@@ -131,6 +118,16 @@ period, and to perform the checked actions:</string>
         </size>
        </property>
       </spacer>
+     </item>
+     <item row="1" column="2">
+      <widget class="QSpinBox" name="newOpPeriodField">
+       <property name="font">
+        <font>
+         <family>Segoe UI</family>
+         <pointsize>14</pointsize>
+        </font>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>
@@ -193,12 +190,12 @@ period, and to perform the checked actions:</string>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>248</x>
-     <y>254</y>
+     <x>257</x>
+     <y>220</y>
     </hint>
     <hint type="destinationlabel">
      <x>157</x>
-     <y>274</y>
+     <y>229</y>
     </hint>
    </hints>
   </connection>
@@ -209,14 +206,33 @@ period, and to perform the checked actions:</string>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>316</x>
-     <y>260</y>
+     <x>325</x>
+     <y>220</y>
     </hint>
     <hint type="destinationlabel">
      <x>286</x>
-     <y>274</y>
+     <y>229</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>newOpPeriodField</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>opPeriodDialog</receiver>
+   <slot>deselectAfterChange()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>328</x>
+     <y>116</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>424</x>
+     <y>112</y>
     </hint>
    </hints>
   </connection>
  </connections>
+ <slots>
+  <slot>deselectAfterChange()</slot>
+ </slots>
 </ui>

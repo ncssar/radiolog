@@ -9679,7 +9679,8 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 		self.setStyleSheet(globalStyleSheet)
 		self.parent=parent
 		self.ui.currentOpPeriodField.setText(str(parent.opPeriod))
-		self.ui.newOpPeriodField.setText(str(parent.opPeriod+1))
+		self.ui.newOpPeriodField.setValue(parent.opPeriod+1)
+		self.ui.newOpPeriodField.setMinimum(parent.opPeriod+1)
 		# self.setAttribute(Qt.WA_DeleteOnClose)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setFixedSize(self.size())
@@ -9694,15 +9695,21 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 				if status == "At IC":
 					self.parent.deleteTeamTab(getNiceTeamName(extTeamName))
 
-		self.parent.opPeriod=int(self.ui.newOpPeriodField.text())
+		self.parent.opPeriod=self.ui.newOpPeriodField.value()
 		self.parent.ui.opPeriodButton.setText("OP "+str(self.parent.opPeriod))
 		opText="Operational Period "+str(self.parent.opPeriod)+" Begins: "+time.strftime("%a %b %d, %Y")
 		self.parent.newEntry([time.strftime("%H%M"),"","",opText,"","",time.time(),"",""])
 ##      clueData=[number,description,team,clueTime,clueDate,self.parent.parent.opPeriod,location,instructions,radioLoc]
 		self.parent.clueLog.append(['',opText,'',time.strftime("%H%M"),'','','','',''])
-		self.parent.printDialog.ui.opPeriodComboBox.addItem(self.ui.newOpPeriodField.text())
+		self.parent.printDialog.ui.opPeriodComboBox.addItem(str(self.ui.newOpPeriodField.value()))
 		super(opPeriodDialog,self).accept()
+	
+	def deselectAfterChange(self,e): # since QueuedConnection can't be specified in Qt Designer
+		QTimer.singleShot(100,self.deselectDeferred)
 		
+	def deselectDeferred(self):
+		self.ui.newOpPeriodField.lineEdit().deselect()
+
 	def toggleShow(self):
 		if self.isVisible():
 			self.hide()
