@@ -1458,7 +1458,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			if '_bak' in f:
 				filenameBase=f[:-9]
 			incidentName=None
-			lastOP='1' # if no entries indicate change in OP#, then initial OP is 1 by default
+			lastOP=1 # if no entries indicate change in OP#, then initial OP is 1 by default
 			clueNames=[]
 			lastClue='--'
 			highestClueNumber=0
@@ -1505,7 +1505,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					csvReader=csv.reader(csvFile)
 	##				self.clueLog=[] # uncomment this line to overwrite instead of combine
 					for row in csvReader:
-						rprint(f'row:{row}')
+						# rprint(f'row:{row}')
 						if not incidentName and '## Incident Name:' in row[0]:
 							incidentName=': '.join(row[0].split(': ')[1:]).rstrip() # provide for spaces and ': ' in incident name
 						if not row[0].startswith('#'): # ignore comment lines
@@ -1513,13 +1513,19 @@ class MyWindow(QDialog,Ui_Dialog):
 							clueName=''
 							if row[0]!="":
 								clueName=row[0]
-							elif '(Last clue number: ' in row[1]:
-								clueName=row[1].split('(Last clue number: ')[1].replace(')','')
+							elif 'Operational Period ' in row[1]:
+								rprint(f't1: row[1]={row[1]}')
+								try:
+									lastOP=int(re.findall('Operational Period [0-9]+ Begins:',row[1])[-1].split()[2])
+								except Exception as e:
+									rprint(e+'\nlastOP could not be parsed as an integer from text "'+row[1]+'"; assuming OP 1')
+								try:
+									clueName=row[1].split('(Last clue number: ')[1].replace(')','')
+								except Exception as e:
+									rprint(e+'\nLast clue number was not included in Operational Period clue log entry; not recording any previous clues')
 							elif '(Incident clues from all previous OP(s): ' in row[1]:
 								clueNames=row[1].split(':')[1].split(',')
 								rprint(f'clueNames from "Incident clues from all previous OP(s)": {clueNames}')
-							elif 'Operational Period ' in row[1]:
-								lastOP=re.findall('Operational Period [0-9]+ Begins:',row[1])[-1].split()[2]
 							if clueName:
 								clueNames.append(clueName)
 					csvFile.close()
@@ -1568,11 +1574,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			filenameBase=session['filenameBase']
 			if now-session['mtime']<continuedIncidentWindowSec:
 				lastOP=session['lastOP']
-				if type(lastOP)==str and lastOP.isdigit() and int(lastOP)>=int(opd.get(incidentName,0)):
+				if lastOP>=opd.get(incidentName,0):
 					choices.append(session)
 					opd[incidentName]=lastOP
 				else:
-					rprint('  not listing '+incidentName+' OP '+lastOP+' ('+filenameBase+') since OP '+str(opd.get(incidentName,0))+' is already listed')
+					rprint(f'  not listing {incidentName} OP {lastOP} ({filenameBase}) since OP {opd.get(incidentName,0)} is already listed')
 			else:
 				break
 		if choices:
@@ -1588,7 +1594,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				if highestClueNumStr=='0':
 					highestClueNumStr='--'
 				q0=QTableWidgetItem(choice['incidentName'])
-				q1=QTableWidgetItem(choice['lastOP'])
+				q1=QTableWidgetItem(str(choice['lastOP']))
 				q2=QTableWidgetItem(highestClueNumStr)
 				q3=QTableWidgetItem(choice['ageStr'])
 				q0.setData(Qt.UserRole,choice) # store the entire dictionary in UserRole of col 0
@@ -4787,7 +4793,7 @@ class MyWindow(QDialog,Ui_Dialog):
 							# 	usedClueNames.append(str(lastClueNumber))
 							usedClueNames.append(clueName)
 					csvFile.close()
-			rprint(f'end of load clueLog: usedCluesNames={usedClueNames}  last clue number={self.getLastClueNumber()}')
+			rprint(f'end of load clueLog: usedClueNames={usedClueNames}  last clue number={self.getLastClueNumber()}')
 
 			i=i+1
 			progressBox.setValue(i)
@@ -9751,7 +9757,7 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 		# 	usedClueNames.append(str(lastClueNumber))
 		# preserve entire list of used clue names from selected session
 		global usedClueNames
-		usedClueNames=self.sessionCandidate['usedClues']
+		usedClueNames=self.sessionCandidate['usedClueNames']
 		rprint(f'previously used clue names: {usedClueNames}')
 		self.parent.opPeriod=self.sessionCandidate['lastOP']+1
 		self.parent.ui.opPeriodButton.setText("OP "+str(self.parent.opPeriod))
@@ -9789,7 +9795,7 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 			# self.usedClueNamesCandidate=self.ui.theTable.item(row,2).data(Qt.UserRole)
 			session=self.ui.theTable.item(row,0).data(Qt.UserRole)
 			rprint('selected session:'+json.dumps(session,indent=3))
-			self.ui.yesButton.setText('YES: Start a new OP of "'+session['incidentName']+'"\n(OP = '+str(int(session['lastOP'])+1)+'; next clue# = '+str(session['highestClueNumber']+1)+')')
+			self.ui.yesButton.setText('YES: Start a new OP of "'+session['incidentName']+'"\n(OP = '+str(session['lastOP']+1)+'; next clue# = '+str(session['highestClueNumber']+1)+')')
 			self.ui.yesButton.setDefault(True)
 			self.changed=False
 			self.sessionCandidate=session
