@@ -1461,7 +1461,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			lastOP=1 # if no entries indicate change in OP#, then initial OP is 1 by default
 			clueNames=[]
 			lastClue='--'
-			highestClueNumber=0
+			# highestClueNumber=0
 			# with open(f,'r') as radioLog:
 			# 	lines=radioLog.readlines()
 			# 	# don't show files that have less than two entries
@@ -1518,11 +1518,11 @@ class MyWindow(QDialog,Ui_Dialog):
 								try:
 									lastOP=int(re.findall('Operational Period [0-9]+ Begins:',row[1])[-1].split()[2])
 								except Exception as e:
-									rprint(e+'\nlastOP could not be parsed as an integer from text "'+row[1]+'"; assuming OP 1')
+									rprint(str(e)+'\nlastOP could not be parsed as an integer from text "'+row[1]+'"; assuming OP 1')
 								try:
 									clueName=row[1].split('(Last clue number: ')[1].replace(')','')
 								except Exception as e:
-									rprint(e+'\nLast clue number was not included in Operational Period clue log entry; not recording any previous clues')
+									rprint(str(e)+'\nLast clue number was not included in Operational Period clue log entry; not recording any previous clues')
 							elif '(Incident clues from all previous OP(s): ' in row[1]:
 								clueNames=row[1].split(':')[1].split(',')
 								rprint(f'clueNames from "Incident clues from all previous OP(s)": {clueNames}')
@@ -1534,18 +1534,18 @@ class MyWindow(QDialog,Ui_Dialog):
 					#  find the highest used number (or numeric part) of any clue name:
 					#  that will be used as the base for incrementing the next clue number
 					# deal with non-strictly-numeric clues (e.g. 23A): use the leading numeric part as lastClueNumber
-					for clueName in clueNames:
-						numericParts=re.findall(r'\d+',str(clueName))
-						if numericParts:
-							clueNumber=int(numericParts[0])
-							highestClueNumber=max(highestClueNumber,clueNumber)
+					# for clueName in clueNames:
+					# 	numericParts=re.findall(r'\d+',str(clueName))
+					# 	if numericParts:
+					# 		clueNumber=int(numericParts[0])
+					# 		highestClueNumber=max(highestClueNumber,clueNumber)
 			else:
 				rprint(f'clue log file {clueLogFileName} not found or could not be opened')
 			sessionDict=({
 				'incidentName':incidentName,
 				'lastOP':lastOP,
 				'usedClueNames':clueNames,
-				'highestClueNumber':highestClueNumber,
+				# 'highestClueNumber':highestClueNumber,
 				'ageStr':ageStr,
 				'filenameBase':filenameBase,
 				'mtime':mtime})
@@ -1590,7 +1590,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			cd.ui.theTable.setRowCount(len(choices))
 			row=0
 			for choice in choices:
-				highestClueNumStr=str(choice['highestClueNumber'])
+				# highestClueNumStr=str(choice['highestClueNumber'])
+				highestClueNumStr=str(self.getLastClueNumber(choice['usedClueNames']))
 				if highestClueNumStr=='0':
 					highestClueNumStr='--'
 				q0=QTableWidgetItem(choice['incidentName'])
@@ -6636,10 +6637,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		# rprint(f'New clue name will be "{newClueName}"')
 		# return newClueName
 
-	def getLastClueNumber(self):
+	# getLastClueNumber: parse from usedClueNames by default,
+	#  or parse from a list of clue names passed as an argument if specified,
+	#  which is the case when previewing a list of sessions
+	def getLastClueNumber(self,theList=None):
+		if not theList:
+			theList=usedClueNames
 		# get just the numeric parts of usedClueNames
 		numbers=[]
-		for name in usedClueNames:
+		for name in theList:
 			numericParts=re.findall(r'\d+',name)
 			if numericParts:
 				number=int(numericParts[0])
@@ -9795,7 +9801,8 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 			# self.usedClueNamesCandidate=self.ui.theTable.item(row,2).data(Qt.UserRole)
 			session=self.ui.theTable.item(row,0).data(Qt.UserRole)
 			rprint('selected session:'+json.dumps(session,indent=3))
-			self.ui.yesButton.setText('YES: Start a new OP of "'+session['incidentName']+'"\n(OP = '+str(session['lastOP']+1)+'; next clue# = '+str(session['highestClueNumber']+1)+')')
+			# self.ui.yesButton.setText('YES: Start a new OP of "'+session['incidentName']+'"\n(OP = '+str(session['lastOP']+1)+'; next clue# = '+str(session['highestClueNumber']+1)+')')
+			self.ui.yesButton.setText('YES: Start a new OP of "'+session['incidentName']+'"\n(OP = '+str(session['lastOP']+1)+'; next clue# = '+str(self.parent.getLastClueNumber(session['usedClueNames'])+1)+')')
 			self.ui.yesButton.setDefault(True)
 			self.changed=False
 			self.sessionCandidate=session
