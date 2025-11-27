@@ -645,7 +645,7 @@ def clueNumberChanged(dialog,mainWindow):
 	# rprint(f'changed t1: old="{dialog.clueName}" field="{dialog.ui.clueNumberField.text()}"')
 	newVal=dialog.ui.clueNumberField.text().rstrip()
 	if newVal!=dialog.clueName:
-		if not newVal or newVal in mainWindow.usedClueNames:
+		if not newVal or any(item.lower()==newVal.lower() for item in mainWindow.usedClueNames): # case insensitive list search, so 20a is disallowed if 20A exists
 			head='Clue Number Already Used'
 			msg=f'"{newVal}" is already used.  Enter a different clue number, or use the default.'
 			if not newVal:
