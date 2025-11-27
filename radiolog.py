@@ -638,6 +638,50 @@ def getClueNamesShorthand(clueNames):
 	shorthandList+=notNumbers
 	return ' '.join(shorthandList)
 	
+# callback called from both clueDialog and nonRadioClueDialog
+def clueNumberChanged(dialog,mainWindow):
+	# global usedClueNames
+	# global lastClueNumber
+	# rprint(f'changed t1: old="{dialog.clueName}" field="{dialog.ui.clueNumberField.text()}"')
+	newVal=dialog.ui.clueNumberField.text().rstrip()
+	if newVal!=dialog.clueName:
+		if not newVal or newVal in mainWindow.usedClueNames:
+			head='Clue Number Already Used'
+			msg=f'"{newVal}" is already used.  Enter a different clue number, or use the default.'
+			if not newVal:
+				head='Blank Clue Number is Not Allowed'
+				msg='Clue number must be specified.'
+			box=QMessageBox(QMessageBox.Critical,head,msg,QMessageBox.Close,dialog,
+				Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.open()
+			box.raise_()
+			box.exec_()
+			# set the field text back to the initial value; that will trigger this function again so make sure it falls through gracefully
+			dialog.ui.clueNumberField.setText(dialog.clueName)
+			dialog.ui.clueNumberField.setFocus()
+		else: # new value is unique
+			# remove dialog.clueName from usedClueNames, which was set at init and is the previous value of this field
+			mainWindow.usedClueNames.remove(dialog.clueName)
+			# add an automated entry
+			dialog.values=["" for n in range(10)]
+			dialog.values[0]=time.strftime("%H%M")
+			prefix=''
+			rprint(f'calling classname: {dialog.__class__.__name__}')
+			if 'nonRadio' in dialog.__class__.__name__:
+				prefix='NON-RADIO '
+			dialog.values[3]="RADIO LOG SOFTWARE: "+prefix+"CLUE NUMBER CHANGED FROM "+dialog.clueName+" to "+newVal
+			dialog.values[6]=time.time()
+			mainWindow.newEntry(dialog.values)
+			# then update dialog.clueName and usedClueNames
+			dialog.clueName=newVal
+			mainWindow.usedClueNames.append(dialog.clueName)
+	# rprint(f'changed t2: newVal="{newVal}";  field text="{dialog.ui.clueNumberField.text()}"')
+	if dialog.ui.clueNumberField.text() not in [dialog.clueName,newVal]: # clueName: if it was just set to the initial value; newVal: if trailing space was trimmed
+		# rprint('changed t3')
+		dialog.ui.clueNumberField.setText(newVal)
+	# rprint('changed t4')
+
+
 ###### LOGGING CODE BEGIN ######
 
 # do not pass ERRORs to stdout - they already show up on the screen from stderr
@@ -9204,28 +9248,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 			self.ui.instructionsField.setFocus()
 
 	def clueNumberChanged(self):
-		# global usedClueNames
-		# global lastClueNumber
-		if self.ui.clueNumberField.text() in self.parent.parent.usedClueNames:
-			box=QMessageBox(QMessageBox.Critical,'Clue Number Already Used',f'"{self.ui.clueNumberField.text()}" is already used.  Enter a different clue number.',
-				QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			box.open()
-			box.raise_()
-			box.exec_()
-			self.ui.clueNumberField.setText('')
-			self.ui.clueNumberField.setFocus()
-		else: # new value is unique
-			# remove self.clueName from usedClueNames, which was set at init and is the previous value of this field
-			self.parent.parent.usedClueNames.remove(self.clueName)
-			# add an automated entry
-			self.values=["" for n in range(10)]
-			self.values[0]=time.strftime("%H%M")
-			self.values[3]="RADIO LOG SOFTWARE: CLUE NUMBER CHANGED FROM "+self.clueName+" to "+self.ui.clueNumberField.text()
-			self.values[6]=time.time()
-			self.parent.parent.newEntry(self.values)
-			# then update self.clueName and usedClueNames
-			self.clueName=self.ui.clueNumberField.text()
-			self.parent.parent.usedClueNames.append(self.clueName)
+		clueNumberChanged(self,self.parent.parent) # shared callback with nonRadioClueDialog
 
 
 class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
@@ -9424,28 +9447,7 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 # 		super(nonRadioClueDialog,self).reject()
 
 	def clueNumberChanged(self):
-		# global usedClueNames
-		# global lastClueNumber
-		if self.ui.clueNumberField.text() in self.parent.usedClueNames:
-			box=QMessageBox(QMessageBox.Critical,'Clue Number Already Used',f'"{self.ui.clueNumberField.text()}" is already used.  Enter a different clue number.',
-				QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			box.open()
-			box.raise_()
-			box.exec_()
-			self.ui.clueNumberField.setText('')
-			self.ui.clueNumberField.setFocus()
-		else: # new value is unique
-			# remove self.clueName from usedClueNames, which was set at init and is the previous value of this field
-			self.parent.usedClueNames.remove(self.clueName)
-			# add an automated entry
-			self.values=["" for n in range(10)]
-			self.values[0]=time.strftime("%H%M")
-			self.values[3]="RADIO LOG SOFTWARE: NON-RADIO CLUE NUMBER CHANGED FROM "+self.clueName+" to "+self.ui.clueNumberField.text()
-			self.values[6]=time.time()
-			self.parent.newEntry(self.values)
-			# then update self.clueName and usedClueNames
-			self.clueName=self.ui.clueNumberField.text()
-			self.parent.usedClueNames.append(self.clueName)
+		clueNumberChanged(self,self.parent) # shared callback with clueDialog
 
 
 class clueLogDialog(QDialog,Ui_clueLogDialog):
