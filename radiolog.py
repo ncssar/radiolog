@@ -1545,6 +1545,23 @@ class MyWindow(QDialog,Ui_Dialog):
 							if clueName:
 								clueNames.append(clueName)
 					csvFile.close()
+					# process shorthand in list of clue names
+					keepChecking=True
+					while keepChecking:
+						if 'thru' in clueNames:
+							i=clueNames.index('thru')
+							first=clueNames[i-1]
+							last=clueNames[i+1]
+							before=clueNames[:i-1] # empty list if there is nothing before the range
+							after=clueNames[i+2:] # empty list if there is nothing after the range
+							mid=[]
+							if first.isdigit() and last.isdigit():
+								mid=[str(x) for x in list(range(int(first),int(last)+1))]
+							rprint(f'clueNames shorthand: initial={clueNames}  first={first}  last={last}  before={before}  after={after}')
+							clueNames=before+mid+after
+							rprint(f'process clueNames={clueNames}')
+						else:
+							keepChecking=False
 					clueNames=list(dict.fromkeys(clueNames)) # quickest way to remove duplicates while preserving order
 					# now that we have the full unique list of used clue names,
 					#  find the highest used number (or numeric part) of any clue name:
