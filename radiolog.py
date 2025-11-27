@@ -597,6 +597,47 @@ def getShortNiceTeamName(niceTeamName):
 def getFileNameBase(root):
 	return root+"_"+time.strftime("%Y_%m_%d_%H%M%S")
 
+def getClueNamesShorthand(clueNames):
+	# build a list of numbers mapped from clueNames: use the number if clueName is numeric, or 0 if non-numeric
+	numbers=[]
+	notNumbers=[]
+	for clueName in clueNames:
+		if isinstance(clueName,str) and clueName.isdigit():
+			numbers.append(int(clueName))
+		else:
+			notNumbers.append(clueName)
+	
+	# from Google AI Overview
+	# Ensure sorted order and unique elements
+	numbers = sorted(list(set(numbers)))
+	ranges = []
+	start = numbers[0]
+	
+	for i in range(1, len(numbers)):
+		# Check if the current number is consecutive to the previous one
+		if numbers[i] != numbers[i-1] + 1:
+			# If not, the current range has ended
+			ranges.append((start, numbers[i-1]))
+			start = numbers[i]
+			
+	# Append the last range after the loop finishes
+	ranges.append((start, numbers[-1]))
+
+	# convert ranges to shorthand
+	# e.g. ranges=[(1, 2), (5, 5), (7, 10), (13, 15), (42, 45)]
+	# shorthand=[str(first)+' thru '+str(last) for (first,last) in ranges]
+	shorthandList=[]
+	for (first,last) in ranges:
+		if first==last:
+			shorthandList.append(f'{first}')
+		elif last-first==1:
+			shorthandList+=[str(first),str(last)]
+		else:
+			# shorthandList.append(f'{first} thru {last}')
+			shorthandList.append(f'{first}-{last}')
+	shorthandList+=notNumbers
+	return ' '.join(shorthandList)
+	
 ###### LOGGING CODE BEGIN ######
 
 # do not pass ERRORs to stdout - they already show up on the screen from stderr
@@ -1067,7 +1108,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			if clueCount>1:
 				suffix='s'
-			usedCluesText='('+str(clueCount)+' clue'+suffix+' so far for this incident: '+' '.join(self.usedClueNames)+')'
+			# clueNamesText=' '.join(self.usedClueNames)
+			clueNamesText=getClueNamesShorthand(self.usedClueNames)
+			usedCluesText='('+str(clueCount)+' clue'+suffix+' so far for this incident: '+clueNamesText+')'
 		rlInitText+=' '+usedCluesText
 		# self.clueLog.append(['',usedCluesText,'',time.strftime("%H%M"),'','','','','',''])
 		# self.radioLog.append([time.strftime("%H%M"),'','',usedCluesText,'','',time.time(),'','','',''])
@@ -1546,23 +1589,33 @@ class MyWindow(QDialog,Ui_Dialog):
 								clueNames.append(clueName)
 					csvFile.close()
 					# process shorthand in list of clue names
-					keepChecking=True
-					while keepChecking:
-						if 'thru' in clueNames:
-							i=clueNames.index('thru')
-							first=clueNames[i-1]
-							last=clueNames[i+1]
-							before=clueNames[:i-1] # empty list if there is nothing before the range
-							after=clueNames[i+2:] # empty list if there is nothing after the range
-							mid=[]
-							if first.isdigit() and last.isdigit():
-								mid=[str(x) for x in list(range(int(first),int(last)+1))]
-							rprint(f'clueNames shorthand: initial={clueNames}  first={first}  last={last}  before={before}  after={after}')
-							clueNames=before+mid+after
-							rprint(f'process clueNames={clueNames}')
-						else:
-							keepChecking=False
-					clueNames=list(dict.fromkeys(clueNames)) # quickest way to remove duplicates while preserving order
+					# keepChecking=True
+					# while keepChecking:
+					# 	if 'thru' in clueNames:
+					# 		i=clueNames.index('thru')
+					# 		first=clueNames[i-1]
+					# 		last=clueNames[i+1]
+					# 		before=clueNames[:i-1] # empty list if there is nothing before the range
+					# 		after=clueNames[i+2:] # empty list if there is nothing after the range
+					# 		mid=[]
+					# 		if first.isdigit() and last.isdigit():
+					# 			mid=[str(x) for x in list(range(int(first),int(last)+1))]
+					# 		rprint(f'clueNames shorthand: initial={clueNames}  first={first}  last={last}  before={before}  after={after}')
+					# 		clueNames=before+mid+after
+					# 		rprint(f'process clueNames={clueNames}')
+					# 	else:
+					# 		keepChecking=False
+					outList=[]
+					rprint(f'pre-parsed clue names list: {clueNames}')
+					for clueName in clueNames:
+						if '-' in clueName: # numeric range
+							(first,last)=clueName.split('-')
+							print(f'clueName={clueName}  first={first}  last={last}')
+							outList+=[str(x) for x in range(int(first),int(last)+1)]
+						else: # signle numeric or non-numeric
+							outList.append(clueName)
+					clueNames=list(dict.fromkeys(outList)) # quickest way to remove duplicates while preserving order
+					rprint(f'parsed clue names list: {clueNames}')
 					# now that we have the full unique list of used clue names,
 					#  find the highest used number (or numeric part) of any clue name:
 					#  that will be used as the base for incrementing the next clue number
@@ -5174,7 +5227,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			if extTeamName.lower()==existingExtTeamName.lower():
 				extTeamName=existingExtTeamName
 				break
-      # skip entries with no team like 'radio log begins', or multiple entries like 'all'
+	  # skip entries with no team like 'radio log begins', or multiple entries like 'all'
 		if niceTeamName!='' and not niceTeamName.lower()=="all" and not niceTeamName.lower().startswith("all "):
 			# if it's a team that doesn't already have a tab, make a new tab
 			if extTeamName not in self.extTeamNameList:
