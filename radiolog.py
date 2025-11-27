@@ -1059,11 +1059,24 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			rlInitText='Radio Log Begins: '
 		rlInitText+=self.incidentStartDate
-		lastClueNumber=self.getLastClueNumber()
-		rprint(f'during init - lastClueNumber={lastClueNumber}')
-		if lastClueNumber>0:
-			rlInitText+=' (Last clue number: '+str(lastClueNumber)+')'
-			rprint(f'used clues from previous session: {self.usedClueNames}')
+
+		clueCount=len(self.usedClueNames)
+		suffix=''
+		if clueCount==0:
+			usedCluesText='(No clues so far for this incident)'
+		else:
+			if clueCount>1:
+				suffix='s'
+			usedCluesText='('+str(clueCount)+' clue'+suffix+' so far for this incident: '+' '.join(self.usedClueNames)+')'
+		rlInitText+=' '+usedCluesText
+		# self.clueLog.append(['',usedCluesText,'',time.strftime("%H%M"),'','','','','',''])
+		# self.radioLog.append([time.strftime("%H%M"),'','',usedCluesText,'','',time.time(),'','','',''])
+
+		# lastClueNumber=self.getLastClueNumber()
+		# rprint(f'during init - lastClueNumber={lastClueNumber}')
+		# if lastClueNumber>0:
+		# 	rlInitText+=' (Last clue number: '+str(lastClueNumber)+')'
+		# 	rprint(f'used clues from previous session: {self.usedClueNames}')
 		self.radioLog=[[time.strftime("%H%M"),'','',rlInitText,'','',time.time(),'','','',''],
 			['','','','','','',1e10,'','','','']] # 1e10 epoch seconds will keep the blank row at the bottom when sorted
 		rprint('Initial entry: '+rlInitText)
@@ -1521,12 +1534,14 @@ class MyWindow(QDialog,Ui_Dialog):
 								except Exception as e:
 									rprint(str(e)+'\nlastOP could not be parsed as an integer from text "'+row[1]+'"; assuming OP 1')
 								try:
-									clueName=row[1].split('(Last clue number: ')[1].replace(')','')
+									# clueNames=row[1].split('(Last clue number: ')[1].replace(')','')
+									clueNames=re.findall('clues? so far for this incident: (.*?)\\)',row[1])[0].split()
 								except Exception as e:
-									rprint(str(e)+'\nLast clue number was not included in Operational Period clue log entry; not recording any previous clues')
-							elif '(Incident clues from all previous OP(s): ' in row[1]:
-								clueNames=row[1].split(':')[1].split(',')
-								rprint(f'clueNames from "Incident clues from all previous OP(s)": {clueNames}')
+									# rprint(str(e)+'\nLast clue number was not included in Operational Period clue log entry; not recording any previous clues')
+									rprint(str(e)+'\nUsed clue name(s) not included in Operational Period clue log entry; not recording any previous clues')
+							# elif '(Incident clues from all previous OP(s): ' in row[1]:
+							# 	clueNames=row[1].split(':')[1].split(',')
+							# 	rprint(f'clueNames from "Incident clues from all previous OP(s)": {clueNames}')
 							if clueName:
 								clueNames.append(clueName)
 					csvFile.close()
