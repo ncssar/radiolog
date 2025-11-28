@@ -4840,6 +4840,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			if sessionToLoad['lastOP']!=self.opPeriod:
 				self.opPeriod=sessionToLoad['lastOP'] # don't increment - we're not continuing, we're just loading as-is
 				self.printDialog.ui.opPeriodComboBox.addItem(str(self.opPeriod))
+				self.opPeriodDialog.ui.currentOpPeriodField.setText(str(self.opPeriod))
+				self.opPeriodDialog.ui.newOpPeriodField.setMinimum(self.opPeriod+1) # do this before setting the value, in case the new value is less than the old minimum
+				self.opPeriodDialog.ui.newOpPeriodField.setValue(self.opPeriod+1)
 				rprint('Setting OP to '+str(self.opPeriod)+' based on loaded session.')
 
 			# pass 2: read and process the file
@@ -9791,8 +9794,8 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 		self.setStyleSheet(globalStyleSheet)
 		self.parent=parent
 		self.ui.currentOpPeriodField.setText(str(parent.opPeriod))
+		self.ui.newOpPeriodField.setMinimum(parent.opPeriod+1) # do this before setting the value, in case the new value is less than the old minimum
 		self.ui.newOpPeriodField.setValue(parent.opPeriod+1)
-		self.ui.newOpPeriodField.setMinimum(parent.opPeriod+1)
 		# self.setAttribute(Qt.WA_DeleteOnClose)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setFixedSize(self.size())
