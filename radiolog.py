@@ -1507,36 +1507,39 @@ class MyWindow(QDialog,Ui_Dialog):
 				teamTable.setCurrentIndex(QModelIndex())
 				teamTable.clearFocus()
 
-	def getSessions(self,sort='chronological',reverse=False,omitCurrentSession=False):
-		csvFiles=glob.glob(self.firstWorkingDir+'/*/*.csv') # files nested in session dirs
-		# backwards compatibility: also list csv files saved flat in the working dir
-		csvFiles+=glob.glob(self.firstWorkingDir+'/*.csv')
-
-		# backwards compatibility: look in the old working directory too
-		#  copied code from radiolog.py before #522 dir structure overhaul;
-		#  could consider removing this in the future, since it grabs all .csv
-		#  files from ~\Documents
-		oldWD=os.path.join(os.getenv('HOMEPATH','C:\\Users\\Default'),'Documents')
-		if oldWD[1]!=":":
-			oldWD=os.getenv('HOMEDRIVE','C:')+oldWD
-
-		csvFiles+=glob.glob(oldWD+'/*.csv')
-
-		csvFiles=[f for f in csvFiles if '_clueLog' not in f and '_fleetsync' not in f and '_bak' not in f] # only show 'base' radiolog csv files
-		csvFiles=[self.isRadioLogDataFile(f) for f in csvFiles] # isRadioLogDataFile returns the first valid filename in the search path, or False if none are valid
-		csvFiles=[f for f in csvFiles if f] # get rid of 'False' return values from isRadioLogDataFile
-
-		#552 remove current session from the list
-		if omitCurrentSession:
-			csvFiles=[f for f in csvFiles if self.csvFileName not in f]
-
-		rprint('Found '+str(len(csvFiles))+' .csv files (excluding _clueLog, _fleetsync, and _bak csv files)')
-		if sort=='chronological':
-			sortedCsvFiles=sorted(csvFiles,key=os.path.getmtime,reverse=reverse)
-		elif sort=='alphabetical':
-			sortedCsvFiles=sorted(csvFiles,reverse=reverse)
+	def getSessions(self,sort='chronological',reverse=False,omitCurrentSession=False,fromCsvFile=None):
+		if fromCsvFile:
+			sortedCsvFiles=[fromCsvFile]
 		else:
-			sortedCsvFiles=csvFiles
+			csvFiles=glob.glob(self.firstWorkingDir+'/*/*.csv') # files nested in session dirs
+			# backwards compatibility: also list csv files saved flat in the working dir
+			csvFiles+=glob.glob(self.firstWorkingDir+'/*.csv')
+
+			# backwards compatibility: look in the old working directory too
+			#  copied code from radiolog.py before #522 dir structure overhaul;
+			#  could consider removing this in the future, since it grabs all .csv
+			#  files from ~\Documents
+			oldWD=os.path.join(os.getenv('HOMEPATH','C:\\Users\\Default'),'Documents')
+			if oldWD[1]!=":":
+				oldWD=os.getenv('HOMEDRIVE','C:')+oldWD
+
+			csvFiles+=glob.glob(oldWD+'/*.csv')
+
+			csvFiles=[f for f in csvFiles if '_clueLog' not in f and '_fleetsync' not in f and '_bak' not in f] # only show 'base' radiolog csv files
+			csvFiles=[self.isRadioLogDataFile(f) for f in csvFiles] # isRadioLogDataFile returns the first valid filename in the search path, or False if none are valid
+			csvFiles=[f for f in csvFiles if f] # get rid of 'False' return values from isRadioLogDataFile
+
+			#552 remove current session from the list
+			if omitCurrentSession:
+				csvFiles=[f for f in csvFiles if self.csvFileName not in f]
+
+			rprint('Found '+str(len(csvFiles))+' .csv files (excluding _clueLog, _fleetsync, and _bak csv files)')
+			if sort=='chronological':
+				sortedCsvFiles=sorted(csvFiles,key=os.path.getmtime,reverse=reverse)
+			elif sort=='alphabetical':
+				sortedCsvFiles=sorted(csvFiles,reverse=reverse)
+			else:
+				sortedCsvFiles=csvFiles
 		rval=[]
 		now=time.time()
 		for f in sortedCsvFiles:
@@ -1682,7 +1685,10 @@ class MyWindow(QDialog,Ui_Dialog):
 			# rprint('session:'+json.dumps(sessionDict,indent=3))
 			rval.append(sessionDict)
 			# rval.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase,mtime,clueNames])
-		return rval
+		if fromCsvFile:
+			return rval[0] # there should only be one item - return it as a dict rather than list of dicts
+		else:
+			return rval # return the whole list of dicts
 
 	# Build a nested list of radiolog session data from any sessions in the last n days;
 	#  each list element is [incident_name,last_op#,last_clue#,filename_base]
@@ -6664,7 +6670,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.crit2.exec_()
 			return
 		rprint('Restoring previous session after unclean shutdown:')
-		self.load(fileToLoad) # loads the radio log and the clue log
+		self.load(self.getSessions(fromCsvFile=fileToLoad)) # loads the radio log and the clue log
 		self.loadTeamNotes(os.path.join(os.path.dirname(fileToLoad),self.teamNotesFileName))
 		# hide warnings about missing fleetsync file, since it does not get saved until clean shutdown time
 		# note, there is no need to load the default table first, since the defaults would exist
