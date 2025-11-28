@@ -4717,7 +4717,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						csvWriter.writerow(["## end"])
 				rprint("  done writing "+fileName)
 
-	def load(self,fileName=None,bakAttempt=0):
+	def load(self,sessionToLoad=None,bakAttempt=0):
 		# loading scheme:
 		# always merge instead of overwrite; always use the loaded Begins line since it will be earlier by definition
 		# maybe provide some way to force overwrite later, but, for now that can be done just by exiting and restarting
@@ -4745,7 +4745,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		colCount=10
 		if self.useOperatorLogin:
 			colCount=11
-		if not fileName:
+		if not sessionToLoad:
 			sessions=self.getSessions(reverse=True,omitCurrentSession=True)
 			if not sessions:
 				rprint('There are no available sessions to load.')
@@ -4753,16 +4753,19 @@ class MyWindow(QDialog,Ui_Dialog):
 			ld=loadDialog(self)
 			ld.ui.theTable.setRowCount(len(sessions))
 			row=0
-			for [incidentName,lastOP,lastClue,ageStr,filenameBase,mtime,clueNames] in sessions:
-				q0=QTableWidgetItem(incidentName)
-				q1=QTableWidgetItem(lastOP)
-				q2=QTableWidgetItem(lastClue)
-				q3=QTableWidgetItem(time.strftime("%m/%d/%Y %H:%M:%S",time.localtime(mtime)))
-				q0.setToolTip(filenameBase)
-				q1.setToolTip(filenameBase)
-				q2.setToolTip(filenameBase)
-				q3.setToolTip(filenameBase)
-				q2.setData(Qt.UserRole,clueNames)
+			for session in sessions:
+				highestClueNumStr=str(self.getLastClueNumber(session['usedClueNames']))
+				if highestClueNumStr=='0':
+					highestClueNumStr='--'
+				q0=QTableWidgetItem(session['incidentName'])
+				q1=QTableWidgetItem(str(session['lastOP']))
+				q2=QTableWidgetItem(highestClueNumStr)
+				q3=QTableWidgetItem(time.strftime("%m/%d/%Y %H:%M:%S",time.localtime(session['mtime'])))
+				q0.setToolTip(session['filenameBase'])
+				q0.setData(Qt.UserRole,session)
+				q1.setToolTip(session['filenameBase'])
+				q2.setToolTip(session['filenameBase'])
+				q3.setToolTip(session['filenameBase'])
 				ld.ui.theTable.setItem(row,0,q0)
 				ld.ui.theTable.setItem(row,1,q1)
 				ld.ui.theTable.setItem(row,2,q2)
@@ -4773,6 +4776,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			rval=ld.exec_()
 
 		else: # entry point when session is selected from load dialog
+			filenameBase=sessionToLoad['filenameBase']
+			fileName=filenameBase+'.csv'
 			if bakAttempt:
 				fName=fileName.replace('.csv','_bak'+str(bakAttempt)+'.csv')
 				rprint('Loading backup: '+fName)
@@ -4787,18 +4792,24 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.teamTimer.start(10000) # pause
 			# pass 1: count total entries for the progress box, and read incident name
 			# rprint('pass1: '+fName)
+			self.incidentName=sessionToLoad['incidentName']
+			self.optionsDialog.ui.incidentField.setText(self.incidentName)
+			self.ui.incidentNameLabel.setText(self.incidentName)
+			rprint("loaded incident name: '"+self.incidentName+"'")
+			self.incidentNameNormalized=normName(self.incidentName)
+			rprint("normalized loaded incident name: '"+self.incidentNameNormalized+"'")
 			try: # in case the file is corrupted, i.e. after a power outage
 				with open(fName,'r') as csvFile:
 					csvReader=csv.reader(csvFile)
 					totalEntries=0
 					for row in csvReader:
-						if row[0].startswith("## Incident Name:"):
-							self.incidentName=row[0][18:]
-							self.optionsDialog.ui.incidentField.setText(self.incidentName)
-							rprint("loaded incident name: '"+self.incidentName+"'")
-							self.incidentNameNormalized=normName(self.incidentName)
-							rprint("normalized loaded incident name: '"+self.incidentNameNormalized+"'")
-							self.ui.incidentNameLabel.setText(self.incidentName)
+						# if row[0].startswith("## Incident Name:"):
+						# 	self.incidentName=row[0][18:]
+						# 	self.optionsDialog.ui.incidentField.setText(self.incidentName)
+						# 	rprint("loaded incident name: '"+self.incidentName+"'")
+						# 	self.incidentNameNormalized=normName(self.incidentName)
+						# 	rprint("normalized loaded incident name: '"+self.incidentNameNormalized+"'")
+						# 	self.ui.incidentNameLabel.setText(self.incidentName)
 						if not row[0].startswith('#'): # prune comment lines
 							if len(row)<9:
 								raise Exception('Row does not contain enough columns; the file may be corrupted.\n  File:'+fName+'\n  Row:'+str(row))
@@ -4809,7 +4820,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				rprint('  CSV could not be read: '+str(e))
 				if bakAttempt<5 and os.path.isfile(fileName.replace('.csv','_bak'+str(bakAttempt+1)+'.csv')):
 					rprint('Trying to load the next most recent backup file...')
-					self.load(fileName=fileName,bakAttempt=bakAttempt+1)
+					self.load(sessionToLoad=sessionToLoad,bakAttempt=bakAttempt+1)
 					progressBox.close()
 					return # to avoid running pass2 and subsequent code for the initial non-bak attempt
 				else:
@@ -4819,6 +4830,12 @@ class MyWindow(QDialog,Ui_Dialog):
 								QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 					bakMsgBox.exec_() # modal
 					return False # error
+				
+			if sessionToLoad['lastOP']!=self.opPeriod:
+				self.opPeriod=sessionToLoad['lastOP'] # don't increment - we're not continuing, we're just loading as-is
+				self.printDialog.ui.opPeriodComboBox.addItem(str(self.opPeriod))
+				rprint('Setting OP to '+str(self.opPeriod)+' based on loaded session.')
+
 			# pass 2: read and process the file
 			# rprint('pass2: '+fName)
 			with open(fName,'r') as csvFile:
@@ -4831,15 +4848,15 @@ class MyWindow(QDialog,Ui_Dialog):
 						row += [''] * (colCount-len(row)) # pad the row up to 10 or 11 elements if needed, to avoid index errors elsewhere
 						loadedRadioLog.append(row)
 						i=i+1
-						newOp=None
-						if row[3].startswith("Operational Period") and row[3].split()[3]=="Begins:":
-							newOp=int(row[3].split()[2])
-						if row[3].startswith('Radio Log Begins - Continued incident'):
-							newOp=int(row[3].split(': Operational Period ')[1].split()[0])
-						if newOp:
-							self.opPeriod=newOp
-							self.printDialog.ui.opPeriodComboBox.addItem(str(self.opPeriod))
-							rprint('Setting OP to '+str(self.opPeriod)+' based on loaded entry "'+row[3]+'".')
+						# newOp=None
+						# if row[3].startswith("Operational Period") and row[3].split()[3]=="Begins:":
+						# 	newOp=int(row[3].split()[2])
+						# if row[3].startswith('Radio Log Begins - Continued incident'):
+						# 	newOp=int(row[3].split(': Operational Period ')[1].split()[0])
+						# if newOp:
+						# 	self.opPeriod=newOp
+						# 	self.printDialog.ui.opPeriodComboBox.addItem(str(self.opPeriod))
+						# 	rprint('Setting OP to '+str(self.opPeriod)+' based on loaded entry "'+row[3]+'".')
 				csvFile.close()
 			progressBox.setValue(2)
 
@@ -4898,6 +4915,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	##		self.ui.tableView.model().layoutChanged.emit()
 
+			self.usedClueNames=sessionToLoad['usedClueNames']
 			# now load the clue log (same filename appended by .clueLog) if it exists
 			clueLogFileName=fileName.replace(".csv","_clueLog.csv")
 			# global lastClueNumber
@@ -4907,22 +4925,22 @@ class MyWindow(QDialog,Ui_Dialog):
 					csvReader=csv.reader(csvFile)
 	##				self.clueLog=[] # uncomment this line to overwrite instead of combine
 					for row in csvReader:
-						rprint(f'row:{row}')
+						# rprint(f'row:{row}')
 						if not row[0].startswith('#'): # prune comment lines
 							self.clueLog.append(row)
 							clueName=''
 							if row[0]!="":
 								clueName=row[0]
-							elif '(Last clue number: ' in row[1]:
-								clueName=row[1].split('(Last clue number: ')[1].replace(')','')
-							# deal with non-strictly-numeric clues (e.g. 23A): use the leading numeric part as lastClueNumber
-							# numericParts=re.findall(r'\d+',str(clueName))
-							# if numericParts:
-							# 	lastClueNumber=int(numericParts[0])
-							# # also put it in usedClueNames which won't be removed, even if the first new clue is canceled
-							# if str(lastClueNumber) not in usedClueNames:
-							# 	usedClueNames.append(str(lastClueNumber))
-							self.usedClueNames.append(clueName)
+							# elif '(Last clue number: ' in row[1]:
+							# 	clueName=row[1].split('(Last clue number: ')[1].replace(')','')
+							# # deal with non-strictly-numeric clues (e.g. 23A): use the leading numeric part as lastClueNumber
+							# # numericParts=re.findall(r'\d+',str(clueName))
+							# # if numericParts:
+							# # 	lastClueNumber=int(numericParts[0])
+							# # # also put it in usedClueNames which won't be removed, even if the first new clue is canceled
+							# # if str(lastClueNumber) not in usedClueNames:
+							# # 	usedClueNames.append(str(lastClueNumber))
+							# self.usedClueNames.append(clueName)
 					csvFile.close()
 			rprint(f'end of load clueLog: usedClueNames={self.usedClueNames}  last clue number={self.getLastClueNumber()}')
 
@@ -9941,19 +9959,19 @@ class loadDialog(QDialog,Ui_loadDialog):
 		#  there is a half second delay (singleshot) before callig it, but changing
 		#  the focus to something else does remove the focus rectangle immediately
 		self.ui.buttonBox.setFocus()
-		self.filenameBase=None
+		self.sessionToLoad=None
 		self.setFixedSize(self.size())
 
 	def accept(self):
-		if self.filenameBase:
-			self.parent.load(self.filenameBase+'.csv')
+		if self.sessionToLoad:
+			self.parent.load(self.sessionToLoad)
 			super(loadDialog,self).accept()
 
 	def reject(self):
 		super(loadDialog,self).reject()
 
 	def cellClicked(self,row,col):
-		self.filenameBase=self.ui.theTable.item(row,col).toolTip()
+		self.sessionToLoad=self.ui.theTable.item(row,0).data(Qt.UserRole)
 
 	def useBrowserClicked(self,*args):
 		fileDialog=QFileDialog()
