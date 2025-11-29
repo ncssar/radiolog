@@ -512,9 +512,26 @@ or on a separate paper or attachment.</string>
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>clueNumberField</sender>
+   <signal>editingFinished()</signal>
+   <receiver>nonRadioClueDialog</receiver>
+   <slot>clueNumberChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>661</x>
+     <y>32</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>682</x>
+     <y>69</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>clueQuickTextAction()</slot>
   <slot>clueQuickTextUndo()</slot>
+  <slot>clueNumberChanged()</slot>
  </slots>
 </ui>
