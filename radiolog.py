@@ -1147,7 +1147,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		clueCount=len(self.usedClueNames)
 		suffix=''
-		if clueCount==0:
+		if clueCount==0 and not restoreFlag: # don't add 'no clues' wording: it's confusing on restore, since it shows up as the most recent entry
 			usedCluesText='(No clues so far for this incident)'
 		else:
 			if clueCount>1:
@@ -4781,7 +4781,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			ld.raise_()
 			rval=ld.exec_()
 
-		else: # entry point when session is selected from load dialog
+		else: # entry point when session is specified (from load dialog, or continued incident dialog, or restore)
 			filenameBase=sessionToLoad['filenameBase']
 			fileName=filenameBase+'.csv'
 			if bakAttempt:
@@ -9397,6 +9397,26 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		self.closeEvent(QEvent(QEvent.Close),False)
 		super(nonRadioClueDialog,self).reject()
 
+	# Esc in the confirmation dialog will close the clue dialog anyway (event.ignore doesn't prevent closure for QDialog);
+	#  options are to switch to inheriting from QWidget instead, or to deal with things here in keyPressEvent;
+	#  from Google AI overview: confirmed that QWidget instead of QDialog treats Esc as desired,
+	#  but has other behavior changes i.e. has no accept() method:
+
+	# Dialog-Specific Behavior (ESC Key): If the window is a QDialog, pressing the Esc key automatically calls
+	# QDialog::reject(), which closes the dialog without triggering an ignorable closeEvent in some cases.
+	# Solution: For QDialog to handle the Esc key press, you may need to use an event filter or override the
+	# keyPressEvent method to manage the Esc key input manually, or consider using a plain QWidget instead
+	# if you need total control over closing behavior.
+
+	# not entirely sure why this is a sufficient fix, but, with this code, hitting esc twice leaves the dialog
+	#  open, as expected, i.e. it causes event.ignore to 'work as expected'
+	def keyPressEvent(self,event):
+		key=event.key()
+		if key==Qt.Key_Escape:
+			self.close() # calls closeEvent
+		else:
+			super().keyPressEvent(event)
+
 	def closeEvent(self,event,accepted=False):
 		# note, this type of messagebox is needed to show above all other dialogs for this application,
 		#  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
@@ -9405,6 +9425,8 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 			really=QMessageBox(QMessageBox.Warning,"Please Confirm","Close this Clue Report Form?\nIt cannot be recovered.",
 				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			really.setDefaultButton(QMessageBox.No)
+			really.show()
+			really.raise_()
 			if really.exec_()==QMessageBox.No:
 				event.ignore()
 				return
@@ -9461,10 +9483,12 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 			# self.parent.newEntry(self.values)
 			
 		# self.parent.nonRadioClueDialogIsOpen=False
+		rprint(f'open NRC count before decrement: {nonRadioClueDialog.openDialogCount}; len(instances)={len(nonRadioClueDialog.instances)}')
 		nonRadioClueDialog.openDialogCount-=1
+		nonRadioClueDialog.instances.remove(self)
+		rprint(f'open NRC count after decrement: {nonRadioClueDialog.openDialogCount}; len(instances)={len(nonRadioClueDialog.instances)}')
 		if nonRadioClueDialog.openDialogCount<1:
 			self.parent.nonRadioClueDialogIsOpen=False
-		nonRadioClueDialog.instances.remove(self)
 		rprint(f'end of NRC closeEvent: last clue number={self.parent.getLastClueNumber()}; usedClueNames={self.parent.usedClueNames}; nonRadioClueDialogIsOpen={self.parent.nonRadioClueDialogIsOpen}')
 # 	def reject(self):
 # ##		self.parent.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
