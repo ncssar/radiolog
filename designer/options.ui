@@ -6,9 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>653</width>
-    <height>340</height>
+    <width>595</width>
+    <height>560</height>
    </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
   </property>
   <property name="font">
    <font>
@@ -20,9 +26,6 @@
    <string>Options</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
-   <property name="sizeConstraint">
-    <enum>QLayout::SetFixedSize</enum>
-   </property>
    <item>
     <layout class="QFormLayout" name="formLayout">
      <property name="labelAlignment">
@@ -153,6 +156,22 @@
        </item>
       </widget>
      </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="timeoutLabel">
+       <property name="font">
+        <font>
+         <family>Segoe UI</family>
+         <pointsize>16</pointsize>
+        </font>
+       </property>
+       <property name="text">
+        <string>Timeout</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
      <item row="3" column="1">
       <widget class="QSlider" name="timeoutField">
        <property name="font">
@@ -190,22 +209,6 @@
        </property>
        <property name="tickInterval">
         <number>1</number>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="0">
-      <widget class="QLabel" name="timeoutLabel">
-       <property name="font">
-        <font>
-         <family>Segoe UI</family>
-         <pointsize>16</pointsize>
-        </font>
-       </property>
-       <property name="text">
-        <string>Timeout</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
        </property>
       </widget>
      </item>
@@ -266,6 +269,340 @@
     </layout>
    </item>
    <item>
+    <widget class="QGroupBox" name="caltopoGroupBox">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>14</pointsize>
+      </font>
+     </property>
+     <property name="title">
+      <string>CalTopo Integration</string>
+     </property>
+     <property name="checkable">
+      <bool>true</bool>
+     </property>
+     <property name="checked">
+      <bool>false</bool>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_3">
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="2,2,3">
+        <property name="spacing">
+         <number>6</number>
+        </property>
+        <item>
+         <widget class="QRadioButton" name="caltopoComButton">
+          <property name="font">
+           <font>
+            <pointsize>10</pointsize>
+           </font>
+          </property>
+          <property name="text">
+           <string>caltopo.com</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+          <attribute name="buttonGroup">
+           <string notr="true">buttonGroup</string>
+          </attribute>
+         </widget>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="caltopoDesktopButton">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>10</pointsize>
+           </font>
+          </property>
+          <property name="text">
+           <string>CalTopo Desktop</string>
+          </property>
+          <attribute name="buttonGroup">
+           <string notr="true">buttonGroup</string>
+          </attribute>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="ctdServerComboBox">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>10</pointsize>
+           </font>
+          </property>
+          <property name="editable">
+           <bool>true</bool>
+          </property>
+          <property name="currentText">
+           <string>localhost:8080</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0,4,0,7">
+        <property name="spacing">
+         <number>3</number>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QLabel" name="caltopoAccountAndFolderLabel">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>11</pointsize>
+           </font>
+          </property>
+          <property name="text">
+           <string>Account</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="caltopoAccountComboBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>11</pointsize>
+           </font>
+          </property>
+          <property name="currentText">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="caltopoFolderLabel">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>11</pointsize>
+           </font>
+          </property>
+          <property name="text">
+           <string>  Folder</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="caltopoFolderButton">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>11</pointsize>
+           </font>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">text-align:left;</string>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,7,2,0">
+        <item>
+         <widget class="QLabel" name="caltopoMapLabel">
+          <property name="font">
+           <font>
+            <pointsize>11</pointsize>
+           </font>
+          </property>
+          <property name="text">
+           <string>Map</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="CustomComboBox" name="caltopoMapNameComboBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>11</pointsize>
+           </font>
+          </property>
+          <property name="editable">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="caltopoMapIDField">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>11</pointsize>
+           </font>
+          </property>
+          <property name="placeholderText">
+           <string>ABCDEFG</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="caltopoLinkIndicator">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>40</width>
+            <height>24</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>30</width>
+            <height>24</height>
+           </size>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>10</pointsize>
+           </font>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QPushButton" name="caltopoOpenMapButton">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>14</pointsize>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>Click to Open Selected Map</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="Line" name="line_3">
+        <property name="font">
+         <font>
+          <pointsize>12</pointsize>
+         </font>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="caltopoRadioMarkersCheckBox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>12</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>Add / update radio location markers</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="caltopoWebBrowserCheckBox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>12</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>Open map in web browser</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
       <widget class="QPushButton" name="fsSendButton">
@@ -306,6 +643,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CustomComboBox</class>
+   <extends>QComboBox</extends>
+   <header>radiolog.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections>
   <connection>
@@ -315,8 +659,8 @@
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>492</x>
-     <y>352</y>
+     <x>444</x>
+     <y>497</y>
     </hint>
     <hint type="destinationlabel">
      <x>157</x>
@@ -331,8 +675,8 @@
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>560</x>
-     <y>352</y>
+     <x>444</x>
+     <y>497</y>
     </hint>
     <hint type="destinationlabel">
      <x>286</x>
@@ -347,8 +691,8 @@
    <slot>secondWorkingDirCB()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>263</x>
-     <y>263</y>
+     <x>273</x>
+     <y>201</y>
     </hint>
     <hint type="destinationlabel">
      <x>188</x>
@@ -363,8 +707,8 @@
    <slot>fsSendCB()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>22</x>
-     <y>323</y>
+     <x>52</x>
+     <y>497</y>
     </hint>
     <hint type="destinationlabel">
      <x>56</x>
@@ -379,12 +723,140 @@
    <slot>newEntryWarningCB()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>334</x>
-     <y>300</y>
+     <x>344</x>
+     <y>237</y>
     </hint>
     <hint type="destinationlabel">
      <x>302</x>
      <y>373</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>caltopoGroupBox</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoEnabledCB()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>61</x>
+     <y>271</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>437</x>
+     <y>248</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>caltopoRadioMarkersCheckBox</sender>
+   <signal>stateChanged(int)</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoEnabledCB()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>334</x>
+     <y>444</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>454</x>
+     <y>250</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>caltopoAccountComboBox</sender>
+   <signal>currentTextChanged(QString)</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoAccountComboBoxChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>185</x>
+     <y>342</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>449</x>
+     <y>431</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>caltopoMapIDField</sender>
+   <signal>textChanged(QString)</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoMapIDTextChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>483</x>
+     <y>375</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>450</x>
+     <y>321</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>caltopoMapNameComboBox</sender>
+   <signal>highlighted(int)</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoMapNameComboBoxHighlightChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>188</x>
+     <y>375</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>4</x>
+     <y>334</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>caltopoDesktopButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoServerChanged()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>208</x>
+     <y>297</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>374</x>
+     <y>150</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>caltopoFolderButton</sender>
+   <signal>pressed()</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoFolderButtonPressed()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>519</x>
+     <y>325</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>545</x>
+     <y>145</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>caltopoOpenMapButton</sender>
+   <signal>clicked()</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoOpenMapButtonClicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>142</x>
+     <y>402</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>34</x>
+     <y>151</y>
     </hint>
    </hints>
   </connection>
@@ -393,5 +865,18 @@
   <slot>secondWorkingDirCB()</slot>
   <slot>fsSendCB()</slot>
   <slot>newEntryWarningCB()</slot>
+  <slot>caltopoEnabledCB()</slot>
+  <slot>caltopoURLCB()</slot>
+  <slot>caltopoMapNameComboBoxChanged()</slot>
+  <slot>caltopoAccountComboBoxChanged()</slot>
+  <slot>caltopoMapIDTextChanged()</slot>
+  <slot>caltopoMapNameComboBoxHighlightChanged()</slot>
+  <slot>caltopoUpdateGUI()</slot>
+  <slot>caltopoServerChanged()</slot>
+  <slot>caltopoFolderButtonPressed()</slot>
+  <slot>caltopoOpenMapButtonClicked()</slot>
  </slots>
+ <buttongroups>
+  <buttongroup name="buttonGroup"/>
+ </buttongroups>
 </ui>
