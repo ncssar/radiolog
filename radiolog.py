@@ -336,7 +336,7 @@ from pygeodesy import Datums,ellipsoidalBase,dms
 from difflib import SequenceMatcher
 from caltopo_python import CaltopoSession
 
-__version__ = "3.13.1"
+__version__ = "3.14.0"
 
 # process command-line arguments
 develMode=False
@@ -453,7 +453,7 @@ comLog=False
 ##newEntryDialog_dx=30
 ##newEntryDialog_dy=30
 
-lastClueNumber=0
+# lastClueNumber=0
 
 ##quickTextList=[
 ##	["DEPARTING IC",Qt.Key_F1],
@@ -599,6 +599,91 @@ def getShortNiceTeamName(niceTeamName):
 
 def getFileNameBase(root):
 	return root+"_"+time.strftime("%Y_%m_%d_%H%M%S")
+
+def getClueNamesShorthand(clueNames):
+	# build a list of numbers mapped from clueNames: use the number if clueName is numeric, or 0 if non-numeric
+	numbers=[]
+	notNumbers=[]
+	for clueName in clueNames:
+		if isinstance(clueName,str) and clueName.isdigit():
+			numbers.append(int(clueName))
+		else:
+			notNumbers.append(clueName)
+	
+	# from Google AI Overview
+	# Ensure sorted order and unique elements
+	numbers = sorted(list(set(numbers)))
+	ranges = []
+	start = numbers[0]
+	
+	for i in range(1, len(numbers)):
+		# Check if the current number is consecutive to the previous one
+		if numbers[i] != numbers[i-1] + 1:
+			# If not, the current range has ended
+			ranges.append((start, numbers[i-1]))
+			start = numbers[i]
+			
+	# Append the last range after the loop finishes
+	ranges.append((start, numbers[-1]))
+
+	# convert ranges to shorthand
+	# e.g. ranges=[(1, 2), (5, 5), (7, 10), (13, 15), (42, 45)]
+	# shorthand=[str(first)+' thru '+str(last) for (first,last) in ranges]
+	shorthandList=[]
+	for (first,last) in ranges:
+		if first==last:
+			shorthandList.append(f'{first}')
+		elif last-first==1:
+			shorthandList+=[str(first),str(last)]
+		else:
+			# shorthandList.append(f'{first} thru {last}')
+			shorthandList.append(f'{first}-{last}')
+	shorthandList+=notNumbers
+	return ' '.join(shorthandList)
+	
+# callback called from both clueDialog and nonRadioClueDialog
+def clueNumberChanged(dialog,mainWindow):
+	# global usedClueNames
+	# global lastClueNumber
+	# rprint(f'changed t1: old="{dialog.clueName}" field="{dialog.ui.clueNumberField.text()}"')
+	newVal=dialog.ui.clueNumberField.text().rstrip()
+	if newVal!=dialog.clueName:
+		if not newVal or any(item.lower()==newVal.lower() for item in mainWindow.usedClueNames): # case insensitive list search, so 20a is disallowed if 20A exists
+			head='Clue Number Already Used'
+			msg=f'"{newVal}" is already used.  Enter a different clue number, or use the default.'
+			if not newVal:
+				head='Blank Clue Number is Not Allowed'
+				msg='Clue number must be specified.'
+			box=QMessageBox(QMessageBox.Critical,head,msg,QMessageBox.Close,dialog,
+				Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.open()
+			box.raise_()
+			box.exec_()
+			# set the field text back to the initial value; that will trigger this function again so make sure it falls through gracefully
+			dialog.ui.clueNumberField.setText(dialog.clueName)
+			dialog.ui.clueNumberField.setFocus()
+		else: # new value is unique
+			# remove dialog.clueName from usedClueNames, which was set at init and is the previous value of this field
+			mainWindow.usedClueNames.remove(dialog.clueName)
+			# add an automated entry
+			dialog.values=["" for n in range(10)]
+			dialog.values[0]=time.strftime("%H%M")
+			prefix=''
+			rprint(f'calling classname: {dialog.__class__.__name__}')
+			if 'nonRadio' in dialog.__class__.__name__:
+				prefix='NON-RADIO '
+			dialog.values[3]="RADIO LOG SOFTWARE: "+prefix+"CLUE NUMBER CHANGED FROM "+dialog.clueName+" to "+newVal
+			dialog.values[6]=time.time()
+			mainWindow.newEntry(dialog.values)
+			# then update dialog.clueName and usedClueNames
+			dialog.clueName=newVal
+			mainWindow.usedClueNames.append(dialog.clueName)
+	# rprint(f'changed t2: newVal="{newVal}";  field text="{dialog.ui.clueNumberField.text()}"')
+	if dialog.ui.clueNumberField.text() not in [dialog.clueName,newVal]: # clueName: if it was just set to the initial value; newVal: if trailing space was trimmed
+		# rprint('changed t3')
+		dialog.ui.clueNumberField.setText(newVal)
+	# rprint('changed t4')
+
 
 ###### LOGGING CODE BEGIN ######
 
@@ -1156,6 +1241,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# self.nonEmptyTabGroupCount=0
 		self.nonEmptyTabGroups=[]
 
+		self.usedClueNames=[]
 		# #483: Check for recent radiolog sessions on this computer.  If any sessions are found from the previous 4 days,
 		#  ask the operator if this new session is intended to be a continuation of one of those previous incidents.
 		#  If so:
@@ -1176,8 +1262,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		else:
 			rlInitText='Radio Log Begins: '
 		rlInitText+=self.incidentStartDate
-		if lastClueNumber>0:
-			rlInitText+=' (Last clue number: '+str(lastClueNumber)+')'
+
+		clueCount=len(self.usedClueNames)
+		suffix=''
+		if clueCount==0 and not restoreFlag: # don't add 'no clues' wording: it's confusing on restore, since it shows up as the most recent entry
+			usedCluesText='(No clues so far for this incident)'
+		else:
+			if clueCount>1:
+				suffix='s'
+			# clueNamesText=' '.join(self.usedClueNames)
+			clueNamesText=getClueNamesShorthand(self.usedClueNames)
+			usedCluesText='('+str(clueCount)+' clue'+suffix+' so far for this incident: '+clueNamesText+')'
+		rlInitText+=' '+usedCluesText
 		self.radioLog=[[time.strftime("%H%M"),'','',rlInitText,'','',time.time(),'','','',''],
 			['','','','','','',1e10,'','','','']] # 1e10 epoch seconds will keep the blank row at the bottom when sorted
 		rprint('Initial entry: '+rlInitText)
@@ -1536,39 +1632,43 @@ class MyWindow(QDialog,Ui_Dialog):
 				teamTable.setCurrentIndex(QModelIndex())
 				teamTable.clearFocus()
 
-	def getSessions(self,sort='chronological',reverse=False,omitCurrentSession=False):
-		csvFiles=glob.glob(self.firstWorkingDir+'/*/*.csv') # files nested in session dirs
-		# backwards compatibility: also list csv files saved flat in the working dir
-		csvFiles+=glob.glob(self.firstWorkingDir+'/*.csv')
-
-		# backwards compatibility: look in the old working directory too
-		#  copied code from radiolog.py before #522 dir structure overhaul;
-		#  could consider removing this in the future, since it grabs all .csv
-		#  files from ~\Documents
-		oldWD=os.path.join(os.getenv('HOMEPATH','C:\\Users\\Default'),'Documents')
-		if oldWD[1]!=":":
-			oldWD=os.getenv('HOMEDRIVE','C:')+oldWD
-
-		csvFiles+=glob.glob(oldWD+'/*.csv')
-
-		csvFiles=[f for f in csvFiles if '_clueLog' not in f and '_fleetsync' not in f and '_bak' not in f] # only show 'base' radiolog csv files
-		csvFiles=[self.isRadioLogDataFile(f) for f in csvFiles] # isRadioLogDataFile returns the first valid filename in the search path, or False if none are valid
-		csvFiles=[f for f in csvFiles if f] # get rid of 'False' return values from isRadioLogDataFile
-
-		#552 remove current session from the list
-		if omitCurrentSession:
-			csvFiles=[f for f in csvFiles if self.csvFileName not in f]
-
-		rprint('Found '+str(len(csvFiles))+' .csv files (excluding _clueLog, _fleetsync, and _bak csv files)')
-		if sort=='chronological':
-			sortedCsvFiles=sorted(csvFiles,key=os.path.getmtime,reverse=reverse)
-		elif sort=='alphabetical':
-			sortedCsvFiles=sorted(csvFiles,reverse=reverse)
+	def getSessions(self,sort='chronological',reverse=False,omitCurrentSession=False,fromCsvFile=None):
+		if fromCsvFile:
+			sortedCsvFiles=[fromCsvFile]
 		else:
-			sortedCsvFiles=csvFiles
+			csvFiles=glob.glob(self.firstWorkingDir+'/*/*.csv') # files nested in session dirs
+			# backwards compatibility: also list csv files saved flat in the working dir
+			csvFiles+=glob.glob(self.firstWorkingDir+'/*.csv')
+
+			# backwards compatibility: look in the old working directory too
+			#  copied code from radiolog.py before #522 dir structure overhaul;
+			#  could consider removing this in the future, since it grabs all .csv
+			#  files from ~\Documents
+			oldWD=os.path.join(os.getenv('HOMEPATH','C:\\Users\\Default'),'Documents')
+			if oldWD[1]!=":":
+				oldWD=os.getenv('HOMEDRIVE','C:')+oldWD
+
+			csvFiles+=glob.glob(oldWD+'/*.csv')
+
+			csvFiles=[f for f in csvFiles if '_clueLog' not in f and '_fleetsync' not in f and '_bak' not in f] # only show 'base' radiolog csv files
+			csvFiles=[self.isRadioLogDataFile(f) for f in csvFiles] # isRadioLogDataFile returns the first valid filename in the search path, or False if none are valid
+			csvFiles=[f for f in csvFiles if f] # get rid of 'False' return values from isRadioLogDataFile
+
+			#552 remove current session from the list
+			if omitCurrentSession:
+				csvFiles=[f for f in csvFiles if self.csvFileName not in f]
+
+			rprint('Found '+str(len(csvFiles))+' .csv files (excluding _clueLog, _fleetsync, and _bak csv files)')
+			if sort=='chronological':
+				sortedCsvFiles=sorted(csvFiles,key=os.path.getmtime,reverse=reverse)
+			elif sort=='alphabetical':
+				sortedCsvFiles=sorted(csvFiles,reverse=reverse)
+			else:
+				sortedCsvFiles=csvFiles
 		rval=[]
 		now=time.time()
 		for f in sortedCsvFiles:
+			rprint(f'processing file {f}...')
 			mtime=os.path.getmtime(f)
 			age=now-mtime
 			ageStr=''
@@ -1587,33 +1687,72 @@ class MyWindow(QDialog,Ui_Dialog):
 			if '_bak' in f:
 				filenameBase=f[:-9]
 			incidentName=None
-			lastOP='1' # if no entries indicate change in OP#, then initial OP is 1 by default
+			lastOP=1 # if no entries indicate change in OP#, then initial OP is 1 by default
+			clueNames=[]
 			lastClue='--'
-			with open(f,'r') as radioLog:
-				lines=radioLog.readlines()
-				# don't show files that have less than two entries
-				if len(lines)<6:
-					rprint('  not listing empty csv '+f)
-					continue
-				for line in lines:
-					if not incidentName and '## Incident Name:' in line:
-						incidentName=': '.join(line.split(': ')[1:]).rstrip() # provide for spaces and ': ' in incident name
-					# last clue# could be determined by an actual clue in the previous OP, but
-					#  should carry forward the last clue number from an earlier OP if no clues
-					#  were found in the most recent OP
-					if 'Radio Log Begins - Continued incident' in line and '(Last clue number:' in line:
-						lastClue=re.findall('(Last clue number: [0-9]+)',line)[-1].split()[3]
-					if 'CLUE#' in line and 'LOCATION:' in line and 'INSTRUCTIONS:' in line:
-						lastClue=re.findall('CLUE#[0-9]+:',line)[-1].split('#')[1][:-1]
-					if 'Operational Period ' in line:
-						lastOP=re.findall('Operational Period [0-9]+ Begins:',line)[-1].split()[2]
-			rval.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase,mtime])
-		return rval
+			clueLogFileName=f.replace('.csv','_clueLog.csv')
+			if os.path.isfile(clueLogFileName):
+				with open(clueLogFileName,'r') as csvFile:
+					csvReader=csv.reader(csvFile)
+	##				self.clueLog=[] # uncomment this line to overwrite instead of combine
+					for row in csvReader:
+						# rprint(f'row:{row}')
+						if not incidentName and '## Incident Name:' in row[0]:
+							incidentName=': '.join(row[0].split(': ')[1:]).rstrip() # provide for spaces and ': ' in incident name
+						if not row[0].startswith('#'): # ignore comment lines
+							# self.clueLog.append(row)
+							clueName=''
+							if row[0]!="":
+								clueName=row[0]
+							elif 'Operational Period ' in row[1]:
+								rprint(f't1: row[1]={row[1]}')
+								try:
+									lastOP=int(re.findall('Operational Period [0-9]+ Begins:',row[1])[-1].split()[2])
+								except Exception as e:
+									rprint(str(e)+'\nlastOP could not be parsed as an integer from text "'+row[1]+'"; assuming OP 1')
+								try:
+									# clueNames=row[1].split('(Last clue number: ')[1].replace(')','')
+									clueNames=re.findall('clues? so far for this incident: (.*?)\\)',row[1])[0].split()
+								except Exception as e:
+									# rprint(str(e)+'\nLast clue number was not included in Operational Period clue log entry; not recording any previous clues')
+									rprint(str(e)+'\nUsed clue name(s) not included in Operational Period clue log entry; not recording any previous clues')
+							if clueName:
+								clueNames.append(clueName)
+					csvFile.close()
+					outList=[]
+					rprint(f'pre-parsed clue names list: {clueNames}')
+					for clueName in clueNames:
+						if '-' in clueName: # numeric range
+							(first,last)=clueName.split('-')
+							print(f'clueName={clueName}  first={first}  last={last}')
+							outList+=[str(x) for x in range(int(first),int(last)+1)]
+						else: # signle numeric or non-numeric
+							outList.append(clueName)
+					clueNames=list(dict.fromkeys(outList)) # quickest way to remove duplicates while preserving order
+					rprint(f'parsed clue names list: {clueNames}')
+			else:
+				rprint(f'clue log file {clueLogFileName} not found or could not be opened')
+			sessionDict=({
+				'incidentName':incidentName,
+				'lastOP':lastOP,
+				'usedClueNames':clueNames,
+				'ageStr':ageStr,
+				'filenameBase':filenameBase,
+				'mtime':mtime})
+			# rprint('session:'+json.dumps(sessionDict,indent=3))
+			rval.append(sessionDict)
+			# rval.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase,mtime,clueNames])
+		if fromCsvFile:
+			return rval[0] # there should only be one item - return it as a dict rather than list of dicts
+		else:
+			return rval # return the whole list of dicts
 
 	# Build a nested list of radiolog session data from any sessions in the last n days;
 	#  each list element is [incident_name,last_op#,last_clue#,filename_base]
 	#  then let the user choose from these, or choose to start a new incident
-	# - only show the most recent OP of each incident, i.e. don't show both OP2 and OP1
+	# - only show the most recent OP of each incident, i.e. don't show both OP2 and OP1;
+	#    but do show multiple sessions of the same OP# if it's the greatest OP#
+	#    which might have happened due to operator error
 	# - add a note that the user can change OP and next clue# afterwards from the GUI
 	def checkForContinuedIncident(self):
 		continuedIncidentWindowDays=self.continuedIncidentWindowDays
@@ -1622,33 +1761,43 @@ class MyWindow(QDialog,Ui_Dialog):
 		opd={} # dictionary of most recent OP#'s per incident name
 		choices=[]
 		for session in self.getSessions(reverse=True):
-			[incidentName,lastOP,lastClue,ageStr,filenameBase,mtime]=session
-			rprint('session:'+str(session))
-			if now-mtime<continuedIncidentWindowSec:
-				if type(lastOP)==str and lastOP.isdigit() and int(lastOP)>int(opd.get(incidentName,0)):
+			# [incidentName,lastOP,lastClue,ageStr,filenameBase,mtime,clueNames]=session
+			rprint('session:'+json.dumps(session,indent=3))
+			incidentName=session['incidentName']
+			filenameBase=session['filenameBase']
+			if now-session['mtime']<continuedIncidentWindowSec:
+				lastOP=session['lastOP']
+				if lastOP>=opd.get(incidentName,0):
 					choices.append(session)
 					opd[incidentName]=lastOP
 				else:
-					rprint('  not listing '+incidentName+' OP '+lastOP+' ('+filenameBase+') since OP '+str(opd.get(incidentName,0))+' is already listed')
+					rprint(f'  not listing {incidentName} OP {lastOP} ({filenameBase}) since OP {opd.get(incidentName,0)} is already listed')
 			else:
 				break
 		if choices:
 			rprint('radiolog sessions from the last '+str(continuedIncidentWindowDays)+' days:')
 			rprint(' (hiding empty sessions; only showing the most recent session of continued incidents)')
 			for choice in choices:
-				rprint(choice[4])
+				rprint(choice['filenameBase'])
 			cd=continuedIncidentDialog(self)
 			cd.ui.theTable.setRowCount(len(choices))
 			row=0
 			for choice in choices:
-				q0=QTableWidgetItem(choice[0])
-				q1=QTableWidgetItem(choice[1])
-				q2=QTableWidgetItem(choice[2])
-				q3=QTableWidgetItem(choice[3])
+				# highestClueNumStr=str(choice['highestClueNumber'])
+				highestClueNumStr=str(self.getLastClueNumber(choice['usedClueNames']))
+				if highestClueNumStr=='0':
+					highestClueNumStr='--'
+				q0=QTableWidgetItem(choice['incidentName'])
+				q1=QTableWidgetItem(str(choice['lastOP']))
+				q2=QTableWidgetItem(highestClueNumStr)
+				q3=QTableWidgetItem(choice['ageStr'])
+				q0.setData(Qt.UserRole,choice) # store the entire dictionary in UserRole of col 0
 				# q0.setToolTip(choice[4])
 				# q1.setToolTip(choice[4])
 				# q2.setToolTip(choice[4])
-				q3.setToolTip(choice[4])
+				q3.setToolTip(choice['filenameBase'])
+				# store the full list of used clue names in the UserRole of the lastClue cell
+				# q2.setData(Qt.UserRole,choice['usedClueNames'])
 				cd.ui.theTable.setItem(row,0,q0)
 				cd.ui.theTable.setItem(row,1,q1)
 				cd.ui.theTable.setItem(row,2,q2)
@@ -2645,15 +2794,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		# otherwise, spawn a new entry dialog
 		found=False
 		widget=None
-		rprint('checking for existing open new entry tabs: callsign='+str(callsign)+' continueSec='+str(self.continueSec))
+		rprint(f'checking for existing open new entry tabs: fleet={fleet} dev={dev} callsign="{callsign}" continueSec={self.continueSec}')
 		for widget in newEntryWidget.instances:
-			rprint('checking against existing widget: to_from='+widget.ui.to_fromField.currentText()+' team='+widget.ui.teamField.text()+' lastModAge:'+str(widget.lastModAge))
+			rprint(f'checking against existing widget: fleet={widget.fleet} dev={widget.dev} to_from={widget.ui.to_fromField.currentText()} team="{widget.ui.teamField.text()}" lastModAge={widget.lastModAge}')
 			# #452 - do a case-insensitive and spaces-removed comparison, in case Sar 1 and SAR 1 both exist, or trans 1 and Trans 1 and TRANS1, etc.
 			#742 - don't open a new entry if the existing new entry widget has a child clue or subject dialog open
 			# if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ','') and widget.lastModAge<continueSec:
-			if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ',''):
+			if widget.ui.to_fromField.currentText()=="FROM" and (widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ','') or (widget.fleet==fleet and widget.dev==dev)):
 				if widget.lastModAge<self.continueSec:
-					rprint("  new entry widget is already open from this callsign within the 'continue time'")
+					rprint("  new entry widget is already open from this device or callsign within the 'continue time'")
 					found='continue'
 				elif widget.childDialogs:
 					rprint('  new entry widget is already open that has child dialog/s (clue or subject located)')
@@ -4893,7 +5042,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						csvWriter.writerow(["## end"])
 				rprint("  done writing "+fileName)
 
-	def load(self,fileName=None,bakAttempt=0):
+	def load(self,sessionToLoad=None,bakAttempt=0):
 		# loading scheme:
 		# always merge instead of overwrite; always use the loaded Begins line since it will be earlier by definition
 		# maybe provide some way to force overwrite later, but, for now that can be done just by exiting and restarting
@@ -4921,7 +5070,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		colCount=10
 		if self.useOperatorLogin:
 			colCount=11
-		if not fileName:
+		if not sessionToLoad:
 			sessions=self.getSessions(reverse=True,omitCurrentSession=True)
 			if not sessions:
 				rprint('There are no available sessions to load.')
@@ -4929,15 +5078,19 @@ class MyWindow(QDialog,Ui_Dialog):
 			ld=loadDialog(self)
 			ld.ui.theTable.setRowCount(len(sessions))
 			row=0
-			for [incidentName,lastOP,lastClue,ageStr,filenameBase,mtime] in sessions:
-				q0=QTableWidgetItem(incidentName)
-				q1=QTableWidgetItem(lastOP)
-				q2=QTableWidgetItem(lastClue)
-				q3=QTableWidgetItem(time.strftime("%m/%d/%Y %H:%M:%S",time.localtime(mtime)))
-				q0.setToolTip(filenameBase)
-				q1.setToolTip(filenameBase)
-				q2.setToolTip(filenameBase)
-				q3.setToolTip(filenameBase)
+			for session in sessions:
+				highestClueNumStr=str(self.getLastClueNumber(session['usedClueNames']))
+				if highestClueNumStr=='0':
+					highestClueNumStr='--'
+				q0=QTableWidgetItem(session['incidentName'])
+				q1=QTableWidgetItem(str(session['lastOP']))
+				q2=QTableWidgetItem(highestClueNumStr)
+				q3=QTableWidgetItem(time.strftime("%m/%d/%Y %H:%M:%S",time.localtime(session['mtime'])))
+				q0.setToolTip(session['filenameBase'])
+				q0.setData(Qt.UserRole,session)
+				q1.setToolTip(session['filenameBase'])
+				q2.setToolTip(session['filenameBase'])
+				q3.setToolTip(session['filenameBase'])
 				ld.ui.theTable.setItem(row,0,q0)
 				ld.ui.theTable.setItem(row,1,q1)
 				ld.ui.theTable.setItem(row,2,q2)
@@ -4947,7 +5100,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			ld.raise_()
 			rval=ld.exec_()
 
-		else: # entry point when session is selected from load dialog
+		else: # entry point when session is specified (from load dialog, or continued incident dialog, or restore)
+			filenameBase=sessionToLoad['filenameBase']
+			fileName=filenameBase+'.csv'
 			if bakAttempt:
 				fName=fileName.replace('.csv','_bak'+str(bakAttempt)+'.csv')
 				rprint('Loading backup: '+fName)
@@ -4962,18 +5117,17 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.teamTimer.start(10000) # pause
 			# pass 1: count total entries for the progress box, and read incident name
 			# rprint('pass1: '+fName)
+			self.incidentName=sessionToLoad['incidentName']
+			self.optionsDialog.ui.incidentField.setText(self.incidentName)
+			self.ui.incidentNameLabel.setText(self.incidentName)
+			rprint("loaded incident name: '"+self.incidentName+"'")
+			self.incidentNameNormalized=normName(self.incidentName)
+			rprint("normalized loaded incident name: '"+self.incidentNameNormalized+"'")
 			try: # in case the file is corrupted, i.e. after a power outage
 				with open(fName,'r') as csvFile:
 					csvReader=csv.reader(csvFile)
 					totalEntries=0
 					for row in csvReader:
-						if row[0].startswith("## Incident Name:"):
-							self.incidentName=row[0][18:]
-							self.optionsDialog.ui.incidentField.setText(self.incidentName)
-							rprint("loaded incident name: '"+self.incidentName+"'")
-							self.incidentNameNormalized=normName(self.incidentName)
-							rprint("normalized loaded incident name: '"+self.incidentNameNormalized+"'")
-							self.ui.incidentNameLabel.setText(self.incidentName)
 						if not row[0].startswith('#'): # prune comment lines
 							if len(row)<9:
 								raise Exception('Row does not contain enough columns; the file may be corrupted.\n  File:'+fName+'\n  Row:'+str(row))
@@ -4984,7 +5138,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				rprint('  CSV could not be read: '+str(e))
 				if bakAttempt<5 and os.path.isfile(fileName.replace('.csv','_bak'+str(bakAttempt+1)+'.csv')):
 					rprint('Trying to load the next most recent backup file...')
-					self.load(fileName=fileName,bakAttempt=bakAttempt+1)
+					self.load(sessionToLoad=sessionToLoad,bakAttempt=bakAttempt+1)
 					progressBox.close()
 					return # to avoid running pass2 and subsequent code for the initial non-bak attempt
 				else:
@@ -4994,6 +5148,15 @@ class MyWindow(QDialog,Ui_Dialog):
 								QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 					bakMsgBox.exec_() # modal
 					return False # error
+				
+			if sessionToLoad['lastOP']!=self.opPeriod:
+				self.opPeriod=sessionToLoad['lastOP'] # don't increment - we're not continuing, we're just loading as-is
+				self.printDialog.ui.opPeriodComboBox.addItem(str(self.opPeriod))
+				self.opPeriodDialog.ui.currentOpPeriodField.setText(str(self.opPeriod))
+				self.opPeriodDialog.ui.newOpPeriodField.setMinimum(self.opPeriod+1) # do this before setting the value, in case the new value is less than the old minimum
+				self.opPeriodDialog.ui.newOpPeriodField.setValue(self.opPeriod+1)
+				rprint('Setting OP to '+str(self.opPeriod)+' based on loaded session.')
+
 			# pass 2: read and process the file
 			# rprint('pass2: '+fName)
 			with open(fName,'r') as csvFile:
@@ -5006,15 +5169,6 @@ class MyWindow(QDialog,Ui_Dialog):
 						row += [''] * (colCount-len(row)) # pad the row up to 10 or 11 elements if needed, to avoid index errors elsewhere
 						loadedRadioLog.append(row)
 						i=i+1
-						newOp=None
-						if row[3].startswith("Operational Period") and row[3].split()[3]=="Begins:":
-							newOp=int(row[3].split()[2])
-						if row[3].startswith('Radio Log Begins - Continued incident'):
-							newOp=int(row[3].split(': Operational Period ')[1].split()[0])
-						if newOp:
-							self.opPeriod=newOp
-							self.printDialog.ui.opPeriodComboBox.addItem(str(self.opPeriod))
-							rprint('Setting OP to '+str(self.opPeriod)+' based on loaded entry "'+row[3]+'".')
 				csvFile.close()
 			progressBox.setValue(2)
 
@@ -5073,21 +5227,24 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	##		self.ui.tableView.model().layoutChanged.emit()
 
+			self.usedClueNames=sessionToLoad['usedClueNames']
 			# now load the clue log (same filename appended by .clueLog) if it exists
 			clueLogFileName=fileName.replace(".csv","_clueLog.csv")
-			global lastClueNumber
+			# global lastClueNumber
+			# global usedClueNames
 			if os.path.isfile(clueLogFileName):
 				with open(clueLogFileName,'r') as csvFile:
 					csvReader=csv.reader(csvFile)
 	##				self.clueLog=[] # uncomment this line to overwrite instead of combine
 					for row in csvReader:
+						# rprint(f'row:{row}')
 						if not row[0].startswith('#'): # prune comment lines
 							self.clueLog.append(row)
+							clueName=''
 							if row[0]!="":
-								lastClueNumber=int(row[0])
-							elif '(Last clue number: ' in row[1]:
-								lastClueNumber=int(row[1].split('(Last clue number: ')[1].replace(')',''))
+								clueName=row[0]
 					csvFile.close()
+			rprint(f'end of load clueLog: usedClueNames={self.usedClueNames}  last clue number={self.getLastClueNumber()}')
 
 			i=i+1
 			progressBox.setValue(i)
@@ -6776,7 +6933,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.sidebar.resizeEvent()
 
 	def addNonRadioClue(self):
-		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),lastClueNumber+1)
+		self.newNonRadioClueDialog=nonRadioClueDialog(self,time.strftime("%H%M"),str(self.getLastClueNumber()+1))
 		self.newNonRadioClueDialog.show()
 
 	def showInterviewPopup(self,parent):
@@ -6809,7 +6966,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.crit2.exec_()
 			return
 		rprint('Restoring previous session after unclean shutdown:')
-		self.load(fileToLoad) # loads the radio log and the clue log
+		self.load(self.getSessions(fromCsvFile=fileToLoad)) # loads the radio log and the clue log
 		self.loadTeamNotes(os.path.join(os.path.dirname(fileToLoad),self.teamNotesFileName))
 		# hide warnings about missing fleetsync file, since it does not get saved until clean shutdown time
 		# note, there is no need to load the default table first, since the defaults would exist
@@ -6829,10 +6986,10 @@ class MyWindow(QDialog,Ui_Dialog):
 	def newEntryWindowHiddenPopupClicked(self,event):
 		self.newEntryWindowHiddenPopup.close()
 		self.newEntryWindow.raiseWindowAndChildren()
-		if self.nonRadioClueDialogIsOpen:
-			self.newNonRadioClueDialog.raise_()
-			self.newNonRadioClueDialog.activateWindow()
-			self.newNonRadioClueDialog.throb()
+		for win in nonRadioClueDialog.instances:
+			win.raise_()
+			win.activateWindow()
+			win.throb()
 
 	def activationChange(self):
 		if self.useNewEntryWindowHiddenPopup:
@@ -6887,6 +7044,26 @@ class MyWindow(QDialog,Ui_Dialog):
 			new=current+1
 		target.newEntryWindow.ui.tabWidget.setCurrentIndex(new)
 
+	# getLastClueNumber: parse from usedClueNames by default,
+	#  or parse from a list of clue names passed as an argument if specified,
+	#  which is the case when previewing a list of sessions
+	def getLastClueNumber(self,theList=None):
+		if not theList:
+			theList=self.usedClueNames
+		# get just the numeric parts of usedClueNames
+		numbers=[]
+		for name in theList:
+			numericParts=re.findall(r'\d+',name)
+			if numericParts:
+				number=int(numericParts[0])
+				numbers.append(number)
+		numbers=list(dict.fromkeys(numbers)) # quickest way to remove duplicates while preserving sequence
+		if numbers:
+			m=max(numbers)
+		else:
+			m=0
+		rprint(f'used clue numbers: {numbers}  max:{m}')
+		return m
 	# since the folder creation request is non-blocking, but this method returns a value immediately,
 	#  it's likely that the return value will be None the first time this method is called
 	def getOrCreateRadioMarkerFID(self):
@@ -9487,7 +9664,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 	def quickTextClueAction(self): # do not push clues on the quick text stack, to make sure they can't be undone
 		rprint(str(self.clueDialogOpen))
 		if not self.clueDialogOpen: # only allow one open clue diolog at a time per radio log entry; see init and clueDialog init and closeEvent
-			self.newClueDialog=clueDialog(self,self.ui.timeField.text(),self.ui.teamField.text(),self.ui.radioLocField.toPlainText(),lastClueNumber+1)
+			self.newClueDialog=clueDialog(self,self.ui.timeField.text(),self.ui.teamField.text(),self.ui.radioLocField.toPlainText(),str(self.parent.getLastClueNumber()+1))
 			self.newClueDialog.show()
 
 	def quickTextSubjectLocatedAction(self,prefixText='',automatic=False):
@@ -10353,6 +10530,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		return [time,to_from,team,message,locString,status,self.sec,self.fleet,self.dev,self.origLocString]
 
 
+# usedClueNames=['1','2','3']
+# usedClueNames=[]
+		
+
 class clueDialog(QDialog,Ui_clueDialog):
 	instances=[]
 	openDialogCount=0
@@ -10402,17 +10583,21 @@ class clueDialog(QDialog,Ui_clueDialog):
 		#  is saved will have an incremented clue number.  May need to get fancier in terms
 		#  of releasing clue numbers on reject, but, don't worry about it for now - that's why
 		#  the clue number field is editable.
-		global lastClueNumber
-		lastClueNumber=newClueNumber
+		# global lastClueNumber
+		# lastClueNumber=int(newClueNumber)
+		self.clueName=str(newClueNumber) # initialize instance variable here, so that any changed clue name message will have access to the prior value
+		# global usedClueNames
+		self.parent.parent.usedClueNames.append(self.clueName)
 		self.parent.clueDialogOpen=True
 		clueDialog.openDialogCount+=1
 		self.values=self.parent.getValues()
 		amendText=''
-		amendText2=''
+		# amendText2=''
 		if self.parent.amendFlag:
 			amendText=' during amendment of previous message'
-			amendText2=', which will appear with that amended message when completed'
-		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' form opened"+amendText+"; radio operator is gathering details"+amendText2
+			# amendText2=', which will appear with that amended message when completed'
+		# self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' form opened"+amendText+"; radio operator is gathering details"+amendText2
+		self.values[3]="RADIO LOG SOFTWARE: CLUE FORM OPENED FOR CLUE#"+str(newClueNumber)+amendText
 ##		self.values[3]="RADIO LOG SOFTWARE: 'LOCATED A CLUE' button pressed for '"+self.values[2]+"'; radio operator is gathering details"
 ##		self.values[2]='' # this message is not actually from a team
 		self.parent.parent.newEntry(self.values)
@@ -10425,6 +10610,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.raise_()
 		self.palette=QPalette()
 		self.throb()
+		rprint(f'end of clueDialog init: usedClueNames={self.parent.parent.usedClueNames}  last clue number={self.parent.parent.getLastClueNumber()}')
 
 	def changeEvent(self,event):
 		if event.type()==QEvent.ActivationChange:
@@ -10585,9 +10771,23 @@ class clueDialog(QDialog,Ui_clueDialog):
 			if really.exec_()==QMessageBox.No:
 				event.ignore()
 				return
-			if clueDialog.openDialogCount==1:
-				global lastClueNumber
-				lastClueNumber=lastClueNumber-1 # only release the clue# if no other clue forms are open
+			currentClueName=self.ui.clueNumberField.text()
+
+			# release the clue name if appropriate (so it can be used again)
+			# if current clue name is strictly numberic (i.e. not '23A') and is the highest clue number so far, then it's safe to release it;
+			#  but if any higher clue numbers have been claimed (e.g. by other currently opened clue dialogs), this one needs to be 'voided';
+			#  if current clue name is not numeric (e.g. 23A), then never release it; the automated messages are a good audit trail anyway
+			# if clueDialog.openDialogCount==1:
+			if currentClueName.isnumeric() and int(currentClueName)>=self.parent.parent.getLastClueNumber():
+				# global lastClueNumber
+				# global usedClueNames
+				if currentClueName in self.parent.parent.usedClueNames:
+					self.parent.parent.usedClueNames.remove(currentClueName)
+				# if usedClueNames:
+				# 	lastClueNumber=usedClueNames[-1]
+				# else:
+				# 	lastClueNumber=0
+
 			self.values=self.parent.getValues()
 			amendText=''
 			if self.parent.amendFlag:
@@ -10595,7 +10795,8 @@ class clueDialog(QDialog,Ui_clueDialog):
 			description=self.ui.descriptionField.toPlainText()
 			location=self.ui.locationField.text()
 			instructions=self.ui.instructionsField.text()
-			canceledMessage='CLUE REPORT OPENED BUT CANCELED BY THE OPERATOR'+amendText+'.'
+			# canceledMessage='CLUE REPORT #'+currentClueName+' OPENED BUT CANCELED BY THE OPERATOR'+amendText+'.'
+			canceledMessage='CLUE FORM CANCELED FOR CLUE#'+currentClueName+amendText+';'
 			canceledMessagePart2=''
 			if description or location or instructions:
 				canceledMessage+='  CLUE REPORT DATA BEFORE CANCELATION: '
@@ -10607,7 +10808,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 				canceledMessagePart2+='INSTRUCTIONS="'+instructions+'" '
 			self.values[3]='RADIO LOG SOFTWARE: '+canceledMessage+canceledMessagePart2
 			if not canceledMessagePart2:
-				self.values[3]+='  (No data had been entered to the clue report before cancelation.)'
+				self.values[3]+='  No clue data had been entered before cancelation.'
 			self.parent.parent.newEntry(self.values)
 			#577 but also general good practice: copy any entered clue data back to the parent NED
 			msg=self.parent.ui.messageField.text()
@@ -10625,6 +10826,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		event.accept()
 		if accepted:
 			self.parent.accept()
+		rprint(f'end of closeEvent: usedClueNames={self.parent.parent.usedClueNames}  last clue number={self.parent.parent.getLastClueNumber()}')
 ##		newEntryWidget.instances.remove(self)
 
 	def clueQuickTextAction(self):
@@ -10656,8 +10858,13 @@ class clueDialog(QDialog,Ui_clueDialog):
 			self.ui.instructionsField.setText(rreplace(existingText,textToRemove,'',1))
 			self.ui.instructionsField.setFocus()
 
+	def clueNumberChanged(self):
+		clueNumberChanged(self,self.parent.parent) # shared callback with nonRadioClueDialog
+
 
 class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
+	openDialogCount=0
+	instances=[]
 	def __init__(self,parent,t,newClueNumber):
 		QDialog.__init__(self)
 		self.ui=Ui_nonRadioClueDialog()
@@ -10674,8 +10881,8 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		# values format for adding a new entry:
 		#  [time,to_from,team,message,self.formattedLocString,status,self.sec,self.fleet,self.dev,self.origLocString]
 		self.values=["" for n in range(10)]
-		self.values[0]=t
-		self.values[3]="RADIO LOG SOFTWARE: 'ADD NON-RADIO CLUE' button pressed; radio operator is gathering details"
+		self.values[0]=time.strftime("%H%M")
+		self.values[3]="RADIO LOG SOFTWARE: NON-RADIO CLUE FORM OPENED FOR CLUE#"+str(newClueNumber)
 		self.values[6]=time.time()
 		self.parent.newEntry(self.values)
 		self.setFixedSize(self.size())
@@ -10686,6 +10893,18 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		self.palette=QPalette()
 		self.throb()
 		self.parent.nonRadioClueDialogIsOpen=True
+		nonRadioClueDialog.openDialogCount+=1
+		nonRadioClueDialog.instances.append(self)
+		# save the clue number at init time, so that any new clueDialog opened before this one
+		#  is saved will have an incremented clue number.  May need to get fancier in terms
+		#  of releasing clue numbers on reject, but, don't worry about it for now - that's why
+		#  the clue number field is editable.
+		# global lastClueNumber
+		# lastClueNumber=newClueNumber
+		self.clueName=str(newClueNumber)
+		# global usedClueNames
+		self.parent.usedClueNames.append(self.clueName)
+		rprint(f'end of NRC init: last clue number={self.parent.getLastClueNumber()}; usedClueNames={self.parent.usedClueNames}')
 
 	def changeEvent(self,event):
 		if event.type()==QEvent.ActivationChange:
@@ -10735,8 +10954,10 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		clueTime=self.ui.timeField.text()
 		radioLoc=''
 		textToAdd=''
-		global lastClueNumber
-		lastClueNumber=int(self.ui.clueNumberField.text())
+		# previously, lastClueNumber was saved here - on accept; we need to save it on init instead, so that
+		#  multiple concurrent clueDialogs will not have the same clue number!
+		# global lastClueNumber
+		# lastClueNumber=int(self.ui.clueNumberField.text())
 		# header_labels=['CLUE#','DESCRIPTION','TEAM','TIME','DATE','OP','LOCATION','INSTRUCTIONS','RADIO LOC.']
 		clueData=[number,description,team,clueTime,clueDate,self.parent.opPeriod,location,instructions,radioLoc]
 		self.parent.clueLog.append(clueData)
@@ -10760,6 +10981,26 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		self.closeEvent(QEvent(QEvent.Close),False)
 		super(nonRadioClueDialog,self).reject()
 
+	# Esc in the confirmation dialog will close the clue dialog anyway (event.ignore doesn't prevent closure for QDialog);
+	#  options are to switch to inheriting from QWidget instead, or to deal with things here in keyPressEvent;
+	#  from Google AI overview: confirmed that QWidget instead of QDialog treats Esc as desired,
+	#  but has other behavior changes i.e. has no accept() method:
+
+	# Dialog-Specific Behavior (ESC Key): If the window is a QDialog, pressing the Esc key automatically calls
+	# QDialog::reject(), which closes the dialog without triggering an ignorable closeEvent in some cases.
+	# Solution: For QDialog to handle the Esc key press, you may need to use an event filter or override the
+	# keyPressEvent method to manage the Esc key input manually, or consider using a plain QWidget instead
+	# if you need total control over closing behavior.
+
+	# not entirely sure why this is a sufficient fix, but, with this code, hitting esc twice leaves the dialog
+	#  open, as expected, i.e. it causes event.ignore to 'work as expected'
+	def keyPressEvent(self,event):
+		key=event.key()
+		if key==Qt.Key_Escape:
+			self.close() # calls closeEvent
+		else:
+			super().keyPressEvent(event)
+
 	def closeEvent(self,event,accepted=False):
 		# note, this type of messagebox is needed to show above all other dialogs for this application,
 		#  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
@@ -10768,21 +11009,63 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 			really=QMessageBox(QMessageBox.Warning,"Please Confirm","Close this Clue Report Form?\nIt cannot be recovered.",
 				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			really.setDefaultButton(QMessageBox.No)
+			really.show()
+			really.raise_()
 			if really.exec_()==QMessageBox.No:
 				event.ignore()
 				return
+			currentClueName=self.ui.clueNumberField.text()
+			# if current clue name is strictly numberic (i.e. not '23A') and is the highest clue number so far, then it's safe to release it;
+			#  but if any higher clue numbers have been claimed (e.g. by other currently opened clue dialogs), this one needs to be 'voided';
+			#  if current clue name is not numeric (e.g. 23A), then never release it; the automated messages are a good audit trail anyway
+			# if clueDialog.openDialogCount==1:
+			if currentClueName.isnumeric() and int(currentClueName)>=self.parent.getLastClueNumber():
+				if currentClueName in self.parent.usedClueNames:
+					self.parent.usedClueNames.remove(currentClueName)
 			self.values=["" for n in range(10)]
-			self.values[0]=self.ui.timeField.text()
-			self.values[3]="RADIO LOG SOFTWARE: radio operator has canceled the 'NON-RADIO CLUE' form"
+			self.values[0]=time.strftime("%H%M")
 			self.values[6]=time.time()
+			# amendText=''
+			# if self.parent.amendFlag:
+			# 	amendText=' during amendment of previous message'
+			reportedBy=self.ui.callsignField.text()
+			description=self.ui.descriptionField.toPlainText()
+			location=self.ui.locationField.text()
+			instructions=self.ui.instructionsField.text()
+			# canceledMessage='CLUE REPORT #'+currentClueName+' OPENED BUT CANCELED BY THE OPERATOR'+amendText+'.'
+			# canceledMessage='NON-RADIO CLUE FORM CANCELED FOR CLUE#'+currentClueName+amendText+';'
+			canceledMessage='NON-RADIO CLUE FORM CANCELED FOR CLUE#'+currentClueName+';'
+			canceledMessagePart2=''
+			if reportedBy or description or location or instructions:
+				canceledMessage+='  CLUE REPORT DATA BEFORE CANCELATION: '
+			if reportedBy:
+				canceledMessagePart2+='REPORTED BY="'+reportedBy+'" '
+			if description:
+				canceledMessagePart2+='DESCRIPTION="'+description+'" '
+			if location:
+				canceledMessagePart2+='LOCATION="'+location+'" '
+			if instructions:
+				canceledMessagePart2+='INSTRUCTIONS="'+instructions+'" '
+			self.values[3]='RADIO LOG SOFTWARE: '+canceledMessage+canceledMessagePart2
+			if not canceledMessagePart2:
+				self.values[3]+='  No clue data had been entered before cancelation.'
 			self.parent.newEntry(self.values)
-		self.parent.nonRadioClueDialogIsOpen=False
+		rprint(f'open NRC count before decrement: {nonRadioClueDialog.openDialogCount}; len(instances)={len(nonRadioClueDialog.instances)}')
+		nonRadioClueDialog.openDialogCount-=1
+		nonRadioClueDialog.instances.remove(self)
+		rprint(f'open NRC count after decrement: {nonRadioClueDialog.openDialogCount}; len(instances)={len(nonRadioClueDialog.instances)}')
+		if nonRadioClueDialog.openDialogCount<1:
+			self.parent.nonRadioClueDialogIsOpen=False
+		rprint(f'end of NRC closeEvent: last clue number={self.parent.getLastClueNumber()}; usedClueNames={self.parent.usedClueNames}; nonRadioClueDialogIsOpen={self.parent.nonRadioClueDialogIsOpen}')
 # 	def reject(self):
 # ##		self.parent.timer.start(newEntryDialogTimeoutSeconds*1000) # reset the timeout
 # 		rprint("rejected - calling close")
 # 		# don't try self.close() here - it can cause the dialog to never close!  Instead use super().reject()
 # 		self.closeEvent(None)
 # 		super(nonRadioClueDialog,self).reject()
+
+	def clueNumberChanged(self):
+		clueNumberChanged(self,self.parent) # shared callback with clueDialog
 
 
 class clueLogDialog(QDialog,Ui_clueLogDialog):
@@ -11102,7 +11385,8 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 		self.setStyleSheet(globalStyleSheet)
 		self.parent=parent
 		self.ui.currentOpPeriodField.setText(str(parent.opPeriod))
-		self.ui.newOpPeriodField.setText(str(parent.opPeriod+1))
+		self.ui.newOpPeriodField.setMinimum(parent.opPeriod+1) # do this before setting the value, in case the new value is less than the old minimum
+		self.ui.newOpPeriodField.setValue(parent.opPeriod+1)
 		# self.setAttribute(Qt.WA_DeleteOnClose)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		self.setFixedSize(self.size())
@@ -11117,15 +11401,21 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 				if status == "At IC":
 					self.parent.deleteTeamTab(getNiceTeamName(extTeamName))
 
-		self.parent.opPeriod=int(self.ui.newOpPeriodField.text())
+		self.parent.opPeriod=self.ui.newOpPeriodField.value()
 		self.parent.ui.opPeriodButton.setText("OP "+str(self.parent.opPeriod))
 		opText="Operational Period "+str(self.parent.opPeriod)+" Begins: "+time.strftime("%a %b %d, %Y")
 		self.parent.newEntry([time.strftime("%H%M"),"","",opText,"","",time.time(),"",""])
 ##      clueData=[number,description,team,clueTime,clueDate,self.parent.parent.opPeriod,location,instructions,radioLoc]
 		self.parent.clueLog.append(['',opText,'',time.strftime("%H%M"),'','','','',''])
-		self.parent.printDialog.ui.opPeriodComboBox.addItem(self.ui.newOpPeriodField.text())
+		self.parent.printDialog.ui.opPeriodComboBox.addItem(str(self.ui.newOpPeriodField.value()))
 		super(opPeriodDialog,self).accept()
+	
+	def deselectAfterChange(self,e): # since QueuedConnection can't be specified in Qt Designer
+		QTimer.singleShot(100,self.deselectDeferred)
 		
+	def deselectDeferred(self):
+		self.ui.newOpPeriodField.lineEdit().deselect()
+
 	def toggleShow(self):
 		if self.isVisible():
 			self.hide()
@@ -11152,6 +11442,7 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 		self.incidentNameCandidate=''
 		self.lastOPCandidate=0
 		self.lastClueCandidate=0
+		self.usedClueNamesCandidate=[]
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
 		ciwd=self.parent.continuedIncidentWindowDays
@@ -11175,12 +11466,12 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 
 	def accept(self): # YES is clicked
 		self.parent.isContinuedIncident=True
-		self.parent.incidentName=self.incidentNameCandidate
+		self.parent.incidentName=self.sessionCandidate['incidentName']
 		self.parent.ui.incidentNameLabel.setText(self.parent.incidentName)
 		self.parent.optionsDialog.ui.incidentField.setText(self.parent.incidentName)
-		global lastClueNumber
-		lastClueNumber=self.lastClueCandidate
-		self.parent.opPeriod=self.lastOPCandidate+1
+		self.parent.usedClueNames=self.sessionCandidate['usedClueNames']
+		rprint(f'previously used clue names: {self.parent.usedClueNames}')
+		self.parent.opPeriod=self.sessionCandidate['lastOP']+1
 		self.parent.ui.opPeriodButton.setText("OP "+str(self.parent.opPeriod))
 		# radiolog entry and clue log entry are made by init code based on values set here
 		self.parent.printDialog.ui.opPeriodComboBox.setItemText(0,str(self.parent.opPeriod))
@@ -11199,20 +11490,13 @@ class continuedIncidentDialog(QDialog,Ui_continuedIncidentDialog):
 		# rprint('  selected row:'+str(self.ui.theTable.selectedIndexes()[0].row()))
 		if self.changed:
 			self.ui.yesButton.setEnabled(True)
-			self.incidentNameCandidate=self.ui.theTable.item(row,0).text()
-			self.lastOPCandidate=self.ui.theTable.item(row,1).text()
-			if self.lastOPCandidate.isnumeric():
-				self.lastOPCandidate=int(self.lastOPCandidate)
-			else:
-				self.lastOPCandidate=1
-			self.lastClueCandidate=self.ui.theTable.item(row,2).text()
-			if self.lastClueCandidate.isnumeric():
-				self.lastClueCandidate=int(self.lastClueCandidate)
-			else:
-				self.lastClueCandidate=0
-			self.ui.yesButton.setText('YES: Start a new OP of "'+self.incidentNameCandidate+'"\n(OP = '+str(self.lastOPCandidate+1)+'; next clue# = '+str(self.lastClueCandidate+1)+')')
+			session=self.ui.theTable.item(row,0).data(Qt.UserRole)
+			rprint('selected session:'+json.dumps(session,indent=3))
+			# self.ui.yesButton.setText('YES: Start a new OP of "'+session['incidentName']+'"\n(OP = '+str(session['lastOP']+1)+'; next clue# = '+str(session['highestClueNumber']+1)+')')
+			self.ui.yesButton.setText('YES: Start a new OP of "'+session['incidentName']+'"\n(OP = '+str(session['lastOP']+1)+'; next clue# = '+str(self.parent.getLastClueNumber(session['usedClueNames'])+1)+')')
 			self.ui.yesButton.setDefault(True)
 			self.changed=False
+			self.sessionCandidate=session
 		else:
 			self.ui.theTable.clearSelection()
 			self.ui.noButton.setDefault(True)
@@ -11253,19 +11537,19 @@ class loadDialog(QDialog,Ui_loadDialog):
 		#  there is a half second delay (singleshot) before callig it, but changing
 		#  the focus to something else does remove the focus rectangle immediately
 		self.ui.buttonBox.setFocus()
-		self.filenameBase=None
+		self.sessionToLoad=None
 		self.setFixedSize(self.size())
 
 	def accept(self):
-		if self.filenameBase:
-			self.parent.load(self.filenameBase+'.csv')
+		if self.sessionToLoad:
+			self.parent.load(self.sessionToLoad)
 			super(loadDialog,self).accept()
 
 	def reject(self):
 		super(loadDialog,self).reject()
 
 	def cellClicked(self,row,col):
-		self.filenameBase=self.ui.theTable.item(row,col).toolTip()
+		self.sessionToLoad=self.ui.theTable.item(row,0).data(Qt.UserRole)
 
 	def useBrowserClicked(self,*args):
 		fileDialog=QFileDialog()
@@ -11891,10 +12175,10 @@ class clueTableModel(QAbstractTableModel):
 			return QVariant()
 		try:
 			rval=QVariant(self.arraydata[index.row()][index.column()])
-		except:
+		except Exception as e:
 			row=index.row()
 			col=index.column()
-			rprint("Row="+str(row)+" Col="+str(col))
+			rprint(f'Exception in clueTableModel.data for row={row} col={col}:{e}')
 			rprint("arraydata:")
 			rprint(self.arraydata)
 		else:
@@ -11936,10 +12220,10 @@ class MyTableModel(QAbstractTableModel):
 			return QVariant()
 		try:
 			rval=QVariant(self.arraydata[index.row()][index.column()])
-		except:
+		except Exception as e:
 			row=index.row()
 			col=index.column()
-			rprint("Row="+str(row)+" Col="+str(col))
+			rprint(f'Exception in fsTableModel.data for row={row} col={col}:{e}')
 			rprint("arraydata:")
 			rprint(self.arraydata)
 		else:
@@ -12121,10 +12405,10 @@ class fsTableModel(QAbstractTableModel):
 			return QVariant()
 		try:
 			rval=QVariant(self.arraydata[index.row()][index.column()])
-		except:
+		except Exception as e:
 			row=index.row()
 			col=index.column()
-			rprint("Row="+str(row)+" Col="+str(col))
+			rprint(f'Exception in fsTableModel.data for row={row} col={col}:{e}')
 			rprint("arraydata:")
 			rprint(self.arraydata)
 		else:
