@@ -2644,15 +2644,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		# otherwise, spawn a new entry dialog
 		found=False
 		widget=None
-		rprint('checking for existing open new entry tabs: callsign='+str(callsign)+' continueSec='+str(self.continueSec))
+		rprint(f'checking for existing open new entry tabs: fleet={fleet} dev={dev} callsign="{callsign}" continueSec={self.continueSec}')
 		for widget in newEntryWidget.instances:
-			rprint('checking against existing widget: to_from='+widget.ui.to_fromField.currentText()+' team='+widget.ui.teamField.text()+' lastModAge:'+str(widget.lastModAge))
+			rprint(f'checking against existing widget: fleet={widget.fleet} dev={widget.dev} to_from={widget.ui.to_fromField.currentText()} team="{widget.ui.teamField.text()}" lastModAge={widget.lastModAge}')
 			# #452 - do a case-insensitive and spaces-removed comparison, in case Sar 1 and SAR 1 both exist, or trans 1 and Trans 1 and TRANS1, etc.
 			#742 - don't open a new entry if the existing new entry widget has a child clue or subject dialog open
 			# if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ','') and widget.lastModAge<continueSec:
-			if widget.ui.to_fromField.currentText()=="FROM" and widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ',''):
+			if widget.ui.to_fromField.currentText()=="FROM" and (widget.ui.teamField.text().lower().replace(' ','')==callsign.lower().replace(' ','') or (widget.fleet==fleet and widget.dev==dev)):
 				if widget.lastModAge<self.continueSec:
-					rprint("  new entry widget is already open from this callsign within the 'continue time'")
+					rprint("  new entry widget is already open from this device or callsign within the 'continue time'")
 					found='continue'
 				elif widget.childDialogs:
 					rprint('  new entry widget is already open that has child dialog/s (clue or subject located)')
