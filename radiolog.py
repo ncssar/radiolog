@@ -7140,6 +7140,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		aml=self.cts.getAllMapLists()
 		if not aml or not self.cts.accountData:
 			rprint('Account data is empty; disconnected')
+			box=QMessageBox(QMessageBox.Warning,"Disconnected","You have no connection to the CalTopo server.\n\nYou can close the Options dialog and continue to use RadioLog as normal.\n\nThe Options dialog will pop up again when connection is re-established.",
+				QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.show()
+			box.raise_()
 			self.caltopoDisconnectedCallback()
 			self.cts._sendRequest('get','[PING]',j=None,callbacks=[[self.caltopoReconnectedFromCreateCTS]])
 			return False
@@ -7173,6 +7177,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.optionsDialog.caltopoEnabledCB()
 			QCoreApplication.processEvents()
 			self.createCTS()
+			box=QMessageBox(QMessageBox.Information,"Reconnected","Connection to CalTopo server is re-established.",
+				QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.show()
+			box.raise_()
+			QCoreApplication.processEvents()
+			QTimer.singleShot(3000,box.close)
 		# if Caltopo Integration has been unckecked (regardless of whether the dialog is still open),
 		#  we aren't sure if the user wants to use it - so ask them.  If yes, then do as above.
 		else:
