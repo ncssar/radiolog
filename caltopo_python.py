@@ -271,7 +271,7 @@ class CaltopoSession():
         self.requestEvent=threading.Event()
 
         # the actual request thread
-        self.requestThread=threading.Thread(target=self._requestWorker,args=(self.requestEvent,),daemon=True)
+        self.requestThread=threading.Thread(target=self._requestWorker,args=(self.requestEvent,),daemon=True,name='requestThread')
 
         # # thread-safe locks for syncPause and disconnectedFlag, since those vars can be set and cleared by different threads
         # self.syncPauseLock=threading.Lock()
@@ -1307,7 +1307,7 @@ class CaltopoSession():
         if self.syncThreadStarted:
             logging.info('Caltopo sync is already running for map '+self.mapID+'.')
         else:
-            threading.Thread(target=self._syncLoop,daemon=True).start() # must be daemon, so that failed sync doesn't prevent program end
+            threading.Thread(target=self._syncLoop,daemon=True,name='syncThread').start() # must be daemon, so that failed sync doesn't prevent program end
             logging.info('Caltopo syncing initiated for map '+self.mapID+'.')
             self.syncThreadStarted=True
 
