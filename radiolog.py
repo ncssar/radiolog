@@ -3036,7 +3036,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				label=label or self.getRadioMarkerLabelForCallsign(callsign)
 				d=self.radioMarkerDict.get(deviceStr,None)
 				existingId=None
-				latestTimeString=timeStr or time.strftime('%H:%M:%S %b%d')
+				latestTimeString=timeStr or time.strftime('%H:%M:%S')
 				if d:
 					rprint('am1a: d["'+str(deviceStr)+'"]='+str(d))
 					existingId=d.get('caltopoId',None)
