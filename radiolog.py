@@ -3075,19 +3075,15 @@ class MyWindow(QDialog,Ui_Dialog):
 	def _radioMarkerWorker(self,event):
 		# when triggered by the event, iterate over all entries in radioMarkerDict (one entry per device)
 		#  and take the appropriate action on each entry:
-		#  - if caltopoId is None, the marker hasn't yet been created: call addMarker and set lastId to 'pending'; otherwise:
+		#  - if caltopoId is None, the marker hasn't yet been created: call addMarker; otherwise:
 		#  - if lastId is equal to (non-empty)caltopoId, it's already up to date - no action needed; otherwise:
-		#  - if lastId is 'pending', a request is in process - no action needed; otherwise:
-		#  - call editMarker to update lat, lon, label and set lastId to 'pending'
+		#  - call editMarker to update lat, lon, label
+		#
+		# In the event that a second incoming call for a device happens before a prior response is received for that
+		#  same device (if disconnected or just a slow connection) there's no problem: a second edit request is fine,
+		#  and a second addMarker request will be cleaned up in handleRadioMarkerResponse by deleting the earlier marker
 		#
 		# Note: we need to use a thread lock when editing radioMarkerDict since it's also edited in the main thread
-
-		# To prevent sending of multiple requests for the same device, e.g. if this method is triggered again before
-		#  receiveing the response for an earlier request for that same device, we need to keep track of 'pending'
-		#  status per device.
-		#  
-		# So, lastId is set to 'pending' when the caltopo add or edit request is sent, then is set to the feature ID during
-		#  handleRadioMarkerResponse, as confirmation that the caltopo request got a good response
 		# 
 		# if there is an open writable map, make or update the radio marker;
 		#   if unexpectedly disconnected, caltopo_python will take care of queueing it
@@ -3232,32 +3228,35 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  as long as this cleanup is performed after every new marker addition, multiple stale
 		#  markers should all be cleaned up because there will only be one after any given addition
 		deviceStr=kwargs['deviceStr']
-		prevHistory=[]
+		updateCaltopoIdFlag=False
+		# prevHistory=[]
 		if deviceStr in self.radioMarkerDict.keys():
-			oldId=self.radioMarkerDict[deviceStr]['caltopoId']
+			d=self.radioMarkerDict[deviceStr]
+			oldId=d['caltopoId']
 			if oldId and oldId!=kwargs['id']:
 				logging.info(' cleaning up stale radio marker for '+str(deviceStr)+'  id='+str(oldId))
 				self.cts.delMarker(oldId,blocking=False)
-			prevHistory=self.radioMarkerDict[deviceStr].get('history',[])
+				updateCaltopoIdFlag=True
+			# prevHistory=self.radioMarkerDict[deviceStr].get('history',[])
 
-		# newId=kwargs['existingId'] # preserve the id if this is not the first call from the device
-		# if not newId: # this must be the first call from the device
-		# 	newId=kwargs['id']
-		logging.info('hrmr2 - prevHistory='+str(prevHistory))
-		with self.radioMarkerDictLock:
-			d=self.radioMarkerDict[deviceStr]
-			d['lastId']=kwargs['id'] # flag to tell _radioMarkerWorker that this device's marker has been updated
-			if d['caltopoId'] is None:
-				d['caltopoId']=kwargs['id']
-			# self.radioMarkerDict[deviceStr]={
-			# 	'caltopoId': newId, # only set caltopoId if this is the first successful request
-			# 	'lastId': kwargs['id'],  # changed on every request: '' = fail on last attempt, real ID = success on last attempt
-			# 	'label': kwargs['label'],
-			# 	'latestTimeString': kwargs['latestTimeString'],
-			# 	'lat': kwargs['lat'],
-			# 	'lon': kwargs['lon'],
-			# 	'radioMarkerFID': kwargs['radioMarkerFID']
-			# }
+			# newId=kwargs['existingId'] # preserve the id if this is not the first call from the device
+			# if not newId: # this must be the first call from the device
+			# 	newId=kwargs['id']
+			# logging.info('hrmr2 - prevHistory='+str(prevHistory))
+			with self.radioMarkerDictLock:
+				# d=self.radioMarkerDict[deviceStr]
+				d['lastId']=kwargs['id'] # flag to tell _radioMarkerWorker that this device's marker has been updated
+				if d['caltopoId'] is None or updateCaltopoIdFlag:
+					d['caltopoId']=kwargs['id']
+				# self.radioMarkerDict[deviceStr]={
+				# 	'caltopoId': newId, # only set caltopoId if this is the first successful request
+				# 	'lastId': kwargs['id'],  # changed on every request: '' = fail on last attempt, real ID = success on last attempt
+				# 	'label': kwargs['label'],
+				# 	'latestTimeString': kwargs['latestTimeString'],
+				# 	'lat': kwargs['lat'],
+				# 	'lon': kwargs['lon'],
+				# 	'radioMarkerFID': kwargs['radioMarkerFID']
+				# }
 
 		logging.info('updated radioMarkerDict at end of handleRadioMarkerResponse:')
 		logging.info(json.dumps(self.radioMarkerDict,indent=3))
