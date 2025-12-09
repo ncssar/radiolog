@@ -1100,9 +1100,9 @@ class CaltopoSession():
                                             #  otherwise, replace the entire geometry value;
                                             #  this addresses the case where the first sync of a LiveTrack will be a Point rather than LineString
                                             fg=f['geometry']
-                                            logging.info(' new geometry:'+str(fg))
+                                            # logging.info(' new geometry:'+str(fg)) # this line causes HUGE log files due to apptracks
                                             mdsfg=self.mapData['state']['features'][i].get('geometry')
-                                            logging.info('prev geometry:'+str(mdsfg))
+                                            # logging.info('prev geometry:'+str(mdsfg)) # this line causes HUGE log files due to apptracks
                                             if fg and mdsfg and fg.get('incremental',None) and mdsfg.get('incremental',None):
                                                 mdsfgc=mdsfg['coordinates']
                                                 lastEntry=mdsfgc[-1]
@@ -1834,7 +1834,8 @@ class CaltopoSession():
         if blocking: # blocking request
             logging.info('_sendRequest: calling _handleResponse when blocking=True')
             rval=self._handleResponse(r,newMap,returnJson,callbacks=callbacks)
-            logging.info('_sendRequest: back from _handleResponse when blocking=True; rval='+str(rval))
+            # logging.info('_sendRequest: back from _handleResponse when blocking=True; rval='+str(rval))
+            logging.info('_sendRequest: back from _handleResponse when blocking=True')
             logging.info('f1: clearing syncPause')
             logging.info(' f1b: requestThread is alive: '+str(self.requestThread.is_alive()))
             self._syncPauseClear()
@@ -1898,6 +1899,7 @@ class CaltopoSession():
                 while not self.requestQueue.empty():
                     logging.info('  queue size at start of iteration:'+str(self.requestQueue.qsize()))
                     qr=self.requestQueue.get()
+                    # qr['url']+='badUrlToTriggerBadResponse' # for testing
                     method=qr['method']
                     urlEnd=qr['url'].split('/')[-1]
                     try:
@@ -2009,9 +2011,9 @@ class CaltopoSession():
                             logging.info('f6: clearing syncPause')
                             self._syncPauseClear() # resume sync immediately if response wasn't valid
                             logging.info('    response not valid; trying again in 5 seconds... '+str(qr.get('url')))
-                            logging.info('    r='+str(r))
-                            if r:
-                                logging.info('    r.status_code='+str(r.status_code))
+                            logging.info(f'    r={r.status_code}:{r.text}')
+                            # if r:
+                            #     logging.info('    r.status_code='+str(r.status_code))
                             if self.failedRequestCallback:
                                 self.failedRequestCallback(qr,r)
                             if not self.disconnectedFlag:
@@ -2050,14 +2052,18 @@ class CaltopoSession():
         self.badResponse=None
         if r.status_code!=200:
             self.badResponse=r
-            logging.info("response code = "+str(r.status_code))
+            try:
+                logging.warning(f'bad response: {r.status_code}:{r.text}')
+            except Exception as e:
+                logging.error(f'Exception while printing bad responsne: {e}')
 
         logging.info('inside handleResponse')
         # logging.info('r:'+str(r))
-        try:
-            logging.info('response json:'+json.dumps(r.json(),indent=3))
-        except:
-            logging.info('response had no decodable json')
+
+        # try: # this clause resulted in very large log files
+        #     logging.info('response json:'+json.dumps(r.json(),indent=3))
+        # except:
+        #     logging.info('response had no decodable json')
 
         # 'callbacks' argument structure: list of lists
         # each top-level element is a one-or-two-or-three-element list: [callable[,[positional_args][,{kwargs_dict}]]]

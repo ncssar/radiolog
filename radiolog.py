@@ -339,6 +339,18 @@ from caltopo_python import CaltopoSession
 
 __version__ = "3.14.0"
 
+# json dump, shortened to n lines
+def jd(j):
+    nLines=5
+    try:
+        lines=json.dumps(j,indent=3).splitlines()
+        str='\n'.join(lines[:nLines])
+        if len(lines)>nLines:
+            str+='  ...'
+        logging.info(str)
+    except Exception as e:
+        logging.info(f'exception while printing json "{j}": {e}')
+
 # process command-line arguments
 develMode=False
 noSend=False
@@ -7204,6 +7216,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.cts=CaltopoSession(domainAndPort=domainAndPort,
 								configpath=os.path.join(self.configDir,'cts.ini'),
 								account=self.caltopoAccountName,
+								syncInterval=10,syncTimeout=20, # reduce log file size and overzealous disconnects
 								deletedFeatureCallback=self.caltopoDeletedFeatureCallback,
 								disconnectedCallback=self.caltopoDisconnectedCallback,
 								reconnectedCallback=self.caltopoReconnectedCallback,
@@ -8622,7 +8635,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			# relsInFolder=[m for m in mapList if m['folderName']==(self.ui.caltopoFolderButton.text() or '<Top Level>')]
 			relsInFolder=[m for m in mapList if m['folderId']==folderId]
 			logging.info('relsInFolder:')
-			logging.info(json.dumps(relsInFolder,indent=3))
+			jd(relsInFolder) # print first n lines of json
 			# mapsNotBookmarks=[m for m in mapList if m['type']=='map' and m['folderName']==self.ui.caltopoFolderComboBox.currentText()]
 			# logging.info(' fcbc: mapsNotBookmarks:')
 			# logging.info(json.dumps(mapsNotBookmarks,indent=3))
