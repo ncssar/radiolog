@@ -5433,8 +5433,8 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def optionsAccepted(self):
 		tmp=self.optionsDialog.ui.incidentField.text()
-		if self.incidentName is not tmp:
-			logging.info('Incident name changed to "'+tmp+'".') # note that this gets called from code as well as GUI
+		if self.incidentName!=tmp:
+			logging.info(f'Incident name changed from "{self.incidentName}" to "{tmp}".') # note that this gets called from code as well as GUI
 			self.incidentName=self.optionsDialog.ui.incidentField.text()
 			self.updateFileNames()
 			# don't change the rc file at this point - wait until a log entry is actually saved
