@@ -8197,7 +8197,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			elif link==1:
 				txt='Click to Open Selected Map'
 			elif link==2:
-				txt='Map Opened - Click to Close'
+				txt='Map Opened - Click to Close Map'
 			elif link==-1:
 				txt='Offline - Attempting to Reconnect...'
 			elif link!=3: # leave as-is if in transition
@@ -8777,7 +8777,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.parent.caltopoOpenMapIsWritable=not self.caltopoSelectionIsReadOnly
 			self.parent.caltopoUpdateLinkIndicator()
 			self.caltopoUpdateGUI()
-			# self.ui.caltopoOpenMapButton.setText('Map Opened - Click to Close')
+			# self.ui.caltopoOpenMapButton.setText('Map Opened - Click to Close Map')
 			# self.caltopoGroupFieldsSetEnabled(False) # disallow map field changes while connected
 			# self.ui.caltopoOpenMapButton.setEnabled(True)
 			# QCoreApplication.processEvents()
@@ -10254,7 +10254,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			logging.info('accept: NEXEDGE uid='+str(uid))
 		# fix #459 (and other places in the code): remove all leading and trailing spaces, and change all chains of spaces to one space
 		newCallsign=re.sub(r' +',r' ',self.ui.teamField.text()).strip()
-		logging.info('changeCallsign for device "{deviceStr}": new callsign:{newCallsign}')
+		logging.info(f'changeCallsign for device "{deviceStr}": new callsign:{newCallsign}')
 		# change existing device entry if found, otherwise add a new entry
 		for n in range(len(self.parent.fsLookup)):
 			entry=self.parent.fsLookup[n]

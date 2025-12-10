@@ -2010,8 +2010,15 @@ class CaltopoSession():
                         else:
                             logging.info('f6: clearing syncPause')
                             self._syncPauseClear() # resume sync immediately if response wasn't valid
-                            logging.info('    response not valid; trying again in 5 seconds... '+str(qr.get('url')))
-                            logging.info(f'    r={r.status_code}:{r.text}')
+                            logging.warning('    response not valid; trying again in 5 seconds... '+str(qr.get('url')))
+                            try:
+                                # logging.info('f6a')
+                                # logging.info(f'f6a1 {r}')
+                                # logging.warning(f'    r={r.status_code} {r.text}') # this aborts the try clause gracefully but doesn't trigger the except clause
+                                # logging.info('f6b')
+                                logging.warning(f'  response: {r}')
+                            except Exception as e:
+                                logging.error(f'Exception during print of invalid response: {e} (r={r})')
                             # if r:
                             #     logging.info('    r.status_code='+str(r.status_code))
                             if self.failedRequestCallback:
