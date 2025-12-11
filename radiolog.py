@@ -3172,9 +3172,21 @@ class MyWindow(QDialog,Ui_Dialog):
 							if self.cts and self.caltopoLink in [-1,2]: # -1 = unexpected disconnect; 2 = connected to open map
 								self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
 								# since this is in a separate thread, we can do a wait loop until the folder ID is not None
-								while self.caltopoLink==2 and self.radioMarkerFID is None:
-									logging.info('  waiting for radioMarkerFID...')
-									time.sleep(1)
+								# while self.caltopoLink==2 and self.radioMarkerFID is None:
+
+								# this sleep causes the GUI to freeze.  Can't figure out why.  Google AI overview seems to think
+								#  the GIL may not be getting released correctly, but even if that's true, there's no way to
+								#  directly control it.  So: find another way to wait until the folder exists before adding markers.
+								# while self.radioMarkerFID is None: # this could be waiting a LONG time e.g. if disconnected
+								# 	logging.info('  waiting for radioMarkerFID...')
+								# 	time.sleep(1)
+
+								# removal of radioMarkerQueue - and simple reliance on just looking in radioMarkerDict -
+								#  means that we don't need to wait inside this loop for radioMarkerFID to exist - we can
+								#  just exit the loop using 'continue'; simply don't create any markers until the Radios folder exists
+								if not self.radioMarkerFID:
+									logging.warning('Radios folder does not exist yet; not creating any radio markers for now...')
+									continue
 								try:
 									# logging.info('  addMarker:  label='+str(label)+'  folderId='+str(self.radioMarkerFID))
 									logging.info(f'  addMarker:  label={label}')
@@ -7192,6 +7204,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	def setRadioMarkerFID(self,fid):
 		logging.info('addFolder callback triggered: setting radio FID to '+str(fid))
 		self.radioMarkerFID=fid
+		self.radioMarkerEvent.set() # start _radioMarkerWorker to process any markers that were skipped because FID wasn't set yet
 
 	def createCTS(self):
 		logging.info('createCTS called')
@@ -7351,6 +7364,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# self.optionsDialog.caltopoGroupFieldsSetEnabled(self.caltopoGroupFieldsPrevEnabled)
 		self.optionsDialog.caltopoUpdateGUI()
 		self.caltopoUpdateLinkIndicator()
+		self.radioMarkerEvent.set() # start _radioMarkerWorker to process any markers sent prior to map opening
 
 	def caltopoMapClosedCallback(self,response):
 		# THREAD WARNING - this is probably called from a different thread; don't try and GUI actions here
