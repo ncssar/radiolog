@@ -1897,7 +1897,9 @@ class CaltopoSession():
                 # self.syncPause=True # set pause here to avoid leaving it set
                 event.clear()
                 while not self.requestQueue.empty():
-                    logging.info('  queue size at start of iteration:'+str(self.requestQueue.qsize()))
+                    logging.info(f'  queue size at start of iteration: {self.requestQueue.qsize()}; getting (and removing) the next queue item for processing...')
+                    # .get() removes the item from the queue; that's OK because the keepTrying loop makes sure it gets processed;
+                    #   the only thing that ends the keepTrying loop is a 200 response
                     qr=self.requestQueue.get()
                     # qr['url']+='badUrlToTriggerBadResponse' # for testing
                     method=qr['method']
@@ -1948,6 +1950,7 @@ class CaltopoSession():
                             logging.info('    processing GET...')
                             try:
                                 while self.syncing: # wait until any current sync is finished
+                                    time.sleep(1)
                                     pass
                                 logging.info('p2: setting syncPause')
                                 self._syncPauseSet() # set pause here to avoid leaving it set
@@ -1966,6 +1969,7 @@ class CaltopoSession():
                             logging.info('    processing DELETE...')
                             try:
                                 while self.syncing: # wait until any current sync is finished
+                                    time.sleep(1)
                                     pass
                                 logging.info('p3: setting syncPause')
                                 self._syncPauseSet() # set pause here to avoid leaving it set
@@ -1996,7 +2000,7 @@ class CaltopoSession():
                                 # self._refresh(forceImmediate=True) # should be handled by the first callback of each request
                                 if self.reconnectedCallback:
                                     self.reconnectedCallback()
-                            logging.info('    200 response received; removing this request from the queue')
+                            logging.info('    200 response received; calling task_done to indicate that this item is complete')
                             self.requestQueue.task_done()
                             if self.requestQueueChangedCallback:
                                 self.requestQueueChangedCallback(self.requestQueue)
