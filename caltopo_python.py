@@ -3447,6 +3447,7 @@ class CaltopoSession():
             className=None,
             title=None,
             letter=None,
+            folderId=None,
             properties={},
             geometry={},
             timeout=0,
@@ -3572,6 +3573,9 @@ class CaltopoSession():
             else:
                 logging.info('ID and title both specified, but new title matches old title so will not be changed')
         if properties and isinstance(properties,dict):
+            # if folderId is specified, use it (instead of properties['folderId'] if specified)
+            if folderId is not None:
+                properties['folderId']=folderId
             keys=properties.keys()
             # propToWrite=feature['properties']
             for key in keys:

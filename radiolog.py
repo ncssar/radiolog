@@ -3214,6 +3214,7 @@ class MyWindow(QDialog,Ui_Dialog):
 										r=self.cts.editFeature(
 												id=existingId,
 												title=label,
+												folderId=self.radioMarkerFID, # in case a marker was moved to a different folder
 												# className='Marker',
 												geometry={'coordinates':[lon,lat,0,0]},
 												properties={'description':description},
@@ -7331,7 +7332,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		# logging.info('deleted callback: id='+str(id)+'  c='+str(c))
 		if id==self.radioMarkerFID:
 			logging.info("Caltopo 'Radios' folder was deleted; it will be recreated on the next radio marker call.")
-			self.radioMarkerFID=None # will force re-creation on the next marker call
+			# these two lines in conjuction will force re-creation on the next marker call
+			self.radioMarkerFID=None
+			self.radioMarkerFolderHasBeenRequested=False
+		# if a radio marker was deleted, force its recreation on the next incoming call from >any< device
+		#  (its timestamp is preserved since sendRadioMarker is only called by incoming radio calls)
+		matchingRadioMarkerDeviceStr=[deviceStr for deviceStr in self.radioMarkerDict.keys() if self.radioMarkerDict[deviceStr]['caltopoId']==id][0]
+		if matchingRadioMarkerDeviceStr:
+			self.radioMarkerDict[matchingRadioMarkerDeviceStr]['caltopoId']=None
+			self.radioMarkerDict[matchingRadioMarkerDeviceStr]['lastId']=None
 
 	def caltopoDisconnectedCallback(self):
 		# called from caltopo_python when unexpectedly disconnected
