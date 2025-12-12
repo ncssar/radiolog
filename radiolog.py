@@ -706,7 +706,8 @@ class LoggingFilter(logging.Filter):
 		# only show thread name if other than main thread
 		if record.threadName=='MainThread':
 			record.threadName=''
-		return record.levelno < logging.ERROR
+		# return record.levelno < logging.ERROR
+		return True # print all levels
 	
 # only print module name if it is other than radiolog
 class LoggingFormatter(logging.Formatter):
@@ -7196,10 +7197,14 @@ class MyWindow(QDialog,Ui_Dialog):
 				return fid
 		if self.radioMarkerFolderHasBeenRequested:
 			logging.info('No existing Radios folder found, but, one has already been requested, and should exist after reconnect; not requesting another one')
-		else:
-			logging.info('No existing Radios folder found, and none has yet been requested in this session; requesting one now...')
-			self.cts.addFolder('Radios',visible=False,callbacks=[[self.setRadioMarkerFID,['.result.id']]])
-			self.radioMarkerFolderHasBeenRequested=True
+		else: # only request a folder if a map is already open (even if disconnected)
+			if self.cts.mapID:
+				logging.info('No existing Radios folder found, and none has yet been requested in this session; requesting one now...')
+				self.cts.addFolder('Radios',visible=False,callbacks=[[self.setRadioMarkerFID,['.result.id']]])
+				logging.info('back from non-blocking folder request')
+				self.radioMarkerFolderHasBeenRequested=True
+			else:
+				logging.info('Radios folder not found and could not be requested because no map has been opened.')
 		return None
 
 	def setRadioMarkerFID(self,fid):
@@ -7373,7 +7378,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		# self.optionsDialog.caltopoGroupFieldsSetEnabled(self.caltopoGroupFieldsPrevEnabled)
 		self.optionsDialog.caltopoUpdateGUI()
 		self.caltopoUpdateLinkIndicator()
-		self.radioMarkerEvent.set() # start _radioMarkerWorker to process any markers sent prior to map opening
+		# start _radioMarkerWorker to process any markers sent to an open map while disconnected
+		#  (but this callback could be called before a map is open, in which case no markers will be sent)
+		self.radioMarkerEvent.set()
 
 	def caltopoMapClosedCallback(self,response):
 		# THREAD WARNING - this is probably called from a different thread; don't try and GUI actions here
