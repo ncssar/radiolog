@@ -3153,13 +3153,13 @@ class CaltopoSession():
 
     def _delFeatureCallback(self,id,className):
         logging.info(f'_delFeatureCallback called: removing {id} of class {className} from cache')
-        logging.info('mapData before:')
-        logging.info(json.dumps(self.mapData,indent=3))
+        # logging.info('mapData before:')
+        # logging.info(json.dumps(self.mapData,indent=3))
         self.mapData['state']['features'][:]=(f for f in self.mapData['state']['features'] if not(f['id']==id))
         if className in self.mapData['ids'].keys():
             self.mapData['ids'][className][:]=(f for f in self.mapData['ids'][className] if not f==id)
-        logging.info('mapData after:')
-        logging.info(json.dumps(self.mapData,indent=3))
+        # logging.info('mapData after:')
+        # logging.info(json.dumps(self.mapData,indent=3))
 
     # delFeatures - asynchronously send a batch of non-blocking delFeature requests
     #  featuresOrIdAndClassList - a list of dicts - entire features, or, two items per dict: 'id' and 'class'
