@@ -8227,6 +8227,13 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.caltopoLinkIndicator.setEnabled(e2)
 		self.ui.caltopoOpenMapButton.setEnabled(e and link in [1,2])
 		
+		max_accountname_width=0
+		fm=QFontMetrics(self.ui.caltopoAccountComboBox.font())
+		for i in range(self.ui.caltopoAccountComboBox.count()):
+			w=fm.width(self.ui.caltopoAccountComboBox.itemText(i))
+			max_accountname_width=max(max_accountname_width,w)
+		self.ui.caltopoAccountComboBox.view().setMinimumWidth(max_accountname_width+30)
+
 		# set the Open Map button text
 		txt=self.ui.caltopoOpenMapButton.text()
 		if e:
