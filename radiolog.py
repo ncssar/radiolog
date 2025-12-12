@@ -7299,7 +7299,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.optionsDialog.caltopoEnabledCB()
 			QCoreApplication.processEvents()
 			self.createCTS()
-			box=QMessageBox(QMessageBox.Information,"Reconnected","Connection to CalTopo server is re-established.",
+			box=QMessageBox(QMessageBox.Information,"Reconnected","Connection to CalTopo server is re-established.\n\nYou can open a map now if needed.",
 				QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			box.show()
 			box.raise_()
@@ -8111,6 +8111,14 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		#  saving from self.optionsAccepted causes errors because that function
 		#  is called during init, before the values are ready to save
 		self.parent.saveRcFile()
+		if self.ui.caltopoGroupBox.isChecked() and self.parent.caltopoLink==1:
+			box=QMessageBox(QMessageBox.Warning,"No map has been opeend","Did you mean to open a map before closing the Options dialog?",
+				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.show()
+			box.raise_()
+			if box.exec_()==QMessageBox.Yes: # leave the options dialog open
+				box.close()
+				return
 		super(optionsDialog,self).accept()
 		
 	def toggleShow(self):
