@@ -1256,8 +1256,9 @@ class CaltopoSession():
             # logging.info('sync marker: '+self.mapID+' end')
 
     # _refresh - update the cache (self.mapData) by calling _doSync once;
-    #   only relevant if sync is off; if the latest refresh is within the sync interval value (even when sync is off),
-    #   then don't do a refresh unless forceImmediate is True
+    #   normally not needed if sync is on, but can be used to catch any changes that may have
+    #   happened since the last regulard sync; if the latest refresh is within the sync
+    #   interval value (even when sync is off), then don't do a refresh unless forceImmediate is True
     #  since _doSync() would be called from this thread, it is always blocking
     def _refresh(self,forceImmediate=False):
         """Refresh the cache (.mapData).  **This method should not need to be called when sync is on.**

@@ -3109,6 +3109,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			event.wait()
 			logging.info('  _radioMarkerWorker: event received, processing begins...')
 			event.clear()
+			# #811 - refresh now, in case anything was deleted since the last regular sync;
+			#  to get the tightest correllation i.e. the most confidence that the cache is up to date,
+			#  we would need to refresh immediately before each call to getOrCreateRadioMarkerFID,
+			#  but just one refresh per event should be plenty.  This wil be a blocking refresh, but this is already
+			#  inside radioMarkerThread so it shouldn't affect main thread performance.
+			self.cts._refresh(forceImmediate=True) # in case anything was deleted since the last regular sync
 			with self.radioMarkerDictLock:
 				for (deviceStr,d) in self.radioMarkerDict.items(): # as long as we only read radioMarkerDict, there should be no need for a lock
 					# (caltopoId,lastId,label,latestTimeString,lat,lon,folderId)=(d.get(key,None) for key in ['caltopoId','lastId','label','latestTimeString','lat','lon','folderId'])
@@ -7180,6 +7186,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			m=0
 		logging.info(f'used clue numbers: {numbers}  max:{m}')
 		return m
+	
 	# since the folder creation request is non-blocking, but this method returns a value immediately,
 	#  it's likely that the return value will be None the first time this method is called
 	def getOrCreateRadioMarkerFID(self):
