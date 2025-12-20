@@ -336,6 +336,7 @@ from FingerTabs import *
 from pygeodesy import Datums,ellipsoidalBase,dms
 from difflib import SequenceMatcher
 from caltopo_python import CaltopoSession
+from pyqtspinner import WaitingSpinner
 
 __version__ = "3.14.0"
 
@@ -960,6 +961,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	_sig_caltopoReconnected=pyqtSignal()
 	_sig_caltopoReconnectedFromCreateCTS=pyqtSignal()
 	_sig_caltopoMapClosed=pyqtSignal()
+	# _sig_caltopoCreateCTSCB=pyqtSignal(bool)
 
 	def __init__(self,parent):
 		QDialog.__init__(self)
@@ -1632,6 +1634,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self._sig_caltopoReconnected.connect(self.caltopoReconnectedCallback_mainThread)
 		self._sig_caltopoReconnectedFromCreateCTS.connect(self.caltopoReconnectedFromCreateCTS_mainThread)
 		self._sig_caltopoMapClosed.connect(self.caltopoMapClosedCallback_mainThread)
+		# self._sig_caltopoCreateCTSCB.connect(self.caltopoCreateCTSCB_mainThread)
 
 		# # thread/queue/signal mechanism for radio markers, similar to the mechanism more requests in caltopo_python
 		# # thread-safe queue to hold marker requests
@@ -7221,6 +7224,7 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def createCTS(self):
 		logging.info('createCTS called')
+		time.sleep(5) # pause to show backgrounding effects - hopefully a spinner
 		# open a mapless caltopo.com session first, to get the list of maps; if URL is
 		#  already specified before the first createCTS call, then openMap will
 		#  be called after the mapless session is openend
@@ -7269,12 +7273,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		aml=self.cts.getAllMapLists()
 		if not aml or not self.cts.accountData:
 			logging.info('Account data is empty; disconnected')
-			box=QMessageBox(QMessageBox.Warning,"Disconnected","You have no connection to the CalTopo server.\n\nYou can close the Options dialog and continue to use RadioLog as normal.\n\nThe Options dialog will pop up again when connection is re-established.",
-				QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			box.show()
-			box.raise_()
-			self.caltopoDisconnectedCallback()
-			self.cts._sendRequest('get','[PING]',j=None,callbacks=[[self.caltopoReconnectedFromCreateCTS]])
+			# self._sig_caltopoDisconnectedFromCreateCTS.emit()
+			# box=QMessageBox(QMessageBox.Warning,"Disconnected","You have no connection to the CalTopo server.\n\nYou can close the Options dialog and continue to use RadioLog as normal.\n\nThe Options dialog will pop up again when connection is re-established.",
+			# 	QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			# box.show()
+			# box.raise_()
+			# self.caltopoDisconnectedCallback()
+			# self.cts._sendRequest('get','[PING]',j=None,callbacks=[[self.caltopoReconnectedFromCreateCTS]])
 			return False
 		self.caltopoMapListDicts=[noMatchDict]+aml
 		# logging.info('caltopoMapListDicts:')
@@ -7286,8 +7291,26 @@ class MyWindow(QDialog,Ui_Dialog):
 		logging.info('  end of createCTS')
 		return True
 	
+	# # def _createCTSWorker(self):
+	# # 	# runs in createCTSThread, in case it takes a while;
+	# # 	#  called from optiosnDialog.caltopoEnabledCB
+	# # 	# 1. createCTS
+	# # 	# 2. set an event indicating the mapless session has been opened
+	# # 	self._sig_caltopoCreateCTSCB.emit(self.createCTS())
+
+	# # def caltopoCreateCTSCB_mainThread(self,result):
+	# # 	logging.info('caltopoCreateCTSCB_mainThread called')
+	# # 	self.optionsDialog.pyqtspinner.stop()
+	# # 	if not result:
+	# # 		box=QMessageBox(QMessageBox.Warning,"Disconnected","You have no connection to the CalTopo server.\n\nYou can close the Options dialog and continue to use RadioLog as normal.\n\nThe Options dialog will pop up again when connection is re-established.",
+	# # 			QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+	# # 		box.show()
+	# # 		box.raise_()
+	# # 		self.caltopoDisconnectedCallback()
+	# # 		self.cts._sendRequest('get','[PING]',j=None,callbacks=[[self.caltopoReconnectedFromCreateCTS]])
+		
 	def caltopoReconnectedFromCreateCTS(self):
-		# THREAD WARNING: this function is probably not running in the main thread;
+		# THREAD WARNING: this function is probably not running in the main thread, since it's a callback in _sendRequest;
 		#  don't do any GUI calls here
 		# logging.info('back to life from createCTS')
 		self._sig_caltopoReconnectedFromCreateCTS.emit()
@@ -8010,6 +8033,87 @@ class caltopoFolderPopup(QDialog):
 		QApplication.processEvents()
 
 
+class caltopoCreateCTSThread(QThread):
+	finished=pyqtSignal(bool)
+
+	def __init__(self,parent):
+		QThread.__init__(self)
+		self.parent=parent
+		
+	def run(self):
+		logging.info('caltopoCreateCTSThread started')
+		# time.sleep(5) # pause to show backgrounding effects - hopefully a spinner
+		# open a mapless caltopo.com session first, to get the list of maps; if URL is
+		#  already specified before the first createCTS call, then openMap will
+		#  be called after the mapless session is openend
+		# logging.info('createCTS called:')
+		if self.parent.parent.cts is not None: # close out any previous session
+			# logging.info('Closing previous CaltopoSession')
+			# self.closeCTS()
+			logging.info('  cts is already open; returning')
+			return False
+			# self.ui.linkIndicator.setText("")
+			# self.updateLinkIndicator()
+			# self.link=-1
+			# self.updateFeatureList("Folder")
+			# self.updateFeatureList("Marker")
+		domainAndPort='caltopo.com'
+		if self.parent.ui.caltopoDesktopButton.isChecked():
+			domainAndPort=self.parent.ui.ctdServerComboBox.currentText()
+		logging.info('  creating mapless online session for user '+self.parent.parent.caltopoAccountName+' on server '+domainAndPort)
+		self.parent.parent.cts=CaltopoSession(domainAndPort=domainAndPort,
+								configpath=os.path.join(self.parent.parent.configDir,'cts.ini'),
+								account=self.parent.parent.caltopoAccountName,
+								syncInterval=10,syncTimeout=20, # reduce log file size and overzealous disconnects
+								deletedFeatureCallback=self.parent.parent.caltopoDeletedFeatureCallback,
+								disconnectedCallback=self.parent.parent.caltopoDisconnectedCallback,
+								reconnectedCallback=self.parent.parent.caltopoReconnectedCallback,
+								mapClosedCallback=self.parent.parent.caltopoMapClosedCallback)
+		logging.info('  starting visual delay...')
+		time.sleep(3) # visualize delay
+		logging.info('  back from CaltopoSession init')
+		noMatchDict={
+			'groupAccountTitle':'<Choose Acct>',
+			'mapList':[{
+				'id':'Top',
+				'title':'<Choose Map>',
+				'updated':0,
+				'type':'map',
+				'folderId':0,
+				'folderName':'<Top Level>'}]}
+		# try:
+		# 	aml=self.cts.getAllMapLists()
+		# except Exception as e:
+		# 	logging.info('exception from getAllMapLists: '+str(e))
+		# 	if 'Failed to resolve' in str(e):
+		# 		logging.info('  failed to resolve')
+		# 		self.caltopoDisconnectedCallback()
+		# 		self.cts._sendRequest('get','[PING]',j=None,callbacks=[[self.caltopoReconnectedFromCreateCTS]])
+		# 	return False
+		aml=self.parent.parent.cts.getAllMapLists()
+		if not aml or not self.parent.parent.cts.accountData:
+			logging.info('Account data is empty; disconnected')
+			# self._sig_caltopoDisconnectedFromCreateCTS.emit()
+			# box=QMessageBox(QMessageBox.Warning,"Disconnected","You have no connection to the CalTopo server.\n\nYou can close the Options dialog and continue to use RadioLog as normal.\n\nThe Options dialog will pop up again when connection is re-established.",
+			# 	QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			# box.show()
+			# box.raise_()
+			# self.caltopoDisconnectedCallback()
+			# self.cts._sendRequest('get','[PING]',j=None,callbacks=[[self.caltopoReconnectedFromCreateCTS]])
+			# return False
+			self.finished.emit(False)
+		self.parent.parent.caltopoMapListDicts=[noMatchDict]+aml
+		# logging.info('caltopoMapListDicts:')
+		# logging.info(json.dumps(self.caltopoMapListDicts,indent=3))
+		self.parent.parent.caltopoLink=1
+		# self.accountDataChanged.emit()
+		# self.linkChanged.emit() # mapless
+		# self.finished.emit()
+		logging.info('  end of createCTS')
+		# return True
+		self.finished.emit(True)
+
+
 class optionsDialog(QDialog,Ui_optionsDialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
@@ -8089,6 +8193,14 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.caltopoMapNameComboBox.setToolTip(self.mapToolTip)
 		# self.ui.caltopoMapNameComboBox.view().setToolTip(self.mapToolTip) # too intrusive
 		self.ui.caltopoLinkIndicator.setToolTip(caltopoIndicatorToolTip)
+		h=self.ui.caltopoGroupBox.height()
+		self.pyqtspinner=WaitingSpinner(self.ui.caltopoGroupBox,True,True,
+									radius=int(2*h),
+									line_length=h,
+									line_width=int(h/4))
+		# self.pyqtspinner.setRadius(int(self.ui.caltopoGroupBox.height()*0.75))
+		self.createCTSThread=caltopoCreateCTSThread(self)
+		self.createCTSThread.finished.connect(self.createCTSCB)
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
@@ -8288,17 +8400,25 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.caltopoUpdateGUI()
 		if e:
 			if self.parent.caltopoLink==0: # checkboxes enabled but not yet connected to a mapless session
-				# logging.info('calling createCTS')
-				# self.ui.caltopoOpenMapButton.setText('Getting account data...')
-				# self.ui.caltopoOpenMapButton.setEnabled(False)
+				logging.info('calling createCTS')
+				self.ui.caltopoOpenMapButton.setText('Getting account data...')
+				self.ui.caltopoOpenMapButton.setEnabled(False)
 				# QCoreApplication.processEvents()
-				if not self.parent.createCTS(): # false return from createCTS indicates failure
-					return False
+
+				# if not self.parent.createCTS(): # false return from createCTS indicates failure
+					# return False
+				
+				self.pyqtspinner.start()
+				self.createCTSThread.start()
+				# self.parent.createCTSThread=threading.Thread(target=self.parent._createCTSWorker,daemon=True,name='createCTSThread')
+				# self.parent.createCTSThread.start()
+				# self.parent.createCTSThread.join()
+				# self.pyqtspinner.stop()
 				# logging.info('createCTS completed')
 				# logging.info('caltopoMapListDicts:')
 				# logging.info(json.dumps(self.parent.caltopoMapListDicts,indent=3))
-				self.caltopoRedrawAccountData()
-				self.caltopoUpdateGUI()
+				# self.caltopoRedrawAccountData()
+				# self.caltopoUpdateGUI()
 				# self.ui.caltopoOpenMapButton.setText('Click to Open Selected Map')
 				# self.ui.caltopoOpenMapButton.setEnabled(True)
 		else:
@@ -8311,6 +8431,13 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 				self.parent.caltopoLink=2
 		self.caltopoUpdateGUI()
 		self.parent.caltopoUpdateLinkIndicator()
+
+	def createCTSCB(self,result):
+		logging.info(f'createCTSCB called with result={result}')
+		self.pyqtspinner.stop()
+		self.caltopoRedrawAccountData()
+		self.caltopoUpdateGUI()
+		self.show() # in case it was closed by the operator while spinning
 
 	# def caltopoEnabledCB(self): # called from stateChanged of group box AND of radio markers checkbox
 	# 	# if self.parent.caltopoLink>=0: # don't run any of this if currently unexpectedly disconnected
@@ -11594,7 +11721,7 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 # allow different justifications for different columns of qtableview
 # from https://stackoverflow.com/a/52644764
 from PyQt5 import QtCore,QtWidgets
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import QThread,pyqtSignal
 class alignCenterDelegate(QtWidgets.QStyledItemDelegate):
 	def initStyleOption(self,option,index):
 		super(alignCenterDelegate,self).initStyleOption(option,index)
