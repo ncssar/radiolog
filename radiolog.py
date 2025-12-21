@@ -1653,6 +1653,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.caltopoLinkIndicator.setToolTip(caltopoIndicatorToolTip)
 
 		self.createCTSThread=caltopoCreateCTSThread(self)
+		self.createCTSThread.setObjectName('caltopoCreateCTSThread')
 		self.createCTSThread.finished.connect(self.createCTSCB)
 
 	def clearSelectionAllTables(self):
@@ -7226,6 +7227,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.radioMarkerEvent.set() # start _radioMarkerWorker to process any markers that were skipped because FID wasn't set yet
 
 	def createCTS(self):
+		# this method runs in the main thread
 		# start the options dialog spinner (regardless of whether the dialog is open),
 		#  and do the real work in createCTSThread
 		self.optionsDialog.pyqtspinner.start()
@@ -7301,11 +7303,21 @@ class MyWindow(QDialog,Ui_Dialog):
 	# 	return True
 	
 	def createCTSCB(self,result):
+		# this method runs in the main thread
 		logging.info(f'createCTSCB called with result={result}')
-		self.optionsDialog.pyqtspinner.stop()
-		self.optionsDialog.caltopoRedrawAccountData()
-		self.optionsDialog.caltopoUpdateGUI()
-		self.optionsDialog.show() # in case it was closed by the operator while spinning
+		if result: # success
+			self.optionsDialog.pyqtspinner.stop()
+			self.optionsDialog.caltopoRedrawAccountData()
+			self.optionsDialog.caltopoUpdateGUI()
+			self.optionsDialog.show() # in case it was closed by the operator while spinning
+		else: # failure - loss of connection during createCTS
+			box=QMessageBox(QMessageBox.Warning,"Disconnected","You have no connection to the CalTopo server.\n\nYou can close the Options dialog and continue to use RadioLog as normal.\n\nThe Options dialog will pop up again when connection is re-established.",
+				QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.show()
+			box.raise_()
+			# self.optionsDialog.pyqtspinner.start()
+			self.caltopoDisconnectedCallback()
+			self.cts._sendRequest('get','[PING]',j=None,callbacks=[[self.caltopoReconnectedFromCreateCTS]])
 
 	# # def _createCTSWorker(self):
 	# # 	# runs in createCTSThread, in case it takes a while;
@@ -8119,6 +8131,7 @@ class caltopoCreateCTSThread(QThread):
 			# self.cts._sendRequest('get','[PING]',j=None,callbacks=[[self.caltopoReconnectedFromCreateCTS]])
 			# return False
 			self.finished.emit(False)
+			return False
 		self.parent.caltopoMapListDicts=[noMatchDict]+aml
 		# logging.info('caltopoMapListDicts:')
 		# logging.info(json.dumps(self.caltopoMapListDicts,indent=3))
@@ -8129,6 +8142,7 @@ class caltopoCreateCTSThread(QThread):
 		logging.info('  end of createCTS')
 		# return True
 		self.finished.emit(True)
+		return True
 
 
 class optionsDialog(QDialog,Ui_optionsDialog):
