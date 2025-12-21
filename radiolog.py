@@ -8226,9 +8226,11 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.caltopoLinkIndicator.setToolTip(caltopoIndicatorToolTip)
 		h=self.ui.caltopoGroupBox.height()
 		self.pyqtspinner=WaitingSpinner(self.ui.caltopoGroupBox,True,True,
-									radius=int(2*h),
-									line_length=h,
-									line_width=int(h/4))
+									roundness=50,
+									radius=int(h*1.5),
+									line_length=int(h*1.5),
+									lines=15,
+									line_width=int(h/3))
 		# self.pyqtspinner.setRadius(int(self.ui.caltopoGroupBox.height()*0.75))
 		# self.createCTSThread=caltopoCreateCTSThread(self)
 		# self.createCTSThread.finished.connect(self.createCTSCB)
