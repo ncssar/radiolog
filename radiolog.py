@@ -1652,9 +1652,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		# self.setupCaltopo()
 		self.ui.caltopoLinkIndicator.setToolTip(caltopoIndicatorToolTip)
 
+		# createCTS and openMap need to be done in QThreads so they don't block the waitingspinner
 		self.createCTSThread=caltopoCreateCTSThread(self)
-		self.createCTSThread.setObjectName('caltopoCreateCTSThread')
 		self.createCTSThread.finished.connect(self.createCTSCB)
+
+		self.openMapThread=caltopoOpenMapThread(self)
+		self.openMapThread.finished.connect(self.openMapCB)
 
 	def clearSelectionAllTables(self):
 		self.ui.tableView.setCurrentIndex(QModelIndex())
@@ -7376,6 +7379,34 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.optionsDialog.ui.caltopoGroupBox.setChecked(True)
 				self.caltopoReconnectedFromCreateCTS_mainThread()
 
+	def openMap(self):
+		# this method runs in the main thread
+		# start the options dialog spinner (regardless of whether the dialog is open),
+		#  and do the real work in openMapThread
+		self.optionsDialog.pyqtspinner.start()
+		self.openMapThread.start()
+	
+	def openMapCB(self,result):
+		# this method runs in the main thread
+		logging.info(f'openMapCB called with result={result}')
+		if result: # success
+			self.caltopoLink=2 # map opened and connected
+			self.caltopoOpenMapIsWritable=not self.optionsDialog.caltopoSelectionIsReadOnly
+			self.caltopoUpdateLinkIndicator()
+			# self.ui.caltopoOpenMapButton.setText('Map Opened - Click to Close Map')
+			# self.caltopoGroupFieldsSetEnabled(False) # disallow map field changes while connected
+			# self.ui.caltopoOpenMapButton.setEnabled(True)
+			# QCoreApplication.processEvents()
+			# self.parent.getOrCreateRadioMarkerFID() # call it now so that hopefully the folder exists before the first radio marker
+			# self.parent.caltopoProcessLatestMarkers() # add markers for any calls that were made before the map was opened
+			if self.caltopoOpenMapIsWritable:
+				self.radioMarkerEvent.set() # start _radioMarkerWorker to process any markers sent prior to map opening
+		else:
+			self.caltopoLink=1
+			logging.info('ERROR: could not open map '+str(self.ui.caltopoMapIDField.text()))
+		self.optionsDialog.caltopoUpdateGUI()
+		self.optionsDialog.pyqtspinner.stop()
+
 	def closeCTS(self):
 		logging.info('closeCTS called')
 		if self.cts:
@@ -8143,6 +8174,18 @@ class caltopoCreateCTSThread(QThread):
 		# return True
 		self.finished.emit(True)
 		return True
+
+
+class caltopoOpenMapThread(QThread):
+	finished=pyqtSignal(bool)
+
+	def __init__(self,parent):
+		QThread.__init__(self)
+		self.parent=parent
+
+	def run(self):
+		rval=self.parent.cts.openMap(self.parent.optionsDialog.ui.caltopoMapIDField.text())
+		self.finished.emit(rval)
 
 
 class optionsDialog(QDialog,Ui_optionsDialog):
@@ -8987,23 +9030,26 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# self.parent.fastTimer.timeout.connect(self.caltopoPrintTimer)
 
 		# self.CaltopoWorker.moveToThread(self.CaltopoThread)
-		if self.parent.cts.openMap(self.ui.caltopoMapIDField.text()):
-			self.parent.caltopoLink=2 # map opened and connected
-			self.parent.caltopoOpenMapIsWritable=not self.caltopoSelectionIsReadOnly
-			self.parent.caltopoUpdateLinkIndicator()
-			self.caltopoUpdateGUI()
-			# self.ui.caltopoOpenMapButton.setText('Map Opened - Click to Close Map')
-			# self.caltopoGroupFieldsSetEnabled(False) # disallow map field changes while connected
-			# self.ui.caltopoOpenMapButton.setEnabled(True)
-			# QCoreApplication.processEvents()
-			# self.parent.getOrCreateRadioMarkerFID() # call it now so that hopefully the folder exists before the first radio marker
-			# self.parent.caltopoProcessLatestMarkers() # add markers for any calls that were made before the map was opened
-			if self.parent.caltopoOpenMapIsWritable:
-				self.parent.radioMarkerEvent.set() # start _radioMarkerWorker to process any markers sent prior to map opening
-		else:
-			self.parent.caltopoLink=1
-			self.caltopoUpdateGUI()
-			logging.info('ERROR: could not open map '+str(self.ui.caltopoMapIDField.text()))
+
+		self.parent.openMap()
+
+		# if self.parent.cts.openMap(self.ui.caltopoMapIDField.text()):
+		# 	self.parent.caltopoLink=2 # map opened and connected
+		# 	self.parent.caltopoOpenMapIsWritable=not self.caltopoSelectionIsReadOnly
+		# 	self.parent.caltopoUpdateLinkIndicator()
+		# 	self.caltopoUpdateGUI()
+		# 	# self.ui.caltopoOpenMapButton.setText('Map Opened - Click to Close Map')
+		# 	# self.caltopoGroupFieldsSetEnabled(False) # disallow map field changes while connected
+		# 	# self.ui.caltopoOpenMapButton.setEnabled(True)
+		# 	# QCoreApplication.processEvents()
+		# 	# self.parent.getOrCreateRadioMarkerFID() # call it now so that hopefully the folder exists before the first radio marker
+		# 	# self.parent.caltopoProcessLatestMarkers() # add markers for any calls that were made before the map was opened
+		# 	if self.parent.caltopoOpenMapIsWritable:
+		# 		self.parent.radioMarkerEvent.set() # start _radioMarkerWorker to process any markers sent prior to map opening
+		# else:
+		# 	self.parent.caltopoLink=1
+		# 	self.caltopoUpdateGUI()
+		# 	logging.info('ERROR: could not open map '+str(self.ui.caltopoMapIDField.text()))
 
 	# def wrapper(self):
 	# 	self._caltopoOpenMapButtonClickedThread()
