@@ -7234,6 +7234,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		# start the options dialog spinner (regardless of whether the dialog is open),
 		#  and do the real work in createCTSThread
 		self.optionsDialog.pyqtspinner.start()
+		# QApplication.processEvents()
+		# if the operation takes more than 3 seconds, show the overlay label in the options dialog,
+		#  reminding the user that it's safe to close the options dialog
+		QTimer.singleShot(3000,lambda:
+					self.optionsDialog.caltopoUpdateOverlayLabel(
+						'<span style="font-size:24px;color:#44f;line-height:2">This is taking a while...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background<br>and the options dialog will pop up again when finished.</span>'))
+		# self.optionsDialog.caltopoUpdateOverlayLabel('<span style="font-size:24px">Big Text<br></span><span style="font-size:16px">Small Text</span>')
+		# QApplication.processEvents()
 		self.createCTSThread.start()
 		
 	# def createCTS(self):
@@ -7308,19 +7316,25 @@ class MyWindow(QDialog,Ui_Dialog):
 	def createCTSCB(self,result):
 		# this method runs in the main thread
 		logging.info(f'createCTSCB called with result={result}')
+		self.caltopoUpdateLinkIndicator()
 		if result: # success
 			self.optionsDialog.pyqtspinner.stop()
 			self.optionsDialog.caltopoRedrawAccountData()
 			self.optionsDialog.caltopoUpdateGUI()
 			self.optionsDialog.show() # in case it was closed by the operator while spinning
 		else: # failure - loss of connection during createCTS
-			box=QMessageBox(QMessageBox.Warning,"Disconnected","You have no connection to the CalTopo server.\n\nYou can close the Options dialog and continue to use RadioLog as normal.\n\nThe Options dialog will pop up again when connection is re-established.",
-				QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			box.show()
-			box.raise_()
-			# self.optionsDialog.pyqtspinner.start()
+			# box=QMessageBox(QMessageBox.Warning,"Disconnected","You have no connection to the CalTopo server.\n\nYou can close the Options dialog and continue to use RadioLog as normal.\n\nThe Options dialog will pop up again when connection is re-established.",
+			# 	QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			# box.show()
+			# box.raise_()
+			# immediately show the overlay label in the options dialog, reminding the user that it's safe to close the options dialog
+			self.optionsDialog.caltopoUpdateOverlayLabel(
+				'<span style="font-size:24px;color:#f44;line-height:2">No connection to CalTopo server...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background<br>and the options dialog will pop up again when finished.</span>')
+			self.optionsDialog.pyqtspinner.start()
 			self.caltopoDisconnectedCallback()
 			self.cts._sendRequest('get','[PING]',j=None,callbacks=[[self.caltopoReconnectedFromCreateCTS]])
+		self.optionsDialog.caltopoUpdateOverlayLabel(None)
+		# QCoreApplication.processEvents()
 
 	# # def _createCTSWorker(self):
 	# # 	# runs in createCTSThread, in case it takes a while;
@@ -7359,14 +7373,16 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.optionsDialog.raise_()
 			self.caltopoUpdateLinkIndicator()
 			self.optionsDialog.caltopoEnabledCB()
-			QCoreApplication.processEvents()
+			self.optionsDialog.caltopoUpdateOverlayLabel(
+				'<span style="font-size:24px;color:#2d2;line-height:2">Connection Established;<br>Getting Account Info...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background<br>and the options dialog will pop up again when finished.</span>')
+			# QCoreApplication.processEvents()
 			self.createCTS()
-			box=QMessageBox(QMessageBox.Information,"Reconnected","Connection to CalTopo server is re-established.\n\nYou can open a map now if needed.",
-				QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			box.show()
-			box.raise_()
-			QCoreApplication.processEvents()
-			QTimer.singleShot(3000,box.close)
+			# box=QMessageBox(QMessageBox.Information,"Reconnected","Connection to CalTopo server is re-established.\n\nYou can open a map now if needed.",
+			# 	QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			# box.show()
+			# box.raise_()
+			# QCoreApplication.processEvents()
+			# QTimer.singleShot(2000,self.optionsDialog.lambda:caltopoUpdateOverlayLabel(None))
 		# if Caltopo Integration has been unckecked (regardless of whether the dialog is still open),
 		#  we aren't sure if the user wants to use it - so ask them.  If yes, then do as above.
 		else:
@@ -7384,6 +7400,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		# start the options dialog spinner (regardless of whether the dialog is open),
 		#  and do the real work in openMapThread
 		self.optionsDialog.pyqtspinner.start()
+		# if the operation takes more than 3 seconds, show the overlay label in the options dialog,
+		#  reminding the user that it's safe to close the options dialog
+		QTimer.singleShot(3000,lambda:
+					self.optionsDialog.caltopoUpdateOverlayLabel(
+						'<span style="font-size:24px;color:#44f;line-height:2">This is taking a while...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background;<br>the link indicator will turn bright green when finished.</span>'))
 		self.openMapThread.start()
 	
 	def openMapCB(self,result):
@@ -7405,6 +7426,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.caltopoLink=1
 			logging.info('ERROR: could not open map '+str(self.ui.caltopoMapIDField.text()))
 		self.optionsDialog.caltopoUpdateGUI()
+		self.optionsDialog.caltopoUpdateOverlayLabel(None)
 		self.optionsDialog.pyqtspinner.stop()
 
 	def closeCTS(self):
@@ -8111,7 +8133,7 @@ class caltopoCreateCTSThread(QThread):
 			# logging.info('Closing previous CaltopoSession')
 			# self.closeCTS()
 			logging.info('  cts is already open; returning')
-			return False
+			return
 			# self.ui.linkIndicator.setText("")
 			# self.updateLinkIndicator()
 			# self.link=-1
@@ -8130,7 +8152,7 @@ class caltopoCreateCTSThread(QThread):
 								reconnectedCallback=self.parent.caltopoReconnectedCallback,
 								mapClosedCallback=self.parent.caltopoMapClosedCallback)
 		logging.info('  starting visual delay...')
-		time.sleep(3) # visualize delay
+		time.sleep(10) # visualize delay - otherwise we may never see caltopoOverlayLabel (which is fine!)
 		logging.info('  back from CaltopoSession init')
 		noMatchDict={
 			'groupAccountTitle':'<Choose Acct>',
@@ -8162,7 +8184,7 @@ class caltopoCreateCTSThread(QThread):
 			# self.cts._sendRequest('get','[PING]',j=None,callbacks=[[self.caltopoReconnectedFromCreateCTS]])
 			# return False
 			self.finished.emit(False)
-			return False
+			return
 		self.parent.caltopoMapListDicts=[noMatchDict]+aml
 		# logging.info('caltopoMapListDicts:')
 		# logging.info(json.dumps(self.caltopoMapListDicts,indent=3))
@@ -8173,7 +8195,6 @@ class caltopoCreateCTSThread(QThread):
 		logging.info('  end of createCTS')
 		# return True
 		self.finished.emit(True)
-		return True
 
 
 class caltopoOpenMapThread(QThread):
@@ -8185,6 +8206,8 @@ class caltopoOpenMapThread(QThread):
 
 	def run(self):
 		rval=self.parent.cts.openMap(self.parent.optionsDialog.ui.caltopoMapIDField.text())
+		logging.info('  starting visual delay...')
+		time.sleep(10) # visualize delay - otherwise we may never see caltopoOverlayLabel (which is fine!)
 		self.finished.emit(rval)
 
 
@@ -8277,6 +8300,13 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# self.pyqtspinner.setRadius(int(self.ui.caltopoGroupBox.height()*0.75))
 		# self.createCTSThread=caltopoCreateCTSThread(self)
 		# self.createCTSThread.finished.connect(self.createCTSCB)
+		self.overlayLabel=QLabel('Overlay Label',self) # parent=self so it stays enabled when groupbox is disabled
+		self.overlayLabel.setVisible(False)
+		self.overlayLabel.setFont(self.ui.caltopoOpenMapButton.font())
+		self.overlayLabel.setStyleSheet('QLabel {border:2px outset gray; padding: 5px; background-color:rgba(255,255,255,0.9)}')
+		self.overlayLabel.setAlignment(Qt.AlignCenter)
+		# self.overlayLabel.adjustSize()
+		# self.overlayLabel.move(int((self.width()/2)-(self.overlayLabel.width()/2)),int((self.height()/2)-(self.overlayLabel.height()/2)))
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
@@ -8456,6 +8486,27 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			
 		# processEvents, in case this is being called with other GUI actions
 		QCoreApplication.processEvents()
+
+	def caltopoUpdateOverlayLabel(self,text):
+		# self.overlayLabel.setText('<span style="font-size:24px">Big Text<br></span><span style="font-size:16px">Small Text</span>')
+		if text and self.isVisible() and self.pyqtspinner.is_spinning: # don't display if the spinner has already stopped
+			self.overlayLabel.setText(text)
+			# self.overlayLabel.move(200,400)
+			self.overlayLabel.adjustSize()
+			x=int((self.width()/2)-(self.overlayLabel.width()/2))
+			y=int(self.ui.caltopoGroupBox.pos().y()+(self.ui.caltopoGroupBox.height()/2)-(self.overlayLabel.height()/2))
+			self.overlayLabel.move(x,y)
+			self.overlayLabel.setVisible(True)
+			# QCoreApplication.processEvents()
+			# self.overlayLabel.update()
+		else:
+			self.overlayLabel.setVisible(False)
+
+	# def caltopoSetOverlayText(self):
+	# 	# this method runs in the main thread
+	# 	# called in a singleshot from createCTS
+	# 	if self.isVisible(): # only set the overlay text if the dialog is still open and createCTS is still running
+	# 		self.caltopoUpdateOverlayLabel('<span style="font-size:24px">Big Text<br></span><span style="font-size:16px">Small Text</span>')
 
 	def caltopoServerChanged(self): # called when any of the server-related fields have been clicked
 		# if a map is already open, confirm with the user that changing the server will close the map
