@@ -7319,6 +7319,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.caltopoUpdateLinkIndicator()
 		if result: # success
 			self.optionsDialog.pyqtspinner.stop()
+			self.optionsDialog.caltopoUpdateOverlayLabel(None)
 			self.optionsDialog.caltopoRedrawAccountData()
 			self.optionsDialog.caltopoUpdateGUI()
 			self.optionsDialog.show() # in case it was closed by the operator while spinning
@@ -7327,13 +7328,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			# 	QMessageBox.Close,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			# box.show()
 			# box.raise_()
+			self.optionsDialog.pyqtspinner.start()
 			# immediately show the overlay label in the options dialog, reminding the user that it's safe to close the options dialog
 			self.optionsDialog.caltopoUpdateOverlayLabel(
 				'<span style="font-size:24px;color:#f44;line-height:2">No connection to CalTopo server...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background<br>and the options dialog will pop up again when finished.</span>')
-			self.optionsDialog.pyqtspinner.start()
 			self.caltopoDisconnectedCallback()
 			self.cts._sendRequest('get','[PING]',j=None,callbacks=[[self.caltopoReconnectedFromCreateCTS]])
-		self.optionsDialog.caltopoUpdateOverlayLabel(None)
 		# QCoreApplication.processEvents()
 
 	# # def _createCTSWorker(self):
