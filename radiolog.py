@@ -960,6 +960,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	_sig_caltopoDisconnected=pyqtSignal()
 	_sig_caltopoReconnected=pyqtSignal()
 	_sig_caltopoReconnectedFromCreateCTS=pyqtSignal()
+	_sig_caltopoReconnectedFromOpenMap=pyqtSignal()
 	_sig_caltopoMapClosed=pyqtSignal()
 	# _sig_caltopoCreateCTSCB=pyqtSignal(bool)
 
@@ -1633,6 +1634,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self._sig_caltopoDisconnected.connect(self.caltopoDisconnectedCallback_mainThread)
 		self._sig_caltopoReconnected.connect(self.caltopoReconnectedCallback_mainThread)
 		self._sig_caltopoReconnectedFromCreateCTS.connect(self.caltopoReconnectedFromCreateCTS_mainThread)
+		self._sig_caltopoReconnectedFromOpenMap.connect(self.caltopoReconnectedFromOpenMap_mainThread)
 		self._sig_caltopoMapClosed.connect(self.caltopoMapClosedCallback_mainThread)
 		# self._sig_caltopoCreateCTSCB.connect(self.caltopoCreateCTSCB_mainThread)
 
@@ -7374,7 +7376,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.caltopoUpdateLinkIndicator()
 			self.optionsDialog.caltopoEnabledCB()
 			self.optionsDialog.caltopoUpdateOverlayLabel(
-				'<span style="font-size:24px;color:#2d2;line-height:2">Connection Established;<br>Getting Account Info...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background<br>and the options dialog will pop up again when finished.</span>')
+				'<span style="font-size:24px;color:#0a0;line-height:2">Connection Established;<br>Getting Account Info...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background<br>and the options dialog will pop up again when finished.</span>')
 			# QCoreApplication.processEvents()
 			self.createCTS()
 			# box=QMessageBox(QMessageBox.Information,"Reconnected","Connection to CalTopo server is re-established.\n\nYou can open a map now if needed.",
@@ -7422,12 +7424,31 @@ class MyWindow(QDialog,Ui_Dialog):
 			# self.parent.caltopoProcessLatestMarkers() # add markers for any calls that were made before the map was opened
 			if self.caltopoOpenMapIsWritable:
 				self.radioMarkerEvent.set() # start _radioMarkerWorker to process any markers sent prior to map opening
-		else:
+			self.optionsDialog.caltopoUpdateGUI()
+			self.optionsDialog.caltopoUpdateOverlayLabel(None)
+			self.optionsDialog.pyqtspinner.stop()
+		# else: # failure - loss of connection during openMap
+		# 	self.caltopoLink=1
+		# 	logging.info('ERROR: could not open map '+str(self.optionsDialog.ui.caltopoMapIDField.text()))
+		else: # failure - loss of connection during openMap
 			self.caltopoLink=1
-			logging.info('ERROR: could not open map '+str(self.ui.caltopoMapIDField.text()))
-		self.optionsDialog.caltopoUpdateGUI()
-		self.optionsDialog.caltopoUpdateOverlayLabel(None)
-		self.optionsDialog.pyqtspinner.stop()
+			self.cts.closeMap() # close now, to stop sync attempts etc, since reconnect will trigger openMap
+			logging.info('ERROR: could not open map '+str(self.optionsDialog.ui.caltopoMapIDField.text()))
+			self.optionsDialog.pyqtspinner.start()
+			# immediately show the overlay label in the options dialog, reminding the user that it's safe to close the options dialog
+			self.optionsDialog.caltopoUpdateOverlayLabel(
+				'<span style="font-size:24px;color:#f44;line-height:2">No connection to CalTopo server...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background<br>the link indicator will turn bright green when finished.</span>')
+			self.caltopoDisconnectedCallback()
+			self.cts._sendRequest('get','[PING]',j=None,callbacks=[[self.caltopoReconnectedFromOpenMap]])
+		
+	def caltopoReconnectedFromOpenMap(self):
+		# called as a _sendRequest callback from the PING request
+		# THREAD WARNING: this function is probably not running in the main thread, since it's a callback in _sendRequest;
+		#  don't do any GUI calls here
+		self._sig_caltopoReconnectedFromOpenMap.emit()
+
+	def caltopoReconnectedFromOpenMap_mainThread(self):
+		self.openMap()
 
 	def closeCTS(self):
 		logging.info('closeCTS called')
@@ -8151,8 +8172,8 @@ class caltopoCreateCTSThread(QThread):
 								disconnectedCallback=self.parent.caltopoDisconnectedCallback,
 								reconnectedCallback=self.parent.caltopoReconnectedCallback,
 								mapClosedCallback=self.parent.caltopoMapClosedCallback)
-		logging.info('  starting visual delay...')
-		time.sleep(10) # visualize delay - otherwise we may never see caltopoOverlayLabel (which is fine!)
+		# logging.info('  starting visual delay...')
+		# time.sleep(10) # visualize delay - otherwise we may never see caltopoOverlayLabel (which is fine!)
 		logging.info('  back from CaltopoSession init')
 		noMatchDict={
 			'groupAccountTitle':'<Choose Acct>',
@@ -8205,10 +8226,12 @@ class caltopoOpenMapThread(QThread):
 		self.parent=parent
 
 	def run(self):
+		logging.info(f'about to call cts.openMap: apiVersion={self.parent.cts.apiVersion}  mapID={self.parent.cts.mapID}  caltopoLink={self.parent.caltopoLink}')
 		rval=self.parent.cts.openMap(self.parent.optionsDialog.ui.caltopoMapIDField.text())
-		logging.info('  starting visual delay...')
-		time.sleep(10) # visualize delay - otherwise we may never see caltopoOverlayLabel (which is fine!)
-		self.finished.emit(rval)
+		logging.info(f'return from cts.openMap:{rval} apiVersion={self.parent.cts.apiVersion}  mapID={self.parent.cts.mapID}  caltopoLink={self.parent.caltopoLink}')
+		self.finished.emit(self.parent.caltopoLink>0) # emit False if failed due to disconnect etc.
+		# logging.info('  starting visual delay...')
+		# time.sleep(10) # visualize delay - otherwise we may never see caltopoOverlayLabel (which is fine!)
 
 
 class optionsDialog(QDialog,Ui_optionsDialog):
