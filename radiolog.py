@@ -7402,6 +7402,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		# start the options dialog spinner (regardless of whether the dialog is open),
 		#  and do the real work in openMapThread
 		self.optionsDialog.pyqtspinner.start()
+		# clear the radios folder variables, to avoid unnamed folder if one map is closed then another is open
+		self.radioMarkerFID=None
+		self.radioMarkerFolderHasBeenRequested=False
 		# if the operation takes more than 3 seconds, show the overlay label in the options dialog,
 		#  reminding the user that it's safe to close the options dialog
 		QTimer.singleShot(3000,lambda:
