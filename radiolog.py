@@ -7405,6 +7405,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		# clear the radios folder variables, to avoid unnamed folder if one map is closed then another is open
 		self.radioMarkerFID=None
 		self.radioMarkerFolderHasBeenRequested=False
+		# clear existing radio marker IDs, to avoid attempts to edit markers whose IDs only exist in a previously open map;
+		#  this also means that all devices will generate markers on the newly opened map, which is good
+		#  NOTE: this could result in duplicate markers in the newly opened map; would be fixed by reading existing markers
+		#   after the first sync to populate caltopoId and lastId
+		for d in self.radioMarkerDict.values():
+			d['caltopoId']=None
+			d['lastId']=None
 		# if the operation takes more than 3 seconds, show the overlay label in the options dialog,
 		#  reminding the user that it's safe to close the options dialog
 		QTimer.singleShot(3000,lambda:
