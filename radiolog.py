@@ -3131,7 +3131,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				for (deviceStr,d) in self.radioMarkerDict.items(): # as long as we only read radioMarkerDict, there should be no need for a lock
 					# (caltopoId,lastId,label,latestTimeString,lat,lon,folderId)=(d.get(key,None) for key in ['caltopoId','lastId','label','latestTimeString','lat','lon','folderId'])
 					(caltopoId,lastId,label,latestTimeString,lat,lon)=(d.get(key,None) for key in ['caltopoId','lastId','label','latestTimeString','lat','lon'])
-					if lastId is None: # only process markers whose lastId has been cleared by sendRadioMarker
+					if lastId is None and lat is not None: # only process devices with coordinates whose lastId has been cleared by sendRadioMarker
 						# qe=self.radioMarkerQueue.get() # pop an item from the queue for processing; don't move past this iteration until marker request is sent to a writable map
 						try:
 							# if not self.pendingRadioMarkerArgs:

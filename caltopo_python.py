@@ -1138,7 +1138,7 @@ class CaltopoSession():
                                     break
                             # 2b - otherwise, create it - and add to ids so it doesn't get cleaned
                             if not processed:
-                                # logging.info('Adding to cache:'+featureClass+':'+title)
+                                logging.info('Adding to cache:'+featureClass+':'+title)
                                 self.mapData['state']['features'].append(f)
                                 if f['id'] not in self.mapData['ids'][prop['class']]:
                                     self.mapData['ids'][prop['class']].append(f['id'])
@@ -2027,7 +2027,7 @@ class CaltopoSession():
                                 # logging.info('f6b')
                                 # logging.warning(f'  response: {r}')
                                 # print gracefully if r isn't a response object
-                                logging.warning(f'    response: {getattr(r,'status_code','')} {getattr(r,'text',r)}')
+                                logging.warning(f"    response: {getattr(r,'status_code','')} {getattr(r,'text',r)}")
                             except Exception as e:
                                 logging.error(f'Exception during print of invalid response: {e} (r={r})')
                             # if r:
