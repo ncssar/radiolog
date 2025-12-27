@@ -248,7 +248,7 @@ class CaltopoSession():
         self.syncCallback=syncCallback
         self.syncInterval=syncInterval
         self.syncCompletedCount=0
-        self.lastSuccessfulSyncTimestamp=0 # the server's integer milliseconds 'sincce' request completion time
+        self.lastSuccessfulSyncTimestamp=0 # the server's integer milliseconds 'since' request completion time
         self.lastSuccessfulSyncTSLocal=0 # this object's integer milliseconds sync completion time
         self.syncDumpFile=syncDumpFile
         self.cacheDumpFile=cacheDumpFile
@@ -1068,6 +1068,7 @@ class CaltopoSession():
                     for f in rjrsf:
                         try:
                             rjrfid=f['id']
+                            shortid=rjrfid[:4]+'..' # still works if rjrfid is None
                             prop=f['properties']
                             title=str(prop.get('title',None))
                             featureClass=str(prop['class'])
@@ -1086,7 +1087,7 @@ class CaltopoSession():
                                     #  - if f->geometry exists, replace the entire geometry dict
                                     if 'title' in prop.keys():
                                         if self.mapData['state']['features'][i]['properties']!=prop:
-                                            logging.info('  Updating properties for '+featureClass+':'+title)
+                                            logging.info(f'  Updating properties for {featureClass}:{shortid}:{title}')
                                             # logging.info('    old:'+json.dumps(self.mapData['state']['features'][i]['properties']))
                                             # logging.info('    new:'+json.dumps(prop))
                                             self.mapData['state']['features'][i]['properties']=prop
@@ -1098,7 +1099,7 @@ class CaltopoSession():
                                         title=self.mapData['state']['features'][i]['properties']['title']
                                     if 'geometry' in f.keys():
                                         if self.mapData['state']['features'][i].get('geometry')!=f['geometry']:
-                                            logging.info('  Updating geometry for '+featureClass+':'+title)
+                                            logging.info(f'  Updating geometry for {featureClass}:{shortid}:{title}')
                                             # if geometry.incremental exists and is true, for the new geom as well as the cache geom,
                                             #  append new coordinates to existing coordinates;
                                             #  otherwise, replace the entire geometry value;
@@ -1138,7 +1139,7 @@ class CaltopoSession():
                                     break
                             # 2b - otherwise, create it - and add to ids so it doesn't get cleaned
                             if not processed:
-                                logging.info('Adding to cache:'+featureClass+':'+title)
+                                logging.info(f'  Adding to cache:{featureClass}:{shortid}:{title}')
                                 self.mapData['state']['features'].append(f)
                                 if f['id'] not in self.mapData['ids'][prop['class']]:
                                     self.mapData['ids'][prop['class']].append(f['id'])
@@ -1146,7 +1147,7 @@ class CaltopoSession():
                                 if self.newFeatureCallback:
                                     self.newFeatureCallback(f)
                         except Exception as e:
-                            logging.warning('Exception while processing sync response feature:'+str(f)+':'+str(e)+'; continuing')
+                            logging.warning(f'Exception while processing sync response feature:{f}:{e}; continuing')
                             continue
 
                 # 3 - cleanup - remove features from the cache whose ids are no longer in cached id list
@@ -1229,25 +1230,25 @@ class CaltopoSession():
                     # else:
                     #     logging.info('Main thread has ended; sync is stopping...')
 
-            elif self.latestResponseCode in [401]:
-                logging.error('Sync attempt returned '+str(self.latestResponseCode))
+            elif self.latestResponseCode in [401]: # not authorized or similar response indicating the map isn't accessible, so, go ahead and close the map
+                logging.error(f'Sync attempt returned {self.latestResponseCode}, indicating that future sync attemps will not work; closing the map.')
                 self.closeMap()
                 if self.mapClosedCallback:
                     self.mapClosedCallback(self.badResponse)
-            else:
-                logging.error('Sync returned invalid or no response; sync aborted:'+str(rj))
+            else: # any other response that didn't give 'ok' as status; or, no response at all
+                logging.error(f'Sync returned invalid or no response; sync attempt failed.  Response: {rj}')
                 # self.sync=False
                 # self.apiVersion=-1 # downstream tools may use apiVersion as indicator of link status
                 # logging.error('Sync attempt failed; setting holdRequests')
-                logging.error('Sync attempt failed')
+                # logging.error('Sync attempt failed')
                 # self.holdRequests=True
                 if not self.disconnectedFlag:
                     self._disconnectedFlagSet()
-                    logging.info('disconnected (first failed response from sync); queue size is '+str(self.requestQueue.qsize()))
+                    logging.info(f'disconnected from _doSync (missed sync); queue size is {self.requestQueue.qsize()}')
                     if self.disconnectedCallback:
                         self.disconnectedCallback()
         except Exception as e:
-            logging.error('Exception in _doSync:'+str(e))
+            logging.error(f'Exception in _doSync line {sys.exc_info()[2].tb_lineno}: {e}')
             if fromLoop:
                 raise e # let _syncLoop handle it, which will cause a disconnect condition
         finally:
@@ -1410,7 +1411,7 @@ class CaltopoSession():
                     self._doSync(fromLoop=True)
                     self.syncCompletedCount+=1
                 except Exception as e:
-                    logging.error('Exception during sync :'+str(e)) # logging.exception logs details and traceback
+                    # logging.error('Exception during sync :'+str(e)) # logging.exception logs details and traceback
                     # remove sync blockers, to let the thread shut down cleanly, avoiding a zombie loop when sync restart is attempted
                     logging.info('f0p5: clearing syncPause')
                     self._syncPauseClear()
@@ -1418,10 +1419,10 @@ class CaltopoSession():
                     self.syncThreadStarted=False
                     # self.sync=False
                     # logging.error('Sync attempt failed (exception during call to _doSync); setting holdRequests')
-                    logging.error('Sync attempt failed (exception during call to _doSync)')
+                    logging.error(f'Sync attempt failed (exception in _doSync line {sys.exc_info()[2].tb_lineno}: {e})')
                     if not self.disconnectedFlag:
                         self._disconnectedFlagSet()
-                        logging.info('disconnected (first exception during response from sync); queue size is '+str(self.requestQueue.qsize()))
+                        logging.info(f'disconnected from _syncLoop (exception in _doSync); queue size is {self.requestQueue.qsize()}')
                         if self.disconnectedCallback:
                             self.disconnectedCallback()
                     # self.holdRequests=True
