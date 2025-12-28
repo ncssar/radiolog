@@ -2043,10 +2043,7 @@ class CaltopoSession():
                         else:
                             logging.info('f6: clearing syncPause')
                             self._syncPauseClear() # resume sync immediately if response wasn't valid
-                            if keepTrying>0:
-                                logging.warning('    response not valid; trying again in 5 seconds... '+str(qr.get('url')))
-                            else:
-                                logging.error('    max number of retries has been reached for this request; moving on: '+str(qr.get('url')))
+                            logging.warning('    response not valid; trying again in 5 seconds... '+str(qr.get('url')))
                             try:
                                 # logging.info('f6a')
                                 # logging.info(f'f6a1 {r}')
