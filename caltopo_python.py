@@ -427,7 +427,7 @@ class CaltopoSession():
 
         return True
     
-    def closeMap(self):
+    def closeMap(self,badResponse=None):  # if called with an argument, the map was force-closed due to a bad response
         logging.info('Closing map.')
         self._stop() # sets sync=False
         self.mapID=None
@@ -436,6 +436,7 @@ class CaltopoSession():
         self.mapData={'ids':{},'state':{'features':[]}}
         self.lastSuccessfulSyncTimestamp=0 # the server's integer milliseconds 'sincce' request completion time
         self.lastSuccessfulSyncTSLocal=0 # this object's integer milliseconds sync completion time
+        self._doCallback(self.mapClosedCallback,badResponse)
 
     def _setupSession(self) -> bool:
         """Called internally from __init__, regardless of whether this is a mapless session.  Reads account information from the config file and takes care of various other setup tasks.
@@ -1006,6 +1007,15 @@ class CaltopoSession():
             self.getAccountData()
         return [x['properties']['title'] for x in self.groupAccounts]
 
+    def _doCallback(self,callbackFunc,*args):
+        if callbackFunc is not None:
+            # logging.info(f'calling callback {callbackFunc.__name__}...')
+            try:
+                callbackFunc(*args)
+            except Exception as e:
+                logging.error(f'Exception during {callbackFunc.__name__}: {e}; continuing')
+            # logging.info(f'back from callback {callbackFunc.__name__}')
+
     def _doSync(self,fromLoop=False):
         """Internal method to keep the cache (.mapData) in sync with the associated hosted map. **Calling this method directly could cause sync problems.** \n
            - called on a regular interval from ._syncLoop in the sync thread \n
@@ -1039,8 +1049,9 @@ class CaltopoSession():
                 if self.disconnectedFlag:
                     self._disconnectedFlagClear()
                     logging.info('reconnected (successful sync); queue size is '+str(self.requestQueue.qsize()))
-                    if self.reconnectedCallback:
-                        self.reconnectedCallback()
+                    # if self.reconnectedCallback:
+                    #     self.reconnectedCallback()
+                    self._doCallback(self.reconnectedCallback)
                 # self.holdRequests=False
                 if self.syncDumpFile:
                     with open(insertBeforeExt(self.syncDumpFile,'.since'+str(max(0,self.lastSuccessfulSyncTimestamp-500))),"w") as f:
@@ -1049,8 +1060,9 @@ class CaltopoSession():
                 # int(time.time()*1000))
                 self.lastSuccessfulSyncTimestamp=rj['result']['timestamp']
                 # logging.info('Successful caltopo sync: timestamp='+str(self.lastSuccessfulSyncTimestamp))
-                if self.syncCallback:
-                    self.syncCallback()
+                # if self.syncCallback:
+                #     self.syncCallback()
+                self._doCallback(self.syncCallback)
                 rjr=rj['result']
                 rjrsf=rjr['state']['features']
                 
@@ -1091,8 +1103,9 @@ class CaltopoSession():
                                             # logging.info('    old:'+json.dumps(self.mapData['state']['features'][i]['properties']))
                                             # logging.info('    new:'+json.dumps(prop))
                                             self.mapData['state']['features'][i]['properties']=prop
-                                            if self.propertyUpdateCallback:
-                                                self.propertyUpdateCallback(f)
+                                            # if self.propertyUpdateCallback:
+                                            #     self.propertyUpdateCallback(f)
+                                            self._doCallback(self.propertyUpdateCallback,f)
                                         else:
                                             logging.info('  response contained properties for '+featureClass+':'+title+' but they matched the cache, so no cache update or callback is performed')
                                     if title=='None':
@@ -1131,8 +1144,9 @@ class CaltopoSession():
                                                 mdsfg['size']=len(mdsfgc)
                                             else: # copy entire geometry if cahce has no geomerty or was only a Point
                                                 self.mapData['state']['features'][i]['geometry']=f['geometry']
-                                            if self.geometryUpdateCallback:
-                                                self.geometryUpdateCallback(f)
+                                            # if self.geometryUpdateCallback:
+                                            #     self.geometryUpdateCallback(f)
+                                            self._doCallback(self.geometryUpdateCallback,f)
                                         else:
                                             logging.info('  response contained geometry for '+featureClass+':'+title+' but it matched the cache, so no cache update or callback is performed')
                                     processed=True
@@ -1144,8 +1158,9 @@ class CaltopoSession():
                                 if f['id'] not in self.mapData['ids'][prop['class']]:
                                     self.mapData['ids'][prop['class']].append(f['id'])
                                 # logging.info('mapData immediate:\n'+json.dumps(self.mapData,indent=3))
-                                if self.newFeatureCallback:
-                                    self.newFeatureCallback(f)
+                                # if self.newFeatureCallback:
+                                #     self.newFeatureCallback(f)
+                                self._doCallback(self.newFeatureCallback,f)
                         except Exception as e:
                             logging.warning(f'Exception while processing sync response feature:{f}:{e}; continuing')
                             continue
@@ -1170,8 +1185,9 @@ class CaltopoSession():
                                 self.mapData['state']['features'][:]=(f for f in self.mapData['state']['features'] if not(f['id']==id and f['properties']['class']==c))
                                 deletedDict.setdefault(c,[]).append(id)
                                 deletedAnythingFlag=True
-                                if self.deletedFeatureCallback:
-                                    self.deletedFeatureCallback(id,c)
+                                # if self.deletedFeatureCallback:
+                                #     self.deletedFeatureCallback(id,c)
+                                self._doCallback(self.deletedFeatureCallback,id,c)
                     if deletedAnythingFlag:
                         logging.info('deleted items have been removed from cache:\n'+json.dumps(deletedDict,indent=3))
                 
@@ -1232,9 +1248,10 @@ class CaltopoSession():
 
             elif self.latestResponseCode in [401]: # not authorized or similar response indicating the map isn't accessible, so, go ahead and close the map
                 logging.error(f'Sync attempt returned {self.latestResponseCode}, indicating that future sync attemps will not work; closing the map.')
-                self.closeMap()
-                if self.mapClosedCallback:
-                    self.mapClosedCallback(self.badResponse)
+                self.closeMap(self.badResponse)
+                # if self.mapClosedCallback:
+                #     self.mapClosedCallback(self.badResponse)
+                # self._doCallback(self.mapClosedCallback,self.badResponse)
             else: # any other response that didn't give 'ok' as status; or, no response at all
                 logging.error(f'Sync returned invalid or no response; sync attempt failed.  Response: {rj}')
                 # self.sync=False
@@ -1245,8 +1262,9 @@ class CaltopoSession():
                 if not self.disconnectedFlag:
                     self._disconnectedFlagSet()
                     logging.info(f'disconnected from _doSync (missed sync); queue size is {self.requestQueue.qsize()}')
-                    if self.disconnectedCallback:
-                        self.disconnectedCallback()
+                    # if self.disconnectedCallback:
+                    #     self.disconnectedCallback()
+                    self._doCallback(self.disconnectedCallback)
         except Exception as e:
             logging.error(f'Exception in _doSync line {sys.exc_info()[2].tb_lineno}: {e}')
             if fromLoop:
@@ -1384,7 +1402,7 @@ class CaltopoSession():
         avoid blocking of the main thread.  **Calling this method directly could cause sync problems.**
         """        
         if self.syncCompletedCount==0:
-            logging.info('This is the first sync attempt; pausing for the normal sync interval before starting sync.')
+            logging.info('This is the first sync attempt of the sync loop; pausing for the normal sync interval before starting sync.')
             time.sleep(self.syncInterval)
         while self.sync:
             if not self.syncPauseManual:
@@ -1423,8 +1441,9 @@ class CaltopoSession():
                     if not self.disconnectedFlag:
                         self._disconnectedFlagSet()
                         logging.info(f'disconnected from _syncLoop (exception in _doSync); queue size is {self.requestQueue.qsize()}')
-                        if self.disconnectedCallback:
-                            self.disconnectedCallback()
+                        # if self.disconnectedCallback:
+                        #     self.disconnectedCallback()
+                        self._doCallback(self.disconnectedCallback)
                     # self.holdRequests=True
             if self.sync: # don't bother with the sleep if sync is no longer True
                 time.sleep(self.syncInterval)
@@ -1744,8 +1763,9 @@ class CaltopoSession():
                 logging.info(f'-- QUEUE (put) {method} {urlEnd} {rest}')
                 logging.info(json.dumps(requestQueueEntry,indent=3,cls=CustomEncoder)) # CustomEncoder due to callables
                 self.requestQueue.put(requestQueueEntry)
-                if self.requestQueueChangedCallback:
-                    self.requestQueueChangedCallback(self.requestQueue)
+                # if self.requestQueueChangedCallback:
+                #     self.requestQueueChangedCallback(self.requestQueue)
+                self._doCallback(self.requestQueueChangedCallback,self.requestQueue)
                 logging.info('POST: setting requestEvent')
                 self.requestEvent.set()
                 return True # successfully submitted to the queue
@@ -1994,8 +2014,9 @@ class CaltopoSession():
                         else:
                             logging.info('    unknown queued request removed from queue: '+json.dumps(qr,indent=3))
                             self.requestQueue.task_done()
-                            if self.requestQueueChangedCallback:
-                                self.requestQueueChangedCallback(self.requestQueue)
+                            # if self.requestQueueChangedCallback:
+                            #     self.requestQueueChangedCallback(self.requestQueue)
+                            self._doCallback(self.requestQueueChangedCallback,self.requestQueue)
                             continue
                         if r and r.status_code==200:
                             logging.info('t5')
@@ -2004,12 +2025,14 @@ class CaltopoSession():
                                 logging.info('reconnected (successful response from queued request '+str(qr.get('url'))+'); queue size is '+str(self.requestQueue.qsize()))
                                 self._disconnectedFlagClear()
                                 # self._refresh(forceImmediate=True) # should be handled by the first callback of each request
-                                if self.reconnectedCallback:
-                                    self.reconnectedCallback()
+                                # if self.reconnectedCallback:
+                                #     self.reconnectedCallback()
+                                self._doCallback(self.reconnectedCallback)
                             logging.info('    200 response received; calling task_done to indicate that this item is complete')
-                            self.requestQueue.task_done()
-                            if self.requestQueueChangedCallback:
-                                self.requestQueueChangedCallback(self.requestQueue)
+                            self.requestQueue.task_done() # this doesn't actually change the queue; no need to call requestQueueChangedCallback here
+                            # if self.requestQueueChangedCallback:
+                            #     self.requestQueueChangedCallback(self.requestQueue)
+                            # self._doCallback(self.requestQueueChangedCallback,self.requestQueue)
                             # self.holdRequests=False
                             logging.info('sending callbacks:'+str(qr['callbacks']))
                             logging.info('t5b')
@@ -2020,7 +2043,10 @@ class CaltopoSession():
                         else:
                             logging.info('f6: clearing syncPause')
                             self._syncPauseClear() # resume sync immediately if response wasn't valid
-                            logging.warning('    response not valid; trying again in 5 seconds... '+str(qr.get('url')))
+                            if keepTrying>0:
+                                logging.warning('    response not valid; trying again in 5 seconds... '+str(qr.get('url')))
+                            else:
+                                logging.error('    max number of retries has been reached for this request; moving on: '+str(qr.get('url')))
                             try:
                                 # logging.info('f6a')
                                 # logging.info(f'f6a1 {r}')
@@ -2033,20 +2059,23 @@ class CaltopoSession():
                                 logging.error(f'Exception during print of invalid response: {e} (r={r})')
                             # if r:
                             #     logging.info('    r.status_code='+str(r.status_code))
-                            if self.failedRequestCallback:
-                                self.failedRequestCallback(qr,r)
+                            # if self.failedRequestCallback:
+                            #     self.failedRequestCallback(qr,r)
+                            self._doCallback(self.failedRequestCallback,qr,r)
                             if not self.disconnectedFlag:
                                 logging.info('disconnected (no response or bad response from queued request '+str(qr.get('url'))+')')
                                 self._disconnectedFlagSet()
-                                if self.disconnectedCallback:
-                                    self.disconnectedCallback()
+                                # if self.disconnectedCallback:
+                                #     self.disconnectedCallback()
+                                self._doCallback(self.disconnectedCallback)
                             # self.holdRequests=True
                             logging.info('t6')
                             time.sleep(5)
                     logging.info('  queue size at end of iteration:'+str(self.requestQueue.qsize()))
                 logging.info('t7')
-                if self.requestQueueChangedCallback:
-                    self.requestQueueChangedCallback(self.requestQueue)
+                # if self.requestQueueChangedCallback:
+                #     self.requestQueueChangedCallback(self.requestQueue)
+                self._doCallback(self.requestQueueChangedCallback,self.requestQueue)
                 logging.info('f7: clearing syncPause')
                 self._syncPauseClear()
                 logging.info('  requestWorker: request queue processing complete...')

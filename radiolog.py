@@ -7525,20 +7525,21 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  (but this callback could be called before a map is open, in which case no markers will be sent)
 		self.radioMarkerEvent.set()
 
-	def caltopoMapClosedCallback(self,response):
+	def caltopoMapClosedCallback(self,badResponse):
 		# THREAD WARNING - this is probably called from a different thread; don't try and GUI actions here
-		self.caltopoBadResponse=response
+		self.caltopoBadResponse=badResponse
 		self._sig_caltopoMapClosed.emit()
 
 	def caltopoMapClosedCallback_mainThread(self):
-		box=QMessageBox(QMessageBox.Warning,"Map closed","The map or bookmark you opened has been closed due to a bad sync response:"+str(self.caltopoBadResponse),
-			QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-		box.show()
-		box.raise_()
-		box.exec_()
-		self.optionsDialog.caltopoOpenMapButtonClicked()
-		self.optionsDialog.show()
-		self.optionsDialog.raise_()
+		if self.caltopoBadResponse:
+			box=QMessageBox(QMessageBox.Warning,"Map closed","The map or bookmark you opened has been closed due to a bad sync response:"+str(self.caltopoBadResponse),
+				QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			box.show()
+			box.raise_()
+			box.exec_()
+			self.optionsDialog.caltopoOpenMapButtonClicked()
+			self.optionsDialog.show()
+			self.optionsDialog.raise_()
 
 	# def caltopoProcessLatestMarkers(self):
 	# 	# this is only called after a map is opened;

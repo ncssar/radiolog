@@ -69,28 +69,44 @@ def rprint(text):
 ###### LOGGING CODE END ######
 
 def pucb(*args):
-	print("pucb called with args "+str(args))
+	logging.info("pucb called with args "+str(args))
+	raise NotImplementedError('boo')
 
 def gucb(*args):
-	print("gucb called with args "+str(args))
+	logging.info("gucb called with args "+str(args))
+	raise NotImplementedError('boo')
 
 def nfcb(*args):
-	print("nfcb called with args "+str(args))
+	logging.info("nfcb called with args "+str(args))
+	raise NotImplementedError('boo')
 
 def dfcb(*args):
-	print("dfcb called with args "+str(args))
+	logging.info("dfcb called with args "+str(args))
+	raise NotImplementedError('boo')
 
 def rqccb(q):
-	print('request queue changed... length='+str(q.qsize()))
+	logging.info('request queue changed... length='+str(q.qsize()))
+	raise NotImplementedError('boo')
 
 def frcb(request,response):
-	print('failed request callback called: request='+str(request)+' response='+str(response))
+	logging.info('failed request callback called: request='+str(request)+' response='+str(response))
+	raise NotImplementedError('boo')
 
 def dccb():
-	print('disconnected callback called')
+	logging.info('disconnected callback called')
+	raise NotImplementedError('boo')
 
 def rccb():
-	print('reconnected callback called')
+	logging.info('reconnected callback called')
+	raise NotImplementedError('boo')
+
+def mccb(*args):
+	logging.info(f'map closed callback called with args {args}')
+	raise NotImplementedError('boo')
+
+def scb():
+	logging.info('sync callback called')
+	raise NotImplementedError('boo')
 
 # open a session
 cts=CaltopoSession('caltopo.com',
@@ -107,22 +123,36 @@ cts=CaltopoSession('caltopo.com',
 		# mapID='DEKFJ',
 		# syncInterval=1,
 		# syncDumpFile='syncDump',
-		sync=False,
-		# propertyUpdateCallback=pucb,
-		# geometryUpdateCallback=gucb,
-		# newFeatureCallback=nfcb,
-		# deletedFeatureCallback=dfcb,
+		# sync=False,
+		propertyUpdateCallback=pucb,
+		geometryUpdateCallback=gucb,
+		newFeatureCallback=nfcb,
+		deletedFeatureCallback=dfcb,
 		requestQueueChangedCallback=rqccb,
 		failedRequestCallback=frcb,
 		disconnectedCallback=dccb,
 		reconnectedCallback=rccb,
-		# blockingByDefault=False,
+		mapClosedCallback=mccb,
+		syncCallback=scb,
+		blockingByDefault=False,
 account='caver456@gmail.com')
 # account='ncssaradm@gmail.com')
 # account='ncssar-service')
 
 cts.openMap('9GGGBQV') # geomTest20250610
 # cts.openMap('KA1KCHS') # caltopo_python_test
+
+# # endless loop, to test sync results
+# while True:
+# 	time.sleep(1)
+
+time.sleep(15)
+markerId=cts.addMarker(39,-120,'testMarker')
+# markerId2=cts.addMarker(39.1,-120.1,'testMarker2')
+# markerId3=cts.addMarker(39.2,-120.2,'testMarker3')
+time.sleep(30)
+cts.closeMap() # to trigger mapClosedCallback
+time.sleep(10)
 
 # 1. test all online, blocking, ignoring response, to make sure all arguments affecting json are processed correctly
 # 2. test online, non-blocking
@@ -157,8 +187,8 @@ cts.openMap('9GGGBQV') # geomTest20250610
 # def putInFolder(result,folderName):
 # 	cts.editFeature(id=result['id'],properties={'folderId':cts.getFeature('Folder',folderName)['id']})
 	
-def putInFolder(id,folderName):
-	cts.editFeature(id=id,properties={'folderId':cts.getFeature('Folder',folderName)['id']})
+# def putInFolder(id,folderName):
+# 	cts.editFeature(id=id,properties={'folderId':cts.getFeature('Folder',folderName)['id']})
 
 # logging.info('sleeping for 20 seconds... disconnect now...')
 # time.sleep(20)
@@ -248,20 +278,20 @@ def putInFolder(id,folderName):
 # logging.info('sleeping for 30 seconds... reconnect now')
 # time.sleep(30)
 
-def editCB():
-	logging.info('editCB called:')
-	logging.info(json.dumps(cts.mapData,indent=3))
+# def editCB():
+# 	logging.info('editCB called:')
+# 	logging.info(json.dumps(cts.mapData,indent=3))
 
-markerId=cts.addMarker(39,-120,'testMarker')
-logging.info(f'markerId:{markerId}')
-logging.info('marker added; sleeping for 10 seconds')
-time.sleep(10)
-# cts.editFeature(id=markerId,title='testMarkerTitleChanged',geometry={'coordinates':[-120.1,39.1,0,0]})
-cts.editFeature(id=markerId,title='testMarkerTitleChanged',geometry={'coordinates':[-120.1,39.1,0,0]},callbacks=[[editCB]])
-# print mapData to show that the cache gets built by callbacks, even if sync is False
-# logging.info('mapData after blocking editFeature:')
-# logging.info(json.dumps(cts.mapData,indent=3))
-time.sleep(10)
+# markerId=cts.addMarker(39,-120,'testMarker')
+# logging.info(f'markerId:{markerId}')
+# logging.info('marker added; sleeping for 10 seconds')
+# time.sleep(10)
+# # cts.editFeature(id=markerId,title='testMarkerTitleChanged',geometry={'coordinates':[-120.1,39.1,0,0]})
+# cts.editFeature(id=markerId,title='testMarkerTitleChanged',geometry={'coordinates':[-120.1,39.1,0,0]},callbacks=[[editCB]])
+# # print mapData to show that the cache gets built by callbacks, even if sync is False
+# # logging.info('mapData after blocking editFeature:')
+# # logging.info(json.dumps(cts.mapData,indent=3))
+# time.sleep(10)
 
 # cts.delMarker(cts.getFeature('Marker','tmg'))
 # time.sleep(5)
