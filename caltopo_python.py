@@ -118,6 +118,7 @@ from concurrent.futures import ThreadPoolExecutor
 import functools
 from typing import Callable
 import queue
+import traceback
 
 # import objgraph
 # import psutil
@@ -290,6 +291,8 @@ class CaltopoSession():
                 raise CTSException
         else:
             logging.info('Opening a CaltopoSession object with no associated map.  Use .openMap(<mapID>) later to associate a map with this session.')
+
+        self.exceptionDict={}
 
     def openMap(self,
             mapID: str='',
@@ -1007,13 +1010,22 @@ class CaltopoSession():
             self.getAccountData()
         return [x['properties']['title'] for x in self.groupAccounts]
 
+    def _handle_caught_exception(self,exc_info):
+        rval=handle_exception(exc_info[0],exc_info[1],exc_info[2],'caught',exceptionDict=self.exceptionDict)
+        timestamp=time.strftime('%H%M%S')
+        self.exceptionDict[rval]=timestamp
+
     def _doCallback(self,callbackFunc,*args):
         if callbackFunc is not None:
             # logging.info(f'calling callback {callbackFunc.__name__}...')
             try:
                 callbackFunc(*args)
-            except Exception as e:
-                logging.error(f'Exception during {callbackFunc.__name__}: {e}; continuing')
+            # except Exception as e:
+            except Exception:
+                # logging.error(f'Exception during {callbackFunc.__name__}: {e}; continuing')
+                # info=sys.exc_info()
+                # handle_exception(info[0],info[1],info[2],'caught')
+                self._handle_caught_exception(sys.exc_info())
             # logging.info(f'back from callback {callbackFunc.__name__}')
 
     def _doSync(self,fromLoop=False):
@@ -4820,22 +4832,44 @@ logging.basicConfig(
 #  deal with the fact that sys.excepthook and threading.excepthook use different arguments
 #   sys.excepthook wants a 3-tuple; threading.excepthook wants an instance of
 #   _thread._ExceptHookArgs, which provides a 4-namedtuple
-def handle_exception(*args):
-    if len(args)==1:
+# this can also be called from code for handled exceptions, in which case another argment 'caught'
+#  should be appended to the argument list.
+# exceptionDict can be passed as a keyword argument, which must be a dictionary of past exceptions:
+#  keys are formatted exception strings (from traceback.format_exc()) and values are the first
+#  timestamp where that exception occurred.
+# If exceptionDict is specified and the current exception matches 
+# the exception string will be returned, in case the calling function wants to keep track of it;
+#  return values are ignored by python, for both sys.excepthook and threading.excepthook
+def handle_exception(*args,**kwargs):
+    if len(args)<3:
         a=args[0]
         [exc_type,exc_value,exc_traceback,thread]=[a.exc_type,a.exc_value,a.exc_traceback,a.thread]
     else:
-        [exc_type,exc_value,exc_traceback]=args
+        [exc_type,exc_value,exc_traceback]=args[0:3]
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
-    prefix='Uncaught exception:' # not in a thread
+    prefix1='Uncaught'
+    logFunc=logging.critical
+    if 'caught' in args:
+        prefix1='Successfully handled'
+        logFunc=logging.error
+    prefix=prefix1+' exception:' # not in a thread
     try:
         if thread and thread.__class__.__name__=='Thread':
-            prefix='Uncaught exception in '+thread.name+':' # in a thread
+            prefix=prefix1+' exception in '+thread.name+':' # in a thread
     except UnboundLocalError:
         pass
-    logging.critical(prefix, exc_info=(exc_type, exc_value, exc_traceback))
+    exceptionDict=kwargs.get('exceptionDict',[])
+    # if exceptionDict:
+    #     logging.info(f'Exception dict passed to handle_exception: {exceptionDict}')
+    excStr=traceback.format_exc()
+    if excStr in exceptionDict:
+        logFunc(f'{prefix1} repeated exception from {exceptionDict[excStr]} ({excStr.splitlines()[-1]}); traceback printing suppressed')
+    else:
+        logFunc(prefix, exc_info=(exc_type, exc_value, exc_traceback))
+        return excStr # igonored by sys.excepthook and threading.excepthook; can be used by calling code
+    
 sys.excepthook = handle_exception
 threading.excepthook = handle_exception
 

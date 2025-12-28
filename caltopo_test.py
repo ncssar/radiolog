@@ -146,7 +146,8 @@ cts.openMap('9GGGBQV') # geomTest20250610
 # while True:
 # 	time.sleep(1)
 
-time.sleep(15)
+time.sleep(30)
+raise NotImplementedError('boo')
 markerId=cts.addMarker(39,-120,'testMarker')
 # markerId2=cts.addMarker(39.1,-120.1,'testMarker2')
 # markerId3=cts.addMarker(39.2,-120.2,'testMarker3')
