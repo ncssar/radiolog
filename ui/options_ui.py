@@ -286,6 +286,7 @@ class Ui_optionsDialog(object):
         font = QtGui.QFont()
         font.setPointSize(10)
         self.caltopoLinkIndicator.setFont(font)
+        self.caltopoLinkIndicator.setReadOnly(True)
         self.caltopoLinkIndicator.setObjectName("caltopoLinkIndicator")
         self.horizontalLayout_2.addWidget(self.caltopoLinkIndicator)
         self.horizontalLayout_2.setStretch(1, 7)
