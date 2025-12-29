@@ -7485,7 +7485,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.radioMarkerFolderHasBeenRequested=False
 		# if a radio marker was deleted, force its recreation on the next incoming call from >any< device
 		#  (its timestamp is preserved since sendRadioMarker is only called by incoming radio calls)
-		matchingRadioMarkerDeviceStr=[deviceStr for deviceStr in self.radioMarkerDict.keys() if self.radioMarkerDict[deviceStr]['caltopoId']==id][0]
+		matchingRadioMarkerDeviceStr=next(iter([deviceStr for deviceStr in self.radioMarkerDict.keys() if self.radioMarkerDict[deviceStr]['caltopoId']==id]),None) # None if there are no matches
 		if matchingRadioMarkerDeviceStr:
 			self.radioMarkerDict[matchingRadioMarkerDeviceStr]['caltopoId']=None
 			self.radioMarkerDict[matchingRadioMarkerDeviceStr]['lastId']=None
