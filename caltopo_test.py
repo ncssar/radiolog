@@ -124,36 +124,47 @@ cts=CaltopoSession('caltopo.com',
 		# syncInterval=1,
 		# syncDumpFile='syncDump',
 		# sync=False,
-		propertyUpdateCallback=pucb,
-		geometryUpdateCallback=gucb,
-		newFeatureCallback=nfcb,
-		deletedFeatureCallback=dfcb,
-		requestQueueChangedCallback=rqccb,
-		failedRequestCallback=frcb,
-		disconnectedCallback=dccb,
-		reconnectedCallback=rccb,
-		mapClosedCallback=mccb,
-		syncCallback=scb,
+		# propertyUpdateCallback=pucb,
+		# geometryUpdateCallback=gucb,
+		# newFeatureCallback=nfcb,
+		# deletedFeatureCallback=dfcb,
+		# requestQueueChangedCallback=rqccb,
+		# failedRequestCallback=frcb,
+		# disconnectedCallback=dccb,
+		# reconnectedCallback=rccb,
+		# mapClosedCallback=mccb,
+		# syncCallback=scb,
 		blockingByDefault=False,
 account='caver456@gmail.com')
 # account='ncssaradm@gmail.com')
 # account='ncssar-service')
 
-cts.openMap('9GGGBQV') # geomTest20250610
+# cts.openMap('9GGGBQV') # geomTest20250610
 # cts.openMap('KA1KCHS') # caltopo_python_test
+cts.openMap('G8TEQHH') # MyNewMap
 
 # # endless loop, to test sync results
 # while True:
 # 	time.sleep(1)
 
-time.sleep(30)
-raise NotImplementedError('boo')
-markerId=cts.addMarker(39,-120,'testMarker')
-# markerId2=cts.addMarker(39.1,-120.1,'testMarker2')
-# markerId3=cts.addMarker(39.2,-120.2,'testMarker3')
-time.sleep(30)
-cts.closeMap() # to trigger mapClosedCallback
-time.sleep(10)
+time.sleep(20)
+fid=cts.addFolder('newFolder')
+a=cts.addMarker(39,-120,'newMarker',description='desc',color='#00FF00',size=4,folderId=fid)
+b=cts.addLine([[-120,39],[-120.1,39.1],[-120,39.1]],title='newLine',description='desc',width=8,opacity=0.6,pattern='M12 -7M0 5M9 0A3 3 0 1 0 6 0 A3 3 0 0 0 9 0,2,20,T;M0 0L12 0,15,20',folderId=fid)
+time.sleep(20)
+cts.editFeature(cts.getFeature('Marker','newMarker')['id'],properties={'marker-color':'#0000ff','marker-size':1})
+time.sleep(20)
+cts.delFeature(cts.getFeature('Shape','newLine'))
+time.sleep(20)
+
+# time.sleep(30)
+# raise NotImplementedError('boo')
+# markerId=cts.addMarker(39,-120,'testMarker')
+# # markerId2=cts.addMarker(39.1,-120.1,'testMarker2')
+# # markerId3=cts.addMarker(39.2,-120.2,'testMarker3')
+# time.sleep(30)
+# cts.closeMap() # to trigger mapClosedCallback
+# time.sleep(10)
 
 # 1. test all online, blocking, ignoring response, to make sure all arguments affecting json are processed correctly
 # 2. test online, non-blocking

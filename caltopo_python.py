@@ -1952,8 +1952,8 @@ class CaltopoSession():
                     r=None
                     while keepTrying:
                         logging.info('t1')
-                        if qr['method']=='POST':
-                            logging.info('    processing POST...')
+                        if method in ['GET','POST','DELETE']:
+                            logging.info(f'processing {method}...')
                             try:
                                 while self.syncing: # wait until any current sync is finished
                                     time.sleep(1)
@@ -1967,62 +1967,33 @@ class CaltopoSession():
                                     eval(qr['deferredHook'])
                                     logging.info('done with deferred hook')
                                 # if the signature would expire in the next 10 seconds, get a new signature now
-                                expires=qr.get('params')['expires']
+                                expires=qr['params']['expires']
                                 now=time.time()*1000
                                 if expires-now<10000:
                                     logging.info('queued request signature might be stale: now='+str(now)+' expires='+str(expires)+'; regenerating signature...')
-                                    qr['params']=self._buildParams(qr['method'],qr['urlPart'],json.loads(qr['params']['json']),qr['internet'])
+                                    qr['params']=self._buildParams(method,qr['urlPart'],json.loads(qr['params']['json']),qr['internet'])
                                     logging.info('signature regenerated')
-                                r=self.s.post(
-                                    qr.get('url'),
-                                    data=qr.get('params'), # qr.params should be used as post.data, but get.params and delete.params
-                                    timeout=qr.get('timeout'),
-                                    proxies=qr.get('proxies'),
-                                    allow_redirects=qr.get('allow_redirects')
-                                )
-                            except Exception as e:
-                                logging.error('Exception during processing of queued request: '+str(e))
+
+                                # determine the request function to call
+                                requestFunc={'GET':self.s.get,'POST':self.s.post,'DELETE':self.s.delete}[method]
+                                requestArgs={
+                                    'timeout':qr.get('timeout'),
+                                    'proxies':qr.get('proxies'),
+                                    'allow_redirects':qr.get('allow_redirects')
+                                }
+                                # build the request arguments
+                                if method=='POST':
+                                    requestArgs['data']=qr.get('params')
+                                else:
+                                    requestArgs['params']=qr.get('params')
+                                # do the request
+                                r=requestFunc(qr.get('url'),**requestArgs)
+                            # except Exception as e:
+                            except Exception:
+                                # logging.error('Exception during processing of queued request: '+str(e))
+                                self._handle_caught_exception(sys.exc_info())
                                 logging.info('f3: clearing syncPause')
                                 self._syncPauseClear() # don't leave it set, in case of exception
-                        elif qr['method']=='GET':
-                            logging.info('    processing GET...')
-                            try:
-                                while self.syncing: # wait until any current sync is finished
-                                    time.sleep(1)
-                                    pass
-                                logging.info('p2: setting syncPause')
-                                self._syncPauseSet() # set pause here to avoid leaving it set
-                                r=self.s.get(
-                                    qr.get('url'),
-                                    params=qr.get('params'),
-                                    timeout=qr.get('timeout'),
-                                    proxies=qr.get('proxies'),
-                                    allow_redirects=qr.get('allow_redirects')
-                                )
-                            except Exception as e:
-                                logging.error('Exception during processing of queued request: '+str(e))
-                                logging.info('f4: clearing syncPause')
-                                self._syncPauseClear() # don't leave it set, in case of exception
-                        elif qr['method']=='DELETE':
-                            logging.info('    processing DELETE...')
-                            try:
-                                while self.syncing: # wait until any current sync is finished
-                                    time.sleep(1)
-                                    pass
-                                logging.info('p3: setting syncPause')
-                                self._syncPauseSet() # set pause here to avoid leaving it set
-                                r=self.s.delete(
-                                    qr.get('url'),
-                                    params=qr.get('params'),
-                                    timeout=qr.get('timeout'),
-                                    proxies=qr.get('proxies'),
-                                    allow_redirects=qr.get('allow_redirects')
-                                )
-                            except Exception as e:
-                                logging.error('Exception during processing of queued request: '+str(e))
-                                logging.info('f5: clearing syncPause')
-                                self._syncPauseClear() # don't leave it set, in case of exception
-                                logging.info(' d1: requestThread is alive: '+str(self.requestThread.is_alive()))
                         else:
                             logging.info('    unknown queued request removed from queue: '+json.dumps(qr,indent=3))
                             self.requestQueue.task_done()
