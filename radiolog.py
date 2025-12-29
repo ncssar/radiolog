@@ -2470,6 +2470,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		# the line delimeters are literal backslash then n, rather than standard \n
 		for line in self.fsBuffer.split('\n'):
 			logging.info(" line:"+line)
+			# initialize valid/lat/lon/devTxt for use during mic bump handling
+			valid=''
+			lat=''
+			lon=''
+			devTxt=''
 			if line=='\x020\x03':
 				# success response code - happens in these cases:
 				# - positive acknowledge received after text sent to individual device
@@ -2767,6 +2772,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 					self.fsLogUpdate(fleet=fleet,dev=dev,bump=True,seq=seq,result='bump')
 					self.sendPendingGet() # while getString will be non-empty if this bump had GPS, it may still have the default callsign
+					if valid=='A':
+						self.sendRadioMarker(fleet,dev,None,devTxt,lat,lon,bump=True)
 					return
 					
 				logging.info("FleetSync CID detected (not in $PKLSH): fleet="+fleet+"  dev="+dev+"  callsign="+callsign)
@@ -2801,6 +2808,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 					self.fsLogUpdate(uid=uid,bump=True,seq=seq,result='bump')
 					self.sendPendingGet() # while getString will be non-empty if this bump had GPS, it may still have the default callsign
+					if valid=='A':
+						self.sendRadioMarker(None,None,uid,devTxt,lat,lon,bump=True)
 					return
 				
 				logging.info('NEXEDGE CID detected (not in $PKNSH): id='+uid+'  callsign='+callsign)
@@ -2997,7 +3006,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	# 	# return 'CANCEL'
 	# 	pass
 
-	def sendRadioMarker(self,fleet,dev,uid,callsign,lat=None,lon=None,timeStr=None,label=None):
+	def sendRadioMarker(self,fleet,dev,uid,callsign,lat=None,lon=None,timeStr=None,label=None,bump=False):
 		# - always update radioMarkerDict right away, in the main thread
 		# - if there is an open writable map - even if unexpectedly disconnected - set the event now to start processing
 		#   (if map is opened at a later time, optionsDialog.caltopoOpenMapButtonClicked sets the event)
@@ -3011,6 +3020,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		d=self.radioMarkerDict.get(deviceStr,None)
 		existingId=None
 		latestTimeString=timeStr or time.strftime('%H:%M:%S %b%d')
+		if bump:
+			latestTimeString+=' bump'
 		with self.radioMarkerDictLock:
 			if d:
 				logging.info('am1a: radioMarkerDict entry found: d["'+str(deviceStr)+'"]='+str(d))
@@ -3228,7 +3239,11 @@ class MyWindow(QDialog,Ui_Dialog):
 										# 'existingId':existingId, # will be None on first call from a device
 										# 'radioMarkerFID':self.radioMarkerFID # record radioMarkerFID at enqueue-time
 									}]]
-									description=latestTimeString+'   ['+deviceStr+']'
+									description=latestTimeString+'  ['+deviceStr+']'
+									color='#ff0000'
+									if latestTimeString.endswith(' bump'):
+										description=latestTimeString[:-5]+'  ['+deviceStr+'] b'
+										color='#888888'
 									if existingId: # update an existing marker
 										r=self.cts.editFeature(
 												id=existingId,
@@ -3236,10 +3251,11 @@ class MyWindow(QDialog,Ui_Dialog):
 												folderId=self.radioMarkerFID, # in case a marker was moved to a different folder
 												# className='Marker',
 												geometry={'coordinates':[lon,lat,0,0]},
-												properties={'description':description},
+												properties={'description':description,'marker-color':color},
 												callbacks=callbacks)
 									else: # create a new marker
 										r=self.cts.addMarker(lat,lon,label,description,
+							   					color=color,
 												folderId=self.radioMarkerFID,
 												# existingId=existingId,
 												# deferredHook=self.radioMarkerDeferredHook,
