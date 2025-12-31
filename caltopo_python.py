@@ -85,9 +85,10 @@
 #  To prevent main-thread requests from being sent while a sync request is
 #  in process, _doSync sets self.syncing just before sending the 'since'
 #  request, and leaves it set until the sync response is processed.
-#   TO DO: If a main-thread request wants to be sent while self.syncing is
-#   set, the request is queued, and is sent after the next sync response is
-#   processed.
+#  
+#  If a main-thread request (whether blocking or not) wants to be sent while
+#  self.syncing is set, the request is queued, and is sent after the next sync
+#  response is processed.
 #
 #  NOTE : is this block-and-queue necessary?  Since the http requests
 #  and responses should be able to synchronize themselves, maybe it's not

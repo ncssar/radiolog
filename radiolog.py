@@ -1669,13 +1669,16 @@ class MyWindow(QDialog,Ui_Dialog):
 				teamTable.setCurrentIndex(QModelIndex())
 				teamTable.clearFocus()
 
-	def getSessions(self,sort='chronological',reverse=False,omitCurrentSession=False,fromCsvFile=None):
+	def getSessions(self,sort='chronological',reverse=False,omitCurrentSession=False,fromCsvFile=None,maxFilesToCheck=999):
 		if fromCsvFile:
 			sortedCsvFiles=[fromCsvFile]
 		else:
+			logging.info('gs0')
 			csvFiles=glob.glob(self.firstWorkingDir+'/*/*.csv') # files nested in session dirs
+			logging.info('gs1')
 			# backwards compatibility: also list csv files saved flat in the working dir
 			csvFiles+=glob.glob(self.firstWorkingDir+'/*.csv')
+			logging.info('gs2')
 
 			# backwards compatibility: look in the old working directory too
 			#  copied code from radiolog.py before #522 dir structure overhaul;
@@ -1685,23 +1688,49 @@ class MyWindow(QDialog,Ui_Dialog):
 			if oldWD[1]!=":":
 				oldWD=os.getenv('HOMEDRIVE','C:')+oldWD
 
+			logging.info('gs3')
 			csvFiles+=glob.glob(oldWD+'/*.csv')
+			logging.info('gs4')
 
-			csvFiles=[f for f in csvFiles if '_clueLog' not in f and '_fleetsync' not in f and '_bak' not in f] # only show 'base' radiolog csv files
-			csvFiles=[self.isRadioLogDataFile(f) for f in csvFiles] # isRadioLogDataFile returns the first valid filename in the search path, or False if none are valid
+			csvFiles=[f for f in csvFiles if '_clueLog' not in f and '_fleetsync' not in f and '_bak' not in f and '_fsLog' not in f] # only show 'base' radiolog csv files
+			# logging.info(f'csvFiles:{csvFiles}')
+			logging.info('gs5')
+
+			csvFiles.sort(key=os.path.getmtime,reverse=reverse)
+
+			logging.info('gs5p1')
+
+			suffix=''
+			if len(csvFiles)>maxFilesToCheck:
+				suffix=f'  Only checking the {maxFilesToCheck} most recent ones.'
+			logging.info(f'Found {len(csvFiles)} .csv files (excluding _clueLog, _fleetsync, _bak, and _fsLog csv files).{suffix}')
+
+			logging.info('gs5p2')
+
+			# only use the (up-to) N most recent files from here on out; this should reduce startup time (i.e. when the file system was asleep)
+			csvFilesTmp=[]
+			for f in csvFiles:
+				if len(csvFilesTmp)<maxFilesToCheck and self.isRadioLogDataFile(f): # isRadioLogDataFile can be expensive, so short-circuit it if needed
+					csvFilesTmp.append(f)
+			csvFiles=csvFilesTmp
+
+			# csvFiles=[self.isRadioLogDataFile(f) for f in csvFiles] # isRadioLogDataFile returns the first valid filename in the search path, or False if none are valid
+			logging.info('gs6')
 			csvFiles=[f for f in csvFiles if f] # get rid of 'False' return values from isRadioLogDataFile
+			logging.info('gs7')
 
 			#552 remove current session from the list
 			if omitCurrentSession:
 				csvFiles=[f for f in csvFiles if self.csvFileName not in f]
+			logging.info('gs8')
 
-			logging.info('Found '+str(len(csvFiles))+' .csv files (excluding _clueLog, _fleetsync, and _bak csv files)')
 			if sort=='chronological':
 				sortedCsvFiles=sorted(csvFiles,key=os.path.getmtime,reverse=reverse)
 			elif sort=='alphabetical':
 				sortedCsvFiles=sorted(csvFiles,reverse=reverse)
 			else:
 				sortedCsvFiles=csvFiles
+			logging.info('gs9')
 		rval=[]
 		now=time.time()
 		for f in sortedCsvFiles:
@@ -1757,7 +1786,8 @@ class MyWindow(QDialog,Ui_Dialog):
 								clueNames.append(clueName)
 					csvFile.close()
 					outList=[]
-					logging.info(f'pre-parsed clue names list: {clueNames}')
+					if clueNames:
+						logging.info(f'pre-parsed clue names list: {clueNames}')
 					for clueName in clueNames:
 						if '-' in clueName: # numeric range
 							(first,last)=clueName.split('-')
@@ -1766,7 +1796,8 @@ class MyWindow(QDialog,Ui_Dialog):
 						else: # signle numeric or non-numeric
 							outList.append(clueName)
 					clueNames=list(dict.fromkeys(outList)) # quickest way to remove duplicates while preserving order
-					logging.info(f'parsed clue names list: {clueNames}')
+					if clueNames:
+						logging.info(f'parsed clue names list: {clueNames}')
 			else:
 				logging.info(f'clue log file {clueLogFileName} not found or could not be opened')
 			sessionDict=({
@@ -1779,6 +1810,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			# logging.info('session:'+json.dumps(sessionDict,indent=3))
 			rval.append(sessionDict)
 			# rval.append([incidentName,lastOP or 1,lastClue or 0,ageStr,filenameBase,mtime,clueNames])
+		logging.info('gs10')
 		if fromCsvFile:
 			return rval[0] # there should only be one item - return it as a dict rather than list of dicts
 		else:
@@ -1797,9 +1829,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		now=time.time()
 		opd={} # dictionary of most recent OP#'s per incident name
 		choices=[]
-		for session in self.getSessions(reverse=True):
+		for session in self.getSessions(reverse=True,maxFilesToCheck=20): # limit the number of sessions (should be the number of files) to save time
 			# [incidentName,lastOP,lastClue,ageStr,filenameBase,mtime,clueNames]=session
-			logging.info('session:'+json.dumps(session,indent=3))
+			# logging.info('session:'+json.dumps(session,indent=3))
 			incidentName=session['incidentName']
 			filenameBase=session['filenameBase']
 			if now-session['mtime']<continuedIncidentWindowSec:
@@ -1854,13 +1886,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		for n in range(1,6):
 			filenameList.append(filename.replace('.csv','_bak'+str(n)+'.csv'))
 		for filename in filenameList:
-			if filename.endswith('.csv') and os.path.isfile(filename):
-				try: # in case the file is corrupted
-					with open(filename,'r') as f:
-						if '## Radio Log data file' in f.readline():
-							return filename # return whichever filename was valid
-				except:
-					pass
+			# if filename.endswith('.csv') and os.path.isfile(filename): # this line is not needed
+			try: # in case the file is corrupted or not found
+				with open(filename,'r') as f:
+					if '## Radio Log data file' in f.readline():
+						return filename # return whichever filename was valid
+			except:
+				pass
 		return False
 
 	def readConfigFile(self):
@@ -7212,7 +7244,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			m=max(numbers)
 		else:
 			m=0
-		logging.info(f'used clue numbers: {numbers}  max:{m}')
+		# logging.info(f'used clue numbers: {numbers}  max:{m}')
 		return m
 	
 	# since the folder creation request is non-blocking, but this method returns a value immediately,
