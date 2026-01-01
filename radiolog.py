@@ -1239,7 +1239,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  whenever the options dialog is accepted
 		self.readConfigFile() # defaults are set inside readConfigFile
 
-		logging.info('useOperatorLogin after readConfigFile:'+str(self.useOperatorLogin))
+		# logging.info('useOperatorLogin after readConfigFile:'+str(self.useOperatorLogin))
 
 		self.printDialog=printDialog(self)
 		self.printClueLogDialog=printClueLogDialog(self)
@@ -2142,7 +2142,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			logging.info("No backup rotation script was specified; no rotation is being performed.")
 		
 	def updateOptionsDialog(self):
-		logging.info("updating options dialog: datum="+self.datum)
+		# logging.info("updating options dialog: datum="+self.datum)
 		self.optionsDialog.ui.datumField.setCurrentIndex(self.optionsDialog.ui.datumField.findText(self.datum))
 		self.optionsDialog.ui.formatField.setCurrentIndex(self.optionsDialog.ui.formatField.findText(self.coordFormat))
 		self.optionsDialog.ui.timeoutField.setValue(self.timeoutDisplaySecList.index(int(self.timeoutRedSec)))
@@ -5140,7 +5140,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		return cleanShutdownFlag
 
 	def loadOperators(self):
-		logging.info('loadOperators called')
+		# logging.info('loadOperators called')
 		fileName=os.path.join(self.configDir,self.operatorsFileName)
 		try:
 			with open(fileName,'r') as ofile:
@@ -8566,7 +8566,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.caltopoWebBrowserCheckBox.setEnabled(en)
 		e=en and (rm or wb)
 		e2=e and link==1
-		logging.info('e='+str(e)+'  e2='+str(e2))
+		# logging.info('e='+str(e)+'  e2='+str(e2))
 		self.ui.caltopoComButton.setEnabled(e2)
 		# self.ui.caltopoDesktopButton.setEnabled(e2) # leave it disabled for now, pending CTD-slow-GET-while-online issue
 		self.ui.ctdServerComboBox.setEnabled(e2 and self.ui.caltopoDesktopButton.isChecked())
@@ -9109,7 +9109,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	# this gets called when the highlight (the hovered item) changes
 	# set the lineEdit text here; lineEdit font is then set during caltopoMapIDTextChanged (via caltopoMapNameComboBoxChanged)
 	def caltopoMapNameComboBoxHighlightChanged(self,i):
-		logging.info('name hover changed to '+str(i)+':"'+str(self.ui.caltopoMapNameComboBox.currentText())+'" : calling updateMapIDFieldFromTitle')
+		if self.isVisible():
+			logging.info('name hover changed to '+str(i)+':"'+str(self.ui.caltopoMapNameComboBox.currentText())+'" : calling updateMapIDFieldFromTitle')
 		# italic=False
 		# strikeOut=False
 		self.qle.setText(self.ui.caltopoMapNameComboBox.itemText(i))
@@ -9129,7 +9130,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 	# this only gets called when a (different) item is clicked
 	def caltopoMapNameComboBoxChanged(self):
 		curr=self.ui.caltopoMapNameComboBox.currentText()
-		logging.info('name changed to "'+str(curr)+'" : calling updateMapIDFieldFromTitle')
+		if self.isVisible():
+			logging.info('name changed to "'+str(curr)+'" : calling updateMapIDFieldFromTitle')
 		if curr=='<Choose Map>': # force non-italic for placeholder selection
 			self.qle.setFont(self.caltopoNormalFont)
 		# time.sleep(2)
@@ -9142,7 +9144,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.caltopoUpdateMapIDFieldFromTitle(self.ui.caltopoMapNameComboBox.currentText())
 
 	def caltopoUpdateMapIDFieldFromTitle(self,title):
-		logging.info('update ID from title "'+str(title)+'"')
+		if self.isVisible():
+			logging.info('update ID from title "'+str(title)+'"')
 		# time.sleep(2)
 		if self.pauseCB:
 			logging.info(' uift: pauseCB set; returning')
@@ -9331,9 +9334,9 @@ class findDialog(QWidget,Ui_findDialog):
 		self.setFixedSize(self.size())
 		self.teamTabIndexBeforeFind=1
 		self.ui.findField.textChanged.connect(self.updateCountLabel)
-		logging.info('opening findDialog')
 
 	def showEvent(self,e):
+		logging.info('opening findDialog')
 		self.teamTabIndexBeforeFind=self.parent.ui.tabWidget.currentIndex()
 		self.theList=[entry[0]+' : '+entry[2]+' : '+entry[3] for entry in self.parent.radioLog]
 		self.completer=QCompleter(self.theList)
