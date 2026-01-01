@@ -1917,6 +1917,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.continuedIncidentWindowDays="4"
 		self.continueSec="20"
 		self.fsBypassSequenceChecks=False
+		self.caltopoIntegrationDefault=False
 		self.caltopoAccountName="NONE"
 		self.caltopoDefaultTeamAccount=None
 		self.caltopoMapMarkers=False
@@ -2005,6 +2006,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.continueSec=tokens[1]
 			elif tokens[0]=='fsBypassSequenceChecks':
 				self.fsBypassSequenceChecks=tokens[1]
+			elif tokens[0]=='caltopoIntegrationDefault':
+				self.caltopoIntegrationDefault=tokens[1]
 			elif tokens[0]=='caltopoAccountName':
 				self.caltopoAccountName=tokens[1]
 			elif tokens[0]=='caltopoDefaultTeamAccount':
@@ -2072,6 +2075,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		if self.fsBypassSequenceChecks:
 			logging.info('FleetSync / NEXEDGE sequence checks will be bypassed for this session; every part of every incoming message will raise a new entry popup if needed.')
 
+		if self.caltopoIntegrationDefault and self.caltopoIntegrationDefault not in ['True','False']:
+			configErr+='ERROR: caltopoIntegrationDefault value must be True or False.  Will set to False by default.'
+			self.caltopoIntegrationDefault='False'
+		if type(self.caltopoIntegrationDefault)==str:
+			self.caltopoIntegrationDefault=eval(self.caltopoIntegrationDefault)
+			
 		if self.caltopoMapMarkers and self.caltopoMapMarkers not in ['True','False']:
 			configErr+='ERROR: caltopoMapMarkers value must be True or False.  Will set to False by default.'
 			self.caltopoMapMarkers='False'
@@ -8392,6 +8401,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.overlayLabel.setAlignment(Qt.AlignCenter)
 		# self.overlayLabel.adjustSize()
 		# self.overlayLabel.move(int((self.width()/2)-(self.overlayLabel.width()/2)),int((self.height()/2)-(self.overlayLabel.height()/2)))
+		self.firstShow=True # caltopoIntegrationDefault isn't yet defined; only apply the default on the first showing of the dialog
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
@@ -8407,6 +8417,10 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		except:
 			pass # pass silently if the signal wasn't connected in the first place; see accept()
 		# self.caltopoEnabledCB()
+		# logging.info(f'fistShow:{self.firstShow} caltopoIntegrationDefault={self.parent.caltopoIntegrationDefault}')
+		if self.firstShow:
+			self.ui.caltopoGroupBox.setChecked(self.parent.caltopoIntegrationDefault)
+			self.firstShow=False
 
 	def displayTimeout(self):
 		self.ui.timeoutLabel.setText("Timeout: "+timeoutDisplayList[self.ui.timeoutField.value()][0])
