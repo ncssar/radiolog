@@ -8288,6 +8288,7 @@ class caltopoOpenMapThread(QThread):
 
 	def run(self):
 		logging.info(f'about to call cts.openMap: apiVersion={self.parent.cts.apiVersion}  mapID={self.parent.cts.mapID}  caltopoLink={self.parent.caltopoLink}')
+		# time.sleep(5) # visualize delay like a slow-open
 		rval=self.parent.cts.openMap(self.parent.optionsDialog.ui.caltopoMapIDField.text())
 		logging.info(f'return from cts.openMap:{rval} apiVersion={self.parent.cts.apiVersion}  mapID={self.parent.cts.mapID}  caltopoLink={self.parent.caltopoLink}')
 		self.finished.emit(self.parent.caltopoLink>0) # emit False if failed due to disconnect etc.
@@ -8401,6 +8402,10 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.timeoutField.clearFocus()
 		self.ui.secondWorkingDirCheckBox.clearFocus()
 		self.parent.caltopoUpdateLinkIndicator()
+		try:
+			self.parent.openMapThread.finished.disconnect(self.accept)
+		except:
+			pass # pass silently if the signal wasn't connected in the first place; see accept()
 		# self.caltopoEnabledCB()
 
 	def displayTimeout(self):
@@ -8422,14 +8427,21 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.parent.saveRcFile()
 		if self.ui.caltopoGroupBox.isChecked() and self.parent.caltopoLink==1:
 			# box=QMessageBox(QMessageBox.Warning,"No map has been opeend","Did you mean to open a map before closing the Options dialog?",
-			box=QMessageBox(QMessageBox.Warning,"No map has been opeend","Did you mean to open the selected map?\n\nClick Yes to open the map and close the Options dialog.",
+			box=QMessageBox(QMessageBox.Warning,"No map has been opeend","Did you mean to open the selected map?\n\nClick Yes to open the selected map (and to close the Options dialog after opening).",
 				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			box.show()
 			box.raise_()
 			if box.exec_()==QMessageBox.Yes: # leave the options dialog open
 				box.close()
-				self.pyqtspinner.start() # spinner doesn't start without this line - jot sure why
+				# close the options dialog when the map is connected;
+				#  connecting the slot here means we have to disconnect it when the dialog is opened,
+				#  otherwise it stays connected and would still have effect the next time the dialog is opened
+				self.parent.openMapThread.finished.connect(self.accept)
 				self.caltopoOpenMapButtonClicked()
+			# 	return
+			# else:
+			# 	return # don't close the options dialog if No is clicked
+			return # don't close the options dialog if No is clicked
 		super(optionsDialog,self).accept()
 		
 	def toggleShow(self):
