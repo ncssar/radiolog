@@ -7299,6 +7299,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		QTimer.singleShot(3000,lambda:
 					self.optionsDialog.caltopoUpdateOverlayLabel(
 						'<span style="font-size:24px;color:#44f;line-height:2">This is taking a while...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background<br>and the options dialog will pop up again when finished.</span>'))
+		self.optionsDialog.ctsOverlayTimer.start(3000)
 		# self.optionsDialog.caltopoUpdateOverlayLabel('<span style="font-size:24px">Big Text<br></span><span style="font-size:16px">Small Text</span>')
 		# QApplication.processEvents()
 		self.createCTSThread.start()
@@ -7376,6 +7377,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# this method runs in the main thread
 		logging.info(f'createCTSCB called with result={result}')
 		self.caltopoUpdateLinkIndicator()
+		self.optionsDialog.ctsOverlayTimer.stop()
 		if result: # success
 			self.optionsDialog.pyqtspinner.stop()
 			self.optionsDialog.caltopoUpdateOverlayLabel(None)
@@ -7473,14 +7475,16 @@ class MyWindow(QDialog,Ui_Dialog):
 		# time.sleep(5)
 		# if the operation takes more than 3 seconds, show the overlay label in the options dialog,
 		#  reminding the user that it's safe to close the options dialog
-		QTimer.singleShot(3000,lambda:
-					self.optionsDialog.caltopoUpdateOverlayLabel(
-						'<span style="font-size:24px;color:#44f;line-height:2">This is taking a while...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background;<br>the link indicator will turn bright green when finished.</span>'))
+		# QTimer.singleShot(3000,lambda:
+		# 			self.optionsDialog.caltopoUpdateOverlayLabel(
+		# 				'<span style="font-size:24px;color:#44f;line-height:2">This is taking a while...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background;<br>the link indicator will turn bright green when finished.</span>'))
+		self.optionsDialog.openingOverlayTimer.start(3000)
 		self.openMapThread.start()
 	
 	def openMapCB(self,result):
 		# this method runs in the main thread
 		logging.info(f'openMapCB called with result={result}')
+		self.optionsDialog.openingOverlayTimer.stop()
 		if result: # success
 			self.caltopoLink=2 # map opened and connected
 			self.caltopoOpenMapIsWritable=not self.optionsDialog.caltopoSelectionIsReadOnly
@@ -8402,6 +8406,18 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# self.overlayLabel.adjustSize()
 		# self.overlayLabel.move(int((self.width()/2)-(self.overlayLabel.width()/2)),int((self.height()/2)-(self.overlayLabel.height()/2)))
 		self.firstShow=True # caltopoIntegrationDefault isn't yet defined; only apply the default on the first showing of the dialog
+		
+		self.ctsOverlayTimer=QTimer(self)
+		self.ctsOverlayTimer.setSingleShot(True)
+		self.ctsOverlayTimer.timeout.connect(lambda:
+					self.caltopoUpdateOverlayLabel(
+						'<span style="font-size:24px;color:#44f;line-height:2">This is taking a while...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background<br>and the options dialog will pop up again when finished.</span>'))
+		
+		self.openingOverlayTimer=QTimer(self)
+		self.openingOverlayTimer.setSingleShot(True)
+		self.openingOverlayTimer.timeout.connect(lambda:
+					self.caltopoUpdateOverlayLabel(
+						'<span style="font-size:24px;color:#44f;line-height:2">This is taking a while...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background;<br>the link indicator will turn bright green when finished.</span>'))
 
 	def showEvent(self,event):
 		# clear focus from all fields, otherwise previously edited field gets focus on next show,
