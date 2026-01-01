@@ -7449,10 +7449,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		# this method runs in the main thread
 		# start the options dialog spinner (regardless of whether the dialog is open),
 		#  and do the real work in openMapThread
-		self.optionsDialog.pyqtspinner.start()
-		# clear the radios folder variables, to avoid unnamed folder if one map is closed then another is open
-		self.radioMarkerFID=None
-		self.radioMarkerFolderHasBeenRequested=False
 		# clear existing radio marker IDs, to avoid attempts to edit markers whose IDs only exist in a previously open map;
 		#  this also means that all devices will generate markers on the newly opened map, which is good
 		#  NOTE: this could result in duplicate markers in the newly opened map; would be fixed by reading existing markers
@@ -7460,6 +7456,12 @@ class MyWindow(QDialog,Ui_Dialog):
 		for d in self.radioMarkerDict.values():
 			d['caltopoId']=None
 			d['lastId']=None
+		# clear the radios folder variables, to avoid unnamed folder if one map is closed then another is open
+		self.radioMarkerFID=None
+		self.radioMarkerFolderHasBeenRequested=False
+		self.optionsDialog.pyqtspinner.start()
+		# QApplication.processEvents()
+		# time.sleep(5)
 		# if the operation takes more than 3 seconds, show the overlay label in the options dialog,
 		#  reminding the user that it's safe to close the options dialog
 		QTimer.singleShot(3000,lambda:
@@ -8419,13 +8421,15 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		#  is called during init, before the values are ready to save
 		self.parent.saveRcFile()
 		if self.ui.caltopoGroupBox.isChecked() and self.parent.caltopoLink==1:
-			box=QMessageBox(QMessageBox.Warning,"No map has been opeend","Did you mean to open a map before closing the Options dialog?",
+			# box=QMessageBox(QMessageBox.Warning,"No map has been opeend","Did you mean to open a map before closing the Options dialog?",
+			box=QMessageBox(QMessageBox.Warning,"No map has been opeend","Did you mean to open the selected map?\n\nClick Yes to open the map and close the Options dialog.",
 				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			box.show()
 			box.raise_()
 			if box.exec_()==QMessageBox.Yes: # leave the options dialog open
 				box.close()
-				return
+				self.pyqtspinner.start() # spinner doesn't start without this line - jot sure why
+				self.caltopoOpenMapButtonClicked()
 		super(optionsDialog,self).accept()
 		
 	def toggleShow(self):
