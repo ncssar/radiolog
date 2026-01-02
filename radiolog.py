@@ -7294,12 +7294,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  and do the real work in createCTSThread
 		self.optionsDialog.pyqtspinner.start()
 		# QApplication.processEvents()
-		# if the operation takes more than 3 seconds, show the overlay label in the options dialog,
-		#  reminding the user that it's safe to close the options dialog
-		QTimer.singleShot(3000,lambda:
-					self.optionsDialog.caltopoUpdateOverlayLabel(
-						'<span style="font-size:24px;color:#44f;line-height:2">This is taking a while...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background<br>and the options dialog will pop up again when finished.</span>'))
-		self.optionsDialog.ctsOverlayTimer.start(3000)
+		# # if the operation takes more than 3 seconds, show the overlay label in the options dialog,
+		# #  reminding the user that it's safe to close the options dialog
+		# QTimer.singleShot(3000,lambda:
+		# 			self.optionsDialog.caltopoUpdateOverlayLabel(
+		# 				'<span style="font-size:24px;color:#44f;line-height:2">This is taking a while...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background<br>and the options dialog will pop up again when finished.</span>'))
+		if self.caltopoLink>=0: # only show the blow taking a while overlay if connected
+			self.optionsDialog.ctsOverlayTimer.start(3000)
 		# self.optionsDialog.caltopoUpdateOverlayLabel('<span style="font-size:24px">Big Text<br></span><span style="font-size:16px">Small Text</span>')
 		# QApplication.processEvents()
 		self.createCTSThread.start()
@@ -7392,7 +7393,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.optionsDialog.pyqtspinner.start()
 			# immediately show the overlay label in the options dialog, reminding the user that it's safe to close the options dialog
 			self.optionsDialog.caltopoUpdateOverlayLabel(
-				'<span style="font-size:24px;color:#f44;line-height:2">No connection to CalTopo server...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background<br>and the options dialog will pop up again when finished.</span>')
+				'<span style="font-size:24px;color:#f44;line-height:2">No connection to CalTopo server...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background;<br>the options dialog will pop up again when connected.</span>')
 			self.caltopoDisconnectedCallback()
 			self.cts._sendRequest('get','[PING]',j=None,callbacks=[[self.caltopoReconnectedFromCreateCTS]])
 		# QCoreApplication.processEvents()
@@ -7435,7 +7436,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.caltopoUpdateLinkIndicator()
 			self.optionsDialog.caltopoEnabledCB()
 			self.optionsDialog.caltopoUpdateOverlayLabel(
-				'<span style="font-size:24px;color:#0a0;line-height:2">Connection Established;<br>Getting Account Info...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background<br>and the options dialog will pop up again when finished.</span>')
+				'<span style="font-size:24px;color:#0a0;line-height:2">Connection Established;<br>Getting Account Info...<br></span><span style="font-size:16px;color:black;line-height:1.5">You can use or close the options dialog;<br>this operation will keep trying in the background;<br>the options dialog will pop up again when finished.</span>')
 			# QCoreApplication.processEvents()
 			self.createCTS()
 			# box=QMessageBox(QMessageBox.Information,"Reconnected","Connection to CalTopo server is re-established.\n\nYou can open a map now if needed.",
