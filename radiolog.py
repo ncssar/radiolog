@@ -8381,6 +8381,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 ##		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.ui.datumField.setEnabled(False) # since convert menu is not working yet, TMG 4-8-15
 		self.ui.formatField.setEnabled(False) # since convert menu is not working yet, TMG 4-8-15
+		self.adjustSize()
 		self.setFixedSize(self.size())
 		self.secondWorkingDirCB()
 		self.newEntryWarningCB()
@@ -8436,13 +8437,13 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		self.ui.caltopoMapNameComboBox.setToolTip(self.mapToolTip)
 		# self.ui.caltopoMapNameComboBox.view().setToolTip(self.mapToolTip) # too intrusive
 		self.ui.caltopoLinkIndicator.setToolTip(caltopoIndicatorToolTip)
-		h=self.ui.caltopoGroupBox.height()
+		h=self.ui.caltopoGroupBox.height() # make sure adjustSize has been called, otherwise this could be a tiny number
 		self.pyqtspinner=WaitingSpinner(self.ui.caltopoGroupBox,True,True,
 									roundness=50,
-									radius=int(h*1.5),
-									line_length=int(h*1.5),
+									radius=int(h/6),
+									line_length=int(h/6),
 									lines=15,
-									line_width=int(h/3))
+									line_width=int(h/25))
 		# self.pyqtspinner.setRadius(int(self.ui.caltopoGroupBox.height()*0.75))
 		# self.createCTSThread=caltopoCreateCTSThread(self)
 		# self.createCTSThread.finished.connect(self.createCTSCB)
@@ -11996,6 +11997,7 @@ class opPeriodDialog(QDialog,Ui_opPeriodDialog):
 		self.ui.newOpPeriodField.setValue(parent.opPeriod+1)
 		# self.setAttribute(Qt.WA_DeleteOnClose)
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
+		self.adjustSize()
 		self.setFixedSize(self.size())
 
 	def accept(self):
