@@ -120,6 +120,7 @@ import functools
 from typing import Callable
 import queue
 import traceback
+import re
 
 # import objgraph
 # import psutil
@@ -4847,8 +4848,16 @@ def handle_exception(*args,**kwargs):
     # if exceptionDict:
     #     logging.info(f'Exception dict passed to handle_exception: {exceptionDict}')
     excStr=traceback.format_exc()
-    if excStr in exceptionDict:
-        logFunc(f'{prefix1} repeated exception from {exceptionDict[excStr]} ({excStr.splitlines()[-1]}); traceback printing suppressed')
+    lastLine=excStr.splitlines()[-1]
+    if 'getaddrinfo failed' in lastLine:
+        lastLine=re.sub('object at 0x.*>','object at 0x....>',lastLine)
+        if lastLine in exceptionDict:
+            logFunc(f'{prefix1} repeated getaddrinfo exception from {exceptionDict[lastLine]}; entire traceback suppressed')
+        else:
+            logFunc(f'{prefix1} getaddrinfo exception; suppressing possibly-lengthy traceback chain; final line of exception: {lastLine}')
+            return lastLine # so that only the last line is treated as a repeated exception; it includes the expires time and signature
+    elif excStr in exceptionDict:
+        logFunc(f'{prefix1} repeated exception from {exceptionDict[excStr]} ({lastLine}); traceback printing suppressed')
     else:
         logFunc(prefix, exc_info=(exc_type, exc_value, exc_traceback))
         return excStr # igonored by sys.excepthook and threading.excepthook; can be used by calling code

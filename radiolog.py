@@ -7500,6 +7500,12 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.optionsDialog.caltopoUpdateGUI()
 			self.optionsDialog.caltopoUpdateOverlayLabel(None)
 			self.optionsDialog.pyqtspinner.stop()
+			if self.optionsDialog.ui.caltopoWebBrowserCheckBox.isChecked():
+				try:
+					logging.info('Opening map in web browser...')
+					webbrowser.open('https://caltopo.com/m/'+self.optionsDialog.ui.caltopoMapIDField.text())
+				except Exception as e:
+					logging.info('Failed to open map in web browser: '+str(e))
 		# else: # failure - loss of connection during openMap
 		# 	self.caltopoLink=1
 		# 	logging.info('ERROR: could not open map '+str(self.optionsDialog.ui.caltopoMapIDField.text()))
@@ -9225,12 +9231,12 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 			self.parent.caltopoLink=3 # in transition
 			self.caltopoUpdateGUI()
 			# QCoreApplication.processEvents()
-			if self.ui.caltopoWebBrowserCheckBox.isChecked():
-				try:
-					logging.info('Opening map in web browser...')
-					webbrowser.open('https://caltopo.com/m/'+self.ui.caltopoMapIDField.text())
-				except Exception as e:
-					logging.info('Failed to open map in web browser: '+str(e))
+			# if self.ui.caltopoWebBrowserCheckBox.isChecked():
+			# 	try:
+			# 		logging.info('Opening map in web browser...')
+			# 		webbrowser.open('https://caltopo.com/m/'+self.ui.caltopoMapIDField.text())
+			# 	except Exception as e:
+			# 		logging.info('Failed to open map in web browser: '+str(e))
 		else: # 2 = map opened and connected
 			self.ui.caltopoOpenMapButton.setText('Closing...')
 			self.parent.caltopoLink=3 # in transition
