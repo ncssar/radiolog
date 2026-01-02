@@ -1388,13 +1388,13 @@ class CaltopoSession():
     # thread-safe set and clear functions for syncPause
     def _syncPauseSet(self):
         # with self.syncPauseLock:
-        if not self.syncing:
+        if not self.disconnectedFlag and not self.syncing:
             logging.info('_syncPauseSet called from thread '+threading.current_thread().name)
         self.syncPause=True 
 
     def _syncPauseClear(self):
         # with self.syncPauseLock:
-        if not self.syncing:
+        if not self.disconnectedFlag and not self.syncing:
             logging.info('_syncPauseClear called from thread '+threading.current_thread().name)
         self.syncPause=False
                 
@@ -1962,14 +1962,14 @@ class CaltopoSession():
                     keepTrying=True
                     r=None
                     while keepTrying:
-                        logging.info('t1')
+                        # logging.info('t1')
                         if method in ['GET','POST','DELETE']:
                             logging.info(f'processing {method}...')
                             try:
                                 while self.syncing: # wait until any current sync is finished
                                     time.sleep(1)
                                     pass
-                                logging.info('p1: setting syncPause')
+                                # logging.info('p1: setting syncPause')
                                 self._syncPauseSet() # set pause here to avoid leaving it set
 
                                 # perform deferredHook now if specified as part of the queued request
@@ -2003,7 +2003,7 @@ class CaltopoSession():
                             except Exception:
                                 # logging.error('Exception during processing of queued request: '+str(e))
                                 self._handle_caught_exception(sys.exc_info())
-                                logging.info('f3: clearing syncPause')
+                                # logging.info('f3: clearing syncPause')
                                 self._syncPauseClear() # don't leave it set, in case of exception
                         else:
                             logging.info('    unknown queued request removed from queue: '+json.dumps(qr,indent=3))
@@ -2013,7 +2013,7 @@ class CaltopoSession():
                             self._doCallback(self.requestQueueChangedCallback,self.requestQueue)
                             continue
                         if r and r.status_code==200:
-                            logging.info('t5')
+                            # logging.info('t5')
                             keepTrying=False
                             if self.disconnectedFlag:
                                 logging.info('reconnected (successful response from queued request '+str(qr.get('url'))+'); queue size is '+str(self.requestQueue.qsize()))
@@ -2029,15 +2029,15 @@ class CaltopoSession():
                             # self._doCallback(self.requestQueueChangedCallback,self.requestQueue)
                             # self.holdRequests=False
                             logging.info('sending callbacks:'+str(qr['callbacks']))
-                            logging.info('t5b')
+                            # logging.info('t5b')
                             rv=self._handleResponse(r,callbacks=qr['callbacks'])
-                            logging.info('t5c: clearing syncPause')
+                            # logging.info('t5c: clearing syncPause')
                             self._syncPauseClear() # leave it set until after _handleResponse to avoid cache race conditions
                             logging.info(' t5c: requestThread is alive: '+str(self.requestThread.is_alive()))
                         else:
-                            logging.info('f6: clearing syncPause')
+                            # logging.info('f6: clearing syncPause')
                             self._syncPauseClear() # resume sync immediately if response wasn't valid
-                            logging.warning('    response not valid; trying again in 5 seconds... '+str(qr.get('url')))
+                            details=''
                             try:
                                 # logging.info('f6a')
                                 # logging.info(f'f6a1 {r}')
@@ -2045,9 +2045,13 @@ class CaltopoSession():
                                 # logging.info('f6b')
                                 # logging.warning(f'  response: {r}')
                                 # print gracefully if r isn't a response object
-                                logging.warning(f"    response: {getattr(r,'status_code','')} {getattr(r,'text',r)}")
+                                codeText=getattr(r,'status_code','')
+                                if codeText:
+                                    codeText+=' '
+                                details=f" ({codeText}{getattr(r,'text',r)})"
                             except Exception as e:
                                 logging.error(f'Exception during print of invalid response: {e} (r={r})')
+                            logging.warning(f'    response not valid{details}; trying again in 5 seconds... {qr.get("url")}')
                             # if r:
                             #     logging.info('    r.status_code='+str(r.status_code))
                             # if self.failedRequestCallback:
@@ -2060,7 +2064,7 @@ class CaltopoSession():
                                 #     self.disconnectedCallback()
                                 self._doCallback(self.disconnectedCallback)
                             # self.holdRequests=True
-                            logging.info('t6')
+                            # logging.info('t6')
                             time.sleep(5)
                     logging.info('  queue size at end of iteration:'+str(self.requestQueue.qsize()))
                 logging.info('t7')
