@@ -7918,8 +7918,9 @@ class caltopoFolderPopup(QDialog):
 		self.tree_view.setSelectionMode(QTreeView.SingleSelection)
 		self.tree_view.setEditTriggers(QTreeView.NoEditTriggers)
 		self.tree_view.setExpandsOnDoubleClick(False)
-		self.tree_view.setAnimated(True)
+		self.tree_view.setAnimated(True) # this affects expand/collapse, but does not affect scroll
 		self.tree_view.setFont(self.parent.ui.caltopoFolderButton.font())
+		self.tree_view.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
 
 		self.tree_view.setFixedHeight(300)
 
@@ -7931,6 +7932,7 @@ class caltopoFolderPopup(QDialog):
 		self.tree_view.clicked.connect(self.clickedCB)
 		self.tree_view.expanded.connect(self.expandedCB)
 		self.tree_view.collapsed.connect(self.collapsedCB)
+		# self.tree_view.verticalScrollBar().valueChanged.connect(lambda:logging.info(f'scroll value changed to {self.tree_view.verticalScrollBar().value()}'))
 
 		self.setWindowTitle("Popup Dialog")
 		self.setWindowFlags(Qt.Popup)
@@ -7942,27 +7944,66 @@ class caltopoFolderPopup(QDialog):
 		self.blockPopup=False
 		self.padding=10
 
+	def animated_scroll(self,tree_view,index):
+		# Get the vertical scroll bar
+		v_bar = tree_view.verticalScrollBar()
+		val=v_bar.value() # this is a number of pixels within the entire scroll area, i.e. if the view were infinitely tall
+		rect = tree_view.visualRect(index)
+		top=rect.top() # this is a number of pixels relative to the current top of the view
+		# logging.info(f'folder scrollbar min:{v_bar.minimum()}  max:{v_bar.maximum()}  current:{val}  top(index)={top}')
+		
+		# Calculate the target position
+		# target_value=top-50
+		# target_value = v_bar.value() + rect.top()
+		# target_value=int(rect.top()/2)
+		# target_value=v_bar.value()+5
+		# target_value=60
+		# target_value=top-60 # value relateive to val (the entire bottomless scroll area) to be placed at the top of the view
+		target_value=val+top-60
+		# target_value=v_bar.maximum()-2
+		
+		# logging.info(f'starting scroll animation: start={val} end={target_value}')
+		# Create animation - must be an instance var, not local var, to avoid deletion when this function ends;
+		#  animation will appear to not start if it's a local var
+		self.folderScrollAnimation = QPropertyAnimation(v_bar, b"value")
+		self.folderScrollAnimation.setDuration(500) # Duration in ms
+		self.folderScrollAnimation.setEasingCurve(QEasingCurve.OutCubic)
+		self.folderScrollAnimation.setStartValue(val)
+		self.folderScrollAnimation.setEndValue(target_value)
+		
+		# Start animation
+		# QTimer.singleShot(100,animation.start)
+		self.folderScrollAnimation.start()
+		# QTimer.singleShot(100,lambda:v_bar.setValue(target_value))
+
 	def closeEvent(self,e):
 		self.blockPopup=True
 		QTimer.singleShot(250,self.clearBlock)
-		logging.info('popup closed')
+		# logging.info('popup closed')
 
 	def clearBlock(self):
 		self.blockPopup=False
 
 	def enteredCB(self,i):
-		# print('entered')
+		# rect = self.tree_view.visualRect(i)
+		# top=rect.top()
+		# v_bar=self.tree_view.verticalScrollBar()
+		# val=v_bar.value()
+		# logging.info(f'entered: top={top}  current={val}')
 		self.setFullLabel(i)
 
 	def expandedCB(self,i):
-		print('expanded')
+		# logging.info('expanded')
+		# self.tree_view.scrollTo(i,QAbstractItemView.PositionAtCenter)
 		self.collapseOthers(i)
+		QTimer.singleShot(300,lambda:self.animated_scroll(self.tree_view,i))
 
 	def collapsedCB(self,i):
-		print('collapsed')
+		pass
+		# logging.info('collapsed')
 
 	def clickedCB(self,i):
-		print('clicked:'+i.data()+':'+i.data(Qt.UserRole))
+		# logging.info('clicked:'+i.data()+':'+i.data(Qt.UserRole))
 		# parent=i.parent()
 		# logging.info(f'  model={i.model()} row={i.row()} col={i.column()}')
 		# logging.info(f'  parent model={parent.model()} row={parent.row()} col={parent.column()}')
@@ -8175,11 +8216,11 @@ class caltopoFolderPopup(QDialog):
 	# collapse all other indeces, from all levels of nesting, except for ancestors of the index in question
 	def collapseOthers(self,expandedIndex):
 		QApplication.processEvents()
-		print('collapse_others called: expandedIndex='+str(expandedIndex))
+		# print('collapse_others called: expandedIndex='+str(expandedIndex))
 		ancesterIndices=[]
 		parent=expandedIndex.parent() # returns a new QModelIndex instance if there are no parents
-		print('building ancesterIndices: first parent='+str(parent))
-		print(f'  model={parent.model()} row={parent.row()} col={parent.column()}')
+		# print('building ancesterIndices: first parent='+str(parent))
+		# print(f'  model={parent.model()} row={parent.row()} col={parent.column()}')
 		while parent.isValid():
 			ancesterIndices.append(parent)
 			# print('appending '+str(parent))
