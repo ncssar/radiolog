@@ -370,6 +370,7 @@ class Ui_optionsDialog(object):
         self.caltopoDesktopButton.toggled['bool'].connect(optionsDialog.caltopoServerChanged) # type: ignore
         self.caltopoFolderButton.pressed.connect(optionsDialog.caltopoFolderButtonPressed) # type: ignore
         self.caltopoOpenMapButton.clicked.connect(optionsDialog.caltopoOpenMapButtonClicked) # type: ignore
+        self.caltopoWebBrowserCheckBox.stateChanged['int'].connect(optionsDialog.caltopoEnabledCB) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(optionsDialog)
 
     def retranslateUi(self, optionsDialog):
