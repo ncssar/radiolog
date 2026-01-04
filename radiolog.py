@@ -8349,7 +8349,7 @@ class caltopoOpenMapThread(QThread):
 
 	def run(self):
 		logging.info(f'about to call cts.openMap: apiVersion={self.parent.cts.apiVersion}  mapID={self.parent.cts.mapID}  caltopoLink={self.parent.caltopoLink}')
-		time.sleep(5) # visualize delay like a slow-open
+		# time.sleep(5) # visualize delay like a slow-open
 		rval=self.parent.cts.openMap(self.parent.optionsDialog.ui.caltopoMapIDField.text())
 		logging.info(f'return from cts.openMap:{rval} apiVersion={self.parent.cts.apiVersion}  mapID={self.parent.cts.mapID}  caltopoLink={self.parent.caltopoLink}')
 		self.finished.emit(self.parent.caltopoLink>0) # emit False if failed due to disconnect etc.
