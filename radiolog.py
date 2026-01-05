@@ -7513,7 +7513,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			if self.optionsDialog.ui.caltopoWebBrowserCheckBox.isChecked():
 				try:
 					logging.info('Opening map in web browser...')
-					webbrowser.open('https://caltopo.com/m/'+self.optionsDialog.ui.caltopoMapIDField.text())
+					webbrowser.open(f'https://{self.cts.domainAndPort}/m/{self.optionsDialog.ui.caltopoMapIDField.text()}')
 				except Exception as e:
 					logging.info('Failed to open map in web browser: '+str(e))
 		# else: # failure - loss of connection during openMap

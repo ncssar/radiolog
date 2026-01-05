@@ -452,7 +452,7 @@ class CaltopoSession():
         # set a flag: is this an internet session?
         #  if so, id and key are strictly required, and accountId is needed to print
         #  if not, all three are only needed in order to print
-        self.internet=self.domainAndPort and self.domainAndPort.lower() in ['sartopo.com','caltopo.com']
+        self.internet=self.domainAndPort and self.domainAndPort.lower() in ['sartopo.com','caltopo.com','testing.caltopo.com']
         id=None
         key=None
         accountId=None
