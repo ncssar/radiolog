@@ -1920,7 +1920,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.caltopoIntegrationDefault=False
 		self.caltopoAccountName="NONE"
 		self.caltopoDefaultTeamAccount=None
-		self.caltopoMapMarkers=False
+		self.caltopoMapMarkersDefault=False
+		self.caltopoWebBrowserDefault=False
 		
 		if os.name=="nt":
 			logging.info("Operating system is Windows.")
@@ -2012,8 +2013,10 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.caltopoAccountName=tokens[1]
 			elif tokens[0]=='caltopoDefaultTeamAccount':
 				self.caltopoDefaultTeamAccount=tokens[1]
-			elif tokens[0]=='caltopoMapMarkers':
-				self.caltopoMapMarkers=tokens[1]
+			elif tokens[0]=='caltopoMapMarkersDefault':
+				self.caltopoMapMarkersDefault=tokens[1]
+			elif tokens[0]=='caltopoWebBrowserDefault':
+				self.caltopoWebBrowserDefault=tokens[1]
 					
 		configFile.close()
 		
@@ -2081,11 +2084,17 @@ class MyWindow(QDialog,Ui_Dialog):
 		if type(self.caltopoIntegrationDefault)==str:
 			self.caltopoIntegrationDefault=eval(self.caltopoIntegrationDefault)
 			
-		if self.caltopoMapMarkers and self.caltopoMapMarkers not in ['True','False']:
-			configErr+='ERROR: caltopoMapMarkers value must be True or False.  Will set to False by default.'
-			self.caltopoMapMarkers='False'
-		if type(self.caltopoMapMarkers)==str:
-			self.caltopoMapMarkers=eval(self.caltopoMapMarkers)
+		if self.caltopoMapMarkersDefault and self.caltopoMapMarkersDefault not in ['True','False']:
+			configErr+='ERROR: caltopoMapMarkersDefault value must be True or False.  Will set to False by default.'
+			self.caltopoMapMarkersDefault='False'
+		if type(self.caltopoMapMarkersDefault)==str:
+			self.caltopoMapMarkersDefault=eval(self.caltopoMapMarkersDefault)
+			
+		if self.caltopoWebBrowserDefault and self.caltopoWebBrowserDefault not in ['True','False']:
+			configErr+='ERROR: caltopoWebBrowserDefault value must be True or False.  Will set to False by default.'
+			self.caltopoWebBrowserDefault='False'
+		if type(self.caltopoWebBrowserDefault)==str:
+			self.caltopoWebBrowserDefault=eval(self.caltopoWebBrowserDefault)
 
 		self.updateOptionsDialog()
 		
@@ -8485,6 +8494,8 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# logging.info(f'fistShow:{self.firstShow} caltopoIntegrationDefault={self.parent.caltopoIntegrationDefault}')
 		if self.firstShow:
 			self.ui.caltopoGroupBox.setChecked(self.parent.caltopoIntegrationDefault)
+			self.ui.caltopoRadioMarkersCheckBox.setChecked(self.parent.caltopoMapMarkersDefault)
+			self.ui.caltopoWebBrowserCheckBox.setChecked(self.parent.caltopoWebBrowserDefault)
 			self.firstShow=False
 
 	def displayTimeout(self):
