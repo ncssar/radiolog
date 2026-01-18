@@ -8,3 +8,4 @@ pypiwin32
 pygeodesy
 shapely
 pyqtspinner
+caltopo_python>=2.0.0
