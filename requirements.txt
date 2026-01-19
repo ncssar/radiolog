@@ -6,3 +6,6 @@ pypdf2
 pypiwin32
 # pygeodesy==23.11.11 # known good - used for radiolog 3.11.1 but since fixed by https://github.com/mrJean1/PyGeodesy/issues/79
 pygeodesy
+shapely
+pyqtspinner
+caltopo_python>=2.0.0

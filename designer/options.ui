@@ -524,6 +524,9 @@
             <pointsize>10</pointsize>
            </font>
           </property>
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
          </widget>
         </item>
        </layout>
@@ -659,8 +662,8 @@
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>444</x>
-     <y>497</y>
+     <x>584</x>
+     <y>549</y>
     </hint>
     <hint type="destinationlabel">
      <x>157</x>
@@ -675,8 +678,8 @@
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>444</x>
-     <y>497</y>
+     <x>584</x>
+     <y>549</y>
     </hint>
     <hint type="destinationlabel">
      <x>286</x>
@@ -707,8 +710,8 @@
    <slot>fsSendCB()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>52</x>
-     <y>497</y>
+     <x>62</x>
+     <y>549</y>
     </hint>
     <hint type="destinationlabel">
      <x>56</x>
@@ -857,6 +860,22 @@
     <hint type="destinationlabel">
      <x>34</x>
      <y>151</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>caltopoWebBrowserCheckBox</sender>
+   <signal>stateChanged(int)</signal>
+   <receiver>optionsDialog</receiver>
+   <slot>caltopoEnabledCB()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>182</x>
+     <y>482</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>589</x>
+     <y>502</y>
     </hint>
    </hints>
   </connection>
