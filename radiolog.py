@@ -2612,6 +2612,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				seq.append('GPS')
 				lineParse=line.split(',')
 				header=lineParse[0] # $PKLSH or $PKNSH, possibly following CID STX thru ETX
+				gpsAfterMicBump=False # flag that allows the radio marker to be sent, but doesn't spawn a new entry
 				# logging.info('header:'+header+'  tokens:'+str(len(lineParse)))
 				# if CID packet(s) came before $PKLSH on the same line, that's OK since they don't have any commas
 				if '$PKLSH' in header: # fleetsync
@@ -2627,8 +2628,9 @@ class MyWindow(QDialog,Ui_Dialog):
 						latestMicBump=self.latestBumpDict.get(str(fleet)+':'+str(dev),0)
 						if time.time()-latestMicBump<2 and not '\x02I' in line and not '\x02gI' in line:
 							logging.info('latest filtered mic bump for this device:'+str(latestMicBump)+'  ('+str(time.time()-latestMicBump)+' seconds ago)')
-							logging.info(' this was within the last two seconds, and this line has no CID data; skipping this GPS-only line, as part of the same mic bump')
-							return
+							logging.info(' this was within the last two seconds, and this line has no CID data; will send radio marker data, but otherwise skipping this GPS-only line, as part of the same mic bump')
+							gpsAfterMicBump=True
+							# return
 					else:
 						logging.info("Parsed $PKLSH line contained "+str(len(lineParse))+" tokens instead of the expected 10 tokens; skipping.")
 						origLocString='BAD DATA'
@@ -2715,7 +2717,9 @@ class MyWindow(QDialog,Ui_Dialog):
 							if not devTxt.startswith("Radio "):
 								self.getString=self.getString+devTxt
 							# if self.optionsDialog.ui.caltopoRadioMarkersCheckBox.isChecked() and self.cts:
-							self.sendRadioMarker(fleet,dev,uid,devTxt,lat,lon) # always send or queue
+							self.sendRadioMarker(fleet,dev,uid,devTxt,lat,lon,bump=gpsAfterMicBump) # always send or queue
+							if gpsAfterMicBump:
+								return # deferred return from above to here, so that the radio marker can still be sent
 
 						# was this a response to a location request for this device?
 						if self.fsAwaitingResponse and [fleet,dev]==[x for x in self.fsAwaitingResponse[0:2]]:
