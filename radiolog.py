@@ -7727,6 +7727,7 @@ class teamTabsPopup(QWidget,Ui_teamTabsPopup):
 
 	def cellClicked(self,row,col):
 		ci=self.ui.teamTabsTableWidget.currentItem()
+		self.ui.teamTabsTableWidget.clearSelection() # get rid of fixed gray background, to allow already-set status color to keep showing
 		if ci:
 			ntn=self.ui.teamTabsTableWidget.currentItem().text()
 			# remove any leading team hotkey text (character+colon+space)
