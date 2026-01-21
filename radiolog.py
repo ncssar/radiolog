@@ -4789,7 +4789,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				# secondsSinceContact=teamTimersDict.get(extTeamName,0)
 				button=self.ui.tabWidget.tabBar().tabButton(i,QTabBar.LeftSide)
 				# logging.info('  i='+str(i)+'  status='+str(status)+'  filter='+str(fsFilter)+'  blink='+str(self.blinkToggle)+'  button='+str(button))
-				styleObjectName='tab_'+extTeamName
+				styleObjectName=normName('tab_'+extTeamName)
 				#741 wrap this entire if/else clause in a check to see if button exists;
 				#  it should always exist now, due to other fixes for #741
 				if button:
@@ -6198,7 +6198,7 @@ class MyWindow(QDialog,Ui_Dialog):
 # 		logging.info("setting style for tab#"+str(i))
 # 		bar.tabButton(i,QTabBar.LeftSide).setStyleSheet("font-size:18px;qproperty-alignment:AlignHCenter")
 		button=bar.tabButton(i,QTabBar.LeftSide)
-		styleObjectName='tab_'+extTeamName
+		styleObjectName=normName('tab_'+extTeamName)
 		button.setObjectName(styleObjectName)
 		ss=buildObjSS(styleObjectName,statusStyleDict[""])
 		logging.info('setting tab initial style in addTab: '+ss)
