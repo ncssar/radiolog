@@ -5682,6 +5682,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			# if (fleet and dev and len([i for i in self.fsLog if i[0]==str(fleet) and i[1]==str(dev) and (i[7]-i[6])<2])>0) or \
 			#      (dev and not fleet and len([i for i in self.fsLog if i[0]=='' and i[1]==str(dev) and (i[7]-i[6])<2])>0) : # this is the device's first non-mic-bump call
 				logging.info('First non-mic-bump call from this device.')
+				self.newEntryWidget.firstNonMicBumpCall=True
 				rval='+CCD'
 				if self.isInCCD1List(callsign):
 					logging.info('Setting needsChangeCallsign since this is the first call from the device and the beginning of its default callsign "'+callsign+'" is specified in CCD1List')
@@ -9983,6 +9984,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.origLocString=origLocString
 		self.fleet=fleet
 		self.needsChangeCallsign=False # can be set to True by openNewEntry
+		self.firstNonMicBumpCall=False # can be set to True by openNewEntry, and is never cleared for this widget; determines green-vs-blue callsign change slider
 		self.dev=dev
 		self.parent=parent
 		self.isMostRecentForCallsign=isMostRecentForCallsign
@@ -10656,8 +10658,10 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 			self.ui.teamField.setStyleSheet('border:3px inset gray;')
 		# self.ui.changeCallsignGroupBox.setVisible(flag)
 		# self.callsignGroupBoxesShowHide(show='changeCallsign')
+		logging.info(f'flag:{flag}  callsignGroupBoxShown:{self.callsignGroupBoxShown}')
 		if flag and self.callsignGroupBoxShown=='none':
-			self.callsignGroupBoxesShowHide(show='changeCallsign')
+			show='firstCall' if self.firstNonMicBumpCall else 'changeCallsign'
+			self.callsignGroupBoxesShowHide(show=show)
 		if not flag and self.callsignGroupBoxShown=='changeCallsign':
 			self.callsignGroupBoxesShowHide(show='none')
 
