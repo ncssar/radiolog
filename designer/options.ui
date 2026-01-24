@@ -141,6 +141,11 @@
        </item>
        <item>
         <property name="text">
+         <string>USNG 5x5</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
          <string>D.d°</string>
         </property>
        </item>

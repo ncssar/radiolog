@@ -1167,6 +1167,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		#  value = utf-8 name used in the rest of this code
 		self.csDisplayDict={}
 		self.csDisplayDict["UTM 5x5"]="UTM 5x5"
+		self.csDisplayDict["USNG 5x5"]="USNG 5x5"
 		self.csDisplayDict["UTM 7x7"]="UTM 7x7"
 		self.csDisplayDict["D.d"]="D.d°"
 		self.csDisplayDict["DM.m"]="D° M.m'"
@@ -3923,7 +3924,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			return g.toStr(dms.F_DM,joined='  ',prec=-3,s_D="° ",s_M="'")
 		if targetFormat=="D° M' S.s\"":
 			return g.toStr(dms.F_DMS,joined='  ',prec=-1,s_D="° ",s_M="' ",s_S='"')
-		if 'UTM' in targetFormat:
+		if 'UTM' in targetFormat or 'USNG' in targetFormat:
 			g=g.toUtm() # fewer formatting options exist for utm objects; build the strings from components below
 			eStr="{0:07d}".format(round(g.easting))
 			nStr="{0:07d}".format(round(g.northing))
@@ -3939,7 +3940,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					return "{} {}".format(eStr,nStr)
 				else:
 					return "{} {}   {} {}".format(eStr[0:2],eStr[2:],nStr[0:2],nStr[2:])
-			if targetFormat=="UTM 5x5":
+			if targetFormat in ["UTM 5x5","USNG 5x5"]:
 				return "{}  {}".format(eStr[2:],nStr[2:])
 		return "INVALID - UNKNOWN OUTPUT FORMAT REQUESTED"
 
