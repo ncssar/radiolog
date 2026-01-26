@@ -7199,7 +7199,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			win.throb()
 
 	def activationChange(self):
-		logging.info('activation change')
+		# logging.info('activation change')
 		self.pendingActivationChange=True
 		if self.useNewEntryWindowHiddenPopup:
 			QTimer.singleShot(500,self.activationChangeDelayed)
@@ -7231,8 +7231,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		if ok:
 			self.newEntryWindowHiddenPopup.close()
 		else:
-			logging.info('  no valid window is active; showing newEntryWindowHiddenPopup')
 			if (self.newEntryWindow.ui.tabWidget.count()>2 or self.nonRadioClueDialogIsOpen) and not self.newEntryWindowHiddenPopup.isVisible():
+				logging.info('  an unexpected window has been activated, but newEntryWindow is open; showing newEntryWindowHiddenPopup')
 				self.newEntryWindowHiddenPopup.show()
 				self.newEntryWindowHiddenPopup.raise_()
 				# if main window was clicked, keep it active and ready for keypresses;
@@ -10207,7 +10207,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		# logging.info('focus out from widget '+str(widget.objectName()))
 		if widget.objectName()=='teamField':
 			# self.ui.changeCallsignGroupBox.setVisible(False)
-			self.callsignGroupBoxesShowHide(show='none',source='customFocusOutEvent')
+			if self.dev: # only relevant for fleetync / nexedge calls
+				self.callsignGroupBoxesShowHide(show='none',source='customFocusOutEvent')
 			# self.ui.firstCallGroupBox.setVisible(False)
 			# but not when the slider is clicked - assured by setting slider focus policy to NoFocus
 			self.ui.teamField.setToolTip('Type a callsign, or, choose from existing callsigns') # reset after customFocusInEvent
@@ -10642,33 +10643,34 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##		self.setWindowTitle("Radio Log - "+tmpTxt+" - "+self.ui.to_fromField.currentText()+" "+self.ui.teamField.text())
 
 	def teamFieldTextChanged(self):
-		flag=bool(self.dev and self.ui.teamField.text()!=self.originalCallsign) or self.parent.pendingActivationChange # dev could be None, so, convert to False
-		logging.info('team field text changed: change needed = '+str(flag))
-		self.needsChangeCallsign=flag
-		if flag:
-			uid=None
-			if self.fleet and self.dev: # fleetsync
-				deviceStr=str(self.fleet)+':'+str(self.dev)
-			elif self.dev:
-				deviceStr=str(self.dev)
+		if self.dev: # this code is only needed for fleetsync / nexedge calls
+			flag=bool(self.dev and self.ui.teamField.text()!=self.originalCallsign) or self.parent.pendingActivationChange # dev could be None, so, convert to False
+			logging.info('team field text changed: change needed = '+str(flag))
+			self.needsChangeCallsign=flag
+			if flag:
+				uid=None
+				if self.fleet and self.dev: # fleetsync
+					deviceStr=str(self.fleet)+':'+str(self.dev)
+				elif self.dev:
+					deviceStr=str(self.dev)
+				else:
+					deviceStr='N/A'
+				self.ui.changeCallsignLabel3.setText('Was: '+self.originalCallsign+'   [Device: '+deviceStr+']')
+				self.ui.changeCallsignSlider.setValue(0) # enforce the default every time the slider group is opened
+				if self.callsignGroupBoxShown=='firstCall':
+					self.ui.teamField.setStyleSheet('border:3px inset green;')
+				else:
+					self.ui.teamField.setStyleSheet('border:3px inset blue;')
 			else:
-				deviceStr='N/A'
-			self.ui.changeCallsignLabel3.setText('Was: '+self.originalCallsign+'   [Device: '+deviceStr+']')
-			self.ui.changeCallsignSlider.setValue(0) # enforce the default every time the slider group is opened
-			if self.callsignGroupBoxShown=='firstCall':
-				self.ui.teamField.setStyleSheet('border:3px inset green;')
-			else:
-				self.ui.teamField.setStyleSheet('border:3px inset blue;')
-		else:
-			self.ui.teamField.setStyleSheet('border:3px inset gray;')
-		# self.ui.changeCallsignGroupBox.setVisible(flag)
-		# self.callsignGroupBoxesShowHide(show='changeCallsign')
-		logging.info(f'flag:{flag}  callsignGroupBoxShown:{self.callsignGroupBoxShown}')
-		if flag and self.callsignGroupBoxShown=='none':
-			show='firstCall' if self.firstNonMicBumpCall else 'changeCallsign'
-			self.callsignGroupBoxesShowHide(show=show,source='teamFieldTextChanged')
-		if not flag and self.callsignGroupBoxShown=='changeCallsign':
-			self.callsignGroupBoxesShowHide(show='none',source='teamFieldTextChanged')
+				self.ui.teamField.setStyleSheet('border:3px inset gray;')
+			# self.ui.changeCallsignGroupBox.setVisible(flag)
+			# self.callsignGroupBoxesShowHide(show='changeCallsign')
+			logging.info(f'flag:{flag}  callsignGroupBoxShown:{self.callsignGroupBoxShown}')
+			if flag and self.callsignGroupBoxShown=='none':
+				show='firstCall' if self.firstNonMicBumpCall else 'changeCallsign'
+				self.callsignGroupBoxesShowHide(show=show,source='teamFieldTextChanged')
+			if not flag and self.callsignGroupBoxShown=='changeCallsign':
+				self.callsignGroupBoxesShowHide(show='none',source='teamFieldTextChanged')
 
 	def teamFieldEditingFinished(self):
 		cs=re.sub(r' +',r' ',self.ui.teamField.text()).strip() # remove leading and trailing spaces, and reduce chains of spaces to single space
@@ -10711,7 +10713,8 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				self.changeCallsign()
 				self.originalCallsign=self.ui.teamField.text()
 		# self.ui.changeCallsignGroupBox.setVisible(False)
-		self.callsignGroupBoxesShowHide(show='none',source='teamFieldEditingFinished')
+		if self.dev: # only relevant for fleetsync / nexedge calls
+			self.callsignGroupBoxesShowHide(show='none',source='teamFieldEditingFinished')
 		# self.ui.firstCallGroupBox.setVisible(False)
 
 	# reveal a group box, or hide both group boxes
