@@ -1640,7 +1640,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self._sig_caltopoMapClosed.connect(self.caltopoMapClosedCallback_mainThread)
 		# self._sig_caltopoCreateCTSCB.connect(self.caltopoCreateCTSCB_mainThread)
 
-		# # thread/queue/signal mechanism for radio markers, similar to the mechanism more requests in caltopo_python
+		# # thread/queue/signal mechanism for radio markers, similar to the mechanism for requests in caltopo_python
 		# # thread-safe queue to hold marker requests
 		# self.radioMarkerQueue=queue.Queue()
 
@@ -1652,6 +1652,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.radioMarkerThread.start()
 		self.radioMarkerDictLock=threading.Lock()
 		
+		# save thread - move all file save operations to a separate thread #602 / #816
+		self.fileFinalize=False
+		self.saving=False
+		self.saveEvent=threading.Event()
+		self.saveThread=threading.Thread(target=self._saveWorker,args=(self.saveEvent,),daemon=True,name='saveThread')
+		self.saveThread.start()
+
 		self.cts=None
 		# self.setupCaltopo()
 		self.ui.caltopoLinkIndicator.setToolTip(caltopoIndicatorToolTip)
@@ -5208,45 +5215,58 @@ class MyWindow(QDialog,Ui_Dialog):
 		return names
 
 	def save(self,finalize=False):
-		csvFileNameList=[os.path.join(self.sessionDir,self.csvFileName)]
-		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-			csvFileNameList.append(os.path.join(self.secondWorkingDir,self.csvFileName)) # save flat in second working dir
-		for fileName in csvFileNameList:
-			logging.info("  writing "+fileName)
-			with open(fileName,'w',newline='') as csvFile:
-				csvWriter=csv.writer(csvFile)
-				csvWriter.writerow(["## Radio Log data file"])
-				csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
-				csvWriter.writerow(["## Incident Name: "+self.incidentName])
-				csvWriter.writerow(["## Datum: "+self.datum+"  Coordinate format: "+self.coordFormat])
-				for row in self.radioLog:
-					row += [''] * (10-len(row)) # pad the row up to 10 elements if needed, to avoid index errors elsewhere
-					if row[6]<1e10: # don't save the blank line
-						# replacing commas is not necessary: csvwriter puts strings in quotes,
-						#  and csvreader knows to not treat commas as delimeters if inside quotes
-						csvWriter.writerow(row)
-				if finalize:
-					csvWriter.writerow(["## end"])
-				if self.lastSavedFileName!=self.csvFileName: # this is the first save since startup, since restore, or since incident name change
-					self.lastSavedFileName=self.csvFileName
-					self.saveRcFile()
-			logging.info("  done writing "+fileName)
-		# now write the clue log to a separate csv file: same filename appended by '.clueLog'
-		if len(self.clueLog)>0:
+		self.fileFinalize=finalize
+		self.saveEvent.set()
+
+	def _saveWorker(self,event):
+		while not self.saving: # if currently saving, don't try to start saving again
+			logging.info('_saveWorker: waiting for event...')
+			event.wait()
+			logging.info('_saveWorker: event received; beginning file save operations...')
+			event.clear()
+			self.saving=True
+	
+			csvFileNameList=[os.path.join(self.sessionDir,self.csvFileName)]
+			if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
+				csvFileNameList.append(os.path.join(self.secondWorkingDir,self.csvFileName)) # save flat in second working dir
 			for fileName in csvFileNameList:
-				fileName=fileName.replace(".csv","_clueLog.csv")
 				logging.info("  writing "+fileName)
 				with open(fileName,'w',newline='') as csvFile:
 					csvWriter=csv.writer(csvFile)
-					csvWriter.writerow(["## Clue Log data file"])
+					csvWriter.writerow(["## Radio Log data file"])
 					csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
 					csvWriter.writerow(["## Incident Name: "+self.incidentName])
 					csvWriter.writerow(["## Datum: "+self.datum+"  Coordinate format: "+self.coordFormat])
-					for row in self.clueLog:
-						csvWriter.writerow(row)
-					if finalize:
+					for row in self.radioLog:
+						row += [''] * (10-len(row)) # pad the row up to 10 elements if needed, to avoid index errors elsewhere
+						if row[6]<1e10: # don't save the blank line
+							# replacing commas is not necessary: csvwriter puts strings in quotes,
+							#  and csvreader knows to not treat commas as delimeters if inside quotes
+							csvWriter.writerow(row)
+					if self.fileFinalize:
 						csvWriter.writerow(["## end"])
-				logging.info("  done writing "+fileName)
+					if self.lastSavedFileName!=self.csvFileName: # this is the first save since startup, since restore, or since incident name change
+						self.lastSavedFileName=self.csvFileName
+						self.saveRcFile()
+				# logging.info("  done writing "+fileName)
+			# now write the clue log to a separate csv file: same filename appended by '.clueLog'
+			if len(self.clueLog)>0:
+				for fileName in csvFileNameList:
+					fileName=fileName.replace(".csv","_clueLog.csv")
+					logging.info("  writing "+fileName)
+					with open(fileName,'w',newline='') as csvFile:
+						csvWriter=csv.writer(csvFile)
+						csvWriter.writerow(["## Clue Log data file"])
+						csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
+						csvWriter.writerow(["## Incident Name: "+self.incidentName])
+						csvWriter.writerow(["## Datum: "+self.datum+"  Coordinate format: "+self.coordFormat])
+						for row in self.clueLog:
+							csvWriter.writerow(row)
+						if self.fileFinalize:
+							csvWriter.writerow(["## end"])
+					# logging.info("  done writing "+fileName)
+			logging.info('_saveWorker: file save operations complete')
+			self.saving=False # saving is complete; resume waiting for the next saveEvent
 
 	def load(self,sessionToLoad=None,bakAttempt=0):
 		# loading scheme:
