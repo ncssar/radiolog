@@ -445,7 +445,7 @@ teamFSFilterDict={}
 teamTimersDict={}
 teamCreatedTimeDict={}
 
-versionDepth=5 # how many backup versions to keep; see rotateBackups
+versionDepth=5 # how many backup versions to keep; see _saveWorker
 
 #752 - change continueSec to a config file option, default=20
 # continueSec=20
@@ -1917,8 +1917,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		# self.firstWorkingDir=self.homeDir+"\\Documents"
 		self.secondWorkingDir=None
 		self.sarsoftServerName="localhost"
-		self.rotateScript=None
-		self.rotateDelimiter=None
 		# 		self.tabGroups=[["NCSO","^1[tpsdel][0-9]+"],["CHP","^22s[0-9]+"],["Numbers","^Team [0-9]+"]]
 		# the only default tab group should be number-only callsigns; everything
 		#  else goes in a separate catch-all group; override this in radiolog.cfg
@@ -1932,22 +1930,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.caltopoDefaultTeamAccount=None
 		self.caltopoMapMarkersDefault=False
 		self.caltopoWebBrowserDefault=False
-		
-		# if os.name=="nt":
-		# 	logging.info("Operating system is Windows.")
-		# 	if shutil.which("powershell.exe"):
-		# 		logging.info("PowerShell.exe is in the path.")
-		# 		#601 - use absolute path
-		# 		#643: use an argument list rather than a single string;
-		# 		# as long as -File is in the argument list immediately before the script name,
-		# 		# spaces in the script name and in arguments will be handled correctly;
-		# 		# see comments at the end of https://stackoverflow.com/a/44250252/3577105
-		# 		self.rotateScript=''
-		# 		self.rotateCmdArgs=['powershell.exe','-ExecutionPolicy','Bypass','-File',installDir+'\\rotateCsvBackups.ps1','-filenames']
-		# 	else:
-		# 		logging.info("PowerShell.exe is not in the path; poweshell-based backup rotation script cannot be used.")
-		# else:
-		# 	logging.info("Operating system is not Windows.  Powershell-based backup rotation script cannot be used.")
 
 		configFile=QFile(self.configFileName)
 		if not configFile.open(QFile.ReadOnly|QFile.Text):
@@ -1991,11 +1973,6 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.secondWorkingDir=tokens[1]
 			elif tokens[0]=="server":
 				self.sarsoftServerName=tokens[1]
-			elif tokens[0]=="rotateScript":
-				self.rotateScript=tokens[1]
-				self.rotateCmdArgs=[self.rotateScript]
-			elif tokens[0]=="rotateDelimiter":
-				self.rotateDelimiter=tokens[1]
 			elif tokens[0]=="tabGroups":
 				self.tabGroups=eval(tokens[1])
 			elif tokens[0]=="continuedIncidentWindowDays":
@@ -2134,31 +2111,6 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		if develMode:
 			self.sarsoftServerName="localhost" # DEVEL
-
-	def rotateCsvBackups(self,filenames):
-		# if self.rotateScript and self.rotateDelimiter:
-			# #442: wrap each filename in quotes, to allow spaces in filenames
-			#  from https://stackoverflow.com/a/12007707
-			#  wrapping in one or two sets of double quotes still doesn't work
-			#   since the quotes are stripped by powershell; wrapping in three
-			#   double quotes does work:
-			# quotedFilenames=[f'"""{filename}"""' for filename in filenames]
-			# cmd=self.rotateScript+' '+self.rotateDelimiter.join(quotedFilenames)
-		if self.rotateCmdArgs and isinstance(self.rotateCmdArgs,list) and self.rotateCmdArgs[0]:
-			#643: use an argument list rather than a single string;
-			# as long as -File is in the argument list immediately before the script name,
-			# spaces in the script name and in arguments will be handled correctly;
-			# see comments at the end of https://stackoverflow.com/a/44250252/3577105;
-			# (this elimiates the need to wrap things in three sets of double quotes per #442)
-			cmd=self.rotateCmdArgs+filenames
-			logging.info("Invoking backup rotation script (with arguments): "+str(cmd))
-			# #650, #651 - fail gracefully, so that the caller can proceed as normal
-			try:
-				subprocess.Popen(cmd)
-			except Exception as e:
-				logging.info("  Backup rotation script failed with this exception; proceeding:"+str(e))
-		else:
-			logging.info("No backup rotation script was specified; no rotation is being performed.")
 		
 	def updateOptionsDialog(self):
 		# logging.info("updating options dialog: datum="+self.datum)
@@ -5272,8 +5224,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				try:
 					logging.info('  beginning backup file rotation...')
 					# rotate backup files after every 5 entries, but note the actual
-					#  entry interval could be off during fast entries since the
-					#  rotate script is called asynchronously (i.e. backgrounded)
+					#  entry interval could be off during fast entries since this
+					#  rotation is done in a background thread
 					filesToBackup=[
 							os.path.join(self.sessionDir,self.csvFileName),
 							os.path.join(self.sessionDir,self.csvFileName.replace(".csv","_clueLog.csv")),
@@ -5290,10 +5242,10 @@ class MyWindow(QDialog,Ui_Dialog):
 							src=fileToBackup.replace('.csv',f'_bak{i}.csv')
 							dst=fileToBackup.replace('.csv',f'_bak{i+1}.csv')
 							if os.path.isfile(src):
-								logging.info(f'    renaming {src} to {dst}')
+								# logging.info(f'    renaming {src} to {dst}')
 								os.replace(src,dst) # os.replace tries a silent force-overwrite
 						if os.path.isfile(fileToBackup):
-							logging.info(f'    copying {fileToBackup} to {src}')
+							# logging.info(f'    copying {fileToBackup} to {src}')
 							shutil.copyfile(fileToBackup,src)
 						else:
 							logging.warning(f'    file not found during backup rotation: {fileToBackup}; skipping')
@@ -10546,20 +10498,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				self.parent.newEntry(v,self.amendFlag)
 	
 			self.parent.totalEntryCount+=1
-			# if self.parent.totalEntryCount%5==0:
-			# 	# rotate backup files after every 5 entries, but note the actual
-			# 	#  entry interval could be off during fast entries since the
-			# 	#  rotate script is called asynchronously (i.e. backgrounded)
-			# 	filesToBackup=[
-			# 			os.path.join(self.parent.sessionDir,self.parent.csvFileName),
-			# 			os.path.join(self.parent.sessionDir,self.parent.csvFileName.replace(".csv","_clueLog.csv")),
-			# 			os.path.join(self.parent.sessionDir,self.parent.fsFileName)]
-			# 	if self.parent.use2WD and self.parent.secondWorkingDir:
-			# 		filesToBackup=filesToBackup+[
-			# 				os.path.join(self.parent.secondWorkingDir,self.parent.csvFileName),
-			# 				os.path.join(self.parent.secondWorkingDir,self.parent.csvFileName.replace(".csv","_clueLog.csv")),
-			# 				os.path.join(self.parent.secondWorkingDir,self.parent.fsFileName)]
-			# 	self.parent.rotateCsvBackups(filesToBackup)	
+			# backup rotation was handled here, in a call to a Windows PowerShell script; moved to _saveWorker as pure python
 			logging.info("Accepted2")
 		self.closeEvent(QEvent(QEvent.Close),True)
 ##		self.close()
