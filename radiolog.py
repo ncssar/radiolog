@@ -1655,6 +1655,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# save thread - move all file save operations to a separate thread #602 / #816
 		self.fileFinalize=False
 		self.saving=False
+		self.backupDepth=5
 		self.saveEvent=threading.Event()
 		self.saveThread=threading.Thread(target=self._saveWorker,args=(self.saveEvent,),daemon=True,name='saveThread')
 		self.saveThread.start()
@@ -1932,21 +1933,21 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.caltopoMapMarkersDefault=False
 		self.caltopoWebBrowserDefault=False
 		
-		if os.name=="nt":
-			logging.info("Operating system is Windows.")
-			if shutil.which("powershell.exe"):
-				logging.info("PowerShell.exe is in the path.")
-				#601 - use absolute path
-				#643: use an argument list rather than a single string;
-				# as long as -File is in the argument list immediately before the script name,
-				# spaces in the script name and in arguments will be handled correctly;
-				# see comments at the end of https://stackoverflow.com/a/44250252/3577105
-				self.rotateScript=''
-				self.rotateCmdArgs=['powershell.exe','-ExecutionPolicy','Bypass','-File',installDir+'\\rotateCsvBackups.ps1','-filenames']
-			else:
-				logging.info("PowerShell.exe is not in the path; poweshell-based backup rotation script cannot be used.")
-		else:
-			logging.info("Operating system is not Windows.  Powershell-based backup rotation script cannot be used.")
+		# if os.name=="nt":
+		# 	logging.info("Operating system is Windows.")
+		# 	if shutil.which("powershell.exe"):
+		# 		logging.info("PowerShell.exe is in the path.")
+		# 		#601 - use absolute path
+		# 		#643: use an argument list rather than a single string;
+		# 		# as long as -File is in the argument list immediately before the script name,
+		# 		# spaces in the script name and in arguments will be handled correctly;
+		# 		# see comments at the end of https://stackoverflow.com/a/44250252/3577105
+		# 		self.rotateScript=''
+		# 		self.rotateCmdArgs=['powershell.exe','-ExecutionPolicy','Bypass','-File',installDir+'\\rotateCsvBackups.ps1','-filenames']
+		# 	else:
+		# 		logging.info("PowerShell.exe is not in the path; poweshell-based backup rotation script cannot be used.")
+		# else:
+		# 	logging.info("Operating system is not Windows.  Powershell-based backup rotation script cannot be used.")
 
 		configFile=QFile(self.configFileName)
 		if not configFile.open(QFile.ReadOnly|QFile.Text):
@@ -5265,6 +5266,39 @@ class MyWindow(QDialog,Ui_Dialog):
 						if self.fileFinalize:
 							csvWriter.writerow(["## end"])
 					# logging.info("  done writing "+fileName)
+
+			# moving rotation code from windows powershell to pure python:
+			if self.totalEntryCount%5==0:
+				try:
+					logging.info('  beginning backup file rotation...')
+					# rotate backup files after every 5 entries, but note the actual
+					#  entry interval could be off during fast entries since the
+					#  rotate script is called asynchronously (i.e. backgrounded)
+					filesToBackup=[
+							os.path.join(self.sessionDir,self.csvFileName),
+							os.path.join(self.sessionDir,self.csvFileName.replace(".csv","_clueLog.csv")),
+							os.path.join(self.sessionDir,self.fsFileName)]
+					if self.use2WD and self.secondWorkingDir:
+						filesToBackup=filesToBackup+[
+								os.path.join(self.secondWorkingDir,self.csvFileName),
+								os.path.join(self.secondWorkingDir,self.csvFileName.replace(".csv","_clueLog.csv")),
+								os.path.join(self.secondWorkingDir,self.fsFileName)]
+					for fileToBackup in filesToBackup:
+						src=''
+						dst=''
+						for i in range(self.backupDepth-1,0,-1): # for backupDepth=5, this gives [4,3,2,1]
+							src=fileToBackup.replace('.csv',f'_bak{i}.csv')
+							dst=fileToBackup.replace('.csv',f'_bak{i+1}.csv')
+							if os.path.isfile(src):
+								logging.info(f'    renaming {src} to {dst}')
+								os.replace(src,dst) # os.replace tries a silent force-overwrite
+						if os.path.isfile(fileToBackup):
+							logging.info(f'    copying {fileToBackup} to {src}')
+							shutil.copyfile(fileToBackup,src)
+						else:
+							logging.warning(f'    file not found during backup rotation: {fileToBackup}; skipping')
+				except Exception as e:
+					logging.error(f'_saveWorker: backup rotation failed: {e}')
 			logging.info('_saveWorker: file save operations complete')
 			self.saving=False # saving is complete; resume waiting for the next saveEvent
 
@@ -10512,20 +10546,20 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				self.parent.newEntry(v,self.amendFlag)
 	
 			self.parent.totalEntryCount+=1
-			if self.parent.totalEntryCount%5==0:
-				# rotate backup files after every 5 entries, but note the actual
-				#  entry interval could be off during fast entries since the
-				#  rotate script is called asynchronously (i.e. backgrounded)
-				filesToBackup=[
-						os.path.join(self.parent.sessionDir,self.parent.csvFileName),
-						os.path.join(self.parent.sessionDir,self.parent.csvFileName.replace(".csv","_clueLog.csv")),
-						os.path.join(self.parent.sessionDir,self.parent.fsFileName)]
-				if self.parent.use2WD and self.parent.secondWorkingDir:
-					filesToBackup=filesToBackup+[
-							os.path.join(self.parent.secondWorkingDir,self.parent.csvFileName),
-							os.path.join(self.parent.secondWorkingDir,self.parent.csvFileName.replace(".csv","_clueLog.csv")),
-							os.path.join(self.parent.secondWorkingDir,self.parent.fsFileName)]
-				self.parent.rotateCsvBackups(filesToBackup)	
+			# if self.parent.totalEntryCount%5==0:
+			# 	# rotate backup files after every 5 entries, but note the actual
+			# 	#  entry interval could be off during fast entries since the
+			# 	#  rotate script is called asynchronously (i.e. backgrounded)
+			# 	filesToBackup=[
+			# 			os.path.join(self.parent.sessionDir,self.parent.csvFileName),
+			# 			os.path.join(self.parent.sessionDir,self.parent.csvFileName.replace(".csv","_clueLog.csv")),
+			# 			os.path.join(self.parent.sessionDir,self.parent.fsFileName)]
+			# 	if self.parent.use2WD and self.parent.secondWorkingDir:
+			# 		filesToBackup=filesToBackup+[
+			# 				os.path.join(self.parent.secondWorkingDir,self.parent.csvFileName),
+			# 				os.path.join(self.parent.secondWorkingDir,self.parent.csvFileName.replace(".csv","_clueLog.csv")),
+			# 				os.path.join(self.parent.secondWorkingDir,self.parent.fsFileName)]
+			# 	self.parent.rotateCsvBackups(filesToBackup)	
 			logging.info("Accepted2")
 		self.closeEvent(QEvent(QEvent.Close),True)
 ##		self.close()
