@@ -962,6 +962,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	_sig_caltopoReconnectedFromCreateCTS=pyqtSignal()
 	_sig_caltopoReconnectedFromOpenMap=pyqtSignal()
 	_sig_caltopoMapClosed=pyqtSignal()
+	_sig_blockingMessageBoxFromThread=pyqtSignal(str)
 	# _sig_caltopoCreateCTSCB=pyqtSignal(bool)
 
 	def __init__(self,parent):
@@ -1638,6 +1639,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self._sig_caltopoReconnectedFromCreateCTS.connect(self.caltopoReconnectedFromCreateCTS_mainThread)
 		self._sig_caltopoReconnectedFromOpenMap.connect(self.caltopoReconnectedFromOpenMap_mainThread)
 		self._sig_caltopoMapClosed.connect(self.caltopoMapClosedCallback_mainThread)
+		self._sig_blockingMessageBoxFromThread.connect(self.blockingMessageBoxFromThread)
 		# self._sig_caltopoCreateCTSCB.connect(self.caltopoCreateCTSCB_mainThread)
 
 		# # thread/queue/signal mechanism for radio markers, similar to the mechanism for requests in caltopo_python
@@ -1654,11 +1656,34 @@ class MyWindow(QDialog,Ui_Dialog):
 		
 		# save thread - move all file save operations to a separate thread #602 / #816
 		self.fileFinalize=False
-		self.saving=False
 		self.backupDepth=5
+		self.lastSavedClueLogLength=-1 # force the writing of an empty clue log after the first entry, just as confirmation that there have been no clues
 		self.saveEvent=threading.Event()
 		self.saveThread=threading.Thread(target=self._saveWorker,args=(self.saveEvent,),daemon=True,name='saveThread')
 		self.saveThread.start()
+
+		# use a separate thread for each possible type of saved file, since each file type already has its own save function
+		self.fsLogFinalize=False
+		self.fsLogSaveEvent=threading.Event()
+		self.fsLogSaveThread=threading.Thread(target=self._fsLogSaveWorker,args=(self.fsLogSaveEvent,),daemon=True,name='fsLogSaveThread')
+		self.fsLogSaveThread.start()
+
+		self.fsLookupSaveEvent=threading.Event()
+		self.fsLookupSaveThread=threading.Thread(target=self._fsLookupSaveWorker,args=(self.fsLookupSaveEvent,),daemon=True,name='fsLookupSaveThread')
+		self.fsLookupSaveThread.start()
+
+		self.cleanShutdownFlag=False
+		self.rcSaveEvent=threading.Event()
+		self.rcSaveThread=threading.Thread(target=self._rcSaveWorker,args=(self.rcSaveEvent,),daemon=True,name='rcSaveThread')
+		self.rcSaveThread.start()
+
+		self.operatorsSaveEvent=threading.Event()
+		self.operatorsSaveThread=threading.Thread(target=self._operatorsSaveWorker,args=(self.operatorsSaveEvent,),daemon=True,name='operatorsSaveThread')
+		self.operatorsSaveThread.start()
+		
+		self.teamNotesSaveEvent=threading.Event()
+		self.teamNotesSaveThread=threading.Thread(target=self._teamNotesSaveWorker,args=(self.teamNotesSaveEvent,),daemon=True,name='teamNotesSaveThread')
+		self.teamNotesSaveThread.start()
 
 		self.cts=None
 		# self.setupCaltopo()
@@ -3614,41 +3639,71 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	# save to fsFileName in the working dir each time, but on startup, load from the default dir;
 	#  would only need to load from the working dir if restoring
+
 	def fsSaveLookup(self):
-		fsFullPath=os.path.join(self.sessionDir,self.fsFileName)
-		try:
-			with open(fsFullPath,'w',newline='') as fsFile:
-				logging.info("Writing file "+fsFullPath)
-				csvWriter=csv.writer(fsFile)
-				csvWriter.writerow(["## Radio Log FleetSync lookup table"])
-				csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
-				csvWriter.writerow(["## Created during Incident Name: "+self.incidentName])
-				for row in self.fsLookup:
-					csvWriter.writerow(row)
-				csvWriter.writerow(["## end"])
-		except:
-			warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot write FleetSync ID table file "+fsFullPath+"!  Any modified FleetSync Callsign associations will be lost.",
-							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			warn.show()
-			warn.raise_()
-			warn.exec_()
+		self.fsLookupSaveEvent.set()
+
+	def _fsLookupSaveWorker(self,event):
+		while True:
+			logging.info('_fsLookupSaveWorker: waiting for event...')
+			event.wait()
+			logging.info('_fsLookupSaveWorker: event received; beginning file save operations...')
+			event.clear()
+	
+			fsFullPath=os.path.join(self.sessionDir,self.fsFileName)
+			try:
+				with open(fsFullPath,'w',newline='') as fsFile:
+					logging.info("Writing file "+fsFullPath)
+					csvWriter=csv.writer(fsFile)
+					csvWriter.writerow(["## Radio Log FleetSync lookup table"])
+					csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
+					csvWriter.writerow(["## Created during Incident Name: "+self.incidentName])
+					for row in self.fsLookup:
+						csvWriter.writerow(row)
+					csvWriter.writerow(["## end"])
+			except Exception as e:
+				errMsg=f'Cannot write FleetSync ID table file {fsFullPath}!  Any modified FleetSync Callsign associations will be lost: {e.strerror}'
+				self._sig_blockingMessageBoxFromThread.emit(errMsg)
+				logging.warning(errMsg)
+				# warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot write FleetSync ID table file "+fsFullPath+"!  Any modified FleetSync Callsign associations will be lost.",
+				# 				QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				# warn.show()
+				# warn.raise_()
+				# warn.exec_()
+
+	def blockingMessageBoxFromThread(self,text):
+		warn=QMessageBox(QMessageBox.Warning,"Warning",text,
+						QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		warn.show()
+		warn.raise_()
+		warn.exec_()
 
 	def fsSaveLog(self,finalize=False):
-		fsLogFullPath=os.path.join(self.sessionDir,self.fsLogFileName)
-		try:
-			with open(fsLogFullPath,'w',newline='') as fsLogFile:
-				logging.info('Writing FleetSync/NEXEDGE log file '+fsLogFullPath)
-				csvWriter=csv.writer(fsLogFile)
-				csvWriter.writerow(["## Radio Log FleetSync activity log"])
-				csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
-				csvWriter.writerow(["## Created during Incident Name: "+self.incidentName])
-				csvWriter.writerow(['# Fleet/UID','Device','Callsign','N/A','Time','COM port','Bumps','Total','Sequence','Result'])
-				for row in self.fsFullLog:
-					csvWriter.writerow(row)
-				if finalize:
-					csvWriter.writerow(["## end"])
-		except:
-			logging.info("ERROR: cannot write FleetSync log file "+fsLogFullPath)
+		self.fsLogFinalize=finalize
+		self.fsLogSaveEvent.set()
+
+	def _fsLogSaveWorker(self,event):
+		while True:
+			logging.info('_fsLogSaveWorker: waiting for event...')
+			event.wait()
+			logging.info('_fsLogSaveWorker: event received; beginning file save operations...')
+			event.clear()
+
+			fsLogFullPath=os.path.join(self.sessionDir,self.fsLogFileName)
+			try:
+				with open(fsLogFullPath,'w',newline='') as fsLogFile:
+					logging.info('Writing FleetSync/NEXEDGE log file '+fsLogFullPath)
+					csvWriter=csv.writer(fsLogFile)
+					csvWriter.writerow(["## Radio Log FleetSync activity log"])
+					csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
+					csvWriter.writerow(["## Created during Incident Name: "+self.incidentName])
+					csvWriter.writerow(['# Fleet/UID','Device','Callsign','N/A','Time','COM port','Bumps','Total','Sequence','Result'])
+					for row in self.fsFullLog:
+						csvWriter.writerow(row)
+					if self.fsLogFinalize:
+						csvWriter.writerow(["## end"])
+			except:
+				logging.info("ERROR: cannot write FleetSync log file "+fsLogFullPath)
 
 	def getCallsign(self,fleetOrUid,dev=None):
 		if not isinstance(fleetOrUid,str):
@@ -4993,39 +5048,77 @@ class MyWindow(QDialog,Ui_Dialog):
 		qApp.quit() # needed to make sure all windows area closed
 
 	def saveRcFile(self,cleanShutdownFlag=False):
-		(x,y,w,h)=self.geometry().getRect()
-		(cx,cy,cw,ch)=self.clueLogDialog.geometry().getRect()
-		timeout=timeoutDisplayList[self.optionsDialog.ui.timeoutField.value()][0]
-		rcFile=QFile(self.rcFileName)
-		if not rcFile.open(QFile.WriteOnly|QFile.Text):
-			warn=QMessageBox(QMessageBox.Warning,"Error","Cannot write resource file " + self.rcFileName + "; proceeding, but, current settings will be lost. "+rcFile.errorString(),
-							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			warn.show()
-			warn.raise_()
-			warn.exec_()
-			return
-		out=QTextStream(rcFile)
-		out << "[RadioLog]\n"
-		# datum, coord format, and timeout are saved in the config file
-		#  but also need to be able to auto-recover from .rc file
-		# issue 322: use self.lastSavedFileName instead of self.csvFileName to
-		#  make sure the initial rc file doesn't point to a file that does not yet exist
-		out << "lastFileName=" << os.path.join(self.sessionDir,self.lastSavedFileName) << "\n"
-		out << "font-size=" << self.fontSize << "pt\n"
-		out << "x=" << x << "\n"
-		out << "y=" << y << "\n"
-		out << "w=" << w << "\n"
-		out << "h=" << h << "\n"
-		out << "clueLog_x=" << cx << "\n"
-		out << "clueLog_y=" << cy << "\n"
-		out << "clueLog_w=" << cw << "\n"
-		out << "clueLog_h=" << ch << "\n"
-		out << "timeout="<< timeout << "\n"
-		out << "datum=" << self.datum << "\n"
-		out << "coordFormat=" << self.coordFormat << "\n"
-		if cleanShutdownFlag:
-			out << "cleanShutdown=True\n"
-		rcFile.close()
+		self.cleanShutdownFlag=cleanShutdownFlag
+		self.rcSaveEvent.set()
+
+	def _rcSaveWorker(self,event):
+		while True:
+			logging.info('_rcSaveWorker: waiting for event...')
+			event.wait()
+			logging.info('_rcSaveWorker: event received; beginning file save operations...')
+			event.clear()
+
+			(x,y,w,h)=self.geometry().getRect()
+			(cx,cy,cw,ch)=self.clueLogDialog.geometry().getRect()
+			timeout=timeoutDisplayList[self.optionsDialog.ui.timeoutField.value()][0]
+			try:
+				with open(self.rcFileName,'w') as rcFile:
+					rcFile.write('[RadioLog]\n')
+					# datum, coord format, and timeout are saved in the config file
+					#  but also need to be able to auto-recover from .rc file
+					# issue 322: use self.lastSavedFileName instead of self.csvFileName to
+					#  make sure the initial rc file doesn't point to a file that does not yet exist
+					rcFile.write(f'lastFileName={os.path.join(self.sessionDir,self.lastSavedFileName)}\n')
+					rcFile.write(f'font-size={self.fontSize}pt\n')
+					rcFile.write(f'x={x}\n')
+					rcFile.write(f'y={y}\n')
+					rcFile.write(f'w={w}\n')
+					rcFile.write(f'h={h}\n')
+					rcFile.write(f'clueLog_x={cx}\n')
+					rcFile.write(f'clueLog_y={cy}\n')
+					rcFile.write(f'clueLog_w={cw}\n')
+					rcFile.write(f'clueLog_h={ch}\n')
+					rcFile.write(f'timeout={timeout}\n')
+					rcFile.write(f'datum={self.datum}\n')
+					rcFile.write(f'coordFormat={self.coordFormat}\n')
+					if self.cleanShutdownFlag:
+						rcFile.write('cleanShutdown=True\n')
+			except Exception as e:
+				errMsg=f'Could not write resource file {self.rcFileName}; proceeding, but, current settings will be lost: {e.strerror}'
+				self._sig_blockingMessageBoxFromThread.emit(errMsg)
+				logging.warning(errMsg)
+
+			# rcFile=QFile(self.rcFileName)
+			# if not rcFile.open(QFile.WriteOnly|QFile.Text):
+			# 	self._sig_blockingMessageBoxFromThread.emit(f'Could write resource file {self.rcFileName}; proceeding, but, current settings will be lost. {rcFile.errorString()}')
+			# 	# warn=QMessageBox(QMessageBox.Warning,"Error","Could write resource file " + self.rcFileName + "; proceeding, but, current settings will be lost. "+rcFile.errorString(),
+			# 	# 				QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			# 	# warn.show()
+			# 	# warn.raise_()
+			# 	# warn.exec_()
+			# 	return
+			# out=QTextStream(rcFile)
+			# out << "[RadioLog]\n"
+			# # datum, coord format, and timeout are saved in the config file
+			# #  but also need to be able to auto-recover from .rc file
+			# # issue 322: use self.lastSavedFileName instead of self.csvFileName to
+			# #  make sure the initial rc file doesn't point to a file that does not yet exist
+			# out << "lastFileName=" << os.path.join(self.sessionDir,self.lastSavedFileName) << "\n"
+			# out << "font-size=" << self.fontSize << "pt\n"
+			# out << "x=" << x << "\n"
+			# out << "y=" << y << "\n"
+			# out << "w=" << w << "\n"
+			# out << "h=" << h << "\n"
+			# out << "clueLog_x=" << cx << "\n"
+			# out << "clueLog_y=" << cy << "\n"
+			# out << "clueLog_w=" << cw << "\n"
+			# out << "clueLog_h=" << ch << "\n"
+			# out << "timeout="<< timeout << "\n"
+			# out << "datum=" << self.datum << "\n"
+			# out << "coordFormat=" << self.coordFormat << "\n"
+			# if self.cleanShutdownFlag:
+			# 	out << "cleanShutdown=True\n"
+			# rcFile.close()
 
 	def checkForResize(self):
 		# this is probably cleaner, lighter, and more robust than using resizeEvent
@@ -5127,19 +5220,27 @@ class MyWindow(QDialog,Ui_Dialog):
 			logging.info('  isfile: '+str(os.path.isfile(fileName)))
 
 	def saveOperators(self):
-		logging.info('saveOperators called')
-		names=self.getOperatorNames()
-		if len(names)==0:
-			logging.info('  the operators list is empty; skipping the operator save operation')
-			return
-		fileName=os.path.join(self.configDir,self.operatorsFileName)
-		try:
-			with open(fileName,'w') as ofile:
-				logging.info('Saving operator data file '+fileName+' with these operators:'+str(names))
-				json.dump(self.operatorsDict,ofile,indent=3)
-		except:
-			logging.info('WARNING: Could not write operator data file '+fileName)
-			logging.info('  isfile: '+str(os.path.isfile(fileName)))
+		self.operatorsSaveEvent.set()
+
+	def _operatorsSaveWorker(self,event):
+		while True:
+			logging.info('_operatorsSaveWorker: waiting for event...')
+			event.wait()
+			logging.info('_operatorsSaveWorker: event received; beginning file save operations...')
+			event.clear()
+
+			names=self.getOperatorNames()
+			if len(names)==0:
+				logging.info('  the operators list is empty; skipping the operator save operation')
+				return
+			fileName=os.path.join(self.configDir,self.operatorsFileName)
+			try:
+				with open(fileName,'w') as ofile:
+					logging.info('Saving operator data file '+fileName+' with these operators:'+str(names))
+					json.dump(self.operatorsDict,ofile,indent=3)
+			except:
+				logging.info('WARNING: Could not write operator data file '+fileName)
+				logging.info('  isfile: '+str(os.path.isfile(fileName)))
 
 	def getOperatorNames(self):
 		errs=[]
@@ -5172,12 +5273,11 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.saveEvent.set()
 
 	def _saveWorker(self,event):
-		while not self.saving: # if currently saving, don't try to start saving again
+		while True:
 			logging.info('_saveWorker: waiting for event...')
 			event.wait()
 			logging.info('_saveWorker: event received; beginning file save operations...')
 			event.clear()
-			self.saving=True
 	
 			csvFileNameList=[os.path.join(self.sessionDir,self.csvFileName)]
 			if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
@@ -5202,8 +5302,9 @@ class MyWindow(QDialog,Ui_Dialog):
 						self.lastSavedFileName=self.csvFileName
 						self.saveRcFile()
 				# logging.info("  done writing "+fileName)
-			# now write the clue log to a separate csv file: same filename appended by '.clueLog'
-			if len(self.clueLog)>0:
+			# if clue count has increased, write the clue log to a separate csv file: same filename appended by '.clueLog'
+			# if len(self.clueLog)>0:
+			if len(self.clueLog)>self.lastSavedClueLogLength:
 				for fileName in csvFileNameList:
 					fileName=fileName.replace(".csv","_clueLog.csv")
 					logging.info("  writing "+fileName)
@@ -5218,6 +5319,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						if self.fileFinalize:
 							csvWriter.writerow(["## end"])
 					# logging.info("  done writing "+fileName)
+				self.lastSavedClueLogLength=len(self.clueLog)
 
 			# moving rotation code from windows powershell to pure python:
 			if self.totalEntryCount%5==0:
@@ -5252,7 +5354,6 @@ class MyWindow(QDialog,Ui_Dialog):
 				except Exception as e:
 					logging.error(f'_saveWorker: backup rotation failed: {e}')
 			logging.info('_saveWorker: file save operations complete')
-			self.saving=False # saving is complete; resume waiting for the next saveEvent
 
 	def load(self,sessionToLoad=None,bakAttempt=0):
 		# loading scheme:
@@ -6960,19 +7061,23 @@ class MyWindow(QDialog,Ui_Dialog):
 			logging.info('  isfile: '+str(os.path.isfile(fileName)))
 
 	def saveTeamNotes(self):
-		logging.info('saveTeamNotes called')
-		# names=self.getOperatorNames()
-		# if len(names)==0:
-		# 	logging.info('  the operators list is empty; skipping the operator save operation')
-		# 	return
-		fileName=os.path.join(self.sessionDir,self.teamNotesFileName)
-		try:
-			with open(fileName,'w') as tnfile:
-				logging.info('Saving team notes data file '+fileName)
-				json.dump(self.teamNotesDict,tnfile,indent=3)
-		except:
-			logging.info('WARNING: Could not write team notes data file '+fileName)
-			logging.info('  isfile: '+str(os.path.isfile(fileName)))
+		self.teamNotesSaveEvent.set()
+
+	def _teamNotesSaveWorker(self,event):
+		while True:
+			logging.info('_teamNotesSaveWorker: waiting for event...')
+			event.wait()
+			logging.info('_teamNotesSaveWorker: event received; beginning file save operations...')
+			event.clear()
+
+			fileName=os.path.join(self.sessionDir,self.teamNotesFileName)
+			try:
+				with open(fileName,'w') as tnfile:
+					logging.info('Saving team notes data file '+fileName)
+					json.dump(self.teamNotesDict,tnfile,indent=3)
+			except:
+				logging.info('WARNING: Could not write team notes data file '+fileName)
+				logging.info('  isfile: '+str(os.path.isfile(fileName)))
 
 	def teamNotesBuildTooltip(self,extTeamName):
 		logging.info('teamNotesBuildTooltip called for '+str(extTeamName))
