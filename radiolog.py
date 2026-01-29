@@ -1550,6 +1550,37 @@ class MyWindow(QDialog,Ui_Dialog):
 		# automatically expand the 'message' column width to fill available space
 		self.ui.tableView.horizontalHeader().setSectionResizeMode(3,QHeaderView.Stretch)
 
+		# save thread - move all file save operations to a separate thread #602 / #816
+		self.fileFinalize=False
+		self.backupDepth=5
+		self.lastSavedClueLogLength=-1 # force the writing of an empty clue log after the first entry, just as confirmation that there have been no clues
+		self.saveEvent=threading.Event()
+		self.saveThread=threading.Thread(target=self._saveWorker,args=(self.saveEvent,),daemon=True,name='saveThread')
+		self.saveThread.start()
+
+		# use a separate thread for each possible type of saved file, since each file type already has its own save function
+		self.fsLogFinalize=False
+		self.fsLogSaveEvent=threading.Event()
+		self.fsLogSaveThread=threading.Thread(target=self._fsLogSaveWorker,args=(self.fsLogSaveEvent,),daemon=True,name='fsLogSaveThread')
+		self.fsLogSaveThread.start()
+
+		self.fsLookupSaveEvent=threading.Event()
+		self.fsLookupSaveThread=threading.Thread(target=self._fsLookupSaveWorker,args=(self.fsLookupSaveEvent,),daemon=True,name='fsLookupSaveThread')
+		self.fsLookupSaveThread.start()
+
+		self.cleanShutdownFlag=False
+		self.rcSaveEvent=threading.Event()
+		self.rcSaveThread=threading.Thread(target=self._rcSaveWorker,args=(self.rcSaveEvent,),daemon=True,name='rcSaveThread')
+		self.rcSaveThread.start()
+
+		self.operatorsSaveEvent=threading.Event()
+		self.operatorsSaveThread=threading.Thread(target=self._operatorsSaveWorker,args=(self.operatorsSaveEvent,),daemon=True,name='operatorsSaveThread')
+		self.operatorsSaveThread.start()
+		
+		self.teamNotesSaveEvent=threading.Event()
+		self.teamNotesSaveThread=threading.Thread(target=self._teamNotesSaveWorker,args=(self.teamNotesSaveEvent,),daemon=True,name='teamNotesSaveThread')
+		self.teamNotesSaveThread.start()
+
 		self.updateClock()
 
 		self.fsLoadLookup(startupFlag=True)
@@ -1653,38 +1684,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.radioMarkerThread=threading.Thread(target=self._radioMarkerWorker,args=(self.radioMarkerEvent,),daemon=True,name='radioMarkerThread')
 		self.radioMarkerThread.start()
 		self.radioMarkerDictLock=threading.Lock()
-		
-		# save thread - move all file save operations to a separate thread #602 / #816
-		self.fileFinalize=False
-		self.backupDepth=5
-		self.lastSavedClueLogLength=-1 # force the writing of an empty clue log after the first entry, just as confirmation that there have been no clues
-		self.saveEvent=threading.Event()
-		self.saveThread=threading.Thread(target=self._saveWorker,args=(self.saveEvent,),daemon=True,name='saveThread')
-		self.saveThread.start()
-
-		# use a separate thread for each possible type of saved file, since each file type already has its own save function
-		self.fsLogFinalize=False
-		self.fsLogSaveEvent=threading.Event()
-		self.fsLogSaveThread=threading.Thread(target=self._fsLogSaveWorker,args=(self.fsLogSaveEvent,),daemon=True,name='fsLogSaveThread')
-		self.fsLogSaveThread.start()
-
-		self.fsLookupSaveEvent=threading.Event()
-		self.fsLookupSaveThread=threading.Thread(target=self._fsLookupSaveWorker,args=(self.fsLookupSaveEvent,),daemon=True,name='fsLookupSaveThread')
-		self.fsLookupSaveThread.start()
-
-		self.cleanShutdownFlag=False
-		self.rcSaveEvent=threading.Event()
-		self.rcSaveThread=threading.Thread(target=self._rcSaveWorker,args=(self.rcSaveEvent,),daemon=True,name='rcSaveThread')
-		self.rcSaveThread.start()
-
-		self.operatorsSaveEvent=threading.Event()
-		self.operatorsSaveThread=threading.Thread(target=self._operatorsSaveWorker,args=(self.operatorsSaveEvent,),daemon=True,name='operatorsSaveThread')
-		self.operatorsSaveThread.start()
-		
-		self.teamNotesSaveEvent=threading.Event()
-		self.teamNotesSaveThread=threading.Thread(target=self._teamNotesSaveWorker,args=(self.teamNotesSaveEvent,),daemon=True,name='teamNotesSaveThread')
-		self.teamNotesSaveThread.start()
-
 		self.cts=None
 		# self.setupCaltopo()
 		self.ui.caltopoLinkIndicator.setToolTip(caltopoIndicatorToolTip)
@@ -3702,8 +3701,8 @@ class MyWindow(QDialog,Ui_Dialog):
 						csvWriter.writerow(row)
 					if self.fsLogFinalize:
 						csvWriter.writerow(["## end"])
-			except:
-				logging.info("ERROR: cannot write FleetSync log file "+fsLogFullPath)
+			except Exception as e:
+				logging.error(f'ERROR: cannot write FleetSync log file {fsLogFullPath}: {e}')
 
 	def getCallsign(self,fleetOrUid,dev=None):
 		if not isinstance(fleetOrUid,str):
@@ -5229,18 +5228,20 @@ class MyWindow(QDialog,Ui_Dialog):
 			logging.info('_operatorsSaveWorker: event received; beginning file save operations...')
 			event.clear()
 
-			names=self.getOperatorNames()
-			if len(names)==0:
-				logging.info('  the operators list is empty; skipping the operator save operation')
-				return
-			fileName=os.path.join(self.configDir,self.operatorsFileName)
 			try:
-				with open(fileName,'w') as ofile:
-					logging.info('Saving operator data file '+fileName+' with these operators:'+str(names))
-					json.dump(self.operatorsDict,ofile,indent=3)
-			except:
-				logging.info('WARNING: Could not write operator data file '+fileName)
-				logging.info('  isfile: '+str(os.path.isfile(fileName)))
+				names=self.getOperatorNames()
+				if len(names)==0:
+					logging.info('  the operators list is empty; skipping the operator save operation')
+					return
+				fileName=os.path.join(self.configDir,self.operatorsFileName)
+				try:
+					with open(fileName,'w') as ofile:
+						logging.info('Saving operator data file '+fileName+' with these operators:'+str(names))
+						json.dump(self.operatorsDict,ofile,indent=3)
+				except Exception as e:
+					logging.warning(f'WARNING: Could not write operator data file {fileName}: {e.strerror}')
+			except Exception as e:
+				logging.error(f'_operatorsSaveWorker: outer exception caught in order to keep the thread alive: {e}')
 
 	def getOperatorNames(self):
 		errs=[]
@@ -5279,81 +5280,84 @@ class MyWindow(QDialog,Ui_Dialog):
 			logging.info('_saveWorker: event received; beginning file save operations...')
 			event.clear()
 	
-			csvFileNameList=[os.path.join(self.sessionDir,self.csvFileName)]
-			if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-				csvFileNameList.append(os.path.join(self.secondWorkingDir,self.csvFileName)) # save flat in second working dir
-			for fileName in csvFileNameList:
-				logging.info("  writing "+fileName)
-				with open(fileName,'w',newline='') as csvFile:
-					csvWriter=csv.writer(csvFile)
-					csvWriter.writerow(["## Radio Log data file"])
-					csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
-					csvWriter.writerow(["## Incident Name: "+self.incidentName])
-					csvWriter.writerow(["## Datum: "+self.datum+"  Coordinate format: "+self.coordFormat])
-					for row in self.radioLog:
-						row += [''] * (10-len(row)) # pad the row up to 10 elements if needed, to avoid index errors elsewhere
-						if row[6]<1e10: # don't save the blank line
-							# replacing commas is not necessary: csvwriter puts strings in quotes,
-							#  and csvreader knows to not treat commas as delimeters if inside quotes
-							csvWriter.writerow(row)
-					if self.fileFinalize:
-						csvWriter.writerow(["## end"])
-					if self.lastSavedFileName!=self.csvFileName: # this is the first save since startup, since restore, or since incident name change
-						self.lastSavedFileName=self.csvFileName
-						self.saveRcFile()
-				# logging.info("  done writing "+fileName)
-			# if clue count has increased, write the clue log to a separate csv file: same filename appended by '.clueLog'
-			# if len(self.clueLog)>0:
-			if len(self.clueLog)>self.lastSavedClueLogLength:
+			try:
+				csvFileNameList=[os.path.join(self.sessionDir,self.csvFileName)]
+				if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
+					csvFileNameList.append(os.path.join(self.secondWorkingDir,self.csvFileName)) # save flat in second working dir
 				for fileName in csvFileNameList:
-					fileName=fileName.replace(".csv","_clueLog.csv")
 					logging.info("  writing "+fileName)
 					with open(fileName,'w',newline='') as csvFile:
 						csvWriter=csv.writer(csvFile)
-						csvWriter.writerow(["## Clue Log data file"])
+						csvWriter.writerow(["## Radio Log data file"])
 						csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
 						csvWriter.writerow(["## Incident Name: "+self.incidentName])
 						csvWriter.writerow(["## Datum: "+self.datum+"  Coordinate format: "+self.coordFormat])
-						for row in self.clueLog:
-							csvWriter.writerow(row)
+						for row in self.radioLog:
+							row += [''] * (10-len(row)) # pad the row up to 10 elements if needed, to avoid index errors elsewhere
+							if row[6]<1e10: # don't save the blank line
+								# replacing commas is not necessary: csvwriter puts strings in quotes,
+								#  and csvreader knows to not treat commas as delimeters if inside quotes
+								csvWriter.writerow(row)
 						if self.fileFinalize:
 							csvWriter.writerow(["## end"])
+						if self.lastSavedFileName!=self.csvFileName: # this is the first save since startup, since restore, or since incident name change
+							self.lastSavedFileName=self.csvFileName
+							self.saveRcFile()
 					# logging.info("  done writing "+fileName)
-				self.lastSavedClueLogLength=len(self.clueLog)
+				# if clue count has increased, write the clue log to a separate csv file: same filename appended by '.clueLog'
+				# if len(self.clueLog)>0:
+				if len(self.clueLog)>self.lastSavedClueLogLength:
+					for fileName in csvFileNameList:
+						fileName=fileName.replace(".csv","_clueLog.csv")
+						logging.info("  writing "+fileName)
+						with open(fileName,'w',newline='') as csvFile:
+							csvWriter=csv.writer(csvFile)
+							csvWriter.writerow(["## Clue Log data file"])
+							csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
+							csvWriter.writerow(["## Incident Name: "+self.incidentName])
+							csvWriter.writerow(["## Datum: "+self.datum+"  Coordinate format: "+self.coordFormat])
+							for row in self.clueLog:
+								csvWriter.writerow(row)
+							if self.fileFinalize:
+								csvWriter.writerow(["## end"])
+						# logging.info("  done writing "+fileName)
+					self.lastSavedClueLogLength=len(self.clueLog)
 
-			# moving rotation code from windows powershell to pure python:
-			if self.totalEntryCount%5==0:
-				try:
-					logging.info('  beginning backup file rotation...')
-					# rotate backup files after every 5 entries, but note the actual
-					#  entry interval could be off during fast entries since this
-					#  rotation is done in a background thread
-					filesToBackup=[
-							os.path.join(self.sessionDir,self.csvFileName),
-							os.path.join(self.sessionDir,self.csvFileName.replace(".csv","_clueLog.csv")),
-							os.path.join(self.sessionDir,self.fsFileName)]
-					if self.use2WD and self.secondWorkingDir:
-						filesToBackup=filesToBackup+[
-								os.path.join(self.secondWorkingDir,self.csvFileName),
-								os.path.join(self.secondWorkingDir,self.csvFileName.replace(".csv","_clueLog.csv")),
-								os.path.join(self.secondWorkingDir,self.fsFileName)]
-					for fileToBackup in filesToBackup:
-						src=''
-						dst=''
-						for i in range(self.backupDepth-1,0,-1): # for backupDepth=5, this gives [4,3,2,1]
-							src=fileToBackup.replace('.csv',f'_bak{i}.csv')
-							dst=fileToBackup.replace('.csv',f'_bak{i+1}.csv')
-							if os.path.isfile(src):
-								# logging.info(f'    renaming {src} to {dst}')
-								os.replace(src,dst) # os.replace tries a silent force-overwrite
-						if os.path.isfile(fileToBackup):
-							# logging.info(f'    copying {fileToBackup} to {src}')
-							shutil.copyfile(fileToBackup,src)
-						else:
-							logging.warning(f'    file not found during backup rotation: {fileToBackup}; skipping')
-				except Exception as e:
-					logging.error(f'_saveWorker: backup rotation failed: {e}')
-			logging.info('_saveWorker: file save operations complete')
+				# moving rotation code from windows powershell to pure python:
+				if self.totalEntryCount%5==0:
+					try:
+						logging.info('  beginning backup file rotation...')
+						# rotate backup files after every 5 entries, but note the actual
+						#  entry interval could be off during fast entries since this
+						#  rotation is done in a background thread
+						filesToBackup=[
+								os.path.join(self.sessionDir,self.csvFileName),
+								os.path.join(self.sessionDir,self.csvFileName.replace(".csv","_clueLog.csv")),
+								os.path.join(self.sessionDir,self.fsFileName)]
+						if self.use2WD and self.secondWorkingDir:
+							filesToBackup=filesToBackup+[
+									os.path.join(self.secondWorkingDir,self.csvFileName),
+									os.path.join(self.secondWorkingDir,self.csvFileName.replace(".csv","_clueLog.csv")),
+									os.path.join(self.secondWorkingDir,self.fsFileName)]
+						for fileToBackup in filesToBackup:
+							src=''
+							dst=''
+							for i in range(self.backupDepth-1,0,-1): # for backupDepth=5, this gives [4,3,2,1]
+								src=fileToBackup.replace('.csv',f'_bak{i}.csv')
+								dst=fileToBackup.replace('.csv',f'_bak{i+1}.csv')
+								if os.path.isfile(src):
+									# logging.info(f'    renaming {src} to {dst}')
+									os.replace(src,dst) # os.replace tries a silent force-overwrite
+							if os.path.isfile(fileToBackup):
+								# logging.info(f'    copying {fileToBackup} to {src}')
+								shutil.copyfile(fileToBackup,src)
+							else:
+								logging.warning(f'    file not found during backup rotation: {fileToBackup}; skipping')
+					except Exception as e:
+						logging.error(f'_saveWorker: backup rotation failed: {e}')
+				logging.info('_saveWorker: file save operations complete')
+			except Exception as e:
+				logging.error(f'_saveWorker: outer exception caught in order to keep the thread alive: {e}')
 
 	def load(self,sessionToLoad=None,bakAttempt=0):
 		# loading scheme:
@@ -7075,9 +7079,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				with open(fileName,'w') as tnfile:
 					logging.info('Saving team notes data file '+fileName)
 					json.dump(self.teamNotesDict,tnfile,indent=3)
-			except:
-				logging.info('WARNING: Could not write team notes data file '+fileName)
-				logging.info('  isfile: '+str(os.path.isfile(fileName)))
+			except Exception as e:
+				logging.warning(f'WARNING: Could not write team notes data file {fileName}: {e.strerror}')
 
 	def teamNotesBuildTooltip(self,extTeamName):
 		logging.info('teamNotesBuildTooltip called for '+str(extTeamName))
