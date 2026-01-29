@@ -1550,6 +1550,14 @@ class MyWindow(QDialog,Ui_Dialog):
 		# automatically expand the 'message' column width to fill available space
 		self.ui.tableView.horizontalHeader().setSectionResizeMode(3,QHeaderView.Stretch)
 
+		# flags that indicate if a file save operation is currently taking place; check these before exiting
+		self.saving=False
+		self.fsLookupSaving=False
+		self.fsLogSaving=False
+		self.rcSaving=False
+		self.operatorsSaving=False
+		self.teamNotesSaving=False
+		
 		# save thread - move all file save operations to a separate thread #602 / #816
 		self.fileFinalize=False
 		self.backupDepth=5
@@ -3650,6 +3658,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			event.clear()
 	
 			fsFullPath=os.path.join(self.sessionDir,self.fsFileName)
+			self.fsLookupSaving=True
 			try:
 				with open(fsFullPath,'w',newline='') as fsFile:
 					logging.info("Writing file "+fsFullPath)
@@ -3669,6 +3678,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				# warn.show()
 				# warn.raise_()
 				# warn.exec_()
+			finally: # clear the flag even if there was an early exit
+				self.fsLookupSaving=False
 
 	def blockingMessageBoxFromThread(self,text):
 		warn=QMessageBox(QMessageBox.Warning,"Warning",text,
@@ -3689,6 +3700,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			event.clear()
 
 			fsLogFullPath=os.path.join(self.sessionDir,self.fsLogFileName)
+			self.fsLogSaving=True
 			try:
 				with open(fsLogFullPath,'w',newline='') as fsLogFile:
 					logging.info('Writing FleetSync/NEXEDGE log file '+fsLogFullPath)
@@ -3703,6 +3715,8 @@ class MyWindow(QDialog,Ui_Dialog):
 						csvWriter.writerow(["## end"])
 			except Exception as e:
 				logging.error(f'ERROR: cannot write FleetSync log file {fsLogFullPath}: {e}')
+			finally: # clear the flag even if there was an early exit
+				self.fsLogSaving=False
 
 	def getCallsign(self,fleetOrUid,dev=None):
 		if not isinstance(fleetOrUid,str):
@@ -5044,6 +5058,21 @@ class MyWindow(QDialog,Ui_Dialog):
 		if os.path.isfile(os.path.join(self.configDir,self.operatorsFileName)):
 			shutil.copy(os.path.join(self.configDir,self.operatorsFileName),os.path.join(self.sessionDir,'operators_at_shutdown.json'))
 
+		# check threaded file operation flags; wait a bit to let them all clear before closing;
+		#  we need to do this since they are daemon threads and would otherwise not prevent exit
+		waitedSec=0
+		while (self.saving or
+				self.fsLookupSaving or
+				self.fsLogSaving or
+				self.rcSaving or
+				self.operatorsSaving or
+				self.teamNotesSaving) and waitedSec<10:
+			logging.info('Threaded file save operation(s) still in process; waiting...')
+			time.sleep(1)
+			waitedSec+=1
+			if waitedSec==10:
+				logging.error('File save operation(s) are still in process, but it has been a while; exiting anyway; check the transcript for exceptions')
+
 		qApp.quit() # needed to make sure all windows area closed
 
 	def saveRcFile(self,cleanShutdownFlag=False):
@@ -5060,6 +5089,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			(x,y,w,h)=self.geometry().getRect()
 			(cx,cy,cw,ch)=self.clueLogDialog.geometry().getRect()
 			timeout=timeoutDisplayList[self.optionsDialog.ui.timeoutField.value()][0]
+			self.rcSaving=True
 			try:
 				with open(self.rcFileName,'w') as rcFile:
 					rcFile.write('[RadioLog]\n')
@@ -5086,6 +5116,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				errMsg=f'Could not write resource file {self.rcFileName}; proceeding, but, current settings will be lost: {e}'
 				self._sig_blockingMessageBoxFromThread.emit(errMsg)
 				logging.warning(errMsg)
+			finally: # clear the flag even if there was an early exit
+				self.rcSaving=False
 
 			# rcFile=QFile(self.rcFileName)
 			# if not rcFile.open(QFile.WriteOnly|QFile.Text):
@@ -5228,6 +5260,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			logging.info('_operatorsSaveWorker: event received; beginning file save operations...')
 			event.clear()
 
+			self.operatorsSaving=True
 			try:
 				names=self.getOperatorNames()
 				if len(names)==0:
@@ -5242,6 +5275,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					logging.warning(f'WARNING: Could not write operator data file {fileName}: {e}')
 			except Exception as e:
 				logging.error(f'_operatorsSaveWorker: outer exception caught in order to keep the thread alive: {e}')
+			finally: # clear the flag even if there was an early exit
+				self.operatorsSaving=False
 
 	def getOperatorNames(self):
 		errs=[]
@@ -5280,6 +5315,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			logging.info('_saveWorker: event received; beginning file save operations...')
 			event.clear()
 	
+			self.saving=True
 			try:
 				csvFileNameList=[os.path.join(self.sessionDir,self.csvFileName)]
 				if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
@@ -5358,6 +5394,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				logging.info('_saveWorker: file save operations complete')
 			except Exception as e:
 				logging.error(f'_saveWorker: outer exception caught in order to keep the thread alive: {e}')
+			finally: # clear the flag even if there was an early exit
+				self.saving=False
 
 	def load(self,sessionToLoad=None,bakAttempt=0):
 		# loading scheme:
@@ -7074,6 +7112,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			logging.info('_teamNotesSaveWorker: event received; beginning file save operations...')
 			event.clear()
 
+			self.teamNotesSaving=True
 			fileName=os.path.join(self.sessionDir,self.teamNotesFileName)
 			try:
 				with open(fileName,'w') as tnfile:
@@ -7081,6 +7120,8 @@ class MyWindow(QDialog,Ui_Dialog):
 					json.dump(self.teamNotesDict,tnfile,indent=3)
 			except Exception as e:
 				logging.warning(f'WARNING: Could not write team notes data file {fileName}: {e}')
+			finally: # clear the flag even if there was an early exit
+				self.teamNotesSaving=False
 
 	def teamNotesBuildTooltip(self,extTeamName):
 		logging.info('teamNotesBuildTooltip called for '+str(extTeamName))
