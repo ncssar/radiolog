@@ -3661,7 +3661,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						csvWriter.writerow(row)
 					csvWriter.writerow(["## end"])
 			except Exception as e:
-				errMsg=f'Cannot write FleetSync ID table file {fsFullPath}!  Any modified FleetSync Callsign associations will be lost: {e.strerror}'
+				errMsg=f'Cannot write FleetSync ID table file {fsFullPath}!  Any modified FleetSync Callsign associations will be lost: {e}'
 				self._sig_blockingMessageBoxFromThread.emit(errMsg)
 				logging.warning(errMsg)
 				# warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot write FleetSync ID table file "+fsFullPath+"!  Any modified FleetSync Callsign associations will be lost.",
@@ -5083,7 +5083,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					if self.cleanShutdownFlag:
 						rcFile.write('cleanShutdown=True\n')
 			except Exception as e:
-				errMsg=f'Could not write resource file {self.rcFileName}; proceeding, but, current settings will be lost: {e.strerror}'
+				errMsg=f'Could not write resource file {self.rcFileName}; proceeding, but, current settings will be lost: {e}'
 				self._sig_blockingMessageBoxFromThread.emit(errMsg)
 				logging.warning(errMsg)
 
@@ -5239,7 +5239,7 @@ class MyWindow(QDialog,Ui_Dialog):
 						logging.info('Saving operator data file '+fileName+' with these operators:'+str(names))
 						json.dump(self.operatorsDict,ofile,indent=3)
 				except Exception as e:
-					logging.warning(f'WARNING: Could not write operator data file {fileName}: {e.strerror}')
+					logging.warning(f'WARNING: Could not write operator data file {fileName}: {e}')
 			except Exception as e:
 				logging.error(f'_operatorsSaveWorker: outer exception caught in order to keep the thread alive: {e}')
 
@@ -7080,7 +7080,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					logging.info('Saving team notes data file '+fileName)
 					json.dump(self.teamNotesDict,tnfile,indent=3)
 			except Exception as e:
-				logging.warning(f'WARNING: Could not write team notes data file {fileName}: {e.strerror}')
+				logging.warning(f'WARNING: Could not write team notes data file {fileName}: {e}')
 
 	def teamNotesBuildTooltip(self,extTeamName):
 		logging.info('teamNotesBuildTooltip called for '+str(extTeamName))
