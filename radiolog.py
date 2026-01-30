@@ -963,6 +963,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	_sig_caltopoReconnectedFromOpenMap=pyqtSignal()
 	_sig_caltopoMapClosed=pyqtSignal()
 	_sig_blockingMessageBoxFromThread=pyqtSignal(str)
+	_sig_clueReportMessageBoxFromThread=pyqtSignal(str)
 	# _sig_caltopoCreateCTSCB=pyqtSignal(bool)
 
 	def __init__(self,parent):
@@ -1550,6 +1551,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		# automatically expand the 'message' column width to fill available space
 		self.ui.tableView.horizontalHeader().setSectionResizeMode(3,QHeaderView.Stretch)
 
+		##########################
+		### BEGIN file thread setup
+		##########################
+
 		# flags that indicate if a file save operation is currently taking place; check these before exiting
 		self.saving=False
 		self.fsLookupSaving=False
@@ -1557,6 +1562,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.rcSaving=False
 		self.operatorsSaving=False
 		self.teamNotesSaving=False
+		self.clueReportSaving=False
 		
 		# save thread - move all file save operations to a separate thread #602 / #816
 		self.fileFinalize=False
@@ -1588,6 +1594,17 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.teamNotesSaveEvent=threading.Event()
 		self.teamNotesSaveThread=threading.Thread(target=self._teamNotesSaveWorker,args=(self.teamNotesSaveEvent,),daemon=True,name='teamNotesSaveThread')
 		self.teamNotesSaveThread.start()
+
+		# threads that create PDFs (and sending those PDFs to the printer)
+
+		self.clueReportClueData=None
+		self.clueReportEvent=threading.Event()
+		self.clueReportThread=threading.Thread(target=self._clueReportWorker,args=(self.clueReportEvent,),daemon=True,name='clueReportThread')
+		self.clueReportThread.start()
+
+		##########################
+		### END file thread setup
+		##########################
 
 		self.updateClock()
 
@@ -4331,250 +4348,278 @@ class MyWindow(QDialog,Ui_Dialog):
 	# 			QTimer.singleShot(500,self.msgBox.show)
 			self.clueLogNeedsPrint=False
 
+	def printClueReport(self,clueData):
+		self.clueReportClueData=clueData
+		self.clueReportEvent.emit()
+
 	# fillable pdf works well with pdftk external dependency, but is problematic in pure python
 	#  see https://stackoverflow.com/questions/72625568
 	# so, use reportlab instead
-	def printClueReport(self,clueData):
-		# cluePdfName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clue"+str(clueData[0]).zfill(2)+".pdf")
-		cluePdfName=os.path.join(self.sessionDir,self.pdfFileName.replace(".pdf","_clue"+str(clueData[0]).zfill(2)+".pdf"))
-		logging.info("generating clue report pdf: "+cluePdfName)
-		
-		try:
-			f=open(cluePdfName,"wb")
-		except:
-			self.printClueErrMsgBox=QMessageBox(QMessageBox.Critical,"Error","PDF could not be generated:\n\n"+cluePdfName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.",
-				QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			self.printClueErrMsgBox.show()
-			self.printClueErrMsgBox.raise_()
-			QTimer.singleShot(10000,self.printClueErrMsgBox.close)
-			self.printClueErrMsgBox.exec_()
-			return
-		else:
-			f.close()
+	def _clueReportWorker(self,event):
+		while True:
+			logging.info('_clueReportWorker: waiting for event...')
+			event.wait()
+			logging.info('_clueReportWorker: event received; beginning file save operations...')
+			event.clear()
 
-		cluePdfOverlayName=cluePdfName.replace('.pdf','_overlay.pdf')
-		doc = SimpleDocTemplate(cluePdfOverlayName, pagesize=portrait(letter),leftMargin=0.84*inch,rightMargin=0.67*inch,topMargin=0.68*inch,bottomMargin=0.5*inch) # or pagesize=letter
-		QCoreApplication.processEvents()
-		tableWidthInches=6.92 # determined from the template pdf, used to draw overlay pdf fields below
-		elements=[]
-		styles = getSampleStyleSheet()
+			self.clueReportSaving=True
+			try:
+				clueData=self.clueReportClueData
+				# cluePdfName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clue"+str(clueData[0]).zfill(2)+".pdf")
+				cluePdfName=os.path.join(self.sessionDir,self.pdfFileName.replace(".pdf","_clue"+str(clueData[0]).zfill(2)+".pdf"))
+				logging.info("generating clue report pdf: "+cluePdfName)
+				
+				try:
+					f=open(cluePdfName,"wb")
+				except:
+					self._sig_clueReportMessageBoxFromThread.emit(cluePdfName)
+					# self.printClueErrMsgBox=QMessageBox(QMessageBox.Critical,"Error","PDF could not be generated:\n\n"+cluePdfName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.",
+					# 	QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					# self.printClueErrMsgBox.show()
+					# self.printClueErrMsgBox.raise_()
+					# QTimer.singleShot(10000,self.printClueErrMsgBox.close)
+					# self.printClueErrMsgBox.exec_()
+					return
+				else:
+					f.close()
 
-		img=''
-		if os.path.isfile(self.printLogoFileName):
-			imgReader=utils.ImageReader(self.printLogoFileName)
-			imgW,imgH=imgReader.getSize()
-			imgAspect=imgH/float(imgW)
-			img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
+				cluePdfOverlayName=cluePdfName.replace('.pdf','_overlay.pdf')
+				doc = SimpleDocTemplate(cluePdfOverlayName, pagesize=portrait(letter),leftMargin=0.84*inch,rightMargin=0.67*inch,topMargin=0.68*inch,bottomMargin=0.5*inch) # or pagesize=letter
+				QCoreApplication.processEvents()
+				tableWidthInches=6.92 # determined from the template pdf, used to draw overlay pdf fields below
+				elements=[]
+				styles = getSampleStyleSheet()
 
-		instructions=clueData[7].lower()
-		# initialize all checkboxes to OFF
-		instructionsCollect=''
-		instructionsMarkAndLeave=''
-		instructionsDisregard=''
-		instructionsOther=''
-		instructionsOtherText=''
-		# parse to a list of tokens - split on comma or semicolon with space(s) before and/or after
-		instructions=re.sub(r' *[,;] *','|',instructions).split('|')
-		# remove any empty elements, probably due to back-to-back delimiters
-		instructions=[x for x in instructions if x]
-		logging.info('parsed instructions:'+str(instructions))
-		# look for keywords in the instructions text
-		if "collect" in instructions:
-			instructionsCollect='X'
-			instructions.remove('collect')
-		if "mark & leave" in instructions:
-			instructionsMarkAndLeave='X'
-			instructions.remove('mark & leave')
-		if "disregard" in instructions:
-			instructionsDisregard='X'
-			instructions.remove('disregard')
-		if instructions: # is there anything left in the parsed list?
-			instructionsOther='X'
-			instructionsOtherText=', '.join(instructions)
-# 		locText=clueData[6]
-		if clueData[8]!="":
-# 			locText=locText+"\n(Radio GPS = "+clueData[8]+")"
-			radioLocText="(Radio GPS: "+re.sub(r"\n","  x  ",clueData[8])+")"
-		else:
-			radioLocText=""
+				img=''
+				if os.path.isfile(self.printLogoFileName):
+					imgReader=utils.ImageReader(self.printLogoFileName)
+					imgW,imgH=imgReader.getSize()
+					imgAspect=imgH/float(imgW)
+					img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
 
-		operatorText=''
-		if self.useOperatorLogin:
-			operatorText='Radio Dispatcher: '
-			if self.operatorLastName.startswith('?'):
-				operatorText+='Not logged in'
-			else:
-				operatorText+=self.operatorFirstName[0].upper()+self.operatorLastName[0].upper()+' '+self.operatorId
+				instructions=clueData[7].lower()
+				# initialize all checkboxes to OFF
+				instructionsCollect=''
+				instructionsMarkAndLeave=''
+				instructionsDisregard=''
+				instructionsOther=''
+				instructionsOtherText=''
+				# parse to a list of tokens - split on comma or semicolon with space(s) before and/or after
+				instructions=re.sub(r' *[,;] *','|',instructions).split('|')
+				# remove any empty elements, probably due to back-to-back delimiters
+				instructions=[x for x in instructions if x]
+				logging.info('parsed instructions:'+str(instructions))
+				# look for keywords in the instructions text
+				if "collect" in instructions:
+					instructionsCollect='X'
+					instructions.remove('collect')
+				if "mark & leave" in instructions:
+					instructionsMarkAndLeave='X'
+					instructions.remove('mark & leave')
+				if "disregard" in instructions:
+					instructionsDisregard='X'
+					instructions.remove('disregard')
+				if instructions: # is there anything left in the parsed list?
+					instructionsOther='X'
+					instructionsOtherText=', '.join(instructions)
+		# 		locText=clueData[6]
+				if clueData[8]!="":
+		# 			locText=locText+"\n(Radio GPS = "+clueData[8]+")"
+					radioLocText="(Radio GPS: "+re.sub(r"\n","  x  ",clueData[8])+")"
+				else:
+					radioLocText=""
 
-		# define the fields and locations of the overlay pdf; similar to fillable pdf but with more control
-		# clueTableDicts - list of dictionaries, with each dictionary corresponding to a new reportlab table
-		#  data - list of lists, each sublist corresponding to one row of the reportlab table
-		#  heights - list of row heights (in inches) - the length of this list must equal the length of 'data';
-		#    can also be a single number, in which case each row will have the same specified height
-		#  widths - list of column widths - the length of theis list must equal the length of each element of 'data'
-		#    if sum of values adds up to page width in inches, then units are assumed to be in inches;
-		#    otherwise, units are assumed to be equal parts of total page width
-		clueTableDicts=[
-			{ # title bar row
-				'data':[[img,self.agencyNameForPrint,img]],
-				'heights':0.68,
-				'widths':[1,3,1],
-				'hvalign':['center','middle'],
-				'fontName':'Helvetica-Bold',
-				'fontSize':18
-			},
-			{ # incident name / date / operational period
-				'data':[['',self.incidentName,time.strftime('%x'),str(clueData[5])]],
-				'heights':0.43,
-				'widths':[67,108,85,79], # measured mm on screen (not sure of zoom)
-				'hvalign':['center','bottom']
-			},
-			{ # clue number / date/time located / team that located the clue
-				'data':[[str(clueData[0]),clueData[4]+'   '+clueData[3],clueData[2]]],
-				'heights':0.39,
-				'widths':[67,141,131],
-				'hvalign':['center','bottom']
-			},
-			{ # Name of Individual That Located Clue - not filled by radiolog, but,
-			  #  use the right-justified space on this line to show radio dispatch operator
-			  #  while still leaving space for someone to hand-write the individual's name
-				'data':[[operatorText]],
-				'heights':0.54,
-				'widths':[1], # width doesn't matter, since text is right-justified
-				'hvalign':['right','top'],
-				'fontSize':10 # slightly smaller font
-			},
-			{ # description of clue
-				'data':[['',clueData[1]]],
-				'heights':0.87,
-				'widths':[1,40], # left indent
-				'hvalign':['left','top']
-			},
-			{ # radio location
-				'data':[['',radioLocText]],
-				'heights':0.22,
-				'widths':[1,4],
-				'hvalign':['left','middle']
-			},
-			{ # location description
-				'data':[['',clueData[6]]],
-				'heights':0.63,
-				'widths':[1,40], # left indent
-				'hvalign':['left','top']
-			},
-			{ # gap - 'To investigations' and gap before checkboxes
-				'data':[['']],
-				'heights':1,
-				'widths':[1]
-			},
-			{ # Instructions checkboxes - to keep it to a single table, each row is [gap,checkbox,gap,othertext]
-				'data':[
-					['',instructionsCollect,'',''],
-					['',instructionsMarkAndLeave,'',''],
-					['',instructionsDisregard,'',''],
-					['',instructionsOther,'',instructionsOtherText]
-				],
-				'heights':0.19,
-				'widths':[1.35,1,3,30]
-				# note: if a cell width is less than required for a single character (plus padding),
-				#  the pdf generation process will throw an exception:
-				# AttributeError: 'Paragraph' object has no attribute 'blPara'
-				#  should probably catch this at the call to doc.build, by making the narrowest
-				#  field wider and trying again.  For helvetica-bold 18pt, a width of 0.15 is too
-				#  narrow and causes the error (1 part in 46) but 0.19 is OK (1 part in 36).
-			}
-		]
-		def ParagraphOrNot(d,style):
-			if isinstance(d,(str,int,float)):
-				# logging.info('   paragraph')
-				return Paragraph(d,style)
-			else:
-				# logging.info('   NOT paragraph')
-				return d
+				operatorText=''
+				if self.useOperatorLogin:
+					operatorText='Radio Dispatcher: '
+					if self.operatorLastName.startswith('?'):
+						operatorText+='Not logged in'
+					else:
+						operatorText+=self.operatorFirstName[0].upper()+self.operatorLastName[0].upper()+' '+self.operatorId
 
-		for td in clueTableDicts:
-			# logging.info('--- new table ---')
-			# logging.info('-- raw table data --')
-			# try:
-			# 	logging.info(json.dumps(td,indent=3))
-			# except:
-				# logging.info(str(td))
+				# define the fields and locations of the overlay pdf; similar to fillable pdf but with more control
+				# clueTableDicts - list of dictionaries, with each dictionary corresponding to a new reportlab table
+				#  data - list of lists, each sublist corresponding to one row of the reportlab table
+				#  heights - list of row heights (in inches) - the length of this list must equal the length of 'data';
+				#    can also be a single number, in which case each row will have the same specified height
+				#  widths - list of column widths - the length of theis list must equal the length of each element of 'data'
+				#    if sum of values adds up to page width in inches, then units are assumed to be in inches;
+				#    otherwise, units are assumed to be equal parts of total page width
+				clueTableDicts=[
+					{ # title bar row
+						'data':[[img,self.agencyNameForPrint,img]],
+						'heights':0.68,
+						'widths':[1,3,1],
+						'hvalign':['center','middle'],
+						'fontName':'Helvetica-Bold',
+						'fontSize':18
+					},
+					{ # incident name / date / operational period
+						'data':[['',self.incidentName,time.strftime('%x'),str(clueData[5])]],
+						'heights':0.43,
+						'widths':[67,108,85,79], # measured mm on screen (not sure of zoom)
+						'hvalign':['center','bottom']
+					},
+					{ # clue number / date/time located / team that located the clue
+						'data':[[str(clueData[0]),clueData[4]+'   '+clueData[3],clueData[2]]],
+						'heights':0.39,
+						'widths':[67,141,131],
+						'hvalign':['center','bottom']
+					},
+					{ # Name of Individual That Located Clue - not filled by radiolog, but,
+					#  use the right-justified space on this line to show radio dispatch operator
+					#  while still leaving space for someone to hand-write the individual's name
+						'data':[[operatorText]],
+						'heights':0.54,
+						'widths':[1], # width doesn't matter, since text is right-justified
+						'hvalign':['right','top'],
+						'fontSize':10 # slightly smaller font
+					},
+					{ # description of clue
+						'data':[['',clueData[1]]],
+						'heights':0.87,
+						'widths':[1,40], # left indent
+						'hvalign':['left','top']
+					},
+					{ # radio location
+						'data':[['',radioLocText]],
+						'heights':0.22,
+						'widths':[1,4],
+						'hvalign':['left','middle']
+					},
+					{ # location description
+						'data':[['',clueData[6]]],
+						'heights':0.63,
+						'widths':[1,40], # left indent
+						'hvalign':['left','top']
+					},
+					{ # gap - 'To investigations' and gap before checkboxes
+						'data':[['']],
+						'heights':1,
+						'widths':[1]
+					},
+					{ # Instructions checkboxes - to keep it to a single table, each row is [gap,checkbox,gap,othertext]
+						'data':[
+							['',instructionsCollect,'',''],
+							['',instructionsMarkAndLeave,'',''],
+							['',instructionsDisregard,'',''],
+							['',instructionsOther,'',instructionsOtherText]
+						],
+						'heights':0.19,
+						'widths':[1.35,1,3,30]
+						# note: if a cell width is less than required for a single character (plus padding),
+						#  the pdf generation process will throw an exception:
+						# AttributeError: 'Paragraph' object has no attribute 'blPara'
+						#  should probably catch this at the call to doc.build, by making the narrowest
+						#  field wider and trying again.  For helvetica-bold 18pt, a width of 0.15 is too
+						#  narrow and causes the error (1 part in 46) but 0.19 is OK (1 part in 36).
+					}
+				]
+				def ParagraphOrNot(d,style):
+					if isinstance(d,(str,int,float)):
+						# logging.info('   paragraph')
+						return Paragraph(d,style)
+					else:
+						# logging.info('   NOT paragraph')
+						return d
 
-			# using Normal paragraph style enables word wrap within table cells https://stackoverflow.com/a/10244769/3577105
-			style=ParagraphStyle('theStyle',parent=styles['Normal'])
-			# style.backColor='#dddddd' # helpful for layout development and debug
-			# style.borderPadding=(5,0,5,0)
-			if 'fontName' in td.keys():
-				style.fontName=td['fontName']
-			if 'fontSize' in td.keys():
-				style.fontSize=td['fontSize']
-			else:
-				style.fontSize=12
-			style.leading=style.fontSize*1.15 # rule of thumb: 20% larger than font size
+				for td in clueTableDicts:
+					# logging.info('--- new table ---')
+					# logging.info('-- raw table data --')
+					# try:
+					# 	logging.info(json.dumps(td,indent=3))
+					# except:
+						# logging.info(str(td))
 
-			# vertical alignment must be specified in the Table style;
-			# horizontal alignment must be specified in the Paragraph style
-			if 'hvalign' in td.keys():
-				[h,v]=td['hvalign']
-				# see reportlab docs paragraph alignment section for propert alignment values
-				# https://docs.reportlab.com/reportlab/userguide/ch6_paragraphs/
-				if h=='center':
-					style.alignment=1
-				elif h=='right':
-					style.alignment=2
+					# using Normal paragraph style enables word wrap within table cells https://stackoverflow.com/a/10244769/3577105
+					style=ParagraphStyle('theStyle',parent=styles['Normal'])
+					# style.backColor='#dddddd' # helpful for layout development and debug
+					# style.borderPadding=(5,0,5,0)
+					if 'fontName' in td.keys():
+						style.fontName=td['fontName']
+					if 'fontSize' in td.keys():
+						style.fontSize=td['fontSize']
+					else:
+						style.fontSize=12
+					style.leading=style.fontSize*1.15 # rule of thumb: 20% larger than font size
 
-			data=[[ParagraphOrNot(d,style) for d in row] for row in td['data']]
-			# data=td['data']
-			# logging.info('data:'+str(data))
-			widths=td['widths']
-			wsum=sum(td['widths'])
-			# if width units are not inches, treat them as proportional units
-			if sum(td['widths'])!=tableWidthInches:
-				widths=[(w/wsum)*tableWidthInches for w in widths]
-			# logging.info('widths='+str(widths))
-			heights=td['heights']
-			if isinstance(heights,(int,float)):
-				heightsList=[heights for x in range(len(data))]
-				heights=heightsList
-			# logging.info('heights='+str(heights))
-			t=Table(data,colWidths=[x*inch for x in widths],rowHeights=[x*inch for x in heights])
-			styleList=[
-				# ('BOX',(0,0),(-1,-1),1,colors.red), # helpful for layout development and debug
-				# ('INNERGRID',(0,0),(-1,-1),0.5,colors.red) # helpful for layout development and debug
-			]
-			# vertical alignment must be specified in the Table style;
-			# horizontal alignment within paragraphs must be specified in the Paragraph style
-			#  but should be applied in the Table style also, in case the data is not a Paragraph
-			if 'hvalign' in td.keys():
-				[h,v]=td['hvalign']
-				if isinstance(v,str): # apply it to the entire table
-					styleList.append(('VALIGN',(0,0),(-1,-1),v.upper()))
-				if isinstance(h,str): # apply it to the entire table
-					styleList.append(('ALIGN',(0,0),(-1,-1),h.upper()))
-			t.setStyle(TableStyle(styleList))
-			# logging.info('setting table style:'+str(styleList))
-			elements.append(t)
-		doc.build(elements)
+					# vertical alignment must be specified in the Table style;
+					# horizontal alignment must be specified in the Paragraph style
+					if 'hvalign' in td.keys():
+						[h,v]=td['hvalign']
+						# see reportlab docs paragraph alignment section for propert alignment values
+						# https://docs.reportlab.com/reportlab/userguide/ch6_paragraphs/
+						if h=='center':
+							style.alignment=1
+						elif h=='right':
+							style.alignment=2
 
-		# overlaying on the template https://gist.github.com/vsajip/8166dc0935ee7807c5bd4daa22a20937
-		templatePDF=PdfReader(self.clueReportPdfFileName,'rb')
-		templatePage=templatePDF.pages[0]
-		overlayPDF=PdfReader(cluePdfOverlayName,'rb')
-		templatePage.merge_page(overlayPDF.pages[0])
-		outputPDF=PdfWriter()
-		outputPDF.add_page(templatePage)
-		with open(cluePdfName,'wb') as out_pdf:
-			outputPDF.write(out_pdf)
+					data=[[ParagraphOrNot(d,style) for d in row] for row in td['data']]
+					# data=td['data']
+					# logging.info('data:'+str(data))
+					widths=td['widths']
+					wsum=sum(td['widths'])
+					# if width units are not inches, treat them as proportional units
+					if sum(td['widths'])!=tableWidthInches:
+						widths=[(w/wsum)*tableWidthInches for w in widths]
+					# logging.info('widths='+str(widths))
+					heights=td['heights']
+					if isinstance(heights,(int,float)):
+						heightsList=[heights for x in range(len(data))]
+						heights=heightsList
+					# logging.info('heights='+str(heights))
+					t=Table(data,colWidths=[x*inch for x in widths],rowHeights=[x*inch for x in heights])
+					styleList=[
+						# ('BOX',(0,0),(-1,-1),1,colors.red), # helpful for layout development and debug
+						# ('INNERGRID',(0,0),(-1,-1),0.5,colors.red) # helpful for layout development and debug
+					]
+					# vertical alignment must be specified in the Table style;
+					# horizontal alignment within paragraphs must be specified in the Paragraph style
+					#  but should be applied in the Table style also, in case the data is not a Paragraph
+					if 'hvalign' in td.keys():
+						[h,v]=td['hvalign']
+						if isinstance(v,str): # apply it to the entire table
+							styleList.append(('VALIGN',(0,0),(-1,-1),v.upper()))
+						if isinstance(h,str): # apply it to the entire table
+							styleList.append(('ALIGN',(0,0),(-1,-1),h.upper()))
+					t.setStyle(TableStyle(styleList))
+					# logging.info('setting table style:'+str(styleList))
+					elements.append(t)
+				doc.build(elements)
 
-		self.printPDF(cluePdfName)
-		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-			logging.info("copying clue report pdf to "+self.secondWorkingDir)
-			shutil.copy(cluePdfName,self.secondWorkingDir)
+				# overlaying on the template https://gist.github.com/vsajip/8166dc0935ee7807c5bd4daa22a20937
+				templatePDF=PdfReader(self.clueReportPdfFileName,'rb')
+				templatePage=templatePDF.pages[0]
+				overlayPDF=PdfReader(cluePdfOverlayName,'rb')
+				templatePage.merge_page(overlayPDF.pages[0])
+				outputPDF=PdfWriter()
+				outputPDF.add_page(templatePage)
+				with open(cluePdfName,'wb') as out_pdf:
+					outputPDF.write(out_pdf)
 
-		try:
-			os.remove(cluePdfOverlayName)
-		except:
-			pass
+				self.printPDF(cluePdfName)
+				if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
+					logging.info("copying clue report pdf to "+self.secondWorkingDir)
+					shutil.copy(cluePdfName,self.secondWorkingDir)
+
+				try:
+					os.remove(cluePdfOverlayName)
+				except:
+					pass
+			except Exception as e:
+				logging.error(f'_clueReportWorker: outer exception caught in order to keep the thread alive: {e}')
+			finally: # clear the flag even if there was an early exit
+				self.clueReportSaving=False
+
+	def clueReportMessageBoxFromThread(self,cluePdfName):
+		msg=f'Clue Report PDF could not be generated:\n\n"{cluePdfName}"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.'
+		logging.error(msg)
+		self.printClueErrMsgBox=QMessageBox(QMessageBox.Critical,"Error",msg,
+			QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		self.printClueErrMsgBox.show()
+		self.printClueErrMsgBox.raise_()
+		QTimer.singleShot(10000,self.printClueErrMsgBox.close)
+		self.printClueErrMsgBox.exec_()
 
 	def startupOptions(self):
 		self.optionsDialog.show()
