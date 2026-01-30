@@ -964,6 +964,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	_sig_caltopoMapClosed=pyqtSignal()
 	_sig_blockingMessageBoxFromThread=pyqtSignal(str)
 	_sig_clueReportMessageBoxFromThread=pyqtSignal(str)
+	_sig_processEventsFromThread=pyqtSignal()
 	# _sig_caltopoCreateCTSCB=pyqtSignal(bool)
 
 	def __init__(self,parent):
@@ -1555,6 +1556,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		### BEGIN file thread setup
 		##########################
 
+		# Thread safety prqctices:
+		# - GUI calls must be made from the main thread only;
+		#   if you want to do GUI actions from a different thread, emit a pyqtSignal (with arguments if needed)
+		#   that is connected to a main thread function
+		# - use threading.Event instances to tell the bakground threads to take action 
+		# - use daemon threads, and in their workers, use endless loops that wait for the event
+		# - don't use 'return' in the worker: returning from an endless loop worker will end the loop
+		#    which will end the thread; instead, use 'continue' to go to the next iteration of the endless loop
+		# - set a flag when the event is received, and clear it when the work code is done
+		#    (before the next iteration of the endless loop); this lets the main thread code wait
+		#    for the current iteration of daemon threads to complete, e.g. before exiting
+
 		# flags that indicate if a file save operation is currently taking place; check these before exiting
 		self.saving=False
 		self.fsLookupSaving=False
@@ -1696,6 +1709,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self._sig_caltopoReconnectedFromOpenMap.connect(self.caltopoReconnectedFromOpenMap_mainThread)
 		self._sig_caltopoMapClosed.connect(self.caltopoMapClosedCallback_mainThread)
 		self._sig_blockingMessageBoxFromThread.connect(self.blockingMessageBoxFromThread)
+		self._sig_clueReportMessageBoxFromThread.connect(self.clueReportMessageBoxFromThread)
+		self._sig_processEventsFromThread.connect(self.processEventsFromThread)
 		# self._sig_caltopoCreateCTSCB.connect(self.caltopoCreateCTSCB_mainThread)
 
 		# # thread/queue/signal mechanism for radio markers, similar to the mechanism for requests in caltopo_python
@@ -4051,21 +4066,22 @@ class MyWindow(QDialog,Ui_Dialog):
 		canvas.restoreState()
 		logging.info("end of printLogHeaderFooter")
 
-	def printPDF(self,pdfName):
+	def printPDF(self,pdfName): # only called from within a background thread
 		try:
 			win32api.ShellExecute(0,"print",pdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
 		except Exception as e:
 			estr=str(e)
 			logging.info('Print failed: '+estr)
 			if '31' in estr:
-				msg='Failed to send PDF to a printer.\n\nThe PDF file has still been generated and saved in the run directory.\n\nThe most likely cause for this error is that there is no PDF viewer application installed on your system.\n\nPlease make sure you have a PDF viewer application such as Acrobat or Acrobat Reader installed and set as the system default application for viewing PDF files.\n\nYou can install that application now without exiting RadioLog, then try printing again.'
-				logging.info(msg)
+				estr='Failed to send PDF to a printer.\n\nThe PDF file has still been generated and saved in the run directory.\n\nThe most likely cause for this error is that there is no PDF viewer application installed on your system.\n\nPlease make sure you have a PDF viewer application such as Acrobat or Acrobat Reader installed and set as the system default application for viewing PDF files.\n\nYou can install that application now without exiting RadioLog, then try printing again.\n\n'+estr
+				logging.info(estr)
 			if not self.printFailMessageBoxShown:
-				box=QMessageBox(QMessageBox.Warning,'Print Failed',msg+'\n\nThis message will not appear again for this RadioLog session.',
-					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-				box.show()
-				box.raise_()
-				box.exec_()
+				self._sig_blockingMessageBoxFromThread.emit(estr+'\n\nThis message will not appear again for this RadioLog session.')
+				# box=QMessageBox(QMessageBox.Warning,'Print Failed',,
+				# 	QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				# box.show()
+				# box.raise_()
+				# box.exec_()
 				self.printFailMessageBoxShown=True
 
 	# optonal argument 'teams': if True, generate one pdf of all individual team logs;
@@ -4349,8 +4365,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.clueLogNeedsPrint=False
 
 	def printClueReport(self,clueData):
+		# logging.info('printClueReport called')
 		self.clueReportClueData=clueData
-		self.clueReportEvent.emit()
+		self.clueReportEvent.set()
 
 	# fillable pdf works well with pdftk external dependency, but is problematic in pure python
 	#  see https://stackoverflow.com/questions/72625568
@@ -4379,13 +4396,15 @@ class MyWindow(QDialog,Ui_Dialog):
 					# self.printClueErrMsgBox.raise_()
 					# QTimer.singleShot(10000,self.printClueErrMsgBox.close)
 					# self.printClueErrMsgBox.exec_()
-					return
+					# return
+					continue # don't use return in an endless loop worker - it will end the loop which will end the thread
 				else:
 					f.close()
 
 				cluePdfOverlayName=cluePdfName.replace('.pdf','_overlay.pdf')
 				doc = SimpleDocTemplate(cluePdfOverlayName, pagesize=portrait(letter),leftMargin=0.84*inch,rightMargin=0.67*inch,topMargin=0.68*inch,bottomMargin=0.5*inch) # or pagesize=letter
-				QCoreApplication.processEvents()
+				self._sig_processEventsFromThread.emit()
+				# QCoreApplication.processEvents()
 				tableWidthInches=6.92 # determined from the template pdf, used to draw overlay pdf fields below
 				elements=[]
 				styles = getSampleStyleSheet()
@@ -4610,6 +4629,9 @@ class MyWindow(QDialog,Ui_Dialog):
 				logging.error(f'_clueReportWorker: outer exception caught in order to keep the thread alive: {e}')
 			finally: # clear the flag even if there was an early exit
 				self.clueReportSaving=False
+
+	def processEventsFromThread(self):
+		QCoreApplication.processEvents()
 
 	def clueReportMessageBoxFromThread(self,cluePdfName):
 		msg=f'Clue Report PDF could not be generated:\n\n"{cluePdfName}"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.'
@@ -5111,7 +5133,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.fsLogSaving or
 				self.rcSaving or
 				self.operatorsSaving or
-				self.teamNotesSaving) and waitedSec<10:
+				self.teamNotesSaving or
+				self.clueReportSaving) and waitedSec<10:
 			logging.info('Threaded file save operation(s) still in process; waiting...')
 			time.sleep(1)
 			waitedSec+=1
@@ -5310,7 +5333,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				names=self.getOperatorNames()
 				if len(names)==0:
 					logging.info('  the operators list is empty; skipping the operator save operation')
-					return
+					# return
+					continue # don't use return in an endless loop worker - it will end the loop which will end the thread
 				fileName=os.path.join(self.configDir,self.operatorsFileName)
 				try:
 					with open(fileName,'w') as ofile:
