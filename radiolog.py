@@ -965,6 +965,7 @@ class MyWindow(QDialog,Ui_Dialog):
 	_sig_blockingMessageBoxFromThread=pyqtSignal(str)
 	_sig_clueReportMessageBoxFromThread=pyqtSignal(str)
 	_sig_processEventsFromThread=pyqtSignal()
+	_sig_clueLogMessageBoxFromThread=pyqtSignal(str)
 	# _sig_caltopoCreateCTSCB=pyqtSignal(bool)
 
 	def __init__(self,parent):
@@ -1615,6 +1616,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.clueReportThread=threading.Thread(target=self._clueReportWorker,args=(self.clueReportEvent,),daemon=True,name='clueReportThread')
 		self.clueReportThread.start()
 
+		self.clueLogOpPeriod=None
+		self.clueLogEvent=threading.Event()
+		self.clueLogThread=threading.Thread(target=self._clueLogWorker,args=(self.clueLogEvent,),daemon=True,name='clueLogThread')
+		self.clueLogThread.start()
+
+		self.clueLogNeedsPrintLock=threading.Lock()
+
 		##########################
 		### END file thread setup
 		##########################
@@ -1711,6 +1719,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self._sig_blockingMessageBoxFromThread.connect(self.blockingMessageBoxFromThread)
 		self._sig_clueReportMessageBoxFromThread.connect(self.clueReportMessageBoxFromThread)
 		self._sig_processEventsFromThread.connect(self.processEventsFromThread)
+		self._sig_clueLogMessageBoxFromThread.connect(self.clueLogMessageBoxFromThread)
 		# self._sig_caltopoCreateCTSCB.connect(self.caltopoCreateCTSCB_mainThread)
 
 		# # thread/queue/signal mechanism for radio markers, similar to the mechanism for requests in caltopo_python
@@ -4013,15 +4022,15 @@ class MyWindow(QDialog,Ui_Dialog):
 				formNameText="Team Radio Logs"
 		canvas.saveState()
 		styles = getSampleStyleSheet()
-		self.img=None
+		img=None
 		if os.path.isfile(self.printLogoFileName):
 			logging.info("valid logo file "+self.printLogoFileName)
 			imgReader=utils.ImageReader(self.printLogoFileName)
 			imgW,imgH=imgReader.getSize()
 			imgAspect=imgH/float(imgW)
-			self.img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
+			img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
 			headerTable=[
-					[self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,formNameText+" - Page "+str(canvas.getPageNumber())],
+					[img,self.agencyNameForPrint,"Incident: "+self.incidentName,formNameText+" - Page "+str(canvas.getPageNumber())],
 					["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
 			t=Table(headerTable,colWidths=[x*inch for x in [0.8,4.2,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
@@ -4040,7 +4049,7 @@ class MyWindow(QDialog,Ui_Dialog):
 										  ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
 		else:
 			headerTable=[
-					[self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,formNameText+" - Page "+str(canvas.getPageNumber())],
+					[img,self.agencyNameForPrint,"Incident: "+self.incidentName,formNameText+" - Page "+str(canvas.getPageNumber())],
 					["","","Operational Period: ","Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
 			t=Table(headerTable,colWidths=[x*inch for x in [0.0,5,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
@@ -4056,7 +4065,8 @@ class MyWindow(QDialog,Ui_Dialog):
 										  ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
 		w,h=t.wrapOn(canvas,doc.width,doc.height)
 # 		self.logMsgBox.setInformativeText("Generating page "+str(canvas.getPageNumber()))
-		QCoreApplication.processEvents()
+		# QCoreApplication.processEvents()
+		self._sig_processEventsFromThread.emit()
 		logging.info("Page number:"+str(canvas.getPageNumber()))
 		logging.info("Height:"+str(h))
 		logging.info("Pagesize:"+str(doc.pagesize))
@@ -4220,14 +4230,14 @@ class MyWindow(QDialog,Ui_Dialog):
 	def printClueLogHeaderFooter(self,canvas,doc,opPeriod=""):
 		canvas.saveState()
 		styles = getSampleStyleSheet()
-		self.img=None
+		img=None
 		if os.path.isfile(self.printLogoFileName):
 			imgReader=utils.ImageReader(self.printLogoFileName)
 			imgW,imgH=imgReader.getSize()
 			imgAspect=imgH/float(imgW)
-			self.img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
+			img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
 			headerTable=[
-					[self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,"Clue Log - Page "+str(canvas.getPageNumber())],
+					[img,self.agencyNameForPrint,"Incident: "+self.incidentName,"Clue Log - Page "+str(canvas.getPageNumber())],
 					["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
 			t=Table(headerTable,colWidths=[x*inch for x in [0.8,4.2,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
@@ -4245,7 +4255,7 @@ class MyWindow(QDialog,Ui_Dialog):
 										  ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
 		else:
 			headerTable=[
-					[self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,"Clue Log - Page "+str(canvas.getPageNumber())],
+					[img,self.agencyNameForPrint,"Incident: "+self.incidentName,"Clue Log - Page "+str(canvas.getPageNumber())],
 					["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
 			t=Table(headerTable,colWidths=[x*inch for x in [0.0,5,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
@@ -4271,98 +4281,128 @@ class MyWindow(QDialog,Ui_Dialog):
 		logging.info("end of printClueLogHeaderFooter")
 
 	def printClueLog(self,opPeriod):
-##      header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
-		opPeriod=int(opPeriod)
-		# first, determine if there are any clues to print for this OP; if not, return before generating the pdf
-		rowsToPrint=[]
-		for row in self.clueLog:
-			if (str(row[5])==str(opPeriod) or row[1].startswith("Operational Period "+str(opPeriod)+" Begins:") or row[1].startswith("Radio Log Begins")):
-				rowsToPrint.append(row)
-				logging.info('appending: '+str(row))
-		if len(rowsToPrint)<2:
-			logging.info('Nothing to print for specified operational period '+str(opPeriod))
-			return
-		else:
-			# clueLogPdfFileName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clueLog_OP"+str(opPeriod)+".pdf")
-			clueLogPdfFileName=os.path.join(self.sessionDir,self.pdfFileName.replace(".pdf","_clueLog_OP"+str(opPeriod)+".pdf"))
-			logging.info("generating clue log pdf: "+clueLogPdfFileName)
+		self.clueLogOpPeriod=opPeriod
+		self.clueLogEvent.set()
+
+	def _clueLogWorker(self,event):
+		while True:
+			logging.info('_clueLogWorker: waiting for event...')
+			event.wait()
+			logging.info('_clueLogWorker: event received; beginning file save operations...')
+			event.clear()
+
+			self.clueLogSaving=True
 			try:
-				f=open(clueLogPdfFileName,"wb")
-			except:
-				self.printClueLogErrMsgBox=QMessageBox(QMessageBox.Critical,"Error","PDF could not be generated:\n\n"+clueLogPdfFileName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.",
-					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-				self.printClueLogErrMsgBox.show()
-				self.printClueLogErrMsgBox.raise_()
-				QTimer.singleShot(10000,self.printClueLogErrMsgBox.close)
-				self.printClueLogErrMsgBox.exec_()
-				return
-			else:
-				f.close()
-	# 		self.clueLogMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF; will send to default printer automatically; please wait...",
-	# 							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-	# 		self.clueLogMsgBox.setInformativeText("Initializing...")
-			# note the topMargin is based on what looks good; you would think that a 0.6 table plus a 0.5 hard
-			# margin (see t.drawOn above) would require a 1.1 margin here, but, not so.
-			doc = SimpleDocTemplate(clueLogPdfFileName, pagesize=landscape(letter),leftMargin=0.5*inch,rightMargin=0.5*inch,topMargin=1.03*inch,bottomMargin=0.5*inch) # or pagesize=letter
-	# 		self.clueLogMsgBox.show()
-	# 		QTimer.singleShot(5000,self.clueLogMsgBox.close)
-			QCoreApplication.processEvents()
-			elements=[]
-			styles = getSampleStyleSheet()
-			clueLogPrint=[]
-			headers=clueTableModel.header_labels[0:5]+clueTableModel.header_labels[6:8] # omit operational period
-			if self.useOperatorLogin:
-				operatorImageFile=os.path.join(iconsDir,'user_icon_80px.png')
-				if os.path.isfile(operatorImageFile):
-					headers.append(Image(operatorImageFile,width=0.16*inch,height=0.16*inch))
+		##      header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
+				opPeriod=int(self.clueLogOpPeriod)
+				# first, determine if there are any clues to print for this OP; if not, return before generating the pdf
+				rowsToPrint=[]
+				for row in self.clueLog:
+					if (str(row[5])==str(opPeriod) or row[1].startswith("Operational Period "+str(opPeriod)+" Begins:") or row[1].startswith("Radio Log Begins")):
+						rowsToPrint.append(row)
+						logging.info('appending: '+str(row))
+				if len(rowsToPrint)<2:
+					logging.info('Nothing to print for specified operational period '+str(opPeriod))
+					# return
+					continue # don't use return in an endless loop worker - it will end the loop which will end the thread
 				else:
-					logging.info('operator image file not found: '+operatorImageFile)
-					headers.append('Op.')
-			clueLogPrint.append(headers)
-			for row in rowsToPrint:
-				locationText=row[6]
-				if row[8]:
-					locationText='[Radio GPS:\n'+(row[8].replace('\n',' '))+'] '+row[6]
-				printRows=[row[0],Paragraph(row[1],styles['Normal']),row[2],row[3],row[4],Paragraph(locationText,styles['Normal']),Paragraph(row[7],styles['Normal'])]
-				if self.useOperatorLogin:
-					if len(row)>9:
-						printRows.append(row[9])
+					# clueLogPdfFileName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clueLog_OP"+str(opPeriod)+".pdf")
+					clueLogPdfFileName=os.path.join(self.sessionDir,self.pdfFileName.replace(".pdf","_clueLog_OP"+str(opPeriod)+".pdf"))
+					logging.info("generating clue log pdf: "+clueLogPdfFileName)
+					try:
+						f=open(clueLogPdfFileName,"wb")
+					except:
+						self._sig_clueLogMessageBoxFromThread.emit(clueLogPdfFileName)
+						# self.printClueLogErrMsgBox=QMessageBox(QMessageBox.Critical,"Error","PDF could not be generated:\n\n"+clueLogPdfFileName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.",
+						# 	QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+						# self.printClueLogErrMsgBox.show()
+						# self.printClueLogErrMsgBox.raise_()
+						# QTimer.singleShot(10000,self.printClueLogErrMsgBox.close)
+						# self.printClueLogErrMsgBox.exec_()
+						# return
+						continue # don't use return in an endless loop worker - it will end the loop which will end the thread
 					else:
-						printRows.append('')
-				clueLogPrint.append(printRows)
-			# #523: avoid exception	
-			try:
-				clueLogPrint[1][5]=self.datum
-			except:
-				logging.info('Nothing to print for specified Operational Period '+str(opPeriod))
-				return
-			if len(clueLogPrint)>2:
-	##			t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.6,3.75,.9,0.5,1.25,3]])
-				if self.useOperatorLogin:
-					colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.2,0.3]]
-				else:
-					colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.5]]
-				t=Table(clueLogPrint,repeatRows=1,colWidths=colWidths)
-				t.setStyle(TableStyle([('F/generating clue llONT',(0,0),(-1,-1),'Helvetica'),
-										('FONT',(0,0),(-1,1),'Helvetica-Bold'),
-										('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
-									('BOX', (0,0), (-1,-1), 2, colors.black),
-									('BOX', (0,0), (-1,0), 2, colors.black)]))
-				elements.append(t)
-				doc.build(elements,onFirstPage=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod),onLaterPages=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod))
-	# 			self.clueLogMsgBox.setInformativeText("Finalizing and Printing...")
-				self.printPDF(clueLogPdfFileName)
-				if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-					logging.info("copying clue log pdf to "+self.secondWorkingDir)
-					shutil.copy(clueLogPdfFileName,self.secondWorkingDir)
-	# 		else:
-	# 			self.clueLogMsgBox.setText("No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.")
-	# 			self.clueLogMsgBox.setInformativeText("")
-	# 			self.clueLogMsgBox.setStandardButtons(QMessageBox.Ok)
-	# 			self.msgBox.close()
-	# 			self.msgBox=QMessageBox(QMessageBox.Information,"Printing","No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.",QMessageBox.Ok)
-	# 			QTimer.singleShot(500,self.msgBox.show)
-			self.clueLogNeedsPrint=False
+						f.close()
+			# 		self.clueLogMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF; will send to default printer automatically; please wait...",
+			# 							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			# 		self.clueLogMsgBox.setInformativeText("Initializing...")
+					# note the topMargin is based on what looks good; you would think that a 0.6 table plus a 0.5 hard
+					# margin (see t.drawOn above) would require a 1.1 margin here, but, not so.
+					doc = SimpleDocTemplate(clueLogPdfFileName, pagesize=landscape(letter),leftMargin=0.5*inch,rightMargin=0.5*inch,topMargin=1.03*inch,bottomMargin=0.5*inch) # or pagesize=letter
+			# 		self.clueLogMsgBox.show()
+			# 		QTimer.singleShot(5000,self.clueLogMsgBox.close)
+					# QCoreApplication.processEvents()
+					self._sig_processEventsFromThread.emit()
+					elements=[]
+					styles = getSampleStyleSheet()
+					clueLogPrint=[]
+					headers=clueTableModel.header_labels[0:5]+clueTableModel.header_labels[6:8] # omit operational period
+					if self.useOperatorLogin:
+						operatorImageFile=os.path.join(iconsDir,'user_icon_80px.png')
+						if os.path.isfile(operatorImageFile):
+							headers.append(Image(operatorImageFile,width=0.16*inch,height=0.16*inch))
+						else:
+							logging.info('operator image file not found: '+operatorImageFile)
+							headers.append('Op.')
+					clueLogPrint.append(headers)
+					for row in rowsToPrint:
+						locationText=row[6]
+						if row[8]:
+							locationText='[Radio GPS:\n'+(row[8].replace('\n',' '))+'] '+row[6]
+						printRows=[row[0],Paragraph(row[1],styles['Normal']),row[2],row[3],row[4],Paragraph(locationText,styles['Normal']),Paragraph(row[7],styles['Normal'])]
+						if self.useOperatorLogin:
+							if len(row)>9:
+								printRows.append(row[9])
+							else:
+								printRows.append('')
+						clueLogPrint.append(printRows)
+					# #523: avoid exception	
+					try:
+						clueLogPrint[1][5]=self.datum
+					except:
+						logging.info('Nothing to print for specified Operational Period '+str(opPeriod))
+						# return
+						continue # don't use return in an endless loop worker - it will end the loop which will end the thread
+					if len(clueLogPrint)>2:
+			##			t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.6,3.75,.9,0.5,1.25,3]])
+						if self.useOperatorLogin:
+							colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.2,0.3]]
+						else:
+							colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.5]]
+						t=Table(clueLogPrint,repeatRows=1,colWidths=colWidths)
+						t.setStyle(TableStyle([('F/generating clue llONT',(0,0),(-1,-1),'Helvetica'),
+												('FONT',(0,0),(-1,1),'Helvetica-Bold'),
+												('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
+											('BOX', (0,0), (-1,-1), 2, colors.black),
+											('BOX', (0,0), (-1,0), 2, colors.black)]))
+						elements.append(t)
+						doc.build(elements,onFirstPage=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod),onLaterPages=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod))
+			# 			self.clueLogMsgBox.setInformativeText("Finalizing and Printing...")
+						self.printPDF(clueLogPdfFileName)
+						if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
+							logging.info("copying clue log pdf to "+self.secondWorkingDir)
+							shutil.copy(clueLogPdfFileName,self.secondWorkingDir)
+			# 		else:
+			# 			self.clueLogMsgBox.setText("No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.")
+			# 			self.clueLogMsgBox.setInformativeText("")
+			# 			self.clueLogMsgBox.setStandardButtons(QMessageBox.Ok)
+			# 			self.msgBox.close()
+			# 			self.msgBox=QMessageBox(QMessageBox.Information,"Printing","No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.",QMessageBox.Ok)
+			# 			QTimer.singleShot(500,self.msgBox.show)
+					with self.clueLogNeedsPrintLock:
+						self.clueLogNeedsPrint=False
+			except Exception as e:
+				logging.error(f'_clueLogWorker: outer exception caught in order to keep the thread alive: {e}')
+			finally: # clear the flag even if there was an early exit
+				self.clueLogSaving=False
+
+	def clueLogMessageBoxFromThread(self,clueLogPdfFileName):
+		self.printClueLogErrMsgBox=QMessageBox(QMessageBox.Critical,"Error","PDF could not be generated:\n\n"+clueLogPdfFileName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.",
+			QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		self.printClueLogErrMsgBox.show()
+		self.printClueLogErrMsgBox.raise_()
+		QTimer.singleShot(10000,self.printClueLogErrMsgBox.close)
+		self.printClueLogErrMsgBox.exec_()
 
 	def printClueReport(self,clueData):
 		# logging.info('printClueReport called')
@@ -11585,7 +11625,8 @@ class clueDialog(QDialog,Ui_clueDialog):
 			self.clueMsgBox.exec_()
 			return
 
-		self.parent.parent.clueLogNeedsPrint=True
+		with self.clueLogNeedsPrintLock:
+			self.parent.parent.clueLogNeedsPrint=True
 		self.parent.cluePopupShown=True # avoid duplicate popup
 		textToAdd=''
 		existingText=self.parent.ui.messageField.text()
