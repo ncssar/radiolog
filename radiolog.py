@@ -1577,6 +1577,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.operatorsSaving=False
 		self.teamNotesSaving=False
 		self.clueReportSaving=False
+		self.clueLogSaving=False
+		self.logPrinting=False
 		
 		# save thread - move all file save operations to a separate thread #602 / #816
 		self.fileFinalize=False
@@ -1617,11 +1619,17 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.clueReportThread.start()
 
 		self.clueLogOpPeriod=None
+		self.clueLogNeedsPrintLock=threading.Lock()
 		self.clueLogEvent=threading.Event()
 		self.clueLogThread=threading.Thread(target=self._clueLogWorker,args=(self.clueLogEvent,),daemon=True,name='clueLogThread')
 		self.clueLogThread.start()
 
-		self.clueLogNeedsPrintLock=threading.Lock()
+		self.printLogOpPeriod=None
+		self.printLogTeams=False
+		self.radioLogNeedsPrintLock=threading.Lock()
+		self.printLogEvent=threading.Event()
+		self.printLogThread=threading.Thread(target=self._printLogWorker,args=(self.printLogEvent,),daemon=True,name='printLogThread')
+		self.printLogThread.start()
 
 		##########################
 		### END file thread setup
@@ -4099,130 +4107,156 @@ class MyWindow(QDialog,Ui_Dialog):
 	#  again with teams=True to generate team logs pdf
 	# if 'teams' is an array of team names, just print those team log(s)
 	def printLog(self,opPeriod,teams=False):
-		opPeriod=int(opPeriod)
-		# pdfName=self.firstWorkingDir+"\\"+self.pdfFileName
-		pdfName=os.path.join(self.sessionDir,self.pdfFileName)
-		teamFilterList=[""] # by default, print print all entries; if teams=True, add a filter for each team
-		msgAdder=""
-		if teams:
-			if isinstance(teams,list):
-				# recursively call this function for each team in list of teams
-				for team in teams:
-					self.printLog(opPeriod,team)
-			elif isinstance(teams,str):
-				pdfName=pdfName.replace('.pdf','_'+teams.replace(' ','_').replace('.','_')+'.pdf')
-				msgAdder=" for "+teams
-				teamFilterList=[teams]
-			else:
-				pdfName=pdfName.replace('.pdf','_teams.pdf')
-				msgAdder=" for individual teams"
-				teamFilterList=[]
-				for team in self.allTeamsList:
-					if team!="dummy":
-						teamFilterList.append(team)
-		logging.info("teamFilterList="+str(teamFilterList))
-		pdfName=pdfName.replace('.pdf','_OP'+str(opPeriod)+'.pdf')
-		logging.info("generating radio log pdf: "+pdfName)
-		try:
-			f=open(pdfName,"wb")
-		except:
-			self.printLogErrMsgBox=QMessageBox(QMessageBox.Critical,"Error","PDF could not be generated:\n\n"+pdfName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.",
-				QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			self.printLogErrMsgBox.show()
-			self.printLogErrMsgBox.raise_()
-			self.printLogErrMsgBox.exec_()
-			return
-		else:
-			f.close()
-# 		self.logMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF"+msgAdder+"; will send to default printer automatically; please wait...",
-# 							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-# 		self.logMsgBox.setInformativeText("Initializing...")
-		# note the topMargin is based on what looks good; you would think that a 0.6 table plus a 0.5 hard
-		# margin (see t.drawOn above) would require a 1.1 margin here, but, not so.
-		doc = SimpleDocTemplate(pdfName, pagesize=landscape(letter),leftMargin=0.5*inch,rightMargin=0.5*inch,topMargin=1.03*inch,bottomMargin=0.5*inch) # or pagesize=letter
-# 		self.logMsgBox.show()
-# 		QTimer.singleShot(5000,self.logMsgBox.close)
-		QCoreApplication.processEvents()
-		elements=[]
-		for team in teamFilterList:
-			extTeamNameLower=getExtTeamName(team).lower()
-			radioLogPrint=[]
-			styles = getSampleStyleSheet()
-			styles.add(ParagraphStyle(
-				name='operator',
-				parent=styles['Normal'],
-				backColor='lightgrey'
-				))
-			headers=MyTableModel.header_labels[0:6]
-			if self.useOperatorLogin:
-				operatorImageFile=os.path.join(iconsDir,'user_icon_80px.png')
-				if os.path.isfile(operatorImageFile):
-					logging.info('operator image file found: '+operatorImageFile)
-					headers.append(Image(operatorImageFile,width=0.16*inch,height=0.16*inch))
-				else:
-					logging.info('operator image file not found: '+operatorImageFile)
-					headers.append('Op.')
-			radioLogPrint.append(headers)
-##			if teams and opPeriod==1: # if request op period = 1, include 'Radio Log Begins' in all team tables
-##				radioLogPrint.append(self.radioLog[0])
-			entryOpPeriod=1 # update this number when 'Operational Period <x> Begins' lines are found
-##			hits=False # flag to indicate whether this team has any entries in the requested op period; if not, don't make a table for this team
-			for row in self.radioLog:
-				opStartRow=False
-##				logging.info("message:"+row[3]+":"+str(row[3].split()))
-				if row[3].startswith("Radio Log Begins:"):
-					opStartRow=True
-				if row[3].startswith("Operational Period") and row[3].split()[3] == "Begins:":
-					opStartRow=True
-					entryOpPeriod=int(row[3].split()[2])
-				# #523: handled continued incidents
-				if row[3].startswith('Radio Log Begins - Continued incident'):
-					opStartRow=True
-					entryOpPeriod=int(row[3].split(': Operational Period ')[1].split()[0])
-##				logging.info("desired op period="+str(opPeriod)+"; this entry op period="+str(entryOpPeriod))
-				if entryOpPeriod == opPeriod:
-					if team=="" or extTeamNameLower==getExtTeamName(row[2]).lower() or opStartRow: # filter by team name if argument was specified
-						style=styles['Normal']
-						if 'RADIO OPERATOR LOGGED IN' in row[3]:
-							style=styles['operator']
-						printRow=[row[0],row[1],row[2],Paragraph(row[3],style),Paragraph(row[4],styles['Normal']),Paragraph(row[5],styles['Normal'])]
-						if self.useOperatorLogin:
-							if len(row)>10:
-								printRow.append(row[10])
-							else:
-								printRow.append('')
-						radioLogPrint.append(printRow)
-##						hits=True
-			if not teams:
-				# #523: avoid exception	
-				try:
-					radioLogPrint[1][4]=self.datum
-				except:
-					logging.info('Nothing to print for specified operational period '+str(opPeriod))
-					return
-			logging.info("length:"+str(len(radioLogPrint)))
-			if not teams or len(radioLogPrint)>2: # don't make a table for teams that have no entries during the requested op period
-				if self.useOperatorLogin:
-					colWidths=[x*inch for x in [0.5,0.6,1.25,5.2,1.25,0.9,0.3]]
-				else:
-					colWidths=[x*inch for x in [0.5,0.6,1.25,5.5,1.25,0.9]]
-				t=Table(radioLogPrint,repeatRows=1,colWidths=colWidths)
-				t.setStyle(TableStyle([('FONT',(0,0),(-1,-1),'Helvetica'),
-										('FONT',(0,0),(-1,1),'Helvetica-Bold'),
-										('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
-				  					 ('BOX', (0,0), (-1,-1), 2, colors.black),
-					 				  ('BOX', (0,0), (-1,0), 2, colors.black)]))
-				elements.append(t)
-				if teams and team!=teamFilterList[-1]: # don't add a spacer after the last team - it could cause another page!
-					elements.append(Spacer(0,0.25*inch))
-		doc.build(elements,onFirstPage=functools.partial(self.printLogHeaderFooter,opPeriod=opPeriod,teams=teams),onLaterPages=functools.partial(self.printLogHeaderFooter,opPeriod=opPeriod,teams=teams))
-# 		self.logMsgBox.setInformativeText("Finalizing and Printing...")
-		self.printPDF(pdfName)
-		self.radioLogNeedsPrint=False
+		logging.info(f'printLog called: opPeriod={opPeriod}  teams={teams}')
+		self.printLogOpPeriod=opPeriod
+		self.printLogTeams=teams
+		self.printLogEvent.set()
 
-		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-			logging.info("copying radio log pdf"+msgAdder+" to "+self.secondWorkingDir)
-			shutil.copy(pdfName,self.secondWorkingDir)
+	def _printLogWorker(self,event):
+		while True:
+			logging.info('_printLogWorker: waiting for event...')
+			event.wait()
+			logging.info('_printLogWorker: event received; beginning file save operations...')
+			event.clear()
+
+			self.logPrinting=True
+			try:
+				opPeriod=int(self.printLogOpPeriod)
+				teams=self.printLogTeams
+				# pdfName=self.firstWorkingDir+"\\"+self.pdfFileName
+				pdfName=os.path.join(self.sessionDir,self.pdfFileName)
+				teamFilterList=[""] # by default, print print all entries; if teams=True, add a filter for each team
+				msgAdder=""
+				if teams:
+					if isinstance(teams,list):
+						# recursively call this function for each team in list of teams
+						for team in teams:
+							self.printLog(opPeriod,team)
+					elif isinstance(teams,str):
+						pdfName=pdfName.replace('.pdf','_'+teams.replace(' ','_').replace('.','_')+'.pdf')
+						msgAdder=" for "+teams
+						teamFilterList=[teams]
+					else:
+						pdfName=pdfName.replace('.pdf','_teams.pdf')
+						msgAdder=" for individual teams"
+						teamFilterList=[]
+						for team in self.allTeamsList:
+							if team!="dummy":
+								teamFilterList.append(team)
+				logging.info("teamFilterList="+str(teamFilterList))
+				pdfName=pdfName.replace('.pdf','_OP'+str(opPeriod)+'.pdf')
+				logging.info("generating radio log pdf: "+pdfName)
+				try:
+					f=open(pdfName,"wb")
+				except:
+					msg=f'PDF could not be generated:\n\n{pdfName}\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.'
+					logging.warning(msg)
+					self._sig_blockingMessageBoxFromThread.emit(msg)
+					# self.printLogErrMsgBox=QMessageBox(QMessageBox.Critical,"Error","PDF could not be generated:\n\n"+pdfName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.",
+					# 	QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					# self.printLogErrMsgBox.show()
+					# self.printLogErrMsgBox.raise_()
+					# self.printLogErrMsgBox.exec_()
+					# return
+					continue # don't use return in an endless loop worker - it will end the loop which will end the thread
+				else:
+					f.close()
+		# 		self.logMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF"+msgAdder+"; will send to default printer automatically; please wait...",
+		# 							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		# 		self.logMsgBox.setInformativeText("Initializing...")
+				# note the topMargin is based on what looks good; you would think that a 0.6 table plus a 0.5 hard
+				# margin (see t.drawOn above) would require a 1.1 margin here, but, not so.
+				doc = SimpleDocTemplate(pdfName, pagesize=landscape(letter),leftMargin=0.5*inch,rightMargin=0.5*inch,topMargin=1.03*inch,bottomMargin=0.5*inch) # or pagesize=letter
+		# 		self.logMsgBox.show()
+		# 		QTimer.singleShot(5000,self.logMsgBox.close)
+				# QCoreApplication.processEvents()
+				self._sig_processEventsFromThread.emit()
+				elements=[]
+				for team in teamFilterList:
+					extTeamNameLower=getExtTeamName(team).lower()
+					radioLogPrint=[]
+					styles = getSampleStyleSheet()
+					styles.add(ParagraphStyle(
+						name='operator',
+						parent=styles['Normal'],
+						backColor='lightgrey'
+						))
+					headers=MyTableModel.header_labels[0:6]
+					if self.useOperatorLogin:
+						operatorImageFile=os.path.join(iconsDir,'user_icon_80px.png')
+						if os.path.isfile(operatorImageFile):
+							logging.info('operator image file found: '+operatorImageFile)
+							headers.append(Image(operatorImageFile,width=0.16*inch,height=0.16*inch))
+						else:
+							logging.info('operator image file not found: '+operatorImageFile)
+							headers.append('Op.')
+					radioLogPrint.append(headers)
+		##			if teams and opPeriod==1: # if request op period = 1, include 'Radio Log Begins' in all team tables
+		##				radioLogPrint.append(self.radioLog[0])
+					entryOpPeriod=1 # update this number when 'Operational Period <x> Begins' lines are found
+		##			hits=False # flag to indicate whether this team has any entries in the requested op period; if not, don't make a table for this team
+					for row in self.radioLog:
+						opStartRow=False
+		##				logging.info("message:"+row[3]+":"+str(row[3].split()))
+						if row[3].startswith("Radio Log Begins:"):
+							opStartRow=True
+						if row[3].startswith("Operational Period") and row[3].split()[3] == "Begins:":
+							opStartRow=True
+							entryOpPeriod=int(row[3].split()[2])
+						# #523: handled continued incidents
+						if row[3].startswith('Radio Log Begins - Continued incident'):
+							opStartRow=True
+							entryOpPeriod=int(row[3].split(': Operational Period ')[1].split()[0])
+		##				logging.info("desired op period="+str(opPeriod)+"; this entry op period="+str(entryOpPeriod))
+						if entryOpPeriod == opPeriod:
+							if team=="" or extTeamNameLower==getExtTeamName(row[2]).lower() or opStartRow: # filter by team name if argument was specified
+								style=styles['Normal']
+								if 'RADIO OPERATOR LOGGED IN' in row[3]:
+									style=styles['operator']
+								printRow=[row[0],row[1],row[2],Paragraph(row[3],style),Paragraph(row[4],styles['Normal']),Paragraph(row[5],styles['Normal'])]
+								if self.useOperatorLogin:
+									if len(row)>10:
+										printRow.append(row[10])
+									else:
+										printRow.append('')
+								radioLogPrint.append(printRow)
+		##						hits=True
+					if not teams:
+						# #523: avoid exception	
+						try:
+							radioLogPrint[1][4]=self.datum
+						except:
+							logging.info('Nothing to print for specified operational period '+str(opPeriod))
+							# return
+							continue # don't use return in an endless loop worker - it will end the loop which will end the thread
+					logging.info("length:"+str(len(radioLogPrint)))
+					if not teams or len(radioLogPrint)>2: # don't make a table for teams that have no entries during the requested op period
+						if self.useOperatorLogin:
+							colWidths=[x*inch for x in [0.5,0.6,1.25,5.2,1.25,0.9,0.3]]
+						else:
+							colWidths=[x*inch for x in [0.5,0.6,1.25,5.5,1.25,0.9]]
+						t=Table(radioLogPrint,repeatRows=1,colWidths=colWidths)
+						t.setStyle(TableStyle([('FONT',(0,0),(-1,-1),'Helvetica'),
+												('FONT',(0,0),(-1,1),'Helvetica-Bold'),
+												('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
+											('BOX', (0,0), (-1,-1), 2, colors.black),
+											('BOX', (0,0), (-1,0), 2, colors.black)]))
+						elements.append(t)
+						if teams and team!=teamFilterList[-1]: # don't add a spacer after the last team - it could cause another page!
+							elements.append(Spacer(0,0.25*inch))
+				doc.build(elements,onFirstPage=functools.partial(self.printLogHeaderFooter,opPeriod=opPeriod,teams=teams),onLaterPages=functools.partial(self.printLogHeaderFooter,opPeriod=opPeriod,teams=teams))
+		# 		self.logMsgBox.setInformativeText("Finalizing and Printing...")
+				self.printPDF(pdfName)
+				with self.radioLogNeedsPrintLock:
+					self.radioLogNeedsPrint=False
+
+				if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
+					logging.info("copying radio log pdf"+msgAdder+" to "+self.secondWorkingDir)
+					shutil.copy(pdfName,self.secondWorkingDir)
+			except Exception as e:
+				logging.error(f'_printLogWorker: outer exception caught in order to keep the thread alive: {e}')
+			finally: # clear the flag even if there was an early exit
+				self.logPrinting=False
 
 	def printTeamLogs(self,opPeriod):
 		self.printLog(opPeriod,teams=True)
@@ -5175,7 +5209,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.operatorsSaving or
 				self.teamNotesSaving or
 				self.clueReportSaving or
-				self.clueLogSaving) and waitedSec<10:
+				self.clueLogSaving or
+				self.logPrinting) and waitedSec<10:
 			logging.info('Threaded file save operation(s) still in process; waiting...')
 			time.sleep(1)
 			waitedSec+=1
@@ -6119,7 +6154,8 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def newEntryPost(self,extTeamName=None):
 # 		logging.info("1: called newEntryPost")
-		self.radioLogNeedsPrint=True
+		with self.radioLogNeedsPrintLock:
+			self.radioLogNeedsPrint=True
 		# don't do any sorting at all since layoutChanged during/after sort is
 		#  a huge cause of lag; see notes in newEntry function
 # 		logging.info("3")
@@ -6646,7 +6682,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			elif action==printTeamLogAction:
 				logging.info('printing team log for '+str(niceTeamName))
 				self.printLog(self.opPeriod,str(niceTeamName))
-				self.radioLogNeedsPrint=True # since only one log has been printed; need to enhance this
+				with self.radioLogNeedsPrintLock:
+					self.radioLogNeedsPrint=True # since only one log has been printed; need to enhance this
 			elif action==teamNotesAction:
 				logging.info('opening team notes for '+str(niceTeamName))
 				self.openTeamNotes(str(extTeamName))
