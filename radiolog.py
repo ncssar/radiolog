@@ -5174,7 +5174,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.rcSaving or
 				self.operatorsSaving or
 				self.teamNotesSaving or
-				self.clueReportSaving) and waitedSec<10:
+				self.clueReportSaving or
+				self.clueLogSaving) and waitedSec<10:
 			logging.info('Threaded file save operation(s) still in process; waiting...')
 			time.sleep(1)
 			waitedSec+=1
@@ -11625,7 +11626,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 			self.clueMsgBox.exec_()
 			return
 
-		with self.clueLogNeedsPrintLock:
+		with self.parent.parent.clueLogNeedsPrintLock:
 			self.parent.parent.clueLogNeedsPrint=True
 		self.parent.cluePopupShown=True # avoid duplicate popup
 		textToAdd=''
@@ -11834,7 +11835,8 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 				self.interviewInstructionsAdded=True
 			
 	def accept(self):
-		self.parent.clueLogNeedsPrint=True
+		with self.parent.clueLogNeedsPrintLock:
+			self.parent.clueLogNeedsPrint=True
 		number=self.ui.clueNumberField.text()
 		description=self.ui.descriptionField.toPlainText()
 		location=self.ui.locationField.text()
