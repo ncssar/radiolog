@@ -3718,6 +3718,9 @@ class MyWindow(QDialog,Ui_Dialog):
 					for row in self.fsLookup:
 						csvWriter.writerow(row)
 					csvWriter.writerow(["## end"])
+				if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
+					logging.info("copying fleetsync lookup file to "+self.secondWorkingDir)
+					shutil.copy(fsFullPath,self.secondWorkingDir)
 			except Exception as e:
 				errMsg=f'Cannot write FleetSync ID table file {fsFullPath}!  Any modified FleetSync Callsign associations will be lost: {e}'
 				self._sig_blockingMessageBoxFromThread.emit(errMsg)
@@ -5505,6 +5508,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					self.lastSavedClueLogLength=len(self.clueLog)
 
 				# moving rotation code from windows powershell to pure python:
+				# logging.info(f'totalEntryCount:{self.totalEntryCount}')
 				if self.totalEntryCount%5==0:
 					try:
 						logging.info('  beginning backup file rotation...')
@@ -6084,7 +6088,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.newEntryProcessTeam(niceTeamName,status,values[1],values[3],amend,unhiding=unhiding)
 
 	def newEntryProcessTeam(self,niceTeamName,status,to_from,msg,amend=False,unhiding=False):
-		# logging.info('t1: niceTeamName={} status={} to_from={} msg={} amend={}'.format(niceTeamName,status,to_from,msg,amend))
+		# logging.info(f'nept: niceTeamName={niceTeamName} status={status} to_from={to_from} msg={msg} amend={amend} unhiding={unhiding}')
 		extTeamName=getExtTeamName(niceTeamName)
 		# 393: if the new entry's extTeamName is a case-insensitive match for an
 		#   existing extTeamName, use that already-existing extTeamName instead
@@ -6208,6 +6212,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		if self.sidebar.isVisible():
 			self.sidebar.showEvent() # refresh display
 # 		logging.info("7")
+		self.totalEntryCount+=1 # done here instead of newEntryWidget.accept, to catch system-generated messages too
 		self.save()
 		self.showTeamTabsMoreButtonIfNeeded()
 ##		self.redrawTables()
@@ -10793,7 +10798,6 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				v[3]="[ATTACHED FROM "+self.ui.teamField.text().strip()+"] "+val[3]
 				self.parent.newEntry(v,self.amendFlag)
 	
-			self.parent.totalEntryCount+=1
 			# backup rotation was handled here, in a call to a Windows PowerShell script; moved to _saveWorker as pure python
 			logging.info("Accepted2")
 		self.closeEvent(QEvent(QEvent.Close),True)
