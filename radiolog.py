@@ -11536,7 +11536,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		self.ui.timeField.setText(t)
 		self.ui.dateField.setText(time.strftime("%x"))
 		self.ui.callsignField.setText(callsign)
-		self.ui.radioLocField.setText(re.sub(' +','\n',radioLoc))
+		self.ui.radioLocField.setText(re.sub(' +','\n',radioLoc)) # split over two lines; shorter lines are better for lat/lon
 		self.ui.clueNumberField.setText(str(newClueNumber))
 		self.clueQuickTextAddedStack=[]
 		self.parent=parent
@@ -11699,7 +11699,7 @@ class clueDialog(QDialog,Ui_clueDialog):
 		team=self.ui.callsignField.text()
 		clueDate=self.ui.dateField.text()
 		clueTime=self.ui.timeField.text()
-		radioLoc=self.ui.radioLocField.toPlainText()
+		radioLoc=re.sub('\n','  ',self.ui.radioLocField.toPlainText()) # convert back to one line
 		operator=self.parent.parent.getOperatorInitials()
 
 		# validation: description, location, instructions fields must all be non-blank
