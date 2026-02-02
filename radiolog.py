@@ -3507,6 +3507,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.latestBumpDict[str(fleet)+':'+str(dev)]=time.time()
 			elif uid:
 				self.latestBumpDict[uid]=time.time()
+		self.fsSaveLog() # save on every udpate, instead of only saving at exit and at options dialog accept
 	
 	def fsGetLatestComPort(self,fleetOrBlank,devOrUid):
 		logging.info('fsLog:'+str(self.fsLog))
