@@ -1254,6 +1254,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.rcFileName=os.path.join(self.firstWorkingDir,'radiolog_rc.txt')
 		self.previousCleanShutdown=self.loadRcFile()
 		showStartupOptions=True
+		self.flashIncidentNameField=True
 		restoreFlag=False
 		if not self.previousCleanShutdown and not self.newWorkingDir:
 			self.reallyRestore=QMessageBox(QMessageBox.Critical,"Restore last saved files?","The previous Radio Log session may have shut down incorrectly.  Do you want to restore the last saved files (Radio Log, Clue Log, and FleetSync table)?",
@@ -1262,7 +1263,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.reallyRestore.raise_()
 			if self.reallyRestore.exec_()==QMessageBox.Yes:
 				restoreFlag=True
-				showStartupOptions=False
+				showStartupOptions=True
+				self.flashIncidentNameField=False
 
 		# self.nonEmptyTabGroupCount=0
 		self.nonEmptyTabGroups=[]
@@ -1281,7 +1283,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.checkForContinuedIncident()
 
 		if self.isContinuedIncident:
-			showStartupOptions=False
+			self.optionsDialog.ui.incidentField.setEnabled(False) # for a continued incident, the incident name cannot be changed
+			showStartupOptions=True
+			self.flashIncidentNameField=False
 			rlInitText='Radio Log Begins - Continued incident "'+self.incidentName+'": Operational Period '+str(self.opPeriod)+' Begins: '
 		elif restoreFlag:
 			rlInitText='Restored after crash: '
@@ -4727,14 +4731,15 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.optionsDialog.show()
 		self.optionsDialog.raise_()
 		self.optionsDialog.ui.incidentField.selectAll()
-		QTimer.singleShot(250,self.optionsDialog.ui.incidentField.selectAll)
-		QTimer.singleShot(500,self.optionsDialog.ui.incidentField.deselect)
-		QTimer.singleShot(750,self.optionsDialog.ui.incidentField.selectAll)
-		QTimer.singleShot(1000,self.optionsDialog.ui.incidentField.deselect)
-		QTimer.singleShot(1250,self.optionsDialog.ui.incidentField.selectAll)
-		QTimer.singleShot(1500,self.optionsDialog.ui.incidentField.deselect)
-		QTimer.singleShot(1750,self.optionsDialog.ui.incidentField.selectAll)
-		QTimer.singleShot(1800,self.optionsDialog.ui.incidentField.setFocus)
+		if self.flashIncidentNameField:
+			QTimer.singleShot(250,self.optionsDialog.ui.incidentField.selectAll)
+			QTimer.singleShot(500,self.optionsDialog.ui.incidentField.deselect)
+			QTimer.singleShot(750,self.optionsDialog.ui.incidentField.selectAll)
+			QTimer.singleShot(1000,self.optionsDialog.ui.incidentField.deselect)
+			QTimer.singleShot(1250,self.optionsDialog.ui.incidentField.selectAll)
+			QTimer.singleShot(1500,self.optionsDialog.ui.incidentField.deselect)
+			QTimer.singleShot(1750,self.optionsDialog.ui.incidentField.selectAll)
+			QTimer.singleShot(1800,self.optionsDialog.ui.incidentField.setFocus)
 		self.optionsDialog.exec_() # force modal
 		# show the login dialog after the options form has been closed
 		if self.useOperatorLogin:
