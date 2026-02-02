@@ -5224,11 +5224,6 @@ class MyWindow(QDialog,Ui_Dialog):
 			logging.info("restoring initial window tracking behavior ("+str(self.initialWindowTracking)+")")
 			win32gui.SystemParametersInfo(win32con.SPI_SETACTIVEWINDOWTRACKING,self.initialWindowTracking)
 
-		# 662 added for debugging - copy the operator file into the run dir on startup and on shutdown
-		#  (#724: only if the file exists!)
-		if os.path.isfile(os.path.join(self.configDir,self.operatorsFileName)):
-			shutil.copy(os.path.join(self.configDir,self.operatorsFileName),os.path.join(self.sessionDir,'operators_at_shutdown.json'))
-
 		# check threaded file operation flags; wait a bit to let them all clear before closing;
 		#  we need to do this since they are daemon threads and would otherwise not prevent exit
 		# NOTE: yes, this is important: the rcfile has been repeatedly observed to be left without
@@ -5487,6 +5482,11 @@ class MyWindow(QDialog,Ui_Dialog):
 						json.dump(self.operatorsDict,ofile,indent=3)
 				except Exception as e:
 					logging.warning(f'WARNING: Could not write operator data file {fileName}: {e}')
+				if self.exitClicked: # moved from MyWindow.closeEvent, to avoid race condition
+					# 662 added for debugging - copy the operator file into the run dir on startup and on shutdown
+					#  (#724: only if the file exists!)
+					if os.path.isfile(os.path.join(self.configDir,self.operatorsFileName)):
+						shutil.copy(os.path.join(self.configDir,self.operatorsFileName),os.path.join(self.sessionDir,'operators_at_shutdown.json'))
 			except Exception as e:
 				logging.error(f'_operatorsSaveWorker: outer exception caught in order to keep the thread alive: {e}')
 			finally: # clear the flag even if there was an early exit
