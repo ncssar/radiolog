@@ -11938,13 +11938,14 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 		clueDate=self.ui.dateField.text()
 		clueTime=self.ui.timeField.text()
 		radioLoc=''
+		operator=self.parent.getOperatorInitials()
 		textToAdd=''
 		# previously, lastClueNumber was saved here - on accept; we need to save it on init instead, so that
 		#  multiple concurrent clueDialogs will not have the same clue number!
 		# global lastClueNumber
 		# lastClueNumber=int(self.ui.clueNumberField.text())
 		# header_labels=['CLUE#','DESCRIPTION','TEAM','TIME','DATE','OP','LOCATION','INSTRUCTIONS','RADIO LOC.']
-		clueData=[number,description,team,clueTime,clueDate,self.parent.opPeriod,location,instructions,radioLoc]
+		clueData=[number,description,team,clueTime,clueDate,self.parent.opPeriod,location,instructions,radioLoc,operator]
 		self.parent.clueLog.append(clueData)
 		
 		# add a radio log entry too
