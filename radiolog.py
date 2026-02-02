@@ -445,7 +445,7 @@ teamFSFilterDict={}
 teamTimersDict={}
 teamCreatedTimeDict={}
 
-versionDepth=5 # how many backup versions to keep; see rotateBackups
+versionDepth=5 # how many backup versions to keep; see _saveWorker
 
 #752 - change continueSec to a config file option, default=20
 # continueSec=20
@@ -962,6 +962,10 @@ class MyWindow(QDialog,Ui_Dialog):
 	_sig_caltopoReconnectedFromCreateCTS=pyqtSignal()
 	_sig_caltopoReconnectedFromOpenMap=pyqtSignal()
 	_sig_caltopoMapClosed=pyqtSignal()
+	_sig_blockingMessageBoxFromThread=pyqtSignal(str)
+	_sig_clueReportMessageBoxFromThread=pyqtSignal(str)
+	_sig_processEventsFromThread=pyqtSignal()
+	_sig_clueLogMessageBoxFromThread=pyqtSignal(str)
 	# _sig_caltopoCreateCTSCB=pyqtSignal(bool)
 
 	def __init__(self,parent):
@@ -1549,6 +1553,88 @@ class MyWindow(QDialog,Ui_Dialog):
 		# automatically expand the 'message' column width to fill available space
 		self.ui.tableView.horizontalHeader().setSectionResizeMode(3,QHeaderView.Stretch)
 
+		##########################
+		### BEGIN file thread setup
+		##########################
+
+		# Thread safety prqctices:
+		# - GUI calls must be made from the main thread only;
+		#   if you want to do GUI actions from a different thread, emit a pyqtSignal (with arguments if needed)
+		#   that is connected to a main thread function
+		# - use threading.Event instances to tell the bakground threads to take action 
+		# - use daemon threads, and in their workers, use endless loops that wait for the event
+		# - don't use 'return' in the worker: returning from an endless loop worker will end the loop
+		#    which will end the thread; instead, use 'continue' to go to the next iteration of the endless loop
+		# - set a flag when the event is received, and clear it when the work code is done
+		#    (before the next iteration of the endless loop); this lets the main thread code wait
+		#    for the current iteration of daemon threads to complete, e.g. before exiting
+
+		# flags that indicate if a file save operation is currently taking place; check these before exiting
+		self.saving=False
+		self.fsLookupSaving=False
+		self.fsLogSaving=False
+		self.rcSaving=False
+		self.operatorsSaving=False
+		self.teamNotesSaving=False
+		self.clueReportSaving=False
+		self.clueLogSaving=False
+		self.logPrinting=False
+		
+		# save thread - move all file save operations to a separate thread #602 / #816
+		self.fileFinalize=False
+		self.backupDepth=5
+		self.lastSavedClueLogLength=-1 # force the writing of an empty clue log after the first entry, just as confirmation that there have been no clues
+		self.saveEvent=threading.Event()
+		self.saveThread=threading.Thread(target=self._saveWorker,args=(self.saveEvent,),daemon=True,name='saveThread')
+		self.saveThread.start()
+
+		# use a separate thread for each possible type of saved file, since each file type already has its own save function
+		self.fsLogFinalize=False
+		self.fsLogSaveEvent=threading.Event()
+		self.fsLogSaveThread=threading.Thread(target=self._fsLogSaveWorker,args=(self.fsLogSaveEvent,),daemon=True,name='fsLogSaveThread')
+		self.fsLogSaveThread.start()
+
+		self.fsLookupSaveEvent=threading.Event()
+		self.fsLookupSaveThread=threading.Thread(target=self._fsLookupSaveWorker,args=(self.fsLookupSaveEvent,),daemon=True,name='fsLookupSaveThread')
+		self.fsLookupSaveThread.start()
+
+		self.cleanShutdownFlag=False
+		self.rcSaveEvent=threading.Event()
+		self.rcSaveThread=threading.Thread(target=self._rcSaveWorker,args=(self.rcSaveEvent,),daemon=True,name='rcSaveThread')
+		self.rcSaveThread.start()
+
+		self.operatorsSaveEvent=threading.Event()
+		self.operatorsSaveThread=threading.Thread(target=self._operatorsSaveWorker,args=(self.operatorsSaveEvent,),daemon=True,name='operatorsSaveThread')
+		self.operatorsSaveThread.start()
+		
+		self.teamNotesSaveEvent=threading.Event()
+		self.teamNotesSaveThread=threading.Thread(target=self._teamNotesSaveWorker,args=(self.teamNotesSaveEvent,),daemon=True,name='teamNotesSaveThread')
+		self.teamNotesSaveThread.start()
+
+		# threads that create PDFs (and sending those PDFs to the printer)
+
+		self.clueReportClueData=None
+		self.clueReportEvent=threading.Event()
+		self.clueReportThread=threading.Thread(target=self._clueReportWorker,args=(self.clueReportEvent,),daemon=True,name='clueReportThread')
+		self.clueReportThread.start()
+
+		self.clueLogOpPeriod=None
+		self.clueLogNeedsPrintLock=threading.Lock()
+		self.clueLogEvent=threading.Event()
+		self.clueLogThread=threading.Thread(target=self._clueLogWorker,args=(self.clueLogEvent,),daemon=True,name='clueLogThread')
+		self.clueLogThread.start()
+
+		self.printLogOpPeriod=None
+		self.printLogTeams=False
+		self.radioLogNeedsPrintLock=threading.Lock()
+		self.printLogEvent=threading.Event()
+		self.printLogThread=threading.Thread(target=self._printLogWorker,args=(self.printLogEvent,),daemon=True,name='printLogThread')
+		self.printLogThread.start()
+
+		##########################
+		### END file thread setup
+		##########################
+
 		self.updateClock()
 
 		self.fsLoadLookup(startupFlag=True)
@@ -1628,6 +1714,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		elif self.useOperatorLogin: # this clause will run for continued incidents
 			QTimer.singleShot(1000,self.showLoginDialog)
 		# save current resource file, to capture lastFileName without a clean shutdown
+		# logging.info('calling saveRcFile from init')
 		self.saveRcFile()
 		self.showTeamTabsMoreButtonIfNeeded()
 		self.pendingActivationChange=False
@@ -1638,9 +1725,13 @@ class MyWindow(QDialog,Ui_Dialog):
 		self._sig_caltopoReconnectedFromCreateCTS.connect(self.caltopoReconnectedFromCreateCTS_mainThread)
 		self._sig_caltopoReconnectedFromOpenMap.connect(self.caltopoReconnectedFromOpenMap_mainThread)
 		self._sig_caltopoMapClosed.connect(self.caltopoMapClosedCallback_mainThread)
+		self._sig_blockingMessageBoxFromThread.connect(self.blockingMessageBoxFromThread)
+		self._sig_clueReportMessageBoxFromThread.connect(self.clueReportMessageBoxFromThread)
+		self._sig_processEventsFromThread.connect(self.processEventsFromThread)
+		self._sig_clueLogMessageBoxFromThread.connect(self.clueLogMessageBoxFromThread)
 		# self._sig_caltopoCreateCTSCB.connect(self.caltopoCreateCTSCB_mainThread)
 
-		# # thread/queue/signal mechanism for radio markers, similar to the mechanism more requests in caltopo_python
+		# # thread/queue/signal mechanism for radio markers, similar to the mechanism for requests in caltopo_python
 		# # thread-safe queue to hold marker requests
 		# self.radioMarkerQueue=queue.Queue()
 
@@ -1651,7 +1742,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.radioMarkerThread=threading.Thread(target=self._radioMarkerWorker,args=(self.radioMarkerEvent,),daemon=True,name='radioMarkerThread')
 		self.radioMarkerThread.start()
 		self.radioMarkerDictLock=threading.Lock()
-		
 		self.cts=None
 		# self.setupCaltopo()
 		self.ui.caltopoLinkIndicator.setToolTip(caltopoIndicatorToolTip)
@@ -1909,8 +1999,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		# self.firstWorkingDir=self.homeDir+"\\Documents"
 		self.secondWorkingDir=None
 		self.sarsoftServerName="localhost"
-		self.rotateScript=None
-		self.rotateDelimiter=None
 		# 		self.tabGroups=[["NCSO","^1[tpsdel][0-9]+"],["CHP","^22s[0-9]+"],["Numbers","^Team [0-9]+"]]
 		# the only default tab group should be number-only callsigns; everything
 		#  else goes in a separate catch-all group; override this in radiolog.cfg
@@ -1924,22 +2012,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.caltopoDefaultTeamAccount=None
 		self.caltopoMapMarkersDefault=False
 		self.caltopoWebBrowserDefault=False
-		
-		if os.name=="nt":
-			logging.info("Operating system is Windows.")
-			if shutil.which("powershell.exe"):
-				logging.info("PowerShell.exe is in the path.")
-				#601 - use absolute path
-				#643: use an argument list rather than a single string;
-				# as long as -File is in the argument list immediately before the script name,
-				# spaces in the script name and in arguments will be handled correctly;
-				# see comments at the end of https://stackoverflow.com/a/44250252/3577105
-				self.rotateScript=''
-				self.rotateCmdArgs=['powershell.exe','-ExecutionPolicy','Bypass','-File',installDir+'\\rotateCsvBackups.ps1','-filenames']
-			else:
-				logging.info("PowerShell.exe is not in the path; poweshell-based backup rotation script cannot be used.")
-		else:
-			logging.info("Operating system is not Windows.  Powershell-based backup rotation script cannot be used.")
 
 		configFile=QFile(self.configFileName)
 		if not configFile.open(QFile.ReadOnly|QFile.Text):
@@ -1983,11 +2055,6 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.secondWorkingDir=tokens[1]
 			elif tokens[0]=="server":
 				self.sarsoftServerName=tokens[1]
-			elif tokens[0]=="rotateScript":
-				self.rotateScript=tokens[1]
-				self.rotateCmdArgs=[self.rotateScript]
-			elif tokens[0]=="rotateDelimiter":
-				self.rotateDelimiter=tokens[1]
 			elif tokens[0]=="tabGroups":
 				self.tabGroups=eval(tokens[1])
 			elif tokens[0]=="continuedIncidentWindowDays":
@@ -2126,31 +2193,6 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		if develMode:
 			self.sarsoftServerName="localhost" # DEVEL
-
-	def rotateCsvBackups(self,filenames):
-		# if self.rotateScript and self.rotateDelimiter:
-			# #442: wrap each filename in quotes, to allow spaces in filenames
-			#  from https://stackoverflow.com/a/12007707
-			#  wrapping in one or two sets of double quotes still doesn't work
-			#   since the quotes are stripped by powershell; wrapping in three
-			#   double quotes does work:
-			# quotedFilenames=[f'"""{filename}"""' for filename in filenames]
-			# cmd=self.rotateScript+' '+self.rotateDelimiter.join(quotedFilenames)
-		if self.rotateCmdArgs and isinstance(self.rotateCmdArgs,list) and self.rotateCmdArgs[0]:
-			#643: use an argument list rather than a single string;
-			# as long as -File is in the argument list immediately before the script name,
-			# spaces in the script name and in arguments will be handled correctly;
-			# see comments at the end of https://stackoverflow.com/a/44250252/3577105;
-			# (this elimiates the need to wrap things in three sets of double quotes per #442)
-			cmd=self.rotateCmdArgs+filenames
-			logging.info("Invoking backup rotation script (with arguments): "+str(cmd))
-			# #650, #651 - fail gracefully, so that the caller can proceed as normal
-			try:
-				subprocess.Popen(cmd)
-			except Exception as e:
-				logging.info("  Backup rotation script failed with this exception; proceeding:"+str(e))
-		else:
-			logging.info("No backup rotation script was specified; no rotation is being performed.")
 		
 	def updateOptionsDialog(self):
 		# logging.info("updating options dialog: datum="+self.datum)
@@ -3465,6 +3507,7 @@ class MyWindow(QDialog,Ui_Dialog):
 				self.latestBumpDict[str(fleet)+':'+str(dev)]=time.time()
 			elif uid:
 				self.latestBumpDict[uid]=time.time()
+		self.fsSaveLog() # save on every udpate, instead of only saving at exit and at options dialog accept
 	
 	def fsGetLatestComPort(self,fleetOrBlank,devOrUid):
 		logging.info('fsLog:'+str(self.fsLog))
@@ -3654,41 +3697,80 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	# save to fsFileName in the working dir each time, but on startup, load from the default dir;
 	#  would only need to load from the working dir if restoring
+
 	def fsSaveLookup(self):
-		fsFullPath=os.path.join(self.sessionDir,self.fsFileName)
-		try:
-			with open(fsFullPath,'w',newline='') as fsFile:
-				logging.info("Writing file "+fsFullPath)
-				csvWriter=csv.writer(fsFile)
-				csvWriter.writerow(["## Radio Log FleetSync lookup table"])
-				csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
-				csvWriter.writerow(["## Created during Incident Name: "+self.incidentName])
-				for row in self.fsLookup:
-					csvWriter.writerow(row)
-				csvWriter.writerow(["## end"])
-		except:
-			warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot write FleetSync ID table file "+fsFullPath+"!  Any modified FleetSync Callsign associations will be lost.",
-							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			warn.show()
-			warn.raise_()
-			warn.exec_()
+		self.fsLookupSaveEvent.set()
+
+	def _fsLookupSaveWorker(self,event):
+		while True:
+			logging.info('_fsLookupSaveWorker: waiting for event...')
+			event.wait()
+			logging.info('_fsLookupSaveWorker: event received; beginning file save operations...')
+			event.clear()
+	
+			fsFullPath=os.path.join(self.sessionDir,self.fsFileName)
+			self.fsLookupSaving=True
+			try:
+				with open(fsFullPath,'w',newline='') as fsFile:
+					logging.info("Writing file "+fsFullPath)
+					csvWriter=csv.writer(fsFile)
+					csvWriter.writerow(["## Radio Log FleetSync lookup table"])
+					csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
+					csvWriter.writerow(["## Created during Incident Name: "+self.incidentName])
+					for row in self.fsLookup:
+						csvWriter.writerow(row)
+					csvWriter.writerow(["## end"])
+				if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
+					logging.info("copying fleetsync lookup file to "+self.secondWorkingDir)
+					shutil.copy(fsFullPath,self.secondWorkingDir)
+			except Exception as e:
+				errMsg=f'Cannot write FleetSync ID table file {fsFullPath}!  Any modified FleetSync Callsign associations will be lost: {e}'
+				self._sig_blockingMessageBoxFromThread.emit(errMsg)
+				logging.warning(errMsg)
+				# warn=QMessageBox(QMessageBox.Warning,"Warning","Cannot write FleetSync ID table file "+fsFullPath+"!  Any modified FleetSync Callsign associations will be lost.",
+				# 				QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				# warn.show()
+				# warn.raise_()
+				# warn.exec_()
+			finally: # clear the flag even if there was an early exit
+				self.fsLookupSaving=False
+
+	def blockingMessageBoxFromThread(self,text):
+		warn=QMessageBox(QMessageBox.Warning,"Warning",text,
+						QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		warn.show()
+		warn.raise_()
+		warn.exec_()
 
 	def fsSaveLog(self,finalize=False):
-		fsLogFullPath=os.path.join(self.sessionDir,self.fsLogFileName)
-		try:
-			with open(fsLogFullPath,'w',newline='') as fsLogFile:
-				logging.info('Writing FleetSync/NEXEDGE log file '+fsLogFullPath)
-				csvWriter=csv.writer(fsLogFile)
-				csvWriter.writerow(["## Radio Log FleetSync activity log"])
-				csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
-				csvWriter.writerow(["## Created during Incident Name: "+self.incidentName])
-				csvWriter.writerow(['# Fleet/UID','Device','Callsign','N/A','Time','COM port','Bumps','Total','Sequence','Result'])
-				for row in self.fsFullLog:
-					csvWriter.writerow(row)
-				if finalize:
-					csvWriter.writerow(["## end"])
-		except:
-			logging.info("ERROR: cannot write FleetSync log file "+fsLogFullPath)
+		self.fsLogFinalize=finalize
+		self.fsLogSaveEvent.set()
+
+	def _fsLogSaveWorker(self,event):
+		while True:
+			logging.info('_fsLogSaveWorker: waiting for event...')
+			event.wait()
+			logging.info('_fsLogSaveWorker: event received; beginning file save operations...')
+			event.clear()
+
+			fsLogFullPath=os.path.join(self.sessionDir,self.fsLogFileName)
+			self.fsLogSaving=True
+			try:
+				with open(fsLogFullPath,'w',newline='') as fsLogFile:
+					logging.info('Writing FleetSync/NEXEDGE log file '+fsLogFullPath)
+					csvWriter=csv.writer(fsLogFile)
+					csvWriter.writerow(["## Radio Log FleetSync activity log"])
+					csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
+					csvWriter.writerow(["## Created during Incident Name: "+self.incidentName])
+					csvWriter.writerow(['# Fleet/UID','Device','Callsign','N/A','Time','COM port','Bumps','Total','Sequence','Result'])
+					for row in self.fsFullLog:
+						csvWriter.writerow(row)
+					if self.fsLogFinalize:
+						csvWriter.writerow(["## end"])
+			except Exception as e:
+				logging.error(f'ERROR: cannot write FleetSync log file {fsLogFullPath}: {e}')
+			finally: # clear the flag even if there was an early exit
+				self.fsLogSaving=False
 
 	def getCallsign(self,fleetOrUid,dev=None):
 		if not isinstance(fleetOrUid,str):
@@ -3953,15 +4035,15 @@ class MyWindow(QDialog,Ui_Dialog):
 				formNameText="Team Radio Logs"
 		canvas.saveState()
 		styles = getSampleStyleSheet()
-		self.img=None
+		img=None
 		if os.path.isfile(self.printLogoFileName):
 			logging.info("valid logo file "+self.printLogoFileName)
 			imgReader=utils.ImageReader(self.printLogoFileName)
 			imgW,imgH=imgReader.getSize()
 			imgAspect=imgH/float(imgW)
-			self.img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
+			img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
 			headerTable=[
-					[self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,formNameText+" - Page "+str(canvas.getPageNumber())],
+					[img,self.agencyNameForPrint,"Incident: "+self.incidentName,formNameText+" - Page "+str(canvas.getPageNumber())],
 					["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
 			t=Table(headerTable,colWidths=[x*inch for x in [0.8,4.2,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
@@ -3980,7 +4062,7 @@ class MyWindow(QDialog,Ui_Dialog):
 										  ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
 		else:
 			headerTable=[
-					[self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,formNameText+" - Page "+str(canvas.getPageNumber())],
+					[img,self.agencyNameForPrint,"Incident: "+self.incidentName,formNameText+" - Page "+str(canvas.getPageNumber())],
 					["","","Operational Period: ","Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
 			t=Table(headerTable,colWidths=[x*inch for x in [0.0,5,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
@@ -3996,7 +4078,8 @@ class MyWindow(QDialog,Ui_Dialog):
 										  ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
 		w,h=t.wrapOn(canvas,doc.width,doc.height)
 # 		self.logMsgBox.setInformativeText("Generating page "+str(canvas.getPageNumber()))
-		QCoreApplication.processEvents()
+		# QCoreApplication.processEvents()
+		self._sig_processEventsFromThread.emit()
 		logging.info("Page number:"+str(canvas.getPageNumber()))
 		logging.info("Height:"+str(h))
 		logging.info("Pagesize:"+str(doc.pagesize))
@@ -4006,21 +4089,22 @@ class MyWindow(QDialog,Ui_Dialog):
 		canvas.restoreState()
 		logging.info("end of printLogHeaderFooter")
 
-	def printPDF(self,pdfName):
+	def printPDF(self,pdfName): # only called from within a background thread
 		try:
 			win32api.ShellExecute(0,"print",pdfName,'/d:"%s"' % win32print.GetDefaultPrinter(),".",0)
 		except Exception as e:
 			estr=str(e)
 			logging.info('Print failed: '+estr)
 			if '31' in estr:
-				msg='Failed to send PDF to a printer.\n\nThe PDF file has still been generated and saved in the run directory.\n\nThe most likely cause for this error is that there is no PDF viewer application installed on your system.\n\nPlease make sure you have a PDF viewer application such as Acrobat or Acrobat Reader installed and set as the system default application for viewing PDF files.\n\nYou can install that application now without exiting RadioLog, then try printing again.'
-				logging.info(msg)
+				estr='Failed to send PDF to a printer.\n\nThe PDF file has still been generated and saved in the run directory.\n\nThe most likely cause for this error is that there is no PDF viewer application installed on your system.\n\nPlease make sure you have a PDF viewer application such as Acrobat or Acrobat Reader installed and set as the system default application for viewing PDF files.\n\nYou can install that application now without exiting RadioLog, then try printing again.\n\n'+estr
+				logging.info(estr)
 			if not self.printFailMessageBoxShown:
-				box=QMessageBox(QMessageBox.Warning,'Print Failed',msg+'\n\nThis message will not appear again for this RadioLog session.',
-					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-				box.show()
-				box.raise_()
-				box.exec_()
+				self._sig_blockingMessageBoxFromThread.emit(estr+'\n\nThis message will not appear again for this RadioLog session.')
+				# box=QMessageBox(QMessageBox.Warning,'Print Failed',,
+				# 	QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+				# box.show()
+				# box.raise_()
+				# box.exec_()
 				self.printFailMessageBoxShown=True
 
 	# optonal argument 'teams': if True, generate one pdf of all individual team logs;
@@ -4028,130 +4112,156 @@ class MyWindow(QDialog,Ui_Dialog):
 	#  again with teams=True to generate team logs pdf
 	# if 'teams' is an array of team names, just print those team log(s)
 	def printLog(self,opPeriod,teams=False):
-		opPeriod=int(opPeriod)
-		# pdfName=self.firstWorkingDir+"\\"+self.pdfFileName
-		pdfName=os.path.join(self.sessionDir,self.pdfFileName)
-		teamFilterList=[""] # by default, print print all entries; if teams=True, add a filter for each team
-		msgAdder=""
-		if teams:
-			if isinstance(teams,list):
-				# recursively call this function for each team in list of teams
-				for team in teams:
-					self.printLog(opPeriod,team)
-			elif isinstance(teams,str):
-				pdfName=pdfName.replace('.pdf','_'+teams.replace(' ','_').replace('.','_')+'.pdf')
-				msgAdder=" for "+teams
-				teamFilterList=[teams]
-			else:
-				pdfName=pdfName.replace('.pdf','_teams.pdf')
-				msgAdder=" for individual teams"
-				teamFilterList=[]
-				for team in self.allTeamsList:
-					if team!="dummy":
-						teamFilterList.append(team)
-		logging.info("teamFilterList="+str(teamFilterList))
-		pdfName=pdfName.replace('.pdf','_OP'+str(opPeriod)+'.pdf')
-		logging.info("generating radio log pdf: "+pdfName)
-		try:
-			f=open(pdfName,"wb")
-		except:
-			self.printLogErrMsgBox=QMessageBox(QMessageBox.Critical,"Error","PDF could not be generated:\n\n"+pdfName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.",
-				QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			self.printLogErrMsgBox.show()
-			self.printLogErrMsgBox.raise_()
-			self.printLogErrMsgBox.exec_()
-			return
-		else:
-			f.close()
-# 		self.logMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF"+msgAdder+"; will send to default printer automatically; please wait...",
-# 							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-# 		self.logMsgBox.setInformativeText("Initializing...")
-		# note the topMargin is based on what looks good; you would think that a 0.6 table plus a 0.5 hard
-		# margin (see t.drawOn above) would require a 1.1 margin here, but, not so.
-		doc = SimpleDocTemplate(pdfName, pagesize=landscape(letter),leftMargin=0.5*inch,rightMargin=0.5*inch,topMargin=1.03*inch,bottomMargin=0.5*inch) # or pagesize=letter
-# 		self.logMsgBox.show()
-# 		QTimer.singleShot(5000,self.logMsgBox.close)
-		QCoreApplication.processEvents()
-		elements=[]
-		for team in teamFilterList:
-			extTeamNameLower=getExtTeamName(team).lower()
-			radioLogPrint=[]
-			styles = getSampleStyleSheet()
-			styles.add(ParagraphStyle(
-				name='operator',
-				parent=styles['Normal'],
-				backColor='lightgrey'
-				))
-			headers=MyTableModel.header_labels[0:6]
-			if self.useOperatorLogin:
-				operatorImageFile=os.path.join(iconsDir,'user_icon_80px.png')
-				if os.path.isfile(operatorImageFile):
-					logging.info('operator image file found: '+operatorImageFile)
-					headers.append(Image(operatorImageFile,width=0.16*inch,height=0.16*inch))
-				else:
-					logging.info('operator image file not found: '+operatorImageFile)
-					headers.append('Op.')
-			radioLogPrint.append(headers)
-##			if teams and opPeriod==1: # if request op period = 1, include 'Radio Log Begins' in all team tables
-##				radioLogPrint.append(self.radioLog[0])
-			entryOpPeriod=1 # update this number when 'Operational Period <x> Begins' lines are found
-##			hits=False # flag to indicate whether this team has any entries in the requested op period; if not, don't make a table for this team
-			for row in self.radioLog:
-				opStartRow=False
-##				logging.info("message:"+row[3]+":"+str(row[3].split()))
-				if row[3].startswith("Radio Log Begins:"):
-					opStartRow=True
-				if row[3].startswith("Operational Period") and row[3].split()[3] == "Begins:":
-					opStartRow=True
-					entryOpPeriod=int(row[3].split()[2])
-				# #523: handled continued incidents
-				if row[3].startswith('Radio Log Begins - Continued incident'):
-					opStartRow=True
-					entryOpPeriod=int(row[3].split(': Operational Period ')[1].split()[0])
-##				logging.info("desired op period="+str(opPeriod)+"; this entry op period="+str(entryOpPeriod))
-				if entryOpPeriod == opPeriod:
-					if team=="" or extTeamNameLower==getExtTeamName(row[2]).lower() or opStartRow: # filter by team name if argument was specified
-						style=styles['Normal']
-						if 'RADIO OPERATOR LOGGED IN' in row[3]:
-							style=styles['operator']
-						printRow=[row[0],row[1],row[2],Paragraph(row[3],style),Paragraph(row[4],styles['Normal']),Paragraph(row[5],styles['Normal'])]
-						if self.useOperatorLogin:
-							if len(row)>10:
-								printRow.append(row[10])
-							else:
-								printRow.append('')
-						radioLogPrint.append(printRow)
-##						hits=True
-			if not teams:
-				# #523: avoid exception	
-				try:
-					radioLogPrint[1][4]=self.datum
-				except:
-					logging.info('Nothing to print for specified operational period '+str(opPeriod))
-					return
-			logging.info("length:"+str(len(radioLogPrint)))
-			if not teams or len(radioLogPrint)>2: # don't make a table for teams that have no entries during the requested op period
-				if self.useOperatorLogin:
-					colWidths=[x*inch for x in [0.5,0.6,1.25,5.2,1.25,0.9,0.3]]
-				else:
-					colWidths=[x*inch for x in [0.5,0.6,1.25,5.5,1.25,0.9]]
-				t=Table(radioLogPrint,repeatRows=1,colWidths=colWidths)
-				t.setStyle(TableStyle([('FONT',(0,0),(-1,-1),'Helvetica'),
-										('FONT',(0,0),(-1,1),'Helvetica-Bold'),
-										('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
-				  					 ('BOX', (0,0), (-1,-1), 2, colors.black),
-					 				  ('BOX', (0,0), (-1,0), 2, colors.black)]))
-				elements.append(t)
-				if teams and team!=teamFilterList[-1]: # don't add a spacer after the last team - it could cause another page!
-					elements.append(Spacer(0,0.25*inch))
-		doc.build(elements,onFirstPage=functools.partial(self.printLogHeaderFooter,opPeriod=opPeriod,teams=teams),onLaterPages=functools.partial(self.printLogHeaderFooter,opPeriod=opPeriod,teams=teams))
-# 		self.logMsgBox.setInformativeText("Finalizing and Printing...")
-		self.printPDF(pdfName)
-		self.radioLogNeedsPrint=False
+		logging.info(f'printLog called: opPeriod={opPeriod}  teams={teams}')
+		self.printLogOpPeriod=opPeriod
+		self.printLogTeams=teams
+		self.printLogEvent.set()
 
-		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-			logging.info("copying radio log pdf"+msgAdder+" to "+self.secondWorkingDir)
-			shutil.copy(pdfName,self.secondWorkingDir)
+	def _printLogWorker(self,event):
+		while True:
+			logging.info('_printLogWorker: waiting for event...')
+			event.wait()
+			logging.info('_printLogWorker: event received; beginning file save operations...')
+			event.clear()
+
+			self.logPrinting=True
+			try:
+				opPeriod=int(self.printLogOpPeriod)
+				teams=self.printLogTeams
+				# pdfName=self.firstWorkingDir+"\\"+self.pdfFileName
+				pdfName=os.path.join(self.sessionDir,self.pdfFileName)
+				teamFilterList=[""] # by default, print print all entries; if teams=True, add a filter for each team
+				msgAdder=""
+				if teams:
+					if isinstance(teams,list):
+						# recursively call this function for each team in list of teams
+						for team in teams:
+							self.printLog(opPeriod,team)
+					elif isinstance(teams,str):
+						pdfName=pdfName.replace('.pdf','_'+teams.replace(' ','_').replace('.','_')+'.pdf')
+						msgAdder=" for "+teams
+						teamFilterList=[teams]
+					else:
+						pdfName=pdfName.replace('.pdf','_teams.pdf')
+						msgAdder=" for individual teams"
+						teamFilterList=[]
+						for team in self.allTeamsList:
+							if team!="dummy":
+								teamFilterList.append(team)
+				logging.info("teamFilterList="+str(teamFilterList))
+				pdfName=pdfName.replace('.pdf','_OP'+str(opPeriod)+'.pdf')
+				logging.info("generating radio log pdf: "+pdfName)
+				try:
+					f=open(pdfName,"wb")
+				except:
+					msg=f'PDF could not be generated:\n\n{pdfName}\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.'
+					logging.warning(msg)
+					self._sig_blockingMessageBoxFromThread.emit(msg)
+					# self.printLogErrMsgBox=QMessageBox(QMessageBox.Critical,"Error","PDF could not be generated:\n\n"+pdfName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.",
+					# 	QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					# self.printLogErrMsgBox.show()
+					# self.printLogErrMsgBox.raise_()
+					# self.printLogErrMsgBox.exec_()
+					# return
+					continue # don't use return in an endless loop worker - it will end the loop which will end the thread
+				else:
+					f.close()
+		# 		self.logMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF"+msgAdder+"; will send to default printer automatically; please wait...",
+		# 							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		# 		self.logMsgBox.setInformativeText("Initializing...")
+				# note the topMargin is based on what looks good; you would think that a 0.6 table plus a 0.5 hard
+				# margin (see t.drawOn above) would require a 1.1 margin here, but, not so.
+				doc = SimpleDocTemplate(pdfName, pagesize=landscape(letter),leftMargin=0.5*inch,rightMargin=0.5*inch,topMargin=1.03*inch,bottomMargin=0.5*inch) # or pagesize=letter
+		# 		self.logMsgBox.show()
+		# 		QTimer.singleShot(5000,self.logMsgBox.close)
+				# QCoreApplication.processEvents()
+				self._sig_processEventsFromThread.emit()
+				elements=[]
+				for team in teamFilterList:
+					extTeamNameLower=getExtTeamName(team).lower()
+					radioLogPrint=[]
+					styles = getSampleStyleSheet()
+					styles.add(ParagraphStyle(
+						name='operator',
+						parent=styles['Normal'],
+						backColor='lightgrey'
+						))
+					headers=MyTableModel.header_labels[0:6]
+					if self.useOperatorLogin:
+						operatorImageFile=os.path.join(iconsDir,'user_icon_80px.png')
+						if os.path.isfile(operatorImageFile):
+							logging.info('operator image file found: '+operatorImageFile)
+							headers.append(Image(operatorImageFile,width=0.16*inch,height=0.16*inch))
+						else:
+							logging.info('operator image file not found: '+operatorImageFile)
+							headers.append('Op.')
+					radioLogPrint.append(headers)
+		##			if teams and opPeriod==1: # if request op period = 1, include 'Radio Log Begins' in all team tables
+		##				radioLogPrint.append(self.radioLog[0])
+					entryOpPeriod=1 # update this number when 'Operational Period <x> Begins' lines are found
+		##			hits=False # flag to indicate whether this team has any entries in the requested op period; if not, don't make a table for this team
+					for row in self.radioLog:
+						opStartRow=False
+		##				logging.info("message:"+row[3]+":"+str(row[3].split()))
+						if row[3].startswith("Radio Log Begins:"):
+							opStartRow=True
+						if row[3].startswith("Operational Period") and row[3].split()[3] == "Begins:":
+							opStartRow=True
+							entryOpPeriod=int(row[3].split()[2])
+						# #523: handled continued incidents
+						if row[3].startswith('Radio Log Begins - Continued incident'):
+							opStartRow=True
+							entryOpPeriod=int(row[3].split(': Operational Period ')[1].split()[0])
+		##				logging.info("desired op period="+str(opPeriod)+"; this entry op period="+str(entryOpPeriod))
+						if entryOpPeriod == opPeriod:
+							if team=="" or extTeamNameLower==getExtTeamName(row[2]).lower() or opStartRow: # filter by team name if argument was specified
+								style=styles['Normal']
+								if 'RADIO OPERATOR LOGGED IN' in row[3]:
+									style=styles['operator']
+								printRow=[row[0],row[1],row[2],Paragraph(row[3],style),Paragraph(row[4],styles['Normal']),Paragraph(row[5],styles['Normal'])]
+								if self.useOperatorLogin:
+									if len(row)>10:
+										printRow.append(row[10])
+									else:
+										printRow.append('')
+								radioLogPrint.append(printRow)
+		##						hits=True
+					if not teams:
+						# #523: avoid exception	
+						try:
+							radioLogPrint[1][4]=self.datum
+						except:
+							logging.info('Nothing to print for specified operational period '+str(opPeriod))
+							# return
+							continue # don't use return in an endless loop worker - it will end the loop which will end the thread
+					logging.info("length:"+str(len(radioLogPrint)))
+					if not teams or len(radioLogPrint)>2: # don't make a table for teams that have no entries during the requested op period
+						if self.useOperatorLogin:
+							colWidths=[x*inch for x in [0.5,0.6,1.25,5.2,1.25,0.9,0.3]]
+						else:
+							colWidths=[x*inch for x in [0.5,0.6,1.25,5.5,1.25,0.9]]
+						t=Table(radioLogPrint,repeatRows=1,colWidths=colWidths)
+						t.setStyle(TableStyle([('FONT',(0,0),(-1,-1),'Helvetica'),
+												('FONT',(0,0),(-1,1),'Helvetica-Bold'),
+												('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
+											('BOX', (0,0), (-1,-1), 2, colors.black),
+											('BOX', (0,0), (-1,0), 2, colors.black)]))
+						elements.append(t)
+						if teams and team!=teamFilterList[-1]: # don't add a spacer after the last team - it could cause another page!
+							elements.append(Spacer(0,0.25*inch))
+				doc.build(elements,onFirstPage=functools.partial(self.printLogHeaderFooter,opPeriod=opPeriod,teams=teams),onLaterPages=functools.partial(self.printLogHeaderFooter,opPeriod=opPeriod,teams=teams))
+		# 		self.logMsgBox.setInformativeText("Finalizing and Printing...")
+				self.printPDF(pdfName)
+				with self.radioLogNeedsPrintLock:
+					self.radioLogNeedsPrint=False
+
+				if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
+					logging.info("copying radio log pdf"+msgAdder+" to "+self.secondWorkingDir)
+					shutil.copy(pdfName,self.secondWorkingDir)
+			except Exception as e:
+				logging.error(f'_printLogWorker: outer exception caught in order to keep the thread alive: {e}')
+			finally: # clear the flag even if there was an early exit
+				self.logPrinting=False
 
 	def printTeamLogs(self,opPeriod):
 		self.printLog(opPeriod,teams=True)
@@ -4159,14 +4269,14 @@ class MyWindow(QDialog,Ui_Dialog):
 	def printClueLogHeaderFooter(self,canvas,doc,opPeriod=""):
 		canvas.saveState()
 		styles = getSampleStyleSheet()
-		self.img=None
+		img=None
 		if os.path.isfile(self.printLogoFileName):
 			imgReader=utils.ImageReader(self.printLogoFileName)
 			imgW,imgH=imgReader.getSize()
 			imgAspect=imgH/float(imgW)
-			self.img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
+			img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
 			headerTable=[
-					[self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,"Clue Log - Page "+str(canvas.getPageNumber())],
+					[img,self.agencyNameForPrint,"Incident: "+self.incidentName,"Clue Log - Page "+str(canvas.getPageNumber())],
 					["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
 			t=Table(headerTable,colWidths=[x*inch for x in [0.8,4.2,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
@@ -4184,7 +4294,7 @@ class MyWindow(QDialog,Ui_Dialog):
 										  ('INNERGRID',(2,0),(3,1),0.5,colors.black)]))
 		else:
 			headerTable=[
-					[self.img,self.agencyNameForPrint,"Incident: "+self.incidentName,"Clue Log - Page "+str(canvas.getPageNumber())],
+					[img,self.agencyNameForPrint,"Incident: "+self.incidentName,"Clue Log - Page "+str(canvas.getPageNumber())],
 					["","","Operational Period: "+str(opPeriod),"Printed: "+time.strftime("%a %b %d, %Y  %H:%M")]]
 			t=Table(headerTable,colWidths=[x*inch for x in [0.0,5,2.5,2.5]],rowHeights=[x*inch for x in [0.3,0.3]])
 			t.setStyle(TableStyle([('FONT',(1,0),(1,1),'Helvetica-Bold'),
@@ -4210,343 +4320,407 @@ class MyWindow(QDialog,Ui_Dialog):
 		logging.info("end of printClueLogHeaderFooter")
 
 	def printClueLog(self,opPeriod):
-##      header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
-		opPeriod=int(opPeriod)
-		# first, determine if there are any clues to print for this OP; if not, return before generating the pdf
-		rowsToPrint=[]
-		for row in self.clueLog:
-			if (str(row[5])==str(opPeriod) or row[1].startswith("Operational Period "+str(opPeriod)+" Begins:") or row[1].startswith("Radio Log Begins")):
-				rowsToPrint.append(row)
-				logging.info('appending: '+str(row))
-		if len(rowsToPrint)<2:
-			logging.info('Nothing to print for specified operational period '+str(opPeriod))
-			return
-		else:
-			# clueLogPdfFileName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clueLog_OP"+str(opPeriod)+".pdf")
-			clueLogPdfFileName=os.path.join(self.sessionDir,self.pdfFileName.replace(".pdf","_clueLog_OP"+str(opPeriod)+".pdf"))
-			logging.info("generating clue log pdf: "+clueLogPdfFileName)
+		self.clueLogOpPeriod=opPeriod
+		self.clueLogEvent.set()
+
+	def _clueLogWorker(self,event):
+		while True:
+			logging.info('_clueLogWorker: waiting for event...')
+			event.wait()
+			logging.info('_clueLogWorker: event received; beginning file save operations...')
+			event.clear()
+
+			self.clueLogSaving=True
 			try:
-				f=open(clueLogPdfFileName,"wb")
-			except:
-				self.printClueLogErrMsgBox=QMessageBox(QMessageBox.Critical,"Error","PDF could not be generated:\n\n"+clueLogPdfFileName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.",
-					QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-				self.printClueLogErrMsgBox.show()
-				self.printClueLogErrMsgBox.raise_()
-				QTimer.singleShot(10000,self.printClueLogErrMsgBox.close)
-				self.printClueLogErrMsgBox.exec_()
-				return
-			else:
-				f.close()
-	# 		self.clueLogMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF; will send to default printer automatically; please wait...",
-	# 							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-	# 		self.clueLogMsgBox.setInformativeText("Initializing...")
-			# note the topMargin is based on what looks good; you would think that a 0.6 table plus a 0.5 hard
-			# margin (see t.drawOn above) would require a 1.1 margin here, but, not so.
-			doc = SimpleDocTemplate(clueLogPdfFileName, pagesize=landscape(letter),leftMargin=0.5*inch,rightMargin=0.5*inch,topMargin=1.03*inch,bottomMargin=0.5*inch) # or pagesize=letter
-	# 		self.clueLogMsgBox.show()
-	# 		QTimer.singleShot(5000,self.clueLogMsgBox.close)
-			QCoreApplication.processEvents()
-			elements=[]
-			styles = getSampleStyleSheet()
-			clueLogPrint=[]
-			headers=clueTableModel.header_labels[0:5]+clueTableModel.header_labels[6:8] # omit operational period
-			if self.useOperatorLogin:
-				operatorImageFile=os.path.join(iconsDir,'user_icon_80px.png')
-				if os.path.isfile(operatorImageFile):
-					headers.append(Image(operatorImageFile,width=0.16*inch,height=0.16*inch))
+		##      header_labels=['#','DESCRIPTION','TEAM','TIME','DATE','O.P.','LOCATION','INSTRUCTIONS','RADIO LOC.']
+				opPeriod=int(self.clueLogOpPeriod)
+				# first, determine if there are any clues to print for this OP; if not, return before generating the pdf
+				rowsToPrint=[]
+				for row in self.clueLog:
+					if (str(row[5])==str(opPeriod) or row[1].startswith("Operational Period "+str(opPeriod)+" Begins:") or row[1].startswith("Radio Log Begins")):
+						rowsToPrint.append(row)
+						logging.info('appending: '+str(row))
+				if len(rowsToPrint)<2:
+					logging.info('Nothing to print for specified operational period '+str(opPeriod))
+					# return
+					continue # don't use return in an endless loop worker - it will end the loop which will end the thread
 				else:
-					logging.info('operator image file not found: '+operatorImageFile)
-					headers.append('Op.')
-			clueLogPrint.append(headers)
-			for row in rowsToPrint:
-				locationText=row[6]
-				if row[8]:
-					locationText='[Radio GPS:\n'+(row[8].replace('\n',' '))+'] '+row[6]
-				printRows=[row[0],Paragraph(row[1],styles['Normal']),row[2],row[3],row[4],Paragraph(locationText,styles['Normal']),Paragraph(row[7],styles['Normal'])]
-				if self.useOperatorLogin:
-					if len(row)>9:
-						printRows.append(row[9])
+					# clueLogPdfFileName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clueLog_OP"+str(opPeriod)+".pdf")
+					clueLogPdfFileName=os.path.join(self.sessionDir,self.pdfFileName.replace(".pdf","_clueLog_OP"+str(opPeriod)+".pdf"))
+					logging.info("generating clue log pdf: "+clueLogPdfFileName)
+					try:
+						f=open(clueLogPdfFileName,"wb")
+					except:
+						self._sig_clueLogMessageBoxFromThread.emit(clueLogPdfFileName)
+						# self.printClueLogErrMsgBox=QMessageBox(QMessageBox.Critical,"Error","PDF could not be generated:\n\n"+clueLogPdfFileName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.",
+						# 	QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+						# self.printClueLogErrMsgBox.show()
+						# self.printClueLogErrMsgBox.raise_()
+						# QTimer.singleShot(10000,self.printClueLogErrMsgBox.close)
+						# self.printClueLogErrMsgBox.exec_()
+						# return
+						continue # don't use return in an endless loop worker - it will end the loop which will end the thread
 					else:
-						printRows.append('')
-				clueLogPrint.append(printRows)
-			# #523: avoid exception	
-			try:
-				clueLogPrint[1][5]=self.datum
-			except:
-				logging.info('Nothing to print for specified Operational Period '+str(opPeriod))
-				return
-			if len(clueLogPrint)>2:
-	##			t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.6,3.75,.9,0.5,1.25,3]])
-				if self.useOperatorLogin:
-					colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.2,0.3]]
-				else:
-					colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.5]]
-				t=Table(clueLogPrint,repeatRows=1,colWidths=colWidths)
-				t.setStyle(TableStyle([('F/generating clue llONT',(0,0),(-1,-1),'Helvetica'),
-										('FONT',(0,0),(-1,1),'Helvetica-Bold'),
-										('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
-									('BOX', (0,0), (-1,-1), 2, colors.black),
-									('BOX', (0,0), (-1,0), 2, colors.black)]))
-				elements.append(t)
-				doc.build(elements,onFirstPage=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod),onLaterPages=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod))
-	# 			self.clueLogMsgBox.setInformativeText("Finalizing and Printing...")
-				self.printPDF(clueLogPdfFileName)
-				if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-					logging.info("copying clue log pdf to "+self.secondWorkingDir)
-					shutil.copy(clueLogPdfFileName,self.secondWorkingDir)
-	# 		else:
-	# 			self.clueLogMsgBox.setText("No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.")
-	# 			self.clueLogMsgBox.setInformativeText("")
-	# 			self.clueLogMsgBox.setStandardButtons(QMessageBox.Ok)
-	# 			self.msgBox.close()
-	# 			self.msgBox=QMessageBox(QMessageBox.Information,"Printing","No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.",QMessageBox.Ok)
-	# 			QTimer.singleShot(500,self.msgBox.show)
-			self.clueLogNeedsPrint=False
+						f.close()
+			# 		self.clueLogMsgBox=QMessageBox(QMessageBox.Information,"Printing","Generating PDF; will send to default printer automatically; please wait...",
+			# 							QMessageBox.Abort,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			# 		self.clueLogMsgBox.setInformativeText("Initializing...")
+					# note the topMargin is based on what looks good; you would think that a 0.6 table plus a 0.5 hard
+					# margin (see t.drawOn above) would require a 1.1 margin here, but, not so.
+					doc = SimpleDocTemplate(clueLogPdfFileName, pagesize=landscape(letter),leftMargin=0.5*inch,rightMargin=0.5*inch,topMargin=1.03*inch,bottomMargin=0.5*inch) # or pagesize=letter
+			# 		self.clueLogMsgBox.show()
+			# 		QTimer.singleShot(5000,self.clueLogMsgBox.close)
+					# QCoreApplication.processEvents()
+					self._sig_processEventsFromThread.emit()
+					elements=[]
+					styles = getSampleStyleSheet()
+					clueLogPrint=[]
+					headers=clueTableModel.header_labels[0:5]+clueTableModel.header_labels[6:8] # omit operational period
+					if self.useOperatorLogin:
+						operatorImageFile=os.path.join(iconsDir,'user_icon_80px.png')
+						if os.path.isfile(operatorImageFile):
+							headers.append(Image(operatorImageFile,width=0.16*inch,height=0.16*inch))
+						else:
+							logging.info('operator image file not found: '+operatorImageFile)
+							headers.append('Op.')
+					clueLogPrint.append(headers)
+					for row in rowsToPrint:
+						locationText=row[6]
+						if row[8]:
+							locationText='[Radio GPS:\n'+(row[8].replace('\n',' '))+'] '+row[6]
+						printRows=[row[0],Paragraph(row[1],styles['Normal']),row[2],row[3],row[4],Paragraph(locationText,styles['Normal']),Paragraph(row[7],styles['Normal'])]
+						if self.useOperatorLogin:
+							if len(row)>9:
+								printRows.append(row[9])
+							else:
+								printRows.append('')
+						clueLogPrint.append(printRows)
+					# #523: avoid exception	
+					try:
+						clueLogPrint[1][5]=self.datum
+					except:
+						logging.info('Nothing to print for specified Operational Period '+str(opPeriod))
+						# return
+						continue # don't use return in an endless loop worker - it will end the loop which will end the thread
+					if len(clueLogPrint)>2:
+			##			t=Table(clueLogPrint,repeatRows=1,colWidths=[x*inch for x in [0.6,3.75,.9,0.5,1.25,3]])
+						if self.useOperatorLogin:
+							colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.2,0.3]]
+						else:
+							colWidths=[x*inch for x in [0.3,3.75,0.9,0.5,0.8,1.25,2.5]]
+						t=Table(clueLogPrint,repeatRows=1,colWidths=colWidths)
+						t.setStyle(TableStyle([('F/generating clue llONT',(0,0),(-1,-1),'Helvetica'),
+												('FONT',(0,0),(-1,1),'Helvetica-Bold'),
+												('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
+											('BOX', (0,0), (-1,-1), 2, colors.black),
+											('BOX', (0,0), (-1,0), 2, colors.black)]))
+						elements.append(t)
+						doc.build(elements,onFirstPage=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod),onLaterPages=functools.partial(self.printClueLogHeaderFooter,opPeriod=opPeriod))
+			# 			self.clueLogMsgBox.setInformativeText("Finalizing and Printing...")
+						self.printPDF(clueLogPdfFileName)
+						if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
+							logging.info("copying clue log pdf to "+self.secondWorkingDir)
+							shutil.copy(clueLogPdfFileName,self.secondWorkingDir)
+			# 		else:
+			# 			self.clueLogMsgBox.setText("No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.")
+			# 			self.clueLogMsgBox.setInformativeText("")
+			# 			self.clueLogMsgBox.setStandardButtons(QMessageBox.Ok)
+			# 			self.msgBox.close()
+			# 			self.msgBox=QMessageBox(QMessageBox.Information,"Printing","No clues were logged during Operational Period "+str(opPeriod)+"; no clue log will be printed.",QMessageBox.Ok)
+			# 			QTimer.singleShot(500,self.msgBox.show)
+					with self.clueLogNeedsPrintLock:
+						self.clueLogNeedsPrint=False
+			except Exception as e:
+				logging.error(f'_clueLogWorker: outer exception caught in order to keep the thread alive: {e}')
+			finally: # clear the flag even if there was an early exit
+				self.clueLogSaving=False
+
+	def clueLogMessageBoxFromThread(self,clueLogPdfFileName):
+		self.printClueLogErrMsgBox=QMessageBox(QMessageBox.Critical,"Error","PDF could not be generated:\n\n"+clueLogPdfFileName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.  As a last resort, the auto-saved CSV file can be printed from Excel or as a plain text file.",
+			QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		self.printClueLogErrMsgBox.show()
+		self.printClueLogErrMsgBox.raise_()
+		QTimer.singleShot(10000,self.printClueLogErrMsgBox.close)
+		self.printClueLogErrMsgBox.exec_()
+
+	def printClueReport(self,clueData):
+		# logging.info('printClueReport called')
+		self.clueReportClueData=clueData
+		self.clueReportEvent.set()
 
 	# fillable pdf works well with pdftk external dependency, but is problematic in pure python
 	#  see https://stackoverflow.com/questions/72625568
 	# so, use reportlab instead
-	def printClueReport(self,clueData):
-		# cluePdfName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clue"+str(clueData[0]).zfill(2)+".pdf")
-		cluePdfName=os.path.join(self.sessionDir,self.pdfFileName.replace(".pdf","_clue"+str(clueData[0]).zfill(2)+".pdf"))
-		logging.info("generating clue report pdf: "+cluePdfName)
-		
-		try:
-			f=open(cluePdfName,"wb")
-		except:
-			self.printClueErrMsgBox=QMessageBox(QMessageBox.Critical,"Error","PDF could not be generated:\n\n"+cluePdfName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.",
-				QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			self.printClueErrMsgBox.show()
-			self.printClueErrMsgBox.raise_()
-			QTimer.singleShot(10000,self.printClueErrMsgBox.close)
-			self.printClueErrMsgBox.exec_()
-			return
-		else:
-			f.close()
+	def _clueReportWorker(self,event):
+		while True:
+			logging.info('_clueReportWorker: waiting for event...')
+			event.wait()
+			logging.info('_clueReportWorker: event received; beginning file save operations...')
+			event.clear()
 
-		cluePdfOverlayName=cluePdfName.replace('.pdf','_overlay.pdf')
-		doc = SimpleDocTemplate(cluePdfOverlayName, pagesize=portrait(letter),leftMargin=0.84*inch,rightMargin=0.67*inch,topMargin=0.68*inch,bottomMargin=0.5*inch) # or pagesize=letter
+			self.clueReportSaving=True
+			try:
+				clueData=self.clueReportClueData
+				# cluePdfName=self.firstWorkingDir+"\\"+self.pdfFileName.replace(".pdf","_clue"+str(clueData[0]).zfill(2)+".pdf")
+				cluePdfName=os.path.join(self.sessionDir,self.pdfFileName.replace(".pdf","_clue"+str(clueData[0]).zfill(2)+".pdf"))
+				logging.info("generating clue report pdf: "+cluePdfName)
+				
+				try:
+					f=open(cluePdfName,"wb")
+				except:
+					self._sig_clueReportMessageBoxFromThread.emit(cluePdfName)
+					# self.printClueErrMsgBox=QMessageBox(QMessageBox.Critical,"Error","PDF could not be generated:\n\n"+cluePdfName+"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.",
+					# 	QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+					# self.printClueErrMsgBox.show()
+					# self.printClueErrMsgBox.raise_()
+					# QTimer.singleShot(10000,self.printClueErrMsgBox.close)
+					# self.printClueErrMsgBox.exec_()
+					# return
+					continue # don't use return in an endless loop worker - it will end the loop which will end the thread
+				else:
+					f.close()
+
+				cluePdfOverlayName=cluePdfName.replace('.pdf','_overlay.pdf')
+				doc = SimpleDocTemplate(cluePdfOverlayName, pagesize=portrait(letter),leftMargin=0.84*inch,rightMargin=0.67*inch,topMargin=0.68*inch,bottomMargin=0.5*inch) # or pagesize=letter
+				self._sig_processEventsFromThread.emit()
+				# QCoreApplication.processEvents()
+				tableWidthInches=6.92 # determined from the template pdf, used to draw overlay pdf fields below
+				elements=[]
+				styles = getSampleStyleSheet()
+
+				img=''
+				if os.path.isfile(self.printLogoFileName):
+					imgReader=utils.ImageReader(self.printLogoFileName)
+					imgW,imgH=imgReader.getSize()
+					imgAspect=imgH/float(imgW)
+					img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
+
+				instructions=clueData[7].lower()
+				# initialize all checkboxes to OFF
+				instructionsCollect=''
+				instructionsMarkAndLeave=''
+				instructionsDisregard=''
+				instructionsOther=''
+				instructionsOtherText=''
+				# parse to a list of tokens - split on comma or semicolon with space(s) before and/or after
+				instructions=re.sub(r' *[,;] *','|',instructions).split('|')
+				# remove any empty elements, probably due to back-to-back delimiters
+				instructions=[x for x in instructions if x]
+				logging.info('parsed instructions:'+str(instructions))
+				# look for keywords in the instructions text
+				if "collect" in instructions:
+					instructionsCollect='X'
+					instructions.remove('collect')
+				if "mark & leave" in instructions:
+					instructionsMarkAndLeave='X'
+					instructions.remove('mark & leave')
+				if "disregard" in instructions:
+					instructionsDisregard='X'
+					instructions.remove('disregard')
+				if instructions: # is there anything left in the parsed list?
+					instructionsOther='X'
+					instructionsOtherText=', '.join(instructions)
+		# 		locText=clueData[6]
+				if clueData[8]!="":
+		# 			locText=locText+"\n(Radio GPS = "+clueData[8]+")"
+					radioLocText="(Radio GPS: "+re.sub(r"\n","  x  ",clueData[8])+")"
+				else:
+					radioLocText=""
+
+				operatorText=''
+				if self.useOperatorLogin:
+					operatorText='Radio Dispatcher: '
+					if self.operatorLastName.startswith('?'):
+						operatorText+='Not logged in'
+					else:
+						operatorText+=self.operatorFirstName[0].upper()+self.operatorLastName[0].upper()+' '+self.operatorId
+
+				# define the fields and locations of the overlay pdf; similar to fillable pdf but with more control
+				# clueTableDicts - list of dictionaries, with each dictionary corresponding to a new reportlab table
+				#  data - list of lists, each sublist corresponding to one row of the reportlab table
+				#  heights - list of row heights (in inches) - the length of this list must equal the length of 'data';
+				#    can also be a single number, in which case each row will have the same specified height
+				#  widths - list of column widths - the length of theis list must equal the length of each element of 'data'
+				#    if sum of values adds up to page width in inches, then units are assumed to be in inches;
+				#    otherwise, units are assumed to be equal parts of total page width
+				clueTableDicts=[
+					{ # title bar row
+						'data':[[img,self.agencyNameForPrint,img]],
+						'heights':0.68,
+						'widths':[1,3,1],
+						'hvalign':['center','middle'],
+						'fontName':'Helvetica-Bold',
+						'fontSize':18
+					},
+					{ # incident name / date / operational period
+						'data':[['',self.incidentName,time.strftime('%x'),str(clueData[5])]],
+						'heights':0.43,
+						'widths':[67,108,85,79], # measured mm on screen (not sure of zoom)
+						'hvalign':['center','bottom']
+					},
+					{ # clue number / date/time located / team that located the clue
+						'data':[[str(clueData[0]),clueData[4]+'   '+clueData[3],clueData[2]]],
+						'heights':0.39,
+						'widths':[67,141,131],
+						'hvalign':['center','bottom']
+					},
+					{ # Name of Individual That Located Clue - not filled by radiolog, but,
+					#  use the right-justified space on this line to show radio dispatch operator
+					#  while still leaving space for someone to hand-write the individual's name
+						'data':[[operatorText]],
+						'heights':0.54,
+						'widths':[1], # width doesn't matter, since text is right-justified
+						'hvalign':['right','top'],
+						'fontSize':10 # slightly smaller font
+					},
+					{ # description of clue
+						'data':[['',clueData[1]]],
+						'heights':0.87,
+						'widths':[1,40], # left indent
+						'hvalign':['left','top']
+					},
+					{ # radio location
+						'data':[['',radioLocText]],
+						'heights':0.22,
+						'widths':[1,4],
+						'hvalign':['left','middle']
+					},
+					{ # location description
+						'data':[['',clueData[6]]],
+						'heights':0.63,
+						'widths':[1,40], # left indent
+						'hvalign':['left','top']
+					},
+					{ # gap - 'To investigations' and gap before checkboxes
+						'data':[['']],
+						'heights':1,
+						'widths':[1]
+					},
+					{ # Instructions checkboxes - to keep it to a single table, each row is [gap,checkbox,gap,othertext]
+						'data':[
+							['',instructionsCollect,'',''],
+							['',instructionsMarkAndLeave,'',''],
+							['',instructionsDisregard,'',''],
+							['',instructionsOther,'',instructionsOtherText]
+						],
+						'heights':0.19,
+						'widths':[1.35,1,3,30]
+						# note: if a cell width is less than required for a single character (plus padding),
+						#  the pdf generation process will throw an exception:
+						# AttributeError: 'Paragraph' object has no attribute 'blPara'
+						#  should probably catch this at the call to doc.build, by making the narrowest
+						#  field wider and trying again.  For helvetica-bold 18pt, a width of 0.15 is too
+						#  narrow and causes the error (1 part in 46) but 0.19 is OK (1 part in 36).
+					}
+				]
+				def ParagraphOrNot(d,style):
+					if isinstance(d,(str,int,float)):
+						# logging.info('   paragraph')
+						return Paragraph(d,style)
+					else:
+						# logging.info('   NOT paragraph')
+						return d
+
+				for td in clueTableDicts:
+					# logging.info('--- new table ---')
+					# logging.info('-- raw table data --')
+					# try:
+					# 	logging.info(json.dumps(td,indent=3))
+					# except:
+						# logging.info(str(td))
+
+					# using Normal paragraph style enables word wrap within table cells https://stackoverflow.com/a/10244769/3577105
+					style=ParagraphStyle('theStyle',parent=styles['Normal'])
+					# style.backColor='#dddddd' # helpful for layout development and debug
+					# style.borderPadding=(5,0,5,0)
+					if 'fontName' in td.keys():
+						style.fontName=td['fontName']
+					if 'fontSize' in td.keys():
+						style.fontSize=td['fontSize']
+					else:
+						style.fontSize=12
+					style.leading=style.fontSize*1.15 # rule of thumb: 20% larger than font size
+
+					# vertical alignment must be specified in the Table style;
+					# horizontal alignment must be specified in the Paragraph style
+					if 'hvalign' in td.keys():
+						[h,v]=td['hvalign']
+						# see reportlab docs paragraph alignment section for propert alignment values
+						# https://docs.reportlab.com/reportlab/userguide/ch6_paragraphs/
+						if h=='center':
+							style.alignment=1
+						elif h=='right':
+							style.alignment=2
+
+					data=[[ParagraphOrNot(d,style) for d in row] for row in td['data']]
+					# data=td['data']
+					# logging.info('data:'+str(data))
+					widths=td['widths']
+					wsum=sum(td['widths'])
+					# if width units are not inches, treat them as proportional units
+					if sum(td['widths'])!=tableWidthInches:
+						widths=[(w/wsum)*tableWidthInches for w in widths]
+					# logging.info('widths='+str(widths))
+					heights=td['heights']
+					if isinstance(heights,(int,float)):
+						heightsList=[heights for x in range(len(data))]
+						heights=heightsList
+					# logging.info('heights='+str(heights))
+					t=Table(data,colWidths=[x*inch for x in widths],rowHeights=[x*inch for x in heights])
+					styleList=[
+						# ('BOX',(0,0),(-1,-1),1,colors.red), # helpful for layout development and debug
+						# ('INNERGRID',(0,0),(-1,-1),0.5,colors.red) # helpful for layout development and debug
+					]
+					# vertical alignment must be specified in the Table style;
+					# horizontal alignment within paragraphs must be specified in the Paragraph style
+					#  but should be applied in the Table style also, in case the data is not a Paragraph
+					if 'hvalign' in td.keys():
+						[h,v]=td['hvalign']
+						if isinstance(v,str): # apply it to the entire table
+							styleList.append(('VALIGN',(0,0),(-1,-1),v.upper()))
+						if isinstance(h,str): # apply it to the entire table
+							styleList.append(('ALIGN',(0,0),(-1,-1),h.upper()))
+					t.setStyle(TableStyle(styleList))
+					# logging.info('setting table style:'+str(styleList))
+					elements.append(t)
+				doc.build(elements)
+
+				# overlaying on the template https://gist.github.com/vsajip/8166dc0935ee7807c5bd4daa22a20937
+				templatePDF=PdfReader(self.clueReportPdfFileName,'rb')
+				templatePage=templatePDF.pages[0]
+				overlayPDF=PdfReader(cluePdfOverlayName,'rb')
+				templatePage.merge_page(overlayPDF.pages[0])
+				outputPDF=PdfWriter()
+				outputPDF.add_page(templatePage)
+				with open(cluePdfName,'wb') as out_pdf:
+					outputPDF.write(out_pdf)
+
+				self.printPDF(cluePdfName)
+				if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
+					logging.info("copying clue report pdf to "+self.secondWorkingDir)
+					shutil.copy(cluePdfName,self.secondWorkingDir)
+
+				try:
+					os.remove(cluePdfOverlayName)
+				except:
+					pass
+			except Exception as e:
+				logging.error(f'_clueReportWorker: outer exception caught in order to keep the thread alive: {e}')
+			finally: # clear the flag even if there was an early exit
+				self.clueReportSaving=False
+
+	def processEventsFromThread(self):
 		QCoreApplication.processEvents()
-		tableWidthInches=6.92 # determined from the template pdf, used to draw overlay pdf fields below
-		elements=[]
-		styles = getSampleStyleSheet()
 
-		img=''
-		if os.path.isfile(self.printLogoFileName):
-			imgReader=utils.ImageReader(self.printLogoFileName)
-			imgW,imgH=imgReader.getSize()
-			imgAspect=imgH/float(imgW)
-			img=Image(self.printLogoFileName,width=0.54*inch/float(imgAspect),height=0.54*inch)
-
-		instructions=clueData[7].lower()
-		# initialize all checkboxes to OFF
-		instructionsCollect=''
-		instructionsMarkAndLeave=''
-		instructionsDisregard=''
-		instructionsOther=''
-		instructionsOtherText=''
-		# parse to a list of tokens - split on comma or semicolon with space(s) before and/or after
-		instructions=re.sub(r' *[,;] *','|',instructions).split('|')
-		# remove any empty elements, probably due to back-to-back delimiters
-		instructions=[x for x in instructions if x]
-		logging.info('parsed instructions:'+str(instructions))
-		# look for keywords in the instructions text
-		if "collect" in instructions:
-			instructionsCollect='X'
-			instructions.remove('collect')
-		if "mark & leave" in instructions:
-			instructionsMarkAndLeave='X'
-			instructions.remove('mark & leave')
-		if "disregard" in instructions:
-			instructionsDisregard='X'
-			instructions.remove('disregard')
-		if instructions: # is there anything left in the parsed list?
-			instructionsOther='X'
-			instructionsOtherText=', '.join(instructions)
-# 		locText=clueData[6]
-		if clueData[8]!="":
-# 			locText=locText+"\n(Radio GPS = "+clueData[8]+")"
-			radioLocText="(Radio GPS: "+re.sub(r"\n","  x  ",clueData[8])+")"
-		else:
-			radioLocText=""
-
-		operatorText=''
-		if self.useOperatorLogin:
-			operatorText='Radio Dispatcher: '
-			if self.operatorLastName.startswith('?'):
-				operatorText+='Not logged in'
-			else:
-				operatorText+=self.operatorFirstName[0].upper()+self.operatorLastName[0].upper()+' '+self.operatorId
-
-		# define the fields and locations of the overlay pdf; similar to fillable pdf but with more control
-		# clueTableDicts - list of dictionaries, with each dictionary corresponding to a new reportlab table
-		#  data - list of lists, each sublist corresponding to one row of the reportlab table
-		#  heights - list of row heights (in inches) - the length of this list must equal the length of 'data';
-		#    can also be a single number, in which case each row will have the same specified height
-		#  widths - list of column widths - the length of theis list must equal the length of each element of 'data'
-		#    if sum of values adds up to page width in inches, then units are assumed to be in inches;
-		#    otherwise, units are assumed to be equal parts of total page width
-		clueTableDicts=[
-			{ # title bar row
-				'data':[[img,self.agencyNameForPrint,img]],
-				'heights':0.68,
-				'widths':[1,3,1],
-				'hvalign':['center','middle'],
-				'fontName':'Helvetica-Bold',
-				'fontSize':18
-			},
-			{ # incident name / date / operational period
-				'data':[['',self.incidentName,time.strftime('%x'),str(clueData[5])]],
-				'heights':0.43,
-				'widths':[67,108,85,79], # measured mm on screen (not sure of zoom)
-				'hvalign':['center','bottom']
-			},
-			{ # clue number / date/time located / team that located the clue
-				'data':[[str(clueData[0]),clueData[4]+'   '+clueData[3],clueData[2]]],
-				'heights':0.39,
-				'widths':[67,141,131],
-				'hvalign':['center','bottom']
-			},
-			{ # Name of Individual That Located Clue - not filled by radiolog, but,
-			  #  use the right-justified space on this line to show radio dispatch operator
-			  #  while still leaving space for someone to hand-write the individual's name
-				'data':[[operatorText]],
-				'heights':0.54,
-				'widths':[1], # width doesn't matter, since text is right-justified
-				'hvalign':['right','top'],
-				'fontSize':10 # slightly smaller font
-			},
-			{ # description of clue
-				'data':[['',clueData[1]]],
-				'heights':0.87,
-				'widths':[1,40], # left indent
-				'hvalign':['left','top']
-			},
-			{ # radio location
-				'data':[['',radioLocText]],
-				'heights':0.22,
-				'widths':[1,4],
-				'hvalign':['left','middle']
-			},
-			{ # location description
-				'data':[['',clueData[6]]],
-				'heights':0.63,
-				'widths':[1,40], # left indent
-				'hvalign':['left','top']
-			},
-			{ # gap - 'To investigations' and gap before checkboxes
-				'data':[['']],
-				'heights':1,
-				'widths':[1]
-			},
-			{ # Instructions checkboxes - to keep it to a single table, each row is [gap,checkbox,gap,othertext]
-				'data':[
-					['',instructionsCollect,'',''],
-					['',instructionsMarkAndLeave,'',''],
-					['',instructionsDisregard,'',''],
-					['',instructionsOther,'',instructionsOtherText]
-				],
-				'heights':0.19,
-				'widths':[1.35,1,3,30]
-				# note: if a cell width is less than required for a single character (plus padding),
-				#  the pdf generation process will throw an exception:
-				# AttributeError: 'Paragraph' object has no attribute 'blPara'
-				#  should probably catch this at the call to doc.build, by making the narrowest
-				#  field wider and trying again.  For helvetica-bold 18pt, a width of 0.15 is too
-				#  narrow and causes the error (1 part in 46) but 0.19 is OK (1 part in 36).
-			}
-		]
-		def ParagraphOrNot(d,style):
-			if isinstance(d,(str,int,float)):
-				# logging.info('   paragraph')
-				return Paragraph(d,style)
-			else:
-				# logging.info('   NOT paragraph')
-				return d
-
-		for td in clueTableDicts:
-			# logging.info('--- new table ---')
-			# logging.info('-- raw table data --')
-			# try:
-			# 	logging.info(json.dumps(td,indent=3))
-			# except:
-				# logging.info(str(td))
-
-			# using Normal paragraph style enables word wrap within table cells https://stackoverflow.com/a/10244769/3577105
-			style=ParagraphStyle('theStyle',parent=styles['Normal'])
-			# style.backColor='#dddddd' # helpful for layout development and debug
-			# style.borderPadding=(5,0,5,0)
-			if 'fontName' in td.keys():
-				style.fontName=td['fontName']
-			if 'fontSize' in td.keys():
-				style.fontSize=td['fontSize']
-			else:
-				style.fontSize=12
-			style.leading=style.fontSize*1.15 # rule of thumb: 20% larger than font size
-
-			# vertical alignment must be specified in the Table style;
-			# horizontal alignment must be specified in the Paragraph style
-			if 'hvalign' in td.keys():
-				[h,v]=td['hvalign']
-				# see reportlab docs paragraph alignment section for propert alignment values
-				# https://docs.reportlab.com/reportlab/userguide/ch6_paragraphs/
-				if h=='center':
-					style.alignment=1
-				elif h=='right':
-					style.alignment=2
-
-			data=[[ParagraphOrNot(d,style) for d in row] for row in td['data']]
-			# data=td['data']
-			# logging.info('data:'+str(data))
-			widths=td['widths']
-			wsum=sum(td['widths'])
-			# if width units are not inches, treat them as proportional units
-			if sum(td['widths'])!=tableWidthInches:
-				widths=[(w/wsum)*tableWidthInches for w in widths]
-			# logging.info('widths='+str(widths))
-			heights=td['heights']
-			if isinstance(heights,(int,float)):
-				heightsList=[heights for x in range(len(data))]
-				heights=heightsList
-			# logging.info('heights='+str(heights))
-			t=Table(data,colWidths=[x*inch for x in widths],rowHeights=[x*inch for x in heights])
-			styleList=[
-				# ('BOX',(0,0),(-1,-1),1,colors.red), # helpful for layout development and debug
-				# ('INNERGRID',(0,0),(-1,-1),0.5,colors.red) # helpful for layout development and debug
-			]
-			# vertical alignment must be specified in the Table style;
-			# horizontal alignment within paragraphs must be specified in the Paragraph style
-			#  but should be applied in the Table style also, in case the data is not a Paragraph
-			if 'hvalign' in td.keys():
-				[h,v]=td['hvalign']
-				if isinstance(v,str): # apply it to the entire table
-					styleList.append(('VALIGN',(0,0),(-1,-1),v.upper()))
-				if isinstance(h,str): # apply it to the entire table
-					styleList.append(('ALIGN',(0,0),(-1,-1),h.upper()))
-			t.setStyle(TableStyle(styleList))
-			# logging.info('setting table style:'+str(styleList))
-			elements.append(t)
-		doc.build(elements)
-
-		# overlaying on the template https://gist.github.com/vsajip/8166dc0935ee7807c5bd4daa22a20937
-		templatePDF=PdfReader(self.clueReportPdfFileName,'rb')
-		templatePage=templatePDF.pages[0]
-		overlayPDF=PdfReader(cluePdfOverlayName,'rb')
-		templatePage.merge_page(overlayPDF.pages[0])
-		outputPDF=PdfWriter()
-		outputPDF.add_page(templatePage)
-		with open(cluePdfName,'wb') as out_pdf:
-			outputPDF.write(out_pdf)
-
-		self.printPDF(cluePdfName)
-		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-			logging.info("copying clue report pdf to "+self.secondWorkingDir)
-			shutil.copy(cluePdfName,self.secondWorkingDir)
-
-		try:
-			os.remove(cluePdfOverlayName)
-		except:
-			pass
+	def clueReportMessageBoxFromThread(self,cluePdfName):
+		msg=f'Clue Report PDF could not be generated:\n\n"{cluePdfName}"\n\nMaybe the file is currently being viewed by another program?  If so, please close that viewer and try again.'
+		logging.error(msg)
+		self.printClueErrMsgBox=QMessageBox(QMessageBox.Critical,"Error",msg,
+			QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		self.printClueErrMsgBox.show()
+		self.printClueErrMsgBox.raise_()
+		QTimer.singleShot(10000,self.printClueErrMsgBox.close)
+		self.printClueErrMsgBox.exec_()
 
 	def startupOptions(self):
 		self.optionsDialog.show()
@@ -5006,10 +5180,20 @@ class MyWindow(QDialog,Ui_Dialog):
 				logging.info('ERROR: operatorDict had '+str(len(ods))+' matches; should have exactly one match.  Operator usage will not be updated.')
 			self.saveOperators()
 
+		# cleanShutdownFlag race condition: saveRcFile is called also from within save if
+		#  no entries have been created, but that may not happen until after the
+		#  call to saveRcFile here a few lines farther down.  If saveRcFile from within save
+		#  happens after saveRcFile here, and if it doesn't set cleanShutdownFlag=True,
+		#  then on the next startup radiolog will assume this was an unclean shutdown.
+		# So - just set the instance variable here instead of passing it as an argument, and modify
+		#  _rcSaveWorker to use the instance variable instead of an argument.
+		self.cleanShutdownFlag=True
 		self.save(finalize=True)
 		self.fsSaveLookup()
 		self.fsSaveLog(finalize=True)
-		self.saveRcFile(cleanShutdownFlag=True)
+		# logging.info('calling saveRcFile from closeEvent')
+		# self.saveRcFile(cleanShutdownFlag=True)
+		self.saveRcFile()
 
 		self.teamTimer.stop()
 		if self.firstComPortFound:
@@ -5030,42 +5214,136 @@ class MyWindow(QDialog,Ui_Dialog):
 		if os.path.isfile(os.path.join(self.configDir,self.operatorsFileName)):
 			shutil.copy(os.path.join(self.configDir,self.operatorsFileName),os.path.join(self.sessionDir,'operators_at_shutdown.json'))
 
+		# check threaded file operation flags; wait a bit to let them all clear before closing;
+		#  we need to do this since they are daemon threads and would otherwise not prevent exit
+		# NOTE: yes, this is important: the rcfile has been repeatedly observed to be left without
+		#  cleanShutdown=True if the rcSave thread is not waited for!
+		fileThreads=[
+			['self.saving','Saving the main radio log'],
+			['self.fsLookupSaving','Saving the FleetSync lookup table'],
+			['self.fsLogSaving','Saving the FleetSync activity log'],
+			['self.rcSaving','Saving the resource file'],
+			['self.operatorsSaving','Saving the operators catalog'],
+			['self.teamNotesSaving','Saving the team notes catalog'],
+			['self.clueReportSaving','Printing a clue report'],
+			['self.clueLogSaving','Printing the clue log'],
+			['self.logPrinting','Printing the main radio log']
+		]
+		waitedSec=0
+		total=-1
+		shuttingDownMsgBox=QMessageBox(QMessageBox.Information,'Shutting Down','RadioLog is shutting down...',
+			QMessageBox.NoButton,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		# shuttingDownMsgBoxShown=False
+		while total!=0 and waitedSec<10:
+			logMsg='File thread flags still set:'
+			total=0
+			msg=''
+			for thread in fileThreads:
+				if eval(thread[0]):
+					msg+=(f'\n - {thread[1]}')
+					logMsg+=f'  {thread[0]}'
+					total+=1
+			if total>0:
+				logging.info(logMsg)
+				suffix='s' if waitedSec<9 else ''
+				msg=f'RadioLog is shutting down...\n\nWaiting up to {10-waitedSec} more second{suffix}:\n'+msg
+				# logging.info(f'msg:\n{msg}')
+				if shuttingDownMsgBox.isVisible():
+					shuttingDownMsgBox.setText(msg)
+					QApplication.processEvents()
+				else:
+					shuttingDownMsgBox.show()
+					shuttingDownMsgBox.raise_()
+					shuttingDownMsgBox.setStandardButtons(QMessageBox.NoButton)
+					QApplication.processEvents()
+				time.sleep(1)
+				waitedSec+=1
+				if waitedSec==10:
+					logging.error('File save operation(s) are still in process, but it has been a while; exiting anyway; check the transcript for exceptions')
+
 		qApp.quit() # needed to make sure all windows area closed
 
-	def saveRcFile(self,cleanShutdownFlag=False):
-		(x,y,w,h)=self.geometry().getRect()
-		(cx,cy,cw,ch)=self.clueLogDialog.geometry().getRect()
-		timeout=timeoutDisplayList[self.optionsDialog.ui.timeoutField.value()][0]
-		rcFile=QFile(self.rcFileName)
-		if not rcFile.open(QFile.WriteOnly|QFile.Text):
-			warn=QMessageBox(QMessageBox.Warning,"Error","Cannot write resource file " + self.rcFileName + "; proceeding, but, current settings will be lost. "+rcFile.errorString(),
-							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-			warn.show()
-			warn.raise_()
-			warn.exec_()
-			return
-		out=QTextStream(rcFile)
-		out << "[RadioLog]\n"
-		# datum, coord format, and timeout are saved in the config file
-		#  but also need to be able to auto-recover from .rc file
-		# issue 322: use self.lastSavedFileName instead of self.csvFileName to
-		#  make sure the initial rc file doesn't point to a file that does not yet exist
-		out << "lastFileName=" << os.path.join(self.sessionDir,self.lastSavedFileName) << "\n"
-		out << "font-size=" << self.fontSize << "pt\n"
-		out << "x=" << x << "\n"
-		out << "y=" << y << "\n"
-		out << "w=" << w << "\n"
-		out << "h=" << h << "\n"
-		out << "clueLog_x=" << cx << "\n"
-		out << "clueLog_y=" << cy << "\n"
-		out << "clueLog_w=" << cw << "\n"
-		out << "clueLog_h=" << ch << "\n"
-		out << "timeout="<< timeout << "\n"
-		out << "datum=" << self.datum << "\n"
-		out << "coordFormat=" << self.coordFormat << "\n"
-		if cleanShutdownFlag:
-			out << "cleanShutdown=True\n"
-		rcFile.close()
+	# to avoid cleanShutdownFlag race condition, since this is called from multiple places,
+	#  use the instance variable rather than an argument; see explanation in MyWindow.closeEvent
+	def saveRcFile(self):
+	# def saveRcFile(self,cleanShutdownFlag=False):
+		# logging.info(f'saveRcFile called: cleanShutdownFlag={self.cleanShutdownFlag}')
+		# self.cleanShutdownFlag=cleanShutdownFlag
+		self.rcSaveEvent.set()
+
+	def _rcSaveWorker(self,event):
+		while True:
+			logging.info('_rcSaveWorker: waiting for event...')
+			event.wait()
+			logging.info('_rcSaveWorker: event received; beginning file save operations...')
+			event.clear()
+
+			# cleanShutdownFlag=self.cleanShutdownFlag
+			(x,y,w,h)=self.geometry().getRect()
+			(cx,cy,cw,ch)=self.clueLogDialog.geometry().getRect()
+			timeout=timeoutDisplayList[self.optionsDialog.ui.timeoutField.value()][0]
+			self.rcSaving=True
+			try:
+				with open(self.rcFileName,'w') as rcFile:
+					rcFile.write('[RadioLog]\n')
+					# datum, coord format, and timeout are saved in the config file
+					#  but also need to be able to auto-recover from .rc file
+					# issue 322: use self.lastSavedFileName instead of self.csvFileName to
+					#  make sure the initial rc file doesn't point to a file that does not yet exist
+					rcFile.write(f'lastFileName={os.path.join(self.sessionDir,self.lastSavedFileName)}\n')
+					rcFile.write(f'font-size={self.fontSize}pt\n')
+					rcFile.write(f'x={x}\n')
+					rcFile.write(f'y={y}\n')
+					rcFile.write(f'w={w}\n')
+					rcFile.write(f'h={h}\n')
+					rcFile.write(f'clueLog_x={cx}\n')
+					rcFile.write(f'clueLog_y={cy}\n')
+					rcFile.write(f'clueLog_w={cw}\n')
+					rcFile.write(f'clueLog_h={ch}\n')
+					rcFile.write(f'timeout={timeout}\n')
+					rcFile.write(f'datum={self.datum}\n')
+					rcFile.write(f'coordFormat={self.coordFormat}\n')
+					# logging.info(f'inside _rcSaveWorker: cleanShutdownFlag={self.cleanShutdownFlag}')
+					if self.cleanShutdownFlag:
+						rcFile.write('cleanShutdown=True\n')
+			except Exception as e:
+				errMsg=f'Could not write resource file {self.rcFileName}; proceeding, but, current settings will be lost: {e}'
+				self._sig_blockingMessageBoxFromThread.emit(errMsg)
+				logging.warning(errMsg)
+			finally: # clear the flag even if there was an early exit
+				self.rcSaving=False
+
+			# rcFile=QFile(self.rcFileName)
+			# if not rcFile.open(QFile.WriteOnly|QFile.Text):
+			# 	self._sig_blockingMessageBoxFromThread.emit(f'Could write resource file {self.rcFileName}; proceeding, but, current settings will be lost. {rcFile.errorString()}')
+			# 	# warn=QMessageBox(QMessageBox.Warning,"Error","Could write resource file " + self.rcFileName + "; proceeding, but, current settings will be lost. "+rcFile.errorString(),
+			# 	# 				QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			# 	# warn.show()
+			# 	# warn.raise_()
+			# 	# warn.exec_()
+			# 	return
+			# out=QTextStream(rcFile)
+			# out << "[RadioLog]\n"
+			# # datum, coord format, and timeout are saved in the config file
+			# #  but also need to be able to auto-recover from .rc file
+			# # issue 322: use self.lastSavedFileName instead of self.csvFileName to
+			# #  make sure the initial rc file doesn't point to a file that does not yet exist
+			# out << "lastFileName=" << os.path.join(self.sessionDir,self.lastSavedFileName) << "\n"
+			# out << "font-size=" << self.fontSize << "pt\n"
+			# out << "x=" << x << "\n"
+			# out << "y=" << y << "\n"
+			# out << "w=" << w << "\n"
+			# out << "h=" << h << "\n"
+			# out << "clueLog_x=" << cx << "\n"
+			# out << "clueLog_y=" << cy << "\n"
+			# out << "clueLog_w=" << cw << "\n"
+			# out << "clueLog_h=" << ch << "\n"
+			# out << "timeout="<< timeout << "\n"
+			# out << "datum=" << self.datum << "\n"
+			# out << "coordFormat=" << self.coordFormat << "\n"
+			# if self.cleanShutdownFlag:
+			# 	out << "cleanShutdown=True\n"
+			# rcFile.close()
 
 	def checkForResize(self):
 		# this is probably cleaner, lighter, and more robust than using resizeEvent
@@ -5076,6 +5354,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.y=y
 			self.w=w
 			self.h=h
+			# logging.info('calling saveRcFile from checkForResize')
 			self.saveRcFile()
 			self.sidebar.redraw()
 		
@@ -5167,19 +5446,33 @@ class MyWindow(QDialog,Ui_Dialog):
 			logging.info('  isfile: '+str(os.path.isfile(fileName)))
 
 	def saveOperators(self):
-		logging.info('saveOperators called')
-		names=self.getOperatorNames()
-		if len(names)==0:
-			logging.info('  the operators list is empty; skipping the operator save operation')
-			return
-		fileName=os.path.join(self.configDir,self.operatorsFileName)
-		try:
-			with open(fileName,'w') as ofile:
-				logging.info('Saving operator data file '+fileName+' with these operators:'+str(names))
-				json.dump(self.operatorsDict,ofile,indent=3)
-		except:
-			logging.info('WARNING: Could not write operator data file '+fileName)
-			logging.info('  isfile: '+str(os.path.isfile(fileName)))
+		self.operatorsSaveEvent.set()
+
+	def _operatorsSaveWorker(self,event):
+		while True:
+			logging.info('_operatorsSaveWorker: waiting for event...')
+			event.wait()
+			logging.info('_operatorsSaveWorker: event received; beginning file save operations...')
+			event.clear()
+
+			self.operatorsSaving=True
+			try:
+				names=self.getOperatorNames()
+				if len(names)==0:
+					logging.info('  the operators list is empty; skipping the operator save operation')
+					# return
+					continue # don't use return in an endless loop worker - it will end the loop which will end the thread
+				fileName=os.path.join(self.configDir,self.operatorsFileName)
+				try:
+					with open(fileName,'w') as ofile:
+						logging.info('Saving operator data file '+fileName+' with these operators:'+str(names))
+						json.dump(self.operatorsDict,ofile,indent=3)
+				except Exception as e:
+					logging.warning(f'WARNING: Could not write operator data file {fileName}: {e}')
+			except Exception as e:
+				logging.error(f'_operatorsSaveWorker: outer exception caught in order to keep the thread alive: {e}')
+			finally: # clear the flag even if there was an early exit
+				self.operatorsSaving=False
 
 	def getOperatorNames(self):
 		errs=[]
@@ -5208,45 +5501,99 @@ class MyWindow(QDialog,Ui_Dialog):
 		return names
 
 	def save(self,finalize=False):
-		csvFileNameList=[os.path.join(self.sessionDir,self.csvFileName)]
-		if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
-			csvFileNameList.append(os.path.join(self.secondWorkingDir,self.csvFileName)) # save flat in second working dir
-		for fileName in csvFileNameList:
-			logging.info("  writing "+fileName)
-			with open(fileName,'w',newline='') as csvFile:
-				csvWriter=csv.writer(csvFile)
-				csvWriter.writerow(["## Radio Log data file"])
-				csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
-				csvWriter.writerow(["## Incident Name: "+self.incidentName])
-				csvWriter.writerow(["## Datum: "+self.datum+"  Coordinate format: "+self.coordFormat])
-				for row in self.radioLog:
-					row += [''] * (10-len(row)) # pad the row up to 10 elements if needed, to avoid index errors elsewhere
-					if row[6]<1e10: # don't save the blank line
-						# replacing commas is not necessary: csvwriter puts strings in quotes,
-						#  and csvreader knows to not treat commas as delimeters if inside quotes
-						csvWriter.writerow(row)
-				if finalize:
-					csvWriter.writerow(["## end"])
-				if self.lastSavedFileName!=self.csvFileName: # this is the first save since startup, since restore, or since incident name change
-					self.lastSavedFileName=self.csvFileName
-					self.saveRcFile()
-			logging.info("  done writing "+fileName)
-		# now write the clue log to a separate csv file: same filename appended by '.clueLog'
-		if len(self.clueLog)>0:
-			for fileName in csvFileNameList:
-				fileName=fileName.replace(".csv","_clueLog.csv")
-				logging.info("  writing "+fileName)
-				with open(fileName,'w',newline='') as csvFile:
-					csvWriter=csv.writer(csvFile)
-					csvWriter.writerow(["## Clue Log data file"])
-					csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
-					csvWriter.writerow(["## Incident Name: "+self.incidentName])
-					csvWriter.writerow(["## Datum: "+self.datum+"  Coordinate format: "+self.coordFormat])
-					for row in self.clueLog:
-						csvWriter.writerow(row)
-					if finalize:
-						csvWriter.writerow(["## end"])
-				logging.info("  done writing "+fileName)
+		self.fileFinalize=finalize
+		self.saveEvent.set()
+
+	def _saveWorker(self,event):
+		while True:
+			logging.info('_saveWorker: waiting for event...')
+			event.wait()
+			logging.info('_saveWorker: event received; beginning file save operations...')
+			event.clear()
+	
+			self.saving=True
+			try:
+				csvFileNameList=[os.path.join(self.sessionDir,self.csvFileName)]
+				if self.use2WD and self.secondWorkingDir and os.path.isdir(self.secondWorkingDir):
+					csvFileNameList.append(os.path.join(self.secondWorkingDir,self.csvFileName)) # save flat in second working dir
+				for fileName in csvFileNameList:
+					logging.info("  writing "+fileName)
+					with open(fileName,'w',newline='') as csvFile:
+						csvWriter=csv.writer(csvFile)
+						csvWriter.writerow(["## Radio Log data file"])
+						csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
+						csvWriter.writerow(["## Incident Name: "+self.incidentName])
+						csvWriter.writerow(["## Datum: "+self.datum+"  Coordinate format: "+self.coordFormat])
+						for row in self.radioLog:
+							row += [''] * (10-len(row)) # pad the row up to 10 elements if needed, to avoid index errors elsewhere
+							if row[6]<1e10: # don't save the blank line
+								# replacing commas is not necessary: csvwriter puts strings in quotes,
+								#  and csvreader knows to not treat commas as delimeters if inside quotes
+								csvWriter.writerow(row)
+						if self.fileFinalize:
+							csvWriter.writerow(["## end"])
+						if self.lastSavedFileName!=self.csvFileName: # this is the first save since startup, since restore, or since incident name change
+							self.lastSavedFileName=self.csvFileName
+							# logging.info(f'calling saveRcFile from _saveWorker: lastSavedFileName={self.lastSavedFileName}')
+							self.saveRcFile()
+					# logging.info("  done writing "+fileName)
+				# if clue count has increased, write the clue log to a separate csv file: same filename appended by '.clueLog'
+				# if len(self.clueLog)>0:
+				if len(self.clueLog)>self.lastSavedClueLogLength:
+					for fileName in csvFileNameList:
+						fileName=fileName.replace(".csv","_clueLog.csv")
+						logging.info("  writing "+fileName)
+						with open(fileName,'w',newline='') as csvFile:
+							csvWriter=csv.writer(csvFile)
+							csvWriter.writerow(["## Clue Log data file"])
+							csvWriter.writerow(["## File written "+time.strftime("%a %b %d %Y %H:%M:%S")])
+							csvWriter.writerow(["## Incident Name: "+self.incidentName])
+							csvWriter.writerow(["## Datum: "+self.datum+"  Coordinate format: "+self.coordFormat])
+							for row in self.clueLog:
+								csvWriter.writerow(row)
+							if self.fileFinalize:
+								csvWriter.writerow(["## end"])
+						# logging.info("  done writing "+fileName)
+					self.lastSavedClueLogLength=len(self.clueLog)
+
+				# moving rotation code from windows powershell to pure python:
+				# logging.info(f'totalEntryCount:{self.totalEntryCount}')
+				if self.totalEntryCount%5==0:
+					try:
+						logging.info('  beginning backup file rotation...')
+						# rotate backup files after every 5 entries, but note the actual
+						#  entry interval could be off during fast entries since this
+						#  rotation is done in a background thread
+						filesToBackup=[
+								os.path.join(self.sessionDir,self.csvFileName),
+								os.path.join(self.sessionDir,self.csvFileName.replace(".csv","_clueLog.csv")),
+								os.path.join(self.sessionDir,self.fsFileName)]
+						if self.use2WD and self.secondWorkingDir:
+							filesToBackup=filesToBackup+[
+									os.path.join(self.secondWorkingDir,self.csvFileName),
+									os.path.join(self.secondWorkingDir,self.csvFileName.replace(".csv","_clueLog.csv")),
+									os.path.join(self.secondWorkingDir,self.fsFileName)]
+						for fileToBackup in filesToBackup:
+							src=''
+							dst=''
+							for i in range(self.backupDepth-1,0,-1): # for backupDepth=5, this gives [4,3,2,1]
+								src=fileToBackup.replace('.csv',f'_bak{i}.csv')
+								dst=fileToBackup.replace('.csv',f'_bak{i+1}.csv')
+								if os.path.isfile(src):
+									# logging.info(f'    renaming {src} to {dst}')
+									os.replace(src,dst) # os.replace tries a silent force-overwrite
+							if os.path.isfile(fileToBackup):
+								# logging.info(f'    copying {fileToBackup} to {src}')
+								shutil.copyfile(fileToBackup,src)
+							else:
+								logging.warning(f'    file not found during backup rotation: {fileToBackup}; skipping')
+					except Exception as e:
+						logging.error(f'_saveWorker: backup rotation failed: {e}')
+				logging.info('_saveWorker: file save operations complete')
+			except Exception as e:
+				logging.error(f'_saveWorker: outer exception caught in order to keep the thread alive: {e}')
+			finally: # clear the flag even if there was an early exit
+				self.saving=False
 
 	def load(self,sessionToLoad=None,bakAttempt=0):
 		# loading scheme:
@@ -5488,6 +5835,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			i=i+1
 			progressBox.setValue(i)
 			logging.info('  t13')
+			# logging.info('calling saveRcFile from load')
 			self.saveRcFile()
 			i=i+1
 			progressBox.setValue(i)
@@ -5790,7 +6138,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.newEntryProcessTeam(niceTeamName,status,values[1],values[3],amend,unhiding=unhiding)
 
 	def newEntryProcessTeam(self,niceTeamName,status,to_from,msg,amend=False,unhiding=False):
-		# logging.info('t1: niceTeamName={} status={} to_from={} msg={} amend={}'.format(niceTeamName,status,to_from,msg,amend))
+		# logging.info(f'nept: niceTeamName={niceTeamName} status={status} to_from={to_from} msg={msg} amend={amend} unhiding={unhiding}')
 		extTeamName=getExtTeamName(niceTeamName)
 		# 393: if the new entry's extTeamName is a case-insensitive match for an
 		#   existing extTeamName, use that already-existing extTeamName instead
@@ -5860,7 +6208,8 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def newEntryPost(self,extTeamName=None):
 # 		logging.info("1: called newEntryPost")
-		self.radioLogNeedsPrint=True
+		with self.radioLogNeedsPrintLock:
+			self.radioLogNeedsPrint=True
 		# don't do any sorting at all since layoutChanged during/after sort is
 		#  a huge cause of lag; see notes in newEntry function
 # 		logging.info("3")
@@ -5913,6 +6262,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		if self.sidebar.isVisible():
 			self.sidebar.showEvent() # refresh display
 # 		logging.info("7")
+		self.totalEntryCount+=1 # done here instead of newEntryWidget.accept, to catch system-generated messages too
 		self.save()
 		self.showTeamTabsMoreButtonIfNeeded()
 ##		self.redrawTables()
@@ -6387,7 +6737,8 @@ class MyWindow(QDialog,Ui_Dialog):
 			elif action==printTeamLogAction:
 				logging.info('printing team log for '+str(niceTeamName))
 				self.printLog(self.opPeriod,str(niceTeamName))
-				self.radioLogNeedsPrint=True # since only one log has been printed; need to enhance this
+				with self.radioLogNeedsPrintLock:
+					self.radioLogNeedsPrint=True # since only one log has been printed; need to enhance this
 			elif action==teamNotesAction:
 				logging.info('opening team notes for '+str(niceTeamName))
 				self.openTeamNotes(str(extTeamName))
@@ -6954,19 +7305,25 @@ class MyWindow(QDialog,Ui_Dialog):
 			logging.info('  isfile: '+str(os.path.isfile(fileName)))
 
 	def saveTeamNotes(self):
-		logging.info('saveTeamNotes called')
-		# names=self.getOperatorNames()
-		# if len(names)==0:
-		# 	logging.info('  the operators list is empty; skipping the operator save operation')
-		# 	return
-		fileName=os.path.join(self.sessionDir,self.teamNotesFileName)
-		try:
-			with open(fileName,'w') as tnfile:
-				logging.info('Saving team notes data file '+fileName)
-				json.dump(self.teamNotesDict,tnfile,indent=3)
-		except:
-			logging.info('WARNING: Could not write team notes data file '+fileName)
-			logging.info('  isfile: '+str(os.path.isfile(fileName)))
+		self.teamNotesSaveEvent.set()
+
+	def _teamNotesSaveWorker(self,event):
+		while True:
+			logging.info('_teamNotesSaveWorker: waiting for event...')
+			event.wait()
+			logging.info('_teamNotesSaveWorker: event received; beginning file save operations...')
+			event.clear()
+
+			self.teamNotesSaving=True
+			fileName=os.path.join(self.sessionDir,self.teamNotesFileName)
+			try:
+				with open(fileName,'w') as tnfile:
+					logging.info('Saving team notes data file '+fileName)
+					json.dump(self.teamNotesDict,tnfile,indent=3)
+			except Exception as e:
+				logging.warning(f'WARNING: Could not write team notes data file {fileName}: {e}')
+			finally: # clear the flag even if there was an early exit
+				self.teamNotesSaving=False
 
 	def teamNotesBuildTooltip(self,extTeamName):
 		logging.info('teamNotesBuildTooltip called for '+str(extTeamName))
@@ -7185,6 +7542,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.updateFileNames()
 		self.fsSaveLookup()
 		self.save()
+		# logging.info('calling saveRcFile from restore')
 		self.saveRcFile()
 
 	def resizeEvent(self,e):
@@ -8524,6 +8882,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# only save the rc file when the options dialog is accepted interactively;
 		#  saving from self.optionsAccepted causes errors because that function
 		#  is called during init, before the values are ready to save
+		# logging.info('calling saveRcFile from optionsDialog.accept')
 		self.parent.saveRcFile()
 		if self.ui.caltopoGroupBox.isChecked() and self.parent.caltopoLink==1:
 			# box=QMessageBox(QMessageBox.Warning,"No map has been opeend","Did you mean to open a map before closing the Options dialog?",
@@ -10491,21 +10850,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				v[3]="[ATTACHED FROM "+self.ui.teamField.text().strip()+"] "+val[3]
 				self.parent.newEntry(v,self.amendFlag)
 	
-			self.parent.totalEntryCount+=1
-			if self.parent.totalEntryCount%5==0:
-				# rotate backup files after every 5 entries, but note the actual
-				#  entry interval could be off during fast entries since the
-				#  rotate script is called asynchronously (i.e. backgrounded)
-				filesToBackup=[
-						os.path.join(self.parent.sessionDir,self.parent.csvFileName),
-						os.path.join(self.parent.sessionDir,self.parent.csvFileName.replace(".csv","_clueLog.csv")),
-						os.path.join(self.parent.sessionDir,self.parent.fsFileName)]
-				if self.parent.use2WD and self.parent.secondWorkingDir:
-					filesToBackup=filesToBackup+[
-							os.path.join(self.parent.secondWorkingDir,self.parent.csvFileName),
-							os.path.join(self.parent.secondWorkingDir,self.parent.csvFileName.replace(".csv","_clueLog.csv")),
-							os.path.join(self.parent.secondWorkingDir,self.parent.fsFileName)]
-				self.parent.rotateCsvBackups(filesToBackup)	
+			# backup rotation was handled here, in a call to a Windows PowerShell script; moved to _saveWorker as pure python
 			logging.info("Accepted2")
 		self.closeEvent(QEvent(QEvent.Close),True)
 ##		self.close()
@@ -11374,7 +11719,8 @@ class clueDialog(QDialog,Ui_clueDialog):
 			self.clueMsgBox.exec_()
 			return
 
-		self.parent.parent.clueLogNeedsPrint=True
+		with self.parent.parent.clueLogNeedsPrintLock:
+			self.parent.parent.clueLogNeedsPrint=True
 		self.parent.cluePopupShown=True # avoid duplicate popup
 		textToAdd=''
 		existingText=self.parent.ui.messageField.text()
@@ -11582,7 +11928,8 @@ class nonRadioClueDialog(QDialog,Ui_nonRadioClueDialog):
 				self.interviewInstructionsAdded=True
 			
 	def accept(self):
-		self.parent.clueLogNeedsPrint=True
+		with self.parent.clueLogNeedsPrintLock:
+			self.parent.clueLogNeedsPrint=True
 		number=self.ui.clueNumberField.text()
 		description=self.ui.descriptionField.toPlainText()
 		location=self.ui.locationField.text()
