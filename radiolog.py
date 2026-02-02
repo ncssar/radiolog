@@ -2869,7 +2869,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					QTimer.singleShot(200,lambda:self.fsFilteredCallDisplay('bump',fleet,dev,callsign))
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 					self.fsLogUpdate(fleet=fleet,dev=dev,bump=True,seq=seq,result='bump')
-					self.sendPendingGet() # while getString will be non-empty if this bump had GPS, it may still have the default callsign
+					# self.sendPendingGet() # while getString will be non-empty if this bump had GPS, it may still have the default callsign
 					if valid=='A':
 						self.sendRadioMarker(fleet,dev,None,devTxt,lat,lon,bump=True)
 					return
@@ -2905,7 +2905,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					QTimer.singleShot(200,lambda:self.fsFilteredCallDisplay('bump',None,uid,callsign))
 					QTimer.singleShot(5000,self.fsFilteredCallDisplay) # no arguments will clear the display
 					self.fsLogUpdate(uid=uid,bump=True,seq=seq,result='bump')
-					self.sendPendingGet() # while getString will be non-empty if this bump had GPS, it may still have the default callsign
+					# self.sendPendingGet() # while getString will be non-empty if this bump had GPS, it may still have the default callsign
 					if valid=='A':
 						self.sendRadioMarker(None,None,uid,devTxt,lat,lon,bump=True)
 					return
@@ -3018,7 +3018,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			if not attemptNEW: # since the above 'skipped' setting only happens if no match is found
 				fsResult='skipped'
 			self.fsLogUpdate(fleet=fleet,dev=dev,seq=seq,result=fsResult+resultSuffix)
-			self.sendPendingGet()
+			# self.sendPendingGet()
 		elif uid:
 			nxResult=found # False or 'continue' or 'child' or 'skipped'
 			resultSuffix=''
@@ -3040,7 +3040,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			if not attemptNEW: # since the above 'skipped' setting only happens if no match is found
 				nxResult='skipped'
 			self.fsLogUpdate(uid=uid,seq=seq,result=nxResult+resultSuffix)
-			self.sendPendingGet()
+			# self.sendPendingGet()
 
 		# 683 - activate the widget if needed here, rather than in addTab which only happens for new tabs
 		# logging.info('checking to see if widget should be activated: widget='+str(widget)+'  currentEntryLastModAge='+str(self.currentEntryLastModAge)+'  tab count='+str(self.newEntryWindow.ui.tabWidget.count()))
@@ -3058,8 +3058,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		# 		self.fsLogUpdate(uid=uid,seq=seq,result='skipped')
 
 
-	def sendPendingGet(self,suffix=""):
-		logging.info('sendPendingGet called; locator-style requests disabled for this version; maintained for any future use of LiveTracks')
+	# def sendPendingGet(self,suffix=""):
+	# 	logging.info('sendPendingGet called; locator-style requests disabled for this version; maintained for any future use of LiveTracks')
 		# # NOTE that requests.get can cause a blocking delay; so, do it AFTER spawning the newEntryDialog
 		# # if sarsoft is not running to handle this get request, Windows will complain with nested exceptions:
 		# # ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
@@ -10954,7 +10954,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 				self.throbTimer.stop()
 			# if there is a pending GET request (locator), send it now with the
 			#  specified callsign
-			self.parent.sendPendingGet(self.ui.teamField.text())
+			# self.parent.sendPendingGet(self.ui.teamField.text())
 	##		self.parent.newEntryWindow.ui.tabWidget.removeTab(self.parent.newEntryWindow.ui.tabWidget.indexOf(self))
 	##		self.parent.newEntryWindow.removeTab(self.parent.newEntryWindow.ui.tabWidget.indexOf(self))
 			self.parent.newEntryWindow.removeTab(self)
