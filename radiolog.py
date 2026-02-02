@@ -1714,6 +1714,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		elif self.useOperatorLogin: # this clause will run for continued incidents
 			QTimer.singleShot(1000,self.showLoginDialog)
 		# save current resource file, to capture lastFileName without a clean shutdown
+		# logging.info('calling saveRcFile from init')
 		self.saveRcFile()
 		self.showTeamTabsMoreButtonIfNeeded()
 		self.pendingActivationChange=False
@@ -5178,10 +5179,20 @@ class MyWindow(QDialog,Ui_Dialog):
 				logging.info('ERROR: operatorDict had '+str(len(ods))+' matches; should have exactly one match.  Operator usage will not be updated.')
 			self.saveOperators()
 
+		# cleanShutdownFlag race condition: saveRcFile is called also from within save if
+		#  no entries have been created, but that may not happen until after the
+		#  call to saveRcFile here a few lines farther down.  If saveRcFile from within save
+		#  happens after saveRcFile here, and if it doesn't set cleanShutdownFlag=True,
+		#  then on the next startup radiolog will assume this was an unclean shutdown.
+		# So - just set the instance variable here instead of passing it as an argument, and modify
+		#  _rcSaveWorker to use the instance variable instead of an argument.
+		self.cleanShutdownFlag=True
 		self.save(finalize=True)
 		self.fsSaveLookup()
 		self.fsSaveLog(finalize=True)
-		self.saveRcFile(cleanShutdownFlag=True)
+		# logging.info('calling saveRcFile from closeEvent')
+		# self.saveRcFile(cleanShutdownFlag=True)
+		self.saveRcFile()
 
 		self.teamTimer.stop()
 		if self.firstComPortFound:
@@ -5204,26 +5215,59 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		# check threaded file operation flags; wait a bit to let them all clear before closing;
 		#  we need to do this since they are daemon threads and would otherwise not prevent exit
+		# NOTE: yes, this is important: the rcfile has been repeatedly observed to be left without
+		#  cleanShutdown=True if the rcSave thread is not waited for!
+		fileThreads=[
+			['self.saving','Saving the main radio log'],
+			['self.fsLookupSaving','Saving the FleetSync lookup table'],
+			['self.fsLogSaving','Saving the FleetSync activity log'],
+			['self.rcSaving','Saving the resource file'],
+			['self.operatorsSaving','Saving the operators catalog'],
+			['self.teamNotesSaving','Saving the team notes catalog'],
+			['self.clueReportSaving','Printing a clue report'],
+			['self.clueLogSaving','Printing the clue log'],
+			['self.logPrinting','Printing the main radio log']
+		]
 		waitedSec=0
-		while (self.saving or
-				self.fsLookupSaving or
-				self.fsLogSaving or
-				self.rcSaving or
-				self.operatorsSaving or
-				self.teamNotesSaving or
-				self.clueReportSaving or
-				self.clueLogSaving or
-				self.logPrinting) and waitedSec<10:
-			logging.info('Threaded file save operation(s) still in process; waiting...')
-			time.sleep(1)
-			waitedSec+=1
-			if waitedSec==10:
-				logging.error('File save operation(s) are still in process, but it has been a while; exiting anyway; check the transcript for exceptions')
+		total=-1
+		shuttingDownMsgBox=QMessageBox(QMessageBox.Information,'Shutting Down','RadioLog is shutting down...',
+			QMessageBox.NoButton,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+		# shuttingDownMsgBoxShown=False
+		while total!=0 and waitedSec<10:
+			logMsg='File thread flags still set:'
+			total=0
+			msg=''
+			for thread in fileThreads:
+				if eval(thread[0]):
+					msg+=(f'\n - {thread[1]}')
+					logMsg+=f'  {thread[0]}'
+					total+=1
+			if total>0:
+				logging.info(logMsg)
+				suffix='s' if waitedSec<9 else ''
+				msg=f'RadioLog is shutting down...\n\nWaiting up to {10-waitedSec} more second{suffix}:\n'+msg
+				# logging.info(f'msg:\n{msg}')
+				if shuttingDownMsgBox.isVisible():
+					shuttingDownMsgBox.setText(msg)
+					QApplication.processEvents()
+				else:
+					shuttingDownMsgBox.show()
+					shuttingDownMsgBox.raise_()
+					shuttingDownMsgBox.setStandardButtons(QMessageBox.NoButton)
+					QApplication.processEvents()
+				time.sleep(1)
+				waitedSec+=1
+				if waitedSec==10:
+					logging.error('File save operation(s) are still in process, but it has been a while; exiting anyway; check the transcript for exceptions')
 
 		qApp.quit() # needed to make sure all windows area closed
 
-	def saveRcFile(self,cleanShutdownFlag=False):
-		self.cleanShutdownFlag=cleanShutdownFlag
+	# to avoid cleanShutdownFlag race condition, since this is called from multiple places,
+	#  use the instance variable rather than an argument; see explanation in MyWindow.closeEvent
+	def saveRcFile(self):
+	# def saveRcFile(self,cleanShutdownFlag=False):
+		# logging.info(f'saveRcFile called: cleanShutdownFlag={self.cleanShutdownFlag}')
+		# self.cleanShutdownFlag=cleanShutdownFlag
 		self.rcSaveEvent.set()
 
 	def _rcSaveWorker(self,event):
@@ -5233,6 +5277,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			logging.info('_rcSaveWorker: event received; beginning file save operations...')
 			event.clear()
 
+			# cleanShutdownFlag=self.cleanShutdownFlag
 			(x,y,w,h)=self.geometry().getRect()
 			(cx,cy,cw,ch)=self.clueLogDialog.geometry().getRect()
 			timeout=timeoutDisplayList[self.optionsDialog.ui.timeoutField.value()][0]
@@ -5257,6 +5302,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					rcFile.write(f'timeout={timeout}\n')
 					rcFile.write(f'datum={self.datum}\n')
 					rcFile.write(f'coordFormat={self.coordFormat}\n')
+					# logging.info(f'inside _rcSaveWorker: cleanShutdownFlag={self.cleanShutdownFlag}')
 					if self.cleanShutdownFlag:
 						rcFile.write('cleanShutdown=True\n')
 			except Exception as e:
@@ -5307,6 +5353,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.y=y
 			self.w=w
 			self.h=h
+			# logging.info('calling saveRcFile from checkForResize')
 			self.saveRcFile()
 			self.sidebar.redraw()
 		
@@ -5486,6 +5533,7 @@ class MyWindow(QDialog,Ui_Dialog):
 							csvWriter.writerow(["## end"])
 						if self.lastSavedFileName!=self.csvFileName: # this is the first save since startup, since restore, or since incident name change
 							self.lastSavedFileName=self.csvFileName
+							# logging.info(f'calling saveRcFile from _saveWorker: lastSavedFileName={self.lastSavedFileName}')
 							self.saveRcFile()
 					# logging.info("  done writing "+fileName)
 				# if clue count has increased, write the clue log to a separate csv file: same filename appended by '.clueLog'
@@ -5786,6 +5834,7 @@ class MyWindow(QDialog,Ui_Dialog):
 			i=i+1
 			progressBox.setValue(i)
 			logging.info('  t13')
+			# logging.info('calling saveRcFile from load')
 			self.saveRcFile()
 			i=i+1
 			progressBox.setValue(i)
@@ -7492,6 +7541,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.updateFileNames()
 		self.fsSaveLookup()
 		self.save()
+		# logging.info('calling saveRcFile from restore')
 		self.saveRcFile()
 
 	def resizeEvent(self,e):
@@ -8831,6 +8881,7 @@ class optionsDialog(QDialog,Ui_optionsDialog):
 		# only save the rc file when the options dialog is accepted interactively;
 		#  saving from self.optionsAccepted causes errors because that function
 		#  is called during init, before the values are ready to save
+		# logging.info('calling saveRcFile from optionsDialog.accept')
 		self.parent.saveRcFile()
 		if self.ui.caltopoGroupBox.isChecked() and self.parent.caltopoLink==1:
 			# box=QMessageBox(QMessageBox.Warning,"No map has been opeend","Did you mean to open a map before closing the Options dialog?",
