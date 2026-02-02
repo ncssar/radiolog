@@ -1478,6 +1478,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.tableView.resizeRowsToContents()
 
 		self.sel=''
+		self.dontExit=False # only used when 'Cancel (Don't Exit)' is clicked in Print dialog when about to exit
 		
 		self.ui.tableView.setContextMenuPolicy(Qt.CustomContextMenu)
 		# self.ui.tableView.customContextMenuRequested.connect(self.tableContextMenu)
@@ -5136,10 +5137,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		# logging.info('closeEvent called.  radioLogNeedsPrint='+str(self.radioLogNeedsPrint)+'  clueLogNeedsPrint='+str(self.clueLogNeedsPrint))
 		self.exitClicked=True
 		msg=''
+		bypassReally=False # if 'Print and Exit' is clicked in the Print dialog, there's no need for another confirmation
 		# if radioLogNeedsPrint or clueLogNeedsPrint is True, bring up the print dialog
 		if self.radioLogNeedsPrint or self.clueLogNeedsPrint:
 			logging.info("needs print!")
-			self.printDialog.exec_()
+			bypassReally=self.printDialog.exec_()
+			logging.info(f'response from print dialog:{bypassReally}')
+			if self.dontExit: # 'Cancel (Don't Exit)' button clicked in the print dialog
+				self.dontExit=False # reset for next time
+				logging.info("Cancel (Don't Exit) clicked from print dialog; aborting closeEvent")
+				event.ignore()
+				self.exitClicked=False
+				return
 			# logging.info('-->inside closeEvent, after printDialog exec: radioLogNeedsPrint='+str(self.radioLogNeedsPrint)+'  clueLogNeedsPrint='+str(self.clueLogNeedsPrint))
 			if self.radioLogNeedsPrint or self.clueLogNeedsPrint:
 				msg='\n\n(There is unprinted data.)'
@@ -5149,17 +5158,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		# note, this type of messagebox is needed to show above all other dialogs for this application,
 		#  even the ones that have WindowStaysOnTopHint.  This works in Vista 32 home basic.
 		#  if it didn't show up on top, then, there would be no way to close the radiolog other than kill.
-		really=QMessageBox(QMessageBox.Warning,"Please Confirm","Exit the Radio Log program?"+msg,
-			QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
-		really.setDefaultButton(QMessageBox.No)
-		# really.setFont(self.messageBoxFont)
-		# really.font().setPointSize(32)
-		really.show()
-		really.raise_()
-		if really.exec_()==QMessageBox.No:
-			event.ignore()
-			self.exitClicked=False
-			return
+		if not bypassReally:
+			really=QMessageBox(QMessageBox.Warning,"Please Confirm","Exit the Radio Log program?"+msg,
+				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			really.setDefaultButton(QMessageBox.No)
+			# really.setFont(self.messageBoxFont)
+			# really.font().setPointSize(32)
+			really.show()
+			really.raise_()
+			if really.exec_()==QMessageBox.No:
+				event.ignore()
+				self.exitClicked=False
+				return
 
 		# update the usage dictionaries
 		if self.useOperatorLogin:
@@ -5231,7 +5241,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		]
 		waitedSec=0
 		total=-1
-		shuttingDownMsgBox=QMessageBox(QMessageBox.Information,'Shutting Down','RadioLog is shutting down...',
+		prefix='Print job(s) submitted.\n\n' if bypassReally else ''
+		shuttingDownMsgBox=QMessageBox(QMessageBox.Information,'Shutting Down',prefix+'RadioLog is shutting down...',
 			QMessageBox.NoButton,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 		# shuttingDownMsgBoxShown=False
 		while total!=0 and waitedSec<10:
@@ -5261,6 +5272,8 @@ class MyWindow(QDialog,Ui_Dialog):
 				if waitedSec==10:
 					logging.error('File save operation(s) are still in process, but it has been a while; exiting anyway; check the transcript for exceptions')
 
+		if waitedSec<3:
+			time.sleep(2) # just for aesthetics, so the operator has a chance to look at the final message box
 		qApp.quit() # needed to make sure all windows area closed
 
 	# to avoid cleanShutdownFlag race condition, since this is called from multiple places,
@@ -9957,9 +9970,13 @@ class printDialog(QDialog,Ui_printDialog):
 		logging.info("teamNameList:"+str(self.parent.teamNameList))
 		logging.info("allTeamsList:"+str(self.parent.allTeamsList))
 		if self.parent.exitClicked:
-			self.ui.buttonBox.button(QDialogButtonBox.Ok).setText("Print")
+			self.ui.label.setText('Exiting: Select Items to Print')
+			self.ui.cancelButton.setVisible(True)
+			self.ui.buttonBox.button(QDialogButtonBox.Ok).setText("Print and Exit")
 			self.ui.buttonBox.button(QDialogButtonBox.Cancel).setText("Exit without printing")
 		else:
+			self.ui.label.setText('Select Items to Print')
+			self.ui.cancelButton.setVisible(False)
 			self.ui.buttonBox.button(QDialogButtonBox.Ok).setText("Ok")
 			self.ui.buttonBox.button(QDialogButtonBox.Cancel).setText("Cancel")
 		if len(self.parent.clueLog)>0:
@@ -9986,6 +10003,10 @@ class printDialog(QDialog,Ui_printDialog):
 # 		logging.info("  printDialog.accept.end.trace1")
 		super(printDialog,self).accept()
 # 		logging.info("  printDialog.accept.end.trace2")
+
+	def dontExitClicked(self):
+		self.parent.dontExit=True
+		self.close()
 
 	def toggleShow(self):
 		if self.isVisible():
