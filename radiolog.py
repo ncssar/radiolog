@@ -7815,6 +7815,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		# THREAD WARNING: this function is probably not running in the main thread, since it's a callback in _sendRequest;
 		#  don't do any GUI calls here
 		# logging.info('back to life from createCTS')
+		while self.newEntryWindow.isVisible():
+			time.sleep(1)
 		self._sig_caltopoReconnectedFromCreateCTS.emit()
 		# logging.info('btl c0')
 
