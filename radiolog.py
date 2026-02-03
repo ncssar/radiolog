@@ -6040,17 +6040,11 @@ class MyWindow(QDialog,Ui_Dialog):
 			# logging.info('fleet='+str(fleet)+'  dev='+str(dev)+'  fsLog:')
 			# logging.info(str(self.fsLog))
 			# i[7] = total call count; i[6] = mic bump count; we want to look at the total non-bump count, i[7]-i[6]
-			#761 - allow for the case when there is no log entry at all for this device, due to sequence changes in #722
-			matchingLogRows=[]
-			if fleet and dev: # fleetsync
-				matchingLogRows=[i for i in self.fsLog if i[0]==str(fleet) and i[1]==str(dev)]
-			elif dev and not fleet: # NXDN
-				matchingLogRows=[i for i in self.fsLog if i[0]=='' and i[1]==str(dev)]
-			if not matchingLogRows or len([i for i in matchingLogRows if i[7]-i[6]<2])>0:
-			# if (fleet and dev and len([i for i in self.fsLog if i[0]==str(fleet) and i[1]==str(dev) and (i[7]-i[6])<2])>0) or \
-			#      (dev and not fleet and len([i for i in self.fsLog if i[0]=='' and i[1]==str(dev) and (i[7]-i[6])<2])>0) : # this is the device's first non-mic-bump call
-				logging.info('First non-mic-bump call from this device.')
-				self.newEntryWidget.firstNonMicBumpCall=True
+			# #761 - allow for the case when there is no log entry at all for this device, due to sequence changes in #722
+
+			# moved the firstNonMicBumpCall earlier, inside newEntryWidget.__init__,
+			#  to prevent blue change-callsign slider on first call from new device with pendingActivationChange
+			if self.newEntryWidget.firstNonMicBumpCall:
 				rval='+CCD'
 				if self.isInCCD1List(callsign):
 					logging.info('Setting needsChangeCallsign since this is the first call from the device and the beginning of its default callsign "'+callsign+'" is specified in CCD1List')
@@ -10374,13 +10368,25 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.formattedLocString=formattedLocString
 		self.origLocString=origLocString
 		self.fleet=fleet
-		self.needsChangeCallsign=False # can be set to True by openNewEntry
-		self.firstNonMicBumpCall=False # can be set to True by openNewEntry, and is never cleared for this widget; determines green-vs-blue callsign change slider
 		self.dev=dev
 		self.parent=parent
 		self.isMostRecentForCallsign=isMostRecentForCallsign
 		self.insideQuickText=False
 		self.prevActionWasQuickText=False
+		self.needsChangeCallsign=False # can be set to True by openNewEntry
+
+		# determine whether this is the first non-mic-bump call from this device as early as possible,
+		#  which will determine blue-vs-green change-callsign-slider
+		self.firstNonMicBumpCall=False
+		matchingLogRows=[]
+		if fleet and dev: # fleetsync
+			matchingLogRows=[i for i in self.parent.fsLog if i[0]==str(fleet) and i[1]==str(dev)]
+		elif dev and not fleet: # NXDN
+			matchingLogRows=[i for i in self.parent.fsLog if i[0]=='' and i[1]==str(dev)]
+		if not matchingLogRows or len([i for i in matchingLogRows if i[7]-i[6]<2])>0:
+			self.firstNonMicBumpCall=True
+			logging.info('First non-mic-bump call from this device.')
+
 		self.newCallsignFromCCD=None
 		if fleet:
 			self.originalCallsign=parent.getCallsign(fleet,dev)
@@ -10412,7 +10418,7 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 		self.firstCallGroupAnimation.setDuration(150)
 
 		self.callsignGroupBoxShown='init' # to force 'none' to hide the group boxes on this first call
-		self.callsignGroupBoxesShowHide(show='none',animate=False,source='from init')
+		self.callsignGroupBoxesShowHide(show='none',animate=False,source='from newEntryWidget init')
 
 		self.setAttribute(Qt.WA_DeleteOnClose) # so that closeEvent gets called when closed by GUI
 		self.palette=QPalette()
@@ -11015,10 +11021,11 @@ class newEntryWidget(QWidget,Ui_newEntryWidget):
 ##			tmpTxt="New Entry"
 ##		self.setWindowTitle("Radio Log - "+tmpTxt+" - "+self.ui.to_fromField.currentText()+" "+self.ui.teamField.text())
 
-	def teamFieldTextChanged(self):
+	def teamFieldTextChanged(self,newText=''):
+		# logging.info(f'teamFieldTextChanged: currently:"{self.ui.teamField.text()}" new:"{newText}"')
 		if self.dev: # this code is only needed for fleetsync / nexedge calls
 			flag=bool(self.dev and self.ui.teamField.text()!=self.originalCallsign) or self.parent.pendingActivationChange # dev could be None, so, convert to False
-			logging.info('team field text changed: change needed = '+str(flag))
+			# logging.info(f'team field text changed: dev={self.dev}  orig={self.originalCallsign}  pendingActivationChange={self.parent.pendingActivationChange}  -->  change needed={flag}')
 			self.needsChangeCallsign=flag
 			if flag:
 				uid=None
