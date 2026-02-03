@@ -338,6 +338,8 @@ from difflib import SequenceMatcher
 from caltopo_python import CaltopoSession
 from pyqtspinner import WaitingSpinner
 
+from PyQt5 import QtGui
+
 __version__ = "3.14.0"
 
 # json dump, shortened to n lines
@@ -864,6 +866,7 @@ from ui.loginDialog_ui import Ui_loginDialog
 from ui.teamTabsPopup_ui import Ui_teamTabsPopup
 from ui.findDialog_ui import Ui_findDialog
 from ui.teamNotesDialog_ui import Ui_teamNotesDialog
+from ui.splash_ui import Ui_splash
 
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
@@ -970,6 +973,13 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def __init__(self,parent):
 		QDialog.__init__(self)
+		QApplication.processEvents()
+		self.splash=Splash(self)
+		QApplication.processEvents()
+		self.splash.show()
+		self.splash.raise_()
+		QApplication.processEvents()
+		time.sleep(2)
 		self.newWorkingDir=False # is this the first time using a newly created working dir?  (if so, suppress some warnings)
 		msg='RadioLog '+str(__version__)
 		self.firstWorkingDir=os.path.join(os.getenv('HOMEPATH','C:\\Users\\Default'),'RadioLog')
@@ -1279,7 +1289,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		#    - set the next clue number to one more than the latest clue number in the previous CSV
 		#       (with a reminder that clue# can be changed in the clue dialog the next time it is raised)
 
-		if not restoreFlag:
+		if restoreFlag:
+			self.splash.close()
+		else:
 			self.checkForContinuedIncident()
 
 		if self.isContinuedIncident:
@@ -1758,6 +1770,10 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.openMapThread=caltopoOpenMapThread(self)
 		self.openMapThread.finished.connect(self.openMapCB)
 
+		self.updateAvailableText=''
+		self.latestReleaseRj={}
+		self.checkForNewVersion()
+
 	def clearSelectionAllTables(self):
 		self.ui.tableView.setCurrentIndex(QModelIndex())
 		self.ui.tableView.clearFocus() # to get rid of dotted focus box around cell 0,0
@@ -1765,6 +1781,40 @@ class MyWindow(QDialog,Ui_Dialog):
 			if not isinstance(teamTable,str): # 'dummy' is the default initial entry
 				teamTable.setCurrentIndex(QModelIndex())
 				teamTable.clearFocus()
+
+	def checkForNewVersion(self):
+		# this is low priority, so it needs to be a non-blocking request (in a thread with a callback)
+		try:
+			logging.info('Checking for new version...')
+			r=requests.get('https://api.github.com/repos/ncssar/radiolog/releases/latest')
+			if r.status_code==200:
+				self.latestReleaseRj=r.json()
+				# logging.info(f'  latest release response:\n{json.dumps(rj,indent=3)}')
+				(latestMajor,latestMinor,latestPatch)=(0,0,0)
+				(currentMajor,currentMinor,currentPatch)=(0,0,0)
+				try:
+					latestName=rj.get('name')
+					(latestMajor,latestMinor,latestPatch)=latestName.split('.')
+				except Exception as e:
+					logging.error(f'  Could not parse latest version name "{latestName}"')
+					return
+				try:
+					(currentMajor,currentMinor,currentPatch)=__version__.split('.')
+				except Exception as e:
+					logging.error(f'  Could not parse current version name "{__version__}"')
+					return
+				update=''
+				if latestPatch>currentPatch:
+					update='Patch'
+				if latestMinor>currentMinor:
+					update='Minor'
+				if latestMajor>currentMajor:
+					update='Major'
+				if update:
+					self.updateAvailableText=f'{update} update is available:  Current={__version__}  Latest={latestName}'
+					logging.info(self.updateAvailableText)
+		except Exception as e:
+			logging.error(f'  Could not check for new version: {e}')
 
 	def getSessions(self,sort='chronological',reverse=False,omitCurrentSession=False,fromCsvFile=None,maxFilesToCheck=999):
 		if fromCsvFile:
@@ -1940,6 +1990,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					logging.info(f'  not listing {incidentName} OP {lastOP} ({filenameBase}) since OP {opd.get(incidentName,0)} is already listed')
 			else:
 				break
+		self.splash.close()
 		if choices:
 			logging.info('radiolog sessions from the last '+str(continuedIncidentWindowDays)+' days:')
 			logging.info(' (hiding empty sessions; only showing the most recent session of continued incidents)')
@@ -5250,7 +5301,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		waitedSec=0
 		total=-1
 		prefix='Print job(s) submitted.\n\n' if bypassReally else ''
-		shuttingDownMsgBox=QMessageBox(QMessageBox.Information,'Shutting Down',prefix+'RadioLog is shutting down...',
+		shuttingDownMsgBox=QMessageBox(QMessageBox.NoIcon,'Shutting Down',prefix+'RadioLog is shutting down...',
 			QMessageBox.NoButton,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 		# shuttingDownMsgBoxShown=False
 		while total!=0 and waitedSec<10:
@@ -8061,6 +8112,16 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.optionsDialog.ui.caltopoLinkIndicator.setStyleSheet(ss)
 		self.ui.caltopoLinkIndicator.setStyleSheet(ss)
 		self.ui.caltopoLinkIndicator.setText(t)
+
+
+class Splash(QDialog,Ui_splash):
+	def __init__(self,parent):
+		QDialog.__init__(self)
+		self.ui=Ui_splash()
+		self.ui.setupUi(self)
+		self.ui.currentVersionLabel.setText(str(__version__))
+		self.ui.newVersionLabel.setText('')
+		self.ui.newVersionFooterLabel.setText('')
 
 
 class helpWindow(QDialog,Ui_Help):
