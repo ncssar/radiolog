@@ -3135,6 +3135,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					d['lon']=lon
 					d['lastId']=None # flag to tell _radioMarkerWorker to update this device's marker
 					d['label']=label
+					logging.info(f'  location update: {label} {latestTimeString} lon={lon} lat={lat}')
 				else: # latitude not specified: it's not a new call - must be callsign change from already-open NED
 					lat=d.get('lat',None)
 					lon=d.get('lon',None)
@@ -3155,6 +3156,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					# 'folderId': None, # changed once the folder has been created
 					'history':[]
 				}
+				logging.info(f'  new entry added: {label} {latestTimeString} lon={lon} lat={lat}')
 				if not lat or not lon:
 					# no lat or lon, and also no radioMarkerDict entry:
 					#  this is the case for label-change requests while disconnected,
@@ -3235,150 +3237,156 @@ class MyWindow(QDialog,Ui_Dialog):
 			event.wait()
 			logging.info('  _radioMarkerWorker: event received, processing begins...')
 			event.clear()
-			# #811 - refresh now, in case anything was deleted since the last regular sync;
-			#  to get the tightest correllation i.e. the most confidence that the cache is up to date,
-			#  we would need to refresh immediately before each call to getOrCreateRadioMarkerFID,
-			#  but just one refresh per event should be plenty.  This wil be a blocking refresh, but this is already
-			#  inside radioMarkerThread so it shouldn't affect main thread performance.
-			self.cts._refresh(forceImmediate=True) # in case anything was deleted since the last regular sync
-			with self.radioMarkerDictLock:
-				for (deviceStr,d) in self.radioMarkerDict.items(): # as long as we only read radioMarkerDict, there should be no need for a lock
-					# (caltopoId,lastId,label,latestTimeString,lat,lon,folderId)=(d.get(key,None) for key in ['caltopoId','lastId','label','latestTimeString','lat','lon','folderId'])
-					(caltopoId,lastId,label,latestTimeString,lat,lon)=(d.get(key,None) for key in ['caltopoId','lastId','label','latestTimeString','lat','lon'])
-					if lastId is None and lat is not None: # only process devices with coordinates whose lastId has been cleared by sendRadioMarker
-						# qe=self.radioMarkerQueue.get() # pop an item from the queue for processing; don't move past this iteration until marker request is sent to a writable map
-						try:
-							# if not self.pendingRadioMarkerArgs:
-							# 	logging.info('WARNING: radioMarkerEvent received, but argument variables are empty; continuing')
-							# 	continue
-							# (fleet,dev,uid,callsign)=self.pendingRadioMarkerArgs
-							# lat=self.pendingRadioMarkerKwArgs['lat']
-							# lon=self.pendingRadioMarkerKwArgs['lon']
-							# timeStr=self.pendingRadioMarkerKwArgs['timeStr']
-							# label=self.pendingRadioMarkerKwArgs['label']
-							# with self.pendingRadioMarkerArgsLock:
-							# 	self.pendingRadioMarkerArgs=None
-							# 	self.pendingRadioMarkerKwArgs=None
-							logging.info(f'processing marker: caltopoId={caltopoId} lastId={lastId} label={label} latestTimeString={latestTimeString} lat={lat} lon={lon}')
-							# mimic the old 'Locator Group' behavior:
-							# - create a 'Radios' folder on the first call to this function; place markers in that folder
-							# - if a marker for the callsign already exists, move it (and update the time)
-							# - if a marker for the callsign does not yet exist, add one (with updated time)
-							# - one marker per device (as opposed to one marker per callsign)
-							#  - there could be multiple markers (multiple devices) with the same callsign
 
-							# questions:
-							# - should radio markers be deleted at any point?
-							# - should radio marker colors be changed, as a function of team status, or time since last call?
+			try:
+				# #811 - refresh now, in case anything was deleted since the last regular sync;
+				#  to get the tightest correllation i.e. the most confidence that the cache is up to date,
+				#  we would need to refresh immediately before each call to getOrCreateRadioMarkerFID,
+				#  but just one refresh per event should be plenty.  This wil be a blocking refresh, but this is already
+				#  inside radioMarkerThread so it shouldn't affect main thread performance.
+				self.cts._refresh(forceImmediate=True) # in case anything was deleted since the last regular sync
+				with self.radioMarkerDictLock:
+					for (deviceStr,d) in self.radioMarkerDict.items(): # as long as we only read radioMarkerDict, there should be no need for a lock
+						# (caltopoId,lastId,label,latestTimeString,lat,lon,folderId)=(d.get(key,None) for key in ['caltopoId','lastId','label','latestTimeString','lat','lon','folderId'])
+						(caltopoId,lastId,label,latestTimeString,lat,lon)=(d.get(key,None) for key in ['caltopoId','lastId','label','latestTimeString','lat','lon'])
+						if lastId is None and lat is not None: # only process devices with coordinates whose lastId has been cleared by sendRadioMarker
+							# qe=self.radioMarkerQueue.get() # pop an item from the queue for processing; don't move past this iteration until marker request is sent to a writable map
+							try:
+								# if not self.pendingRadioMarkerArgs:
+								# 	logging.info('WARNING: radioMarkerEvent received, but argument variables are empty; continuing')
+								# 	continue
+								# (fleet,dev,uid,callsign)=self.pendingRadioMarkerArgs
+								# lat=self.pendingRadioMarkerKwArgs['lat']
+								# lon=self.pendingRadioMarkerKwArgs['lon']
+								# timeStr=self.pendingRadioMarkerKwArgs['timeStr']
+								# label=self.pendingRadioMarkerKwArgs['label']
+								# with self.pendingRadioMarkerArgsLock:
+								# 	self.pendingRadioMarkerArgs=None
+								# 	self.pendingRadioMarkerKwArgs=None
+								logging.info(f'processing marker: caltopoId={caltopoId} lastId={lastId} label={label} latestTimeString={latestTimeString} lat={lat} lon={lon}')
+								# mimic the old 'Locator Group' behavior:
+								# - create a 'Radios' folder on the first call to this function; place markers in that folder
+								# - if a marker for the callsign already exists, move it (and update the time)
+								# - if a marker for the callsign does not yet exist, add one (with updated time)
+								# - one marker per device (as opposed to one marker per callsign)
+								#  - there could be multiple markers (multiple devices) with the same callsign
 
-							# self.radioMarkerDict - keys are device strings ('<fleet>:<device>' or '<NXDN UID>'),
-							#	values are dicts with the following keys:
-							#  - caltopoID - caltopo feature ID of this device's caltopo marker, if any
-							#  - label
-							#  - latestTimeString
-							#  - lat
-							#  - lon
-							#  - history - list of lists, each one being a call from that device (oldest first): [timeStr,label,lat,lon]
+								# questions:
+								# - should radio markers be deleted at any point?
+								# - should radio marker colors be changed, as a function of team status, or time since last call?
 
-							# self.radioMarkerDict entries must have all the info needed for createCTS to add deferred markers,
-							#  i.e. if incoming GPS data was stored before the CTS session was created, or during lost connection
+								# self.radioMarkerDict - keys are device strings ('<fleet>:<device>' or '<NXDN UID>'),
+								#	values are dicts with the following keys:
+								#  - caltopoID - caltopo feature ID of this device's caltopo marker, if any
+								#  - label
+								#  - latestTimeString
+								#  - lat
+								#  - lon
+								#  - history - list of lists, each one being a call from that device (oldest first): [timeStr,label,lat,lon]
 
-							# if uid:
-							# 	deviceStr=str(uid)
-							# else:
-							# 	deviceStr=str(fleet)+':'+str(dev)
-							# d=self.radioMarkerDict.get(deviceStr,None) # should already be populated by this time
-						# 'caltopoId': None, # only set caltopoId if this is the first successful request
-						# 'lastId': None,  # changed on every request: '' = fail on last attempt, real ID = success on last attempt
-						# 'label': label,
-						# 'latestTimeString': latestTimeString,
-						# 'lat': lat,
-						# 'lon': lon,
-						# 'history':[]
-							# (caltopoId,lastId,label,latestTimeString,lat,lon,history)=(d.get(key,None) for key in ['caltopoId','lastId','label','latestTimeString','lat','lon','history'])
-							# existingId=d.get('existingId',None)
-							# logging.info(f'deviceStr={deviceStr}  existingId={existingId}')
-							id='' # initialize here so that entry can be saved before cts exists
-							existingId=caltopoId # preserve caltopoID if already set
-							# label=self.getRadioMarkerLabelForCallsign(callsign)
-							r=False
-							if self.cts and self.caltopoLink in [-1,2]: # -1 = unexpected disconnect; 2 = connected to open map
-								self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
-								# since this is in a separate thread, we can do a wait loop until the folder ID is not None
-								# while self.caltopoLink==2 and self.radioMarkerFID is None:
+								# self.radioMarkerDict entries must have all the info needed for createCTS to add deferred markers,
+								#  i.e. if incoming GPS data was stored before the CTS session was created, or during lost connection
 
-								# this sleep causes the GUI to freeze.  Can't figure out why.  Google AI overview seems to think
-								#  the GIL may not be getting released correctly, but even if that's true, there's no way to
-								#  directly control it.  So: find another way to wait until the folder exists before adding markers.
-								# while self.radioMarkerFID is None: # this could be waiting a LONG time e.g. if disconnected
-								# 	logging.info('  waiting for radioMarkerFID...')
-								# 	time.sleep(1)
+								# if uid:
+								# 	deviceStr=str(uid)
+								# else:
+								# 	deviceStr=str(fleet)+':'+str(dev)
+								# d=self.radioMarkerDict.get(deviceStr,None) # should already be populated by this time
+							# 'caltopoId': None, # only set caltopoId if this is the first successful request
+							# 'lastId': None,  # changed on every request: '' = fail on last attempt, real ID = success on last attempt
+							# 'label': label,
+							# 'latestTimeString': latestTimeString,
+							# 'lat': lat,
+							# 'lon': lon,
+							# 'history':[]
+								# (caltopoId,lastId,label,latestTimeString,lat,lon,history)=(d.get(key,None) for key in ['caltopoId','lastId','label','latestTimeString','lat','lon','history'])
+								# existingId=d.get('existingId',None)
+								# logging.info(f'deviceStr={deviceStr}  existingId={existingId}')
+								id='' # initialize here so that entry can be saved before cts exists
+								existingId=caltopoId # preserve caltopoID if already set
+								# label=self.getRadioMarkerLabelForCallsign(callsign)
+								r=False
+								if self.cts and self.caltopoLink in [-1,2]: # -1 = unexpected disconnect; 2 = connected to open map
+									self.radioMarkerFID=self.getOrCreateRadioMarkerFID()
+									# since this is in a separate thread, we can do a wait loop until the folder ID is not None
+									# while self.caltopoLink==2 and self.radioMarkerFID is None:
 
-								# removal of radioMarkerQueue - and simple reliance on just looking in radioMarkerDict -
-								#  means that we don't need to wait inside this loop for radioMarkerFID to exist - we can
-								#  just exit the loop using 'continue'; simply don't create any markers until the Radios folder exists
-								if not self.radioMarkerFID:
-									logging.warning('Radios folder does not exist yet; not creating any radio markers for now...')
-									continue
-								try:
-									# logging.info('  addMarker:  label='+str(label)+'  folderId='+str(self.radioMarkerFID))
-									logging.info(f'  addMarker:  label={label}')
-									# radioMarkerFID will probably still be None if the Radios folder was created in the previous lines,
-									#  since that request is in a different thread and radioMarkerFID isn't set until its callback is triggered.
-									# options:
-									#  - wait to call addMarker until radioMarkerFID is not None
-									#      NOTE: to avoid main thread delay, this would require putting sendRadioMarker in a separate thread,
-									#       which would probably be a good idea anyway to ensure radiolog usage is not delayed by caltopo integration
-									#  - for any markers created woth fid=None, edit them later to set the fid
-									#  - add an argument to add<Class> calls in caltopo_python that would wait to build the request until a certain flag is set
-									#  - place the entire addMarker call in the callback of the addFolder call
-									callbacks=[[self.handleRadioMarkerResponse,[],{
-										'deviceStr':deviceStr,
-										# 'lat':lat,
-										# 'lon':lon,
-										# 'label':label,
-										# 'latestTimeString':latestTimeString,
-										'id':'.result.id', # will be equal to existingId on subsequent updates
-										# 'existingId':existingId, # will be None on first call from a device
-										# 'radioMarkerFID':self.radioMarkerFID # record radioMarkerFID at enqueue-time
-									}]]
-									description=latestTimeString+'  ['+deviceStr+']'
-									color='#ff0000'
-									if latestTimeString.endswith(' bump'):
-										description=latestTimeString[:-5]+'  ['+deviceStr+'] b'
-										color='#888888'
-									if existingId: # update an existing marker
-										r=self.cts.editFeature(
-												id=existingId,
-												title=label,
-												folderId=self.radioMarkerFID, # in case a marker was moved to a different folder
-												# className='Marker',
-												geometry={'coordinates':[lon,lat,0,0]},
-												properties={'description':description,'marker-color':color},
-												callbacks=callbacks)
-									else: # create a new marker
-										r=self.cts.addMarker(lat,lon,label,description,
-							   					color=color,
-												folderId=self.radioMarkerFID,
-												# existingId=existingId,
-												# deferredHook=self.radioMarkerDeferredHook,
-												callbacks=callbacks)
-								except Exception as e:
-									logging.info('Exception during addMarker:'+str(e))
-								# add or update the dict entry here, with enough detail for createSTS to add any deferred markers
-								if r==True:
-									logging.info('  marker request queued successfully')
-									# if not existingId:
-									# 	newId=id # only set caltopoId if this is the first successful request
+									# this sleep causes the GUI to freeze.  Can't figure out why.  Google AI overview seems to think
+									#  the GIL may not be getting released correctly, but even if that's true, there's no way to
+									#  directly control it.  So: find another way to wait until the folder exists before adding markers.
+									# while self.radioMarkerFID is None: # this could be waiting a LONG time e.g. if disconnected
+									# 	logging.info('  waiting for radioMarkerFID...')
+									# 	time.sleep(1)
+
+									# removal of radioMarkerQueue - and simple reliance on just looking in radioMarkerDict -
+									#  means that we don't need to wait inside this loop for radioMarkerFID to exist - we can
+									#  just exit the loop using 'continue'; simply don't create any markers until the Radios folder exists
+									if not self.radioMarkerFID:
+										logging.warning('Radios folder does not exist yet; not creating any radio markers for now...')
+										continue
+									try:
+										# logging.info('  addMarker:  label='+str(label)+'  folderId='+str(self.radioMarkerFID))
+										logging.info(f'  addMarker:  label={label}')
+										# radioMarkerFID will probably still be None if the Radios folder was created in the previous lines,
+										#  since that request is in a different thread and radioMarkerFID isn't set until its callback is triggered.
+										# options:
+										#  - wait to call addMarker until radioMarkerFID is not None
+										#      NOTE: to avoid main thread delay, this would require putting sendRadioMarker in a separate thread,
+										#       which would probably be a good idea anyway to ensure radiolog usage is not delayed by caltopo integration
+										#  - for any markers created woth fid=None, edit them later to set the fid
+										#  - add an argument to add<Class> calls in caltopo_python that would wait to build the request until a certain flag is set
+										#  - place the entire addMarker call in the callback of the addFolder call
+										callbacks=[[self.handleRadioMarkerResponse,[],{
+											'deviceStr':deviceStr,
+											# 'lat':lat,
+											# 'lon':lon,
+											# 'label':label,
+											# 'latestTimeString':latestTimeString,
+											'id':'.result.id', # will be equal to existingId on subsequent updates
+											# 'existingId':existingId, # will be None on first call from a device
+											# 'radioMarkerFID':self.radioMarkerFID # record radioMarkerFID at enqueue-time
+										}]]
+										description=latestTimeString+'  ['+deviceStr+']'
+										color='#ff0000'
+										if latestTimeString.endswith(' bump'):
+											description=latestTimeString[:-5]+'  ['+deviceStr+'] b'
+											color='#888888'
+										if existingId: # update an existing marker
+											r=self.cts.editFeature(
+													id=existingId,
+													title=label,
+													folderId=self.radioMarkerFID, # in case a marker was moved to a different folder
+													# className='Marker',
+													geometry={'coordinates':[lon,lat,0,0]},
+													properties={'description':description,'marker-color':color},
+													callbacks=callbacks)
+										else: # create a new marker
+											r=self.cts.addMarker(lat,lon,label,description,
+													color=color,
+													folderId=self.radioMarkerFID,
+													# existingId=existingId,
+													# deferredHook=self.radioMarkerDeferredHook,
+													callbacks=callbacks)
+									except Exception as e:
+										logging.info('Exception during addMarker:'+str(e))
+									# add or update the dict entry here, with enough detail for createSTS to add any deferred markers
+									if r==True:
+										logging.info('  marker request queued successfully')
+										# if not existingId:
+										# 	newId=id # only set caltopoId if this is the first successful request
+									else:
+										logging.info('  marker request failed: cts='+str(self.cts)+'  caltopoLink='+str(self.caltopoLink))
 								else:
-									logging.info('  marker request failed: cts='+str(self.cts)+'  caltopoLink='+str(self.caltopoLink))
-							else:
-								logging.info('  not currently connected to an open writable map; skipping for now')
-						except Exception as e:
-							logging.info('error: exception during radioMarkerWorker: '+str(e))
-						# finally:
-						# 	logging.info('radioMarkerQueue.task_done')
-						# 	self.radioMarkerQueue.task_done()
+									logging.info('  not currently connected to an open writable map; skipping for now')
+							except Exception as e:
+								logging.info('error: exception during radioMarkerWorker: '+str(e))
+							# finally:
+							# 	logging.info('radioMarkerQueue.task_done')
+							# 	self.radioMarkerQueue.task_done()
+			except Exception as e:
+				logging.error(f'_radioMarkerWorker: outer exception caught in order to keep the thread alive: {e}')
+			# finally: # cleanup even if there was an early exit
+			# 	pass
 
 	def handleRadioMarkerResponse(self,**kwargs):
 		# note that kwargs is now a dict, to be referenced as such
