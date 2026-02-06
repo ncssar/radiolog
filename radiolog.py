@@ -1787,7 +1787,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		# this is low priority, so it needs to be a non-blocking request (in a thread with a callback)
 		try:
 			logging.info('Checking for new version...')
-			r=requests.get('https://api.github.com/repos/ncssar/radiolog/releases/latest')
+			r=requests.get('https://api.github.com/repos/ncssar/radiolog/releases/latest',timeout=2)
 			if r.status_code==200:
 				self.latestReleaseRj=r.json()
 				# logging.info(f'  latest release response:\n{json.dumps(rj,indent=3)}')
@@ -7887,6 +7887,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		while self.newEntryWindow.isVisible():
 			time.sleep(1)
 		self._sig_caltopoReconnectedFromCreateCTS.emit()
+		self.checkForNewVersion() # if check wasn't possible at startup, try to check on reconnect so that shutdown update dialog still shows if needed
 		# logging.info('btl c0')
 
 	def caltopoReconnectedFromCreateCTS_mainThread(self):
