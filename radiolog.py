@@ -338,6 +338,8 @@ from difflib import SequenceMatcher
 from caltopo_python import CaltopoSession
 from pyqtspinner import WaitingSpinner
 
+from PyQt5 import QtGui
+
 __version__ = "3.14.0"
 
 # json dump, shortened to n lines
@@ -864,6 +866,7 @@ from ui.loginDialog_ui import Ui_loginDialog
 from ui.teamTabsPopup_ui import Ui_teamTabsPopup
 from ui.findDialog_ui import Ui_findDialog
 from ui.teamNotesDialog_ui import Ui_teamNotesDialog
+from ui.splash_ui import Ui_splash
 
 # function to replace only the rightmost <occurrence> occurrences of <old> in <s> with <new>
 # used by the undo function when adding new entry text
@@ -970,6 +973,18 @@ class MyWindow(QDialog,Ui_Dialog):
 
 	def __init__(self,parent):
 		QDialog.__init__(self)
+		QApplication.processEvents()
+		self.splash=Splash(self)
+		self.updateAvailableText=''
+		self.latestReleaseRj={}
+		self.checkForNewVersion()
+		QApplication.processEvents()
+		self.splash.show()
+		self.splash.raise_()
+		QApplication.processEvents()
+		time.sleep(2)
+		if self.updateAvailableText:
+			time.sleep(2)
 		self.newWorkingDir=False # is this the first time using a newly created working dir?  (if so, suppress some warnings)
 		msg='RadioLog '+str(__version__)
 		self.firstWorkingDir=os.path.join(os.getenv('HOMEPATH','C:\\Users\\Default'),'RadioLog')
@@ -1279,7 +1294,9 @@ class MyWindow(QDialog,Ui_Dialog):
 		#    - set the next clue number to one more than the latest clue number in the previous CSV
 		#       (with a reminder that clue# can be changed in the clue dialog the next time it is raised)
 
-		if not restoreFlag:
+		if restoreFlag:
+			self.splash.close()
+		else:
 			self.checkForContinuedIncident()
 
 		if self.isContinuedIncident:
@@ -1766,6 +1783,44 @@ class MyWindow(QDialog,Ui_Dialog):
 				teamTable.setCurrentIndex(QModelIndex())
 				teamTable.clearFocus()
 
+	def checkForNewVersion(self):
+		# this is low priority, so it needs to be a non-blocking request (in a thread with a callback)
+		try:
+			logging.info('Checking for new version...')
+			r=requests.get('https://api.github.com/repos/ncssar/radiolog/releases/latest',timeout=2)
+			if r.status_code==200:
+				self.latestReleaseRj=r.json()
+				# logging.info(f'  latest release response:\n{json.dumps(rj,indent=3)}')
+				(latestMajor,latestMinor,latestPatch)=(0,0,0)
+				(currentMajor,currentMinor,currentPatch)=(0,0,0)
+				try:
+					latestName=self.latestReleaseRj.get('name')
+					(latestMajor,latestMinor,latestPatch)=latestName.split('.')
+				except Exception as e:
+					logging.error(f'  Could not parse latest version name "{latestName}": {e}')
+					return
+				try:
+					(currentMajor,currentMinor,currentPatch)=__version__.split('.')
+				except Exception as e:
+					logging.error(f'  Could not parse current version name "{__version__}": {e}')
+					return
+				update=''
+				if latestPatch>currentPatch:
+					update='Patch'
+				if latestMinor>currentMinor:
+					update='Minor'
+				if latestMajor>currentMajor:
+					update='Major'
+				if update:
+					self.updateAvailableText=f'{update} update is available:\n\nCurrently running: {__version__}\nLatest version: {latestName}'
+					logging.info(self.updateAvailableText)
+					self.splash.ui.newVersionLabel.setText(f'New version available ({latestName})')
+					self.splash.ui.newVersionLabel.setVisible(True)
+					self.splash.ui.newVersionFooterLabel.setVisible(True)
+					QApplication.processEvents()
+		except Exception as e:
+			logging.error(f'  Could not check for new version: {e}')
+
 	def getSessions(self,sort='chronological',reverse=False,omitCurrentSession=False,fromCsvFile=None,maxFilesToCheck=999):
 		if fromCsvFile:
 			sortedCsvFiles=[fromCsvFile]
@@ -1940,6 +1995,7 @@ class MyWindow(QDialog,Ui_Dialog):
 					logging.info(f'  not listing {incidentName} OP {lastOP} ({filenameBase}) since OP {opd.get(incidentName,0)} is already listed')
 			else:
 				break
+		self.splash.close()
 		if choices:
 			logging.info('radiolog sessions from the last '+str(continuedIncidentWindowDays)+' days:')
 			logging.info(' (hiding empty sessions; only showing the most recent session of continued incidents)')
@@ -5203,6 +5259,17 @@ class MyWindow(QDialog,Ui_Dialog):
 				logging.info('ERROR: operatorDict had '+str(len(ods))+' matches; should have exactly one match.  Operator usage will not be updated.')
 			self.saveOperators()
 
+		if self.updateAvailableText:
+			updateMsgBox=QMessageBox(QMessageBox.Information,'Update Available',f'{self.updateAvailableText}\n\nDo you want to view the {self.latestReleaseRj.get("name","latest version")} web page now?\n\n(If you want to do the update after RadioLog exits, you can download and run the installer from that web page.)',
+				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			updateMsgBox.show()
+			updateMsgBox.raise_()
+			if updateMsgBox.exec_()==QMessageBox.Yes:
+				latestReleaseUrl=self.latestReleaseRj.get('html_url','https://github.com/ncssar/radiolog')
+				logging.info(f'Opening latest release web page in web browser: {latestReleaseUrl}')
+				webbrowser.open(latestReleaseUrl)
+
+
 		# cleanShutdownFlag race condition: saveRcFile is called also from within save if
 		#  no entries have been created, but that may not happen until after the
 		#  call to saveRcFile here a few lines farther down.  If saveRcFile from within save
@@ -5250,7 +5317,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		waitedSec=0
 		total=-1
 		prefix='Print job(s) submitted.\n\n' if bypassReally else ''
-		shuttingDownMsgBox=QMessageBox(QMessageBox.Information,'Shutting Down',prefix+'RadioLog is shutting down...',
+		shuttingDownMsgBox=QMessageBox(QMessageBox.NoIcon,'Shutting Down',prefix+'RadioLog is shutting down...',
 			QMessageBox.NoButton,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 		# shuttingDownMsgBoxShown=False
 		while total!=0 and waitedSec<10:
@@ -7820,6 +7887,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		while self.newEntryWindow.isVisible():
 			time.sleep(1)
 		self._sig_caltopoReconnectedFromCreateCTS.emit()
+		self.checkForNewVersion() # if check wasn't possible at startup, try to check on reconnect so that shutdown update dialog still shows if needed
 		# logging.info('btl c0')
 
 	def caltopoReconnectedFromCreateCTS_mainThread(self):
@@ -8061,6 +8129,18 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.optionsDialog.ui.caltopoLinkIndicator.setStyleSheet(ss)
 		self.ui.caltopoLinkIndicator.setStyleSheet(ss)
 		self.ui.caltopoLinkIndicator.setText(t)
+
+
+# splash window: QSplashScreen doesn't allow much control; use QDialog instead
+class Splash(QDialog,Ui_splash):
+	def __init__(self,parent):
+		QDialog.__init__(self)
+		self.ui=Ui_splash()
+		self.ui.setupUi(self)
+		self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint)
+		self.ui.currentVersionLabel.setText(str(__version__))
+		self.ui.newVersionLabel.setVisible(False)
+		self.ui.newVersionFooterLabel.setVisible(False)
 
 
 class helpWindow(QDialog,Ui_Help):
