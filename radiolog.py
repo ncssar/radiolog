@@ -975,11 +975,16 @@ class MyWindow(QDialog,Ui_Dialog):
 		QDialog.__init__(self)
 		QApplication.processEvents()
 		self.splash=Splash(self)
+		self.updateAvailableText=''
+		self.latestReleaseRj={}
+		self.checkForNewVersion()
 		QApplication.processEvents()
 		self.splash.show()
 		self.splash.raise_()
 		QApplication.processEvents()
 		time.sleep(2)
+		if self.updateAvailableText:
+			time.sleep(2)
 		self.newWorkingDir=False # is this the first time using a newly created working dir?  (if so, suppress some warnings)
 		msg='RadioLog '+str(__version__)
 		self.firstWorkingDir=os.path.join(os.getenv('HOMEPATH','C:\\Users\\Default'),'RadioLog')
@@ -1770,10 +1775,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.openMapThread=caltopoOpenMapThread(self)
 		self.openMapThread.finished.connect(self.openMapCB)
 
-		self.updateAvailableText=''
-		self.latestReleaseRj={}
-		self.checkForNewVersion()
-
 	def clearSelectionAllTables(self):
 		self.ui.tableView.setCurrentIndex(QModelIndex())
 		self.ui.tableView.clearFocus() # to get rid of dotted focus box around cell 0,0
@@ -1793,15 +1794,15 @@ class MyWindow(QDialog,Ui_Dialog):
 				(latestMajor,latestMinor,latestPatch)=(0,0,0)
 				(currentMajor,currentMinor,currentPatch)=(0,0,0)
 				try:
-					latestName=rj.get('name')
+					latestName=self.latestReleaseRj.get('name')
 					(latestMajor,latestMinor,latestPatch)=latestName.split('.')
 				except Exception as e:
-					logging.error(f'  Could not parse latest version name "{latestName}"')
+					logging.error(f'  Could not parse latest version name "{latestName}": {e}')
 					return
 				try:
 					(currentMajor,currentMinor,currentPatch)=__version__.split('.')
 				except Exception as e:
-					logging.error(f'  Could not parse current version name "{__version__}"')
+					logging.error(f'  Could not parse current version name "{__version__}": {e}')
 					return
 				update=''
 				if latestPatch>currentPatch:
@@ -1811,8 +1812,12 @@ class MyWindow(QDialog,Ui_Dialog):
 				if latestMajor>currentMajor:
 					update='Major'
 				if update:
-					self.updateAvailableText=f'{update} update is available:  Current={__version__}  Latest={latestName}'
+					self.updateAvailableText=f'{update} update is available:\n\nCurrently running: {__version__}\nLatest version: {latestName}'
 					logging.info(self.updateAvailableText)
+					self.splash.ui.newVersionLabel.setText(f'New version available ({latestName})')
+					self.splash.ui.newVersionLabel.setVisible(True)
+					self.splash.ui.newVersionFooterLabel.setVisible(True)
+					QApplication.processEvents()
 		except Exception as e:
 			logging.error(f'  Could not check for new version: {e}')
 
@@ -5254,6 +5259,17 @@ class MyWindow(QDialog,Ui_Dialog):
 				logging.info('ERROR: operatorDict had '+str(len(ods))+' matches; should have exactly one match.  Operator usage will not be updated.')
 			self.saveOperators()
 
+		if self.updateAvailableText:
+			updateMsgBox=QMessageBox(QMessageBox.Information,'Update Available',f'{self.updateAvailableText}\n\nDo you want to view the {self.latestReleaseRj.get("name","latest version")} web page now?\n\n(If you want to do the update after RadioLog exits, you can download and run the installer from that web page.)',
+				QMessageBox.Yes|QMessageBox.No,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
+			updateMsgBox.show()
+			updateMsgBox.raise_()
+			if updateMsgBox.exec_()==QMessageBox.Yes:
+				latestReleaseUrl=self.latestReleaseRj.get('html_url','https://github.com/ncssar/radiolog')
+				logging.info(f'Opening latest release web page in web browser: {latestReleaseUrl}')
+				webbrowser.open(latestReleaseUrl)
+
+
 		# cleanShutdownFlag race condition: saveRcFile is called also from within save if
 		#  no entries have been created, but that may not happen until after the
 		#  call to saveRcFile here a few lines farther down.  If saveRcFile from within save
@@ -8114,14 +8130,16 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.caltopoLinkIndicator.setText(t)
 
 
+# splash window: QSplashScreen doesn't allow much control; use QDialog instead
 class Splash(QDialog,Ui_splash):
 	def __init__(self,parent):
 		QDialog.__init__(self)
 		self.ui=Ui_splash()
 		self.ui.setupUi(self)
+		self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint)
 		self.ui.currentVersionLabel.setText(str(__version__))
-		self.ui.newVersionLabel.setText('')
-		self.ui.newVersionFooterLabel.setText('')
+		self.ui.newVersionLabel.setVisible(False)
+		self.ui.newVersionFooterLabel.setVisible(False)
 
 
 class helpWindow(QDialog,Ui_Help):
