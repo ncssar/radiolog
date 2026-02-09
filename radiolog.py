@@ -2201,7 +2201,7 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.continueSec=int(self.continueSec)
 
 		if self.fsBypassSequenceChecks and self.fsBypassSequenceChecks not in ['True','False']:
-			configErr+='ERROR: fsBypassSequenceChecks value must be True or False.  Will set to False by default.'
+			configErr+='ERROR: fsBypassSequenceChecks value must be True or False.  Will set to False by default.\n\n'
 			self.fsBypassSequenceChecks='False'
 		if type(self.fsBypassSequenceChecks)==str:
 			self.fsBypassSequenceChecks=eval(self.fsBypassSequenceChecks)
@@ -2209,19 +2209,19 @@ class MyWindow(QDialog,Ui_Dialog):
 			logging.info('FleetSync / NEXEDGE sequence checks will be bypassed for this session; every part of every incoming message will raise a new entry popup if needed.')
 
 		if self.caltopoIntegrationDefault and self.caltopoIntegrationDefault not in ['True','False']:
-			configErr+='ERROR: caltopoIntegrationDefault value must be True or False.  Will set to False by default.'
+			configErr+='ERROR: caltopoIntegrationDefault value must be True or False.  Will set to False by default.\n\n'
 			self.caltopoIntegrationDefault='False'
 		if type(self.caltopoIntegrationDefault)==str:
 			self.caltopoIntegrationDefault=eval(self.caltopoIntegrationDefault)
 			
 		if self.caltopoMapMarkersDefault and self.caltopoMapMarkersDefault not in ['True','False']:
-			configErr+='ERROR: caltopoMapMarkersDefault value must be True or False.  Will set to False by default.'
+			configErr+='ERROR: caltopoMapMarkersDefault value must be True or False.  Will set to False by default.\n\n'
 			self.caltopoMapMarkersDefault='False'
 		if type(self.caltopoMapMarkersDefault)==str:
 			self.caltopoMapMarkersDefault=eval(self.caltopoMapMarkersDefault)
 			
 		if self.caltopoWebBrowserDefault and self.caltopoWebBrowserDefault not in ['True','False']:
-			configErr+='ERROR: caltopoWebBrowserDefault value must be True or False.  Will set to False by default.'
+			configErr+='ERROR: caltopoWebBrowserDefault value must be True or False.  Will set to False by default.\n\n'
 			self.caltopoWebBrowserDefault='False'
 		if type(self.caltopoWebBrowserDefault)==str:
 			self.caltopoWebBrowserDefault=eval(self.caltopoWebBrowserDefault)
@@ -2248,7 +2248,9 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.continuedIncidentWindowDays=int(self.continuedIncidentWindowDays)
 			 
 		if configErr:
-			self.configErrMsgBox=QMessageBox(QMessageBox.Warning,"Non-fatal Configuration Error(s)","Error(s) encountered in config file "+self.configFileName+":\n\n"+configErr,
+			msg=f'Non-fatal error(s) encountered in config file "{self.configFileName}":\n\n{configErr}'
+			logging.warning(msg)
+			self.configErrMsgBox=QMessageBox(QMessageBox.Warning,"Non-fatal Configuration Error(s)",msg,
  							QMessageBox.Ok,self,Qt.WindowTitleHint|Qt.WindowCloseButtonHint|Qt.Dialog|Qt.MSWindowsFixedSizeDialogHint|Qt.WindowStaysOnTopHint)
 			self.configErrMsgBox.exec_()
 
@@ -10052,7 +10054,7 @@ class printDialog(QDialog,Ui_printDialog):
 		self.setStyleSheet(globalStyleSheet)
 		self.ui.opPeriodComboBox.addItem(str(self.parent.opPeriod))
 		self.setWindowFlags((self.windowFlags() | Qt.WindowStaysOnTopHint) & ~Qt.WindowMinMaxButtonsHint & ~Qt.WindowContextHelpButtonHint)
-		self.setFixedSize(self.size())
+		# self.setFixedSize(self.size())
 
 	def showEvent(self,event):
 		logging.info("show event called")
@@ -10062,7 +10064,7 @@ class printDialog(QDialog,Ui_printDialog):
 			self.ui.label.setText('Exiting: Select Items to Print')
 			self.ui.cancelButton.setVisible(True)
 			self.ui.buttonBox.button(QDialogButtonBox.Ok).setText("Print and Exit")
-			self.ui.buttonBox.button(QDialogButtonBox.Cancel).setText("Exit without printing")
+			self.ui.buttonBox.button(QDialogButtonBox.Cancel).setText("Exit Without Printing")
 		else:
 			self.ui.label.setText('Select Items to Print')
 			self.ui.cancelButton.setVisible(False)
@@ -10075,6 +10077,25 @@ class printDialog(QDialog,Ui_printDialog):
 			self.ui.clueLogField.setChecked(False)
 			self.ui.clueLogField.setEnabled(False)
 		self.ui.opPeriodComboBox.setCurrentIndex(self.ui.opPeriodComboBox.count()-1)
+		# self.ui.buttonBox.button(QDialogButtonBox.Ok).adjustSize()
+		# self.ui.buttonBox.button(QDialogButtonBox.Cancel).adjustSize()
+		# self.ui.buttonBox.adjustSize()
+		self.adjustSize()
+		QApplication.processEvents()
+		# self.setFixedSize(self.size())
+
+	def closeEvent(self,event):
+		# logging.info('calling closeEvent')
+		self.ui.label.setText('Select Items to Print')
+		self.ui.cancelButton.setVisible(False)
+		self.ui.buttonBox.button(QDialogButtonBox.Ok).setText("Ok")
+		self.ui.buttonBox.button(QDialogButtonBox.Cancel).setText("Cancel")
+	# # 	# release the fixed size, so that code can resize it on the next show
+	# # 	self.setMinimumSize(0,0)
+	# # 	self.setMaximumSize(QWIDGETSIZE_MAX,QWIDGETSIZE_MAX)
+		self.adjustSize()
+		QApplication.processEvents()
+		# logging.info('done with closeEvent')
 
 	def accept(self):
 		opPeriod=self.ui.opPeriodComboBox.currentText()
@@ -10092,6 +10113,9 @@ class printDialog(QDialog,Ui_printDialog):
 # 		logging.info("  printDialog.accept.end.trace1")
 		super(printDialog,self).accept()
 # 		logging.info("  printDialog.accept.end.trace2")
+
+	def reject(self):
+		self.close()
 
 	def dontExitClicked(self):
 		self.parent.dontExit=True
