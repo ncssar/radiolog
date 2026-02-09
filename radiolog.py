@@ -974,17 +974,6 @@ class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
 		QApplication.processEvents()
-		self.splash=Splash(self)
-		self.updateAvailableText=''
-		self.latestReleaseRj={}
-		self.checkForNewVersion()
-		QApplication.processEvents()
-		self.splash.show()
-		self.splash.raise_()
-		QApplication.processEvents()
-		time.sleep(2)
-		if self.updateAvailableText:
-			time.sleep(2)
 		self.newWorkingDir=False # is this the first time using a newly created working dir?  (if so, suppress some warnings)
 		msg='RadioLog '+str(__version__)
 		self.firstWorkingDir=os.path.join(os.getenv('HOMEPATH','C:\\Users\\Default'),'RadioLog')
@@ -1033,8 +1022,34 @@ class MyWindow(QDialog,Ui_Dialog):
 			print(msg)
 			sys.exit(-1)
 
+		# moved version check and splash dialog to take place right after setLogHandlers
+		from PyQt5 import QtGui
+		# #520 - show version number in main window banner
+		self.versionText=str(__version__)
+		self.splash=Splash(self)
+		# determine if this is being run from a pyinstaller executable, or from 'python radiolog.py'
+		# https://stackoverflow.com/a/35514032
+		if '.py' in sys.argv[0]:
+			icon = QtGui.QIcon()
+			icon.addPixmap(QtGui.QPixmap(":/radiolog_ui/icons/radio2.ico"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+			self.splash.ui.pushButton.setIcon(icon)
+			self.versionText+='dev'
+		self.splash.ui.currentVersionLabel.setText(self.versionText)
+		self.updateAvailableText=''
+		self.latestReleaseRj={}
+		self.checkForNewVersion()
+		QApplication.processEvents()
+		self.splash.show()
+		self.splash.raise_()
+		QApplication.processEvents()
+		time.sleep(2)
+		if self.updateAvailableText:
+			time.sleep(2)
+
 		self.configDir=os.path.join(self.firstWorkingDir,'.config')
 		self.configDefaultDir=os.path.join(installDir,'config_default')
+
+		self.transcriptProcess=None
 
 #####  BEGIN config dir migration code #522
 
@@ -1101,14 +1116,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui=Ui_Dialog()
 		self.ui.setupUi(self)
 		self.setStyleSheet(globalStyleSheet)
-		# #520 - show version number in main window banner
-		versionText='RadioLog '+str(__version__)
-		# determine if this is being run from a pyinstaller executable, or from 'python radiolog.py'
-		# https://stackoverflow.com/a/35514032
-		if '.py' in sys.argv[0]:
-			versionText+='dev'
-		self.setWindowTitle(versionText)
-		logging.info(versionText)
+		self.setWindowTitle('RadioLog '+self.versionText)
+		logging.info('RadioLog '+self.versionText)
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.loadFlag=False # set this to true during load, to prevent save on each newEntry
 		self.totalEntryCount=0 # rotate backups after every 5 entries; see newEntryWidget.accept
@@ -1147,7 +1156,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.teamTabsMoreButton.enterEvent=self.sidebarShowHide
 		self.ui.teamTabsMoreButton.setVisible(False)
 		self.ui.teamTabsMoreButton.setGeometry(1,1,30,35)
-		from PyQt5 import QtGui
 		self.teamTabsMoreButtonIcon = QIcon()
 		self.blankIcon=QIcon()
 		self.teamTabsMoreButtonIcon.addPixmap(QPixmap(":/radiolog_ui/icons/3dots.png"), QIcon.Normal, QIcon.Off)
@@ -1800,11 +1808,13 @@ class MyWindow(QDialog,Ui_Dialog):
 					logging.error(f'  Could not parse latest version name "{latestName}": {e}')
 					return
 				try:
-					(currentMajor,currentMinor,currentPatch)=__version__.split('.')
+					# (currentMajor,currentMinor,currentPatch)=__version__.split('.')
+					(currentMajor,currentMinor,currentPatch)=re.sub(r'[^\d\.]','',self.versionText).split('.') # get rid of everything except digits and periods
 				except Exception as e:
 					logging.error(f'  Could not parse current version name "{__version__}": {e}')
 					return
 				update=''
+				logging.info(f'parsed currently running: {(currentMajor,currentMinor,currentPatch)}')
 				if latestPatch>currentPatch:
 					update='Patch'
 				if latestMinor>currentMinor:
@@ -5190,6 +5200,8 @@ class MyWindow(QDialog,Ui_Dialog):
 						self.loginDialog.toggleShow()
 				elif event.key()==Qt.Key_F10:
 					self.teamNotesDialog.toggleShow()
+				elif event.key()==Qt.Key_F11:
+					self.viewTranscript()
 				elif event.key()==Qt.Key_F12:
 					self.toggleTeamHotkeys()
 				elif event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
@@ -7561,6 +7573,24 @@ class MyWindow(QDialog,Ui_Dialog):
 		# 	self.findDialogIsVisible=True
 		# self.findDialogAnimation.start()
 
+	def viewTranscript(self):
+		if sys.platform.startswith('win'):
+			if self.transcriptProcess is not None and self.transcriptProcess.poll() is None: # returns None if still running:
+				logging.info(f'Transcript tail process requested, but is already running with PID {self.transcriptProcess.pid}')
+				return
+			cmd=f'Get-Content -Path "{os.path.join(self.sessionDir,logFileLeafName)}" -Wait'
+			logging.info(f'Opening transcript tail process: {cmd}')
+			self.transcriptProcess=subprocess.Popen(['powershell.exe',cmd],
+				#    creationflags=subprocess.DETACHED_PROCESS,
+					creationflags=subprocess.CREATE_NEW_CONSOLE,
+				#    stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+			)
+			logging.info(f'Transcript viewer launched with PID {self.transcriptProcess.pid}')
+			QTimer.singleShot(1000,self.activateWindow) # since the new terminal steals focus
+			# self.raise_()
+		else:
+			pass
+
 	def unhideTeamTab(self,niceTeamName):
 		if not niceTeamName:
 			return
@@ -8139,8 +8169,9 @@ class Splash(QDialog,Ui_splash):
 		QDialog.__init__(self)
 		self.ui=Ui_splash()
 		self.ui.setupUi(self)
+		self.parent=parent
 		self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint)
-		self.ui.currentVersionLabel.setText(str(__version__))
+		# self.ui.currentVersionLabel.setText(str(__version__))
 		self.ui.newVersionLabel.setVisible(False)
 		self.ui.newVersionFooterLabel.setVisible(False)
 
