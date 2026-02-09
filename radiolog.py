@@ -974,17 +974,6 @@ class MyWindow(QDialog,Ui_Dialog):
 	def __init__(self,parent):
 		QDialog.__init__(self)
 		QApplication.processEvents()
-		self.splash=Splash(self)
-		self.updateAvailableText=''
-		self.latestReleaseRj={}
-		self.checkForNewVersion()
-		QApplication.processEvents()
-		self.splash.show()
-		self.splash.raise_()
-		QApplication.processEvents()
-		time.sleep(2)
-		if self.updateAvailableText:
-			time.sleep(2)
 		self.newWorkingDir=False # is this the first time using a newly created working dir?  (if so, suppress some warnings)
 		msg='RadioLog '+str(__version__)
 		self.firstWorkingDir=os.path.join(os.getenv('HOMEPATH','C:\\Users\\Default'),'RadioLog')
@@ -1032,6 +1021,30 @@ class MyWindow(QDialog,Ui_Dialog):
 			self.configErrMsgBox.exec_()
 			print(msg)
 			sys.exit(-1)
+
+		# moved version check and splash dialog to take place right after setLogHandlers
+		from PyQt5 import QtGui
+		# #520 - show version number in main window banner
+		self.versionText=str(__version__)
+		self.splash=Splash(self)
+		# determine if this is being run from a pyinstaller executable, or from 'python radiolog.py'
+		# https://stackoverflow.com/a/35514032
+		if '.py' in sys.argv[0]:
+			icon = QtGui.QIcon()
+			icon.addPixmap(QtGui.QPixmap(":/radiolog_ui/icons/radio2.ico"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+			self.splash.ui.pushButton.setIcon(icon)
+			self.versionText+='dev'
+		self.splash.ui.currentVersionLabel.setText(self.versionText)
+		self.updateAvailableText=''
+		self.latestReleaseRj={}
+		self.checkForNewVersion()
+		QApplication.processEvents()
+		self.splash.show()
+		self.splash.raise_()
+		QApplication.processEvents()
+		time.sleep(2)
+		if self.updateAvailableText:
+			time.sleep(2)
 
 		self.configDir=os.path.join(self.firstWorkingDir,'.config')
 		self.configDefaultDir=os.path.join(installDir,'config_default')
@@ -1103,14 +1116,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui=Ui_Dialog()
 		self.ui.setupUi(self)
 		self.setStyleSheet(globalStyleSheet)
-		# #520 - show version number in main window banner
-		versionText='RadioLog '+str(__version__)
-		# determine if this is being run from a pyinstaller executable, or from 'python radiolog.py'
-		# https://stackoverflow.com/a/35514032
-		if '.py' in sys.argv[0]:
-			versionText+='dev'
-		self.setWindowTitle(versionText)
-		logging.info(versionText)
+		self.setWindowTitle('RadioLog '+self.versionText)
+		logging.info('RadioLog '+self.versionText)
 		self.setAttribute(Qt.WA_DeleteOnClose)
 		self.loadFlag=False # set this to true during load, to prevent save on each newEntry
 		self.totalEntryCount=0 # rotate backups after every 5 entries; see newEntryWidget.accept
@@ -1149,7 +1156,6 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.ui.teamTabsMoreButton.enterEvent=self.sidebarShowHide
 		self.ui.teamTabsMoreButton.setVisible(False)
 		self.ui.teamTabsMoreButton.setGeometry(1,1,30,35)
-		from PyQt5 import QtGui
 		self.teamTabsMoreButtonIcon = QIcon()
 		self.blankIcon=QIcon()
 		self.teamTabsMoreButtonIcon.addPixmap(QPixmap(":/radiolog_ui/icons/3dots.png"), QIcon.Normal, QIcon.Off)
@@ -1802,11 +1808,13 @@ class MyWindow(QDialog,Ui_Dialog):
 					logging.error(f'  Could not parse latest version name "{latestName}": {e}')
 					return
 				try:
-					(currentMajor,currentMinor,currentPatch)=__version__.split('.')
+					# (currentMajor,currentMinor,currentPatch)=__version__.split('.')
+					(currentMajor,currentMinor,currentPatch)=re.sub(r'[^\d\.]','',self.versionText).split('.') # get rid of everything except digits and periods
 				except Exception as e:
 					logging.error(f'  Could not parse current version name "{__version__}": {e}')
 					return
 				update=''
+				logging.info(f'parsed currently running: {(currentMajor,currentMinor,currentPatch)}')
 				if latestPatch>currentPatch:
 					update='Patch'
 				if latestMinor>currentMinor:
@@ -8161,8 +8169,9 @@ class Splash(QDialog,Ui_splash):
 		QDialog.__init__(self)
 		self.ui=Ui_splash()
 		self.ui.setupUi(self)
+		self.parent=parent
 		self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint)
-		self.ui.currentVersionLabel.setText(str(__version__))
+		# self.ui.currentVersionLabel.setText(str(__version__))
 		self.ui.newVersionLabel.setVisible(False)
 		self.ui.newVersionFooterLabel.setVisible(False)
 
