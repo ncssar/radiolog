@@ -8,7 +8,6 @@ added_files=[
     ('config_default/', 'config_default/'),
     ('clueReport.pdf', '.'),
     ('radio.ico','.'),
-    ('rotateCsvBackups.ps1','.'),
     ('icons/user_icon_80px.png','icons')
 ]
 
