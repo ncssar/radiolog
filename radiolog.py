@@ -1036,6 +1036,8 @@ class MyWindow(QDialog,Ui_Dialog):
 		self.configDir=os.path.join(self.firstWorkingDir,'.config')
 		self.configDefaultDir=os.path.join(installDir,'config_default')
 
+		self.transcriptProcess=None
+
 #####  BEGIN config dir migration code #522
 
 		# create the config dir if it doesn't already exist, and populate it
@@ -5190,6 +5192,8 @@ class MyWindow(QDialog,Ui_Dialog):
 						self.loginDialog.toggleShow()
 				elif event.key()==Qt.Key_F10:
 					self.teamNotesDialog.toggleShow()
+				elif event.key()==Qt.Key_F11:
+					self.viewTranscript()
 				elif event.key()==Qt.Key_F12:
 					self.toggleTeamHotkeys()
 				elif event.key()==Qt.Key_Enter or event.key()==Qt.Key_Return:
@@ -7560,6 +7564,24 @@ class MyWindow(QDialog,Ui_Dialog):
 		# 	self.findDialogAnimation.setEndValue(self.findDialogShownGeom)
 		# 	self.findDialogIsVisible=True
 		# self.findDialogAnimation.start()
+
+	def viewTranscript(self):
+		if sys.platform.startswith('win'):
+			if self.transcriptProcess is not None and self.transcriptProcess.poll() is None: # returns None if still running:
+				logging.info(f'Transcript tail process requested, but is already running with PID {self.transcriptProcess.pid}')
+				return
+			cmd=f'Get-Content -Path "{os.path.join(self.sessionDir,logFileLeafName)}" -Wait'
+			logging.info(f'Opening transcript tail process: {cmd}')
+			self.transcriptProcess=subprocess.Popen(['powershell.exe',cmd],
+				#    creationflags=subprocess.DETACHED_PROCESS,
+					creationflags=subprocess.CREATE_NEW_CONSOLE,
+				#    stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+			)
+			logging.info(f'Transcript viewer launched with PID {self.transcriptProcess.pid}')
+			QTimer.singleShot(1000,self.activateWindow) # since the new terminal steals focus
+			# self.raise_()
+		else:
+			pass
 
 	def unhideTeamTab(self,niceTeamName):
 		if not niceTeamName:

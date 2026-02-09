@@ -219,6 +219,11 @@
         </row>
         <row>
          <property name="text">
+          <string>F11</string>
+         </property>
+        </row>
+        <row>
+         <property name="text">
           <string>F12</string>
          </property>
         </row>
@@ -746,10 +751,11 @@
         </item>
         <item row="14" column="0">
          <property name="text">
-          <string>F12</string>
+          <string>F11</string>
          </property>
          <property name="font">
           <font>
+           <family>MS Shell Dlg 2</family>
            <pointsize>9</pointsize>
            <weight>75</weight>
            <bold>true</bold>
@@ -763,27 +769,19 @@
          <property name="text">
           <string>-</string>
          </property>
-         <property name="textAlignment">
-          <set>AlignCenter</set>
-         </property>
         </item>
         <item row="14" column="2">
          <property name="text">
-          <string>Toggle Team Hotkeys (disables default alphanumeric hotkeys)</string>
-         </property>
-         <property name="font">
-          <font>
-           <family>Segoe UI</family>
-           <pointsize>9</pointsize>
-          </font>
+          <string>Show / hide transcript</string>
          </property>
         </item>
         <item row="15" column="0">
          <property name="text">
-          <string>+ / -</string>
+          <string>F12</string>
          </property>
          <property name="font">
           <font>
+           <family>MS Shell Dlg 2</family>
            <pointsize>9</pointsize>
            <weight>75</weight>
            <bold>true</bold>
@@ -803,7 +801,7 @@
         </item>
         <item row="15" column="2">
          <property name="text">
-          <string>Enlarge / Reduce Font</string>
+          <string>Toggle Team Hotkeys (disables default alphanumeric hotkeys)</string>
          </property>
          <property name="font">
           <font>
@@ -814,11 +812,10 @@
         </item>
         <item row="16" column="0">
          <property name="text">
-          <string>`[backtick] or ~[tilde]</string>
+          <string>+ / -</string>
          </property>
          <property name="font">
           <font>
-           <family>MS Shell Dlg 2</family>
            <pointsize>9</pointsize>
            <weight>75</weight>
            <bold>true</bold>
@@ -838,7 +835,7 @@
         </item>
         <item row="16" column="2">
          <property name="text">
-          <string>Show / hide team summary sidebar</string>
+          <string>Enlarge / Reduce Font</string>
          </property>
          <property name="font">
           <font>
@@ -849,7 +846,7 @@
         </item>
         <item row="17" column="0">
          <property name="text">
-          <string>Ctrl-F</string>
+          <string>`[backtick] or ~[tilde]</string>
          </property>
          <property name="font">
           <font>
@@ -873,20 +870,22 @@
         </item>
         <item row="17" column="2">
          <property name="text">
-          <string>Find</string>
+          <string>Show / hide team summary sidebar</string>
          </property>
          <property name="font">
           <font>
+           <family>Segoe UI</family>
            <pointsize>9</pointsize>
           </font>
          </property>
         </item>
         <item row="18" column="0">
          <property name="text">
-          <string>Ctrl-[Up/Down]</string>
+          <string>Ctrl-F</string>
          </property>
          <property name="font">
           <font>
+           <family>MS Shell Dlg 2</family>
            <pointsize>9</pointsize>
            <weight>75</weight>
            <bold>true</bold>
@@ -905,6 +904,39 @@
          </property>
         </item>
         <item row="18" column="2">
+         <property name="text">
+          <string>Find</string>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>9</pointsize>
+          </font>
+         </property>
+        </item>
+        <item row="19" column="0">
+         <property name="text">
+          <string>Ctrl-[Up/Down]</string>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>9</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="textAlignment">
+          <set>AlignTrailing|AlignVCenter</set>
+         </property>
+        </item>
+        <item row="19" column="1">
+         <property name="text">
+          <string>-</string>
+         </property>
+         <property name="textAlignment">
+          <set>AlignCenter</set>
+         </property>
+        </item>
+        <item row="19" column="2">
          <property name="text">
           <string>Move up or down the message stack</string>
          </property>
