@@ -2725,7 +2725,8 @@ class MyWindow(QDialog,Ui_Dialog):
 						self.fsAwaitingResponse=None # clear the flag
 						logging.info(h+': NO RESPONSE from '+recipient)
 						return
-			if '$PKLSH' in line or '$PKNSH' in line: # handle fleetsync and nexedge in this 'if' clause
+			# if '$PKLSH' in line or '$PKNSH' in line: # handle fleetsync and nexedge in this 'if' clause
+			if '$PKLSH' in line or '$PKLDS' in line or '$PKNSH' in line: # handle fleetsync and nexedge in this 'if' clause
 				seq.append('GPS')
 				lineParse=line.split(',')
 				header=lineParse[0] # $PKLSH or $PKNSH, possibly following CID STX thru ETX
@@ -2750,6 +2751,28 @@ class MyWindow(QDialog,Ui_Dialog):
 							# return
 					else:
 						logging.info("Parsed $PKLSH line contained "+str(len(lineParse))+" tokens instead of the expected 10 tokens; skipping.")
+						origLocString='BAD DATA'
+						formattedLocString='BAD DATA'
+						continue
+				elif '$PKLDS' in header: # fleetsync
+					if len(lineParse)==17:
+						# [header,nval,nstr,wval,wstr,utc,valid,fleet,dev,chksum]=lineParse
+						[header,utc,valid,nval,nstr,wval,wstr,d1,d2,d3,d4,d5,fleet,dev,d6,d7,chksum]=lineParse
+						uid=''
+						callsign=self.getCallsign(fleet,dev)
+						idStr=fleet+':'+dev
+						h='FLEETSYNC'
+						logging.info("$PKLDS (FleetSync) detected containing CID: fleet="+fleet+"  dev="+dev+"  -->  callsign="+callsign)
+						# 744 - if there was a filtered mic bump from this device within the last two seconds,
+						#  and the current line doesn't contain a FS or NXDN CID prefix (BOT or EOT), then skip this GPS-only line completely
+						latestMicBump=self.latestBumpDict.get(str(fleet)+':'+str(dev),0)
+						if time.time()-latestMicBump<2 and not '\x02I' in line and not '\x02gI' in line:
+							logging.info('latest filtered mic bump for this device:'+str(latestMicBump)+'  ('+str(time.time()-latestMicBump)+' seconds ago)')
+							logging.info(' this was within the last two seconds, and this line has no CID data; will send radio marker data, but otherwise skipping this GPS-only line, as part of the same mic bump')
+							gpsAfterMicBump=True
+							# return
+					else:
+						logging.info("Parsed $PKLDS line contained "+str(len(lineParse))+" tokens instead of the expected 17 tokens; skipping.")
 						origLocString='BAD DATA'
 						formattedLocString='BAD DATA'
 						continue
