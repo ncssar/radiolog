@@ -340,7 +340,7 @@ from pyqtspinner import WaitingSpinner
 
 from PyQt5 import QtGui
 
-__version__ = "4.0.0"
+__version__ = "4.0.1"
 
 # json dump, shortened to n lines
 def jd(j):
