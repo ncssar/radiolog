@@ -617,45 +617,48 @@ def getFileNameBase(root):
 	return root+"_"+time.strftime("%Y_%m_%d_%H%M%S")
 
 def getClueNamesShorthand(clueNames):
-	# build a list of numbers mapped from clueNames: use the number if clueName is numeric, or 0 if non-numeric
-	numbers=[]
-	notNumbers=[]
-	for clueName in clueNames:
-		if isinstance(clueName,str) and clueName.isdigit():
-			numbers.append(int(clueName))
-		else:
-			notNumbers.append(clueName)
-	
-	# from Google AI Overview
-	# Ensure sorted order and unique elements
-	numbers = sorted(list(set(numbers)))
-	ranges = []
-	start = numbers[0]
-	
-	for i in range(1, len(numbers)):
-		# Check if the current number is consecutive to the previous one
-		if numbers[i] != numbers[i-1] + 1:
-			# If not, the current range has ended
-			ranges.append((start, numbers[i-1]))
-			start = numbers[i]
-			
-	# Append the last range after the loop finishes
-	ranges.append((start, numbers[-1]))
+	if len(clueNames)==0:
+		return ''
+	else:
+		# build a list of numbers mapped from clueNames: use the number if clueName is numeric, or 0 if non-numeric
+		numbers=[]
+		notNumbers=[]
+		for clueName in clueNames:
+			if isinstance(clueName,str) and clueName.isdigit():
+				numbers.append(int(clueName))
+			else:
+				notNumbers.append(clueName)
+		
+		# from Google AI Overview
+		# Ensure sorted order and unique elements
+		numbers = sorted(list(set(numbers)))
+		ranges = []
+		start = numbers[0]
+		
+		for i in range(1, len(numbers)):
+			# Check if the current number is consecutive to the previous one
+			if numbers[i] != numbers[i-1] + 1:
+				# If not, the current range has ended
+				ranges.append((start, numbers[i-1]))
+				start = numbers[i]
+				
+		# Append the last range after the loop finishes
+		ranges.append((start, numbers[-1]))
 
-	# convert ranges to shorthand
-	# e.g. ranges=[(1, 2), (5, 5), (7, 10), (13, 15), (42, 45)]
-	# shorthand=[str(first)+' thru '+str(last) for (first,last) in ranges]
-	shorthandList=[]
-	for (first,last) in ranges:
-		if first==last:
-			shorthandList.append(f'{first}')
-		elif last-first==1:
-			shorthandList+=[str(first),str(last)]
-		else:
-			# shorthandList.append(f'{first} thru {last}')
-			shorthandList.append(f'{first}-{last}')
-	shorthandList+=notNumbers
-	return ' '.join(shorthandList)
+		# convert ranges to shorthand
+		# e.g. ranges=[(1, 2), (5, 5), (7, 10), (13, 15), (42, 45)]
+		# shorthand=[str(first)+' thru '+str(last) for (first,last) in ranges]
+		shorthandList=[]
+		for (first,last) in ranges:
+			if first==last:
+				shorthandList.append(f'{first}')
+			elif last-first==1:
+				shorthandList+=[str(first),str(last)]
+			else:
+				# shorthandList.append(f'{first} thru {last}')
+				shorthandList.append(f'{first}-{last}')
+		shorthandList+=notNumbers
+		return ' '.join(shorthandList)
 	
 # callback called from both clueDialog and nonRadioClueDialog
 def clueNumberChanged(dialog,mainWindow):
@@ -1320,15 +1323,16 @@ class MyWindow(QDialog,Ui_Dialog):
 
 		clueCount=len(self.usedClueNames)
 		suffix=''
-		if clueCount==0 and not restoreFlag: # don't add 'no clues' wording: it's confusing on restore, since it shows up as the most recent entry
-			usedCluesText='(No clues so far for this incident)'
-		else:
-			if clueCount>1:
-				suffix='s'
-			# clueNamesText=' '.join(self.usedClueNames)
-			clueNamesText=getClueNamesShorthand(self.usedClueNames)
-			usedCluesText='('+str(clueCount)+' clue'+suffix+' so far for this incident: '+clueNamesText+')'
-		rlInitText+=' '+usedCluesText
+		if not restoreFlag: # don't add 'no clues' wording on restor: it's confusing on restore, since it shows up as the most recent entry
+			if clueCount==0:
+				usedCluesText='(No clues so far for this incident)'
+			else:
+				if clueCount>1:
+					suffix='s'
+				# clueNamesText=' '.join(self.usedClueNames)
+				clueNamesText=getClueNamesShorthand(self.usedClueNames)
+				usedCluesText='('+str(clueCount)+' clue'+suffix+' so far for this incident: '+clueNamesText+')'
+			rlInitText+=' '+usedCluesText
 		self.radioLog=[[time.strftime("%H%M"),'','',rlInitText,'','',time.time(),'','','',''],
 			['','','','','','',1e10,'','','','']] # 1e10 epoch seconds will keep the blank row at the bottom when sorted
 		logging.info('Initial entry: '+rlInitText)
